@@ -1,0 +1,23 @@
+# Build
+build/
+DerivedData/
+*.xcuserdata
+*.xcworkspace/xcuserdata/
+
+# DMG
+*.dmg
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Certificates
+apple证书/
+
+# Temp
+openclaw_config_tmp.json
+安装文件/
+
+# Large bundled resources (exceed GitHub 100MB limit)
+OpenClawInstaller/Resources/*.tar.gz
