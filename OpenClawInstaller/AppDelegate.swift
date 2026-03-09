@@ -354,10 +354,17 @@ struct MenuBarPopoverView: View {
             Divider()
 
             // Version info
-            if let version = openclawService?.version, !version.isEmpty {
-                Text("Version \(version)")
+            VStack(spacing: 2) {
+                let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+                let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+                Text("OpenClaw Helper v\(appVersion) (\(buildNumber))")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                if let version = openclawService?.version, !version.isEmpty {
+                    Text("OpenClaw Service \(version)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         }
         .padding(16)
