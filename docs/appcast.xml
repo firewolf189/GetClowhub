@@ -15,11 +15,11 @@
           <li>版本更新</li>
         </ul>
       ]]></description>
-      <pubDate>Mon, 09 Mar 2026 23:59:32 +0800</pubDate>
+      <pubDate>Tue, 10 Mar 2026 00:06:18 +0800</pubDate>
       <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.1/GetClawHub.dmg"
-                 length="208454375"
+                 length="208404448"
                  type="application/octet-stream"
-                 sparkle:edSignature="hjMa2mMU3TZ04+i42dtL1Ccz0jkQA+nETUvBQ2oKHFmXbOsf9ynOMsd/XK10CQ3/DjA4fdRMFipwDke4BPS8Dg==" />
+                 sparkle:edSignature="WQ+XLo/Kb+7Ene2MIo0BbqK3/5Y39NpkB77mZTMeCuUwyRAfXvp6YAUXBHtNVf/wGYDHGqSyClfyIdDo6DixCg==" />
     </item>
   </channel>
 </rss>
