@@ -154,6 +154,10 @@ struct InitialView: View {
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
+            Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
             if systemEnvironment.isChecking {
                 ProgressView()
                     .scaleEffect(1.2)
