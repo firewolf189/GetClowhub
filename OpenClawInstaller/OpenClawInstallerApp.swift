@@ -63,6 +63,7 @@ struct OpenClawInstallerApp: App {
         WindowGroup {
             MainContentView(services: services)
                 .frame(minWidth: 960, minHeight: 680)
+                .environmentObject(sparkleUpdater)
                 .onAppear {
                     appDelegate.openclawService = services.openclawService
                     appDelegate.sparkleUpdater = sparkleUpdater

@@ -1,9 +1,16 @@
+import Foundation
 import Combine
 import Sparkle
 
 final class SparkleUpdater: ObservableObject {
-    let objectWillChange = ObservableObjectPublisher()
     private let updaterController: SPUStandardUpdaterController
+
+    @Published var isCheckingVersion = false
+    @Published var updateAvailable = false
+    @Published var latestVersion: String = ""
+    @Published var checkSucceeded = false
+
+    private let appcastURL = "https://firewolf189.github.io/GetClowhub/appcast.xml"
 
     init() {
         updaterController = SPUStandardUpdaterController(
@@ -19,5 +26,83 @@ final class SparkleUpdater: ObservableObject {
 
     var canCheckForUpdates: Bool {
         updaterController.updater.canCheckForUpdates
+    }
+
+    var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+
+    /// Fetch appcast.xml and compare versions.
+    @MainActor
+    func checkLatestVersion() async {
+        guard !isCheckingVersion else { return }
+        isCheckingVersion = true
+        updateAvailable = false
+        checkSucceeded = false
+
+        defer { isCheckingVersion = false }
+
+        guard let url = URL(string: appcastURL) else { return }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let parser = AppcastParser()
+            if let remoteVersion = parser.parseVersion(from: data) {
+                latestVersion = remoteVersion
+                if compareVersions(remoteVersion, isNewerThan: currentVersion) {
+                    updateAvailable = true
+                } else {
+                    checkSucceeded = true
+                    // Reset the checkmark after 2 seconds
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        checkSucceeded = false
+                    }
+                }
+            }
+        } catch {
+            // Silently fail — user can retry
+        }
+    }
+
+    /// Simple version comparison: "1.2.0" > "1.1.0"
+    private func compareVersions(_ a: String, isNewerThan b: String) -> Bool {
+        let partsA = a.split(separator: ".").compactMap { Int($0) }
+        let partsB = b.split(separator: ".").compactMap { Int($0) }
+        let count = max(partsA.count, partsB.count)
+        for i in 0..<count {
+            let va = i < partsA.count ? partsA[i] : 0
+            let vb = i < partsB.count ? partsB[i] : 0
+            if va > vb { return true }
+            if va < vb { return false }
+        }
+        return false
+    }
+}
+
+// MARK: - Appcast XML Parser
+
+/// Minimal parser that extracts sparkle:shortVersionString from appcast.xml.
+private class AppcastParser: NSObject, XMLParserDelegate {
+    private var foundVersion: String?
+    private var currentElement = ""
+    private var currentAttributes: [String: String] = [:]
+
+    func parseVersion(from data: Data) -> String? {
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        parser.parse()
+        return foundVersion
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?,
+                attributes: [String: String] = [:]) {
+        if elementName == "enclosure" || elementName == "item" {
+            // Check for sparkle:shortVersionString in enclosure attributes
+            if let version = attributes["sparkle:shortVersionString"], foundVersion == nil {
+                foundVersion = version
+            }
+        }
     }
 }

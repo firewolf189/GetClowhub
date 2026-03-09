@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @AppStorage("appAppearance") private var appAppearance: String = "system"
 
     var body: some View {
         NavigationSplitView {
@@ -10,6 +11,7 @@ struct DashboardView: View {
             DetailContentView(viewModel: viewModel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .preferredColorScheme(colorSchemeForAppearance)
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -36,6 +38,14 @@ struct DashboardView: View {
             DiagnosticsSheet(report: viewModel.diagnosticReport, isPresented: $viewModel.showDiagnostics)
         }
     }
+
+    private var colorSchemeForAppearance: ColorScheme? {
+        switch appAppearance {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
+        }
+    }
 }
 
 // MARK: - Sidebar
@@ -43,6 +53,15 @@ struct DashboardView: View {
 struct SidebarView: View {
     @Binding var selectedTab: DashboardViewModel.DashboardTab
     @ObservedObject var viewModel: DashboardViewModel
+    @EnvironmentObject var sparkleUpdater: SparkleUpdater
+    @AppStorage("appAppearance") private var appAppearance: String = "system"
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var isDark: Bool {
+        if appAppearance == "dark" { return true }
+        if appAppearance == "light" { return false }
+        return colorScheme == .dark
+    }
 
     var body: some View {
         List(selection: $selectedTab) {
@@ -87,17 +106,66 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 2) {
-                Text("GetClawHub")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-                Text("v\(appVersion)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("GetClawHub")
+                        .font(.caption)
+                        .fontWeight(.medium)
+
+                    HStack(spacing: 4) {
+                        Text("v\(sparkleUpdater.currentVersion)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        // Version check button / status
+                        if sparkleUpdater.isCheckingVersion {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .scaleEffect(0.7)
+                        } else if sparkleUpdater.updateAvailable {
+                            Button(action: { sparkleUpdater.checkForUpdates() }) {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "arrow.up.circle.fill")
+                                        .font(.system(size: 10))
+                                    Text("v\(sparkleUpdater.latestVersion)")
+                                        .font(.caption2)
+                                }
+                                .foregroundColor(.green)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Update to v\(sparkleUpdater.latestVersion)")
+                        } else if sparkleUpdater.checkSucceeded {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.green)
+                        } else {
+                            Button(action: {
+                                Task { await sparkleUpdater.checkLatestVersion() }
+                            }) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Check for Updates")
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Button(action: {
+                    appAppearance = isDark ? "light" : "dark"
+                }) {
+                    Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isDark ? "Switch to Light Mode" : "Switch to Dark Mode")
             }
-            .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
+            .padding(.horizontal, 16)
         }
         .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 280)
     }

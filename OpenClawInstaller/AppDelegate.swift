@@ -14,10 +14,47 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
+        cleanupMainMenu()
+    }
+
+    /// Called on every event loop iteration.
+    /// SwiftUI keeps injecting unwanted menu items (Services, View, Help),
+    /// so we strip them out each time before the UI renders.
+    func applicationWillUpdate(_ notification: Notification) {
+        cleanupMainMenu()
+    }
+
+    // MARK: - Main Menu Cleanup
+
+    /// Remove unwanted menus and menu items that SwiftUI auto-generates.
+    private func cleanupMainMenu() {
+        guard let mainMenu = NSApp.mainMenu else { return }
+
+        // Remove top-level menus: View, Help
+        for item in mainMenu.items.reversed() {
+            let title = item.submenu?.title ?? ""
+            if title == "View" || title == "Help" {
+                mainMenu.removeItem(item)
+            }
+        }
+
+        // Remove "Services" from the App menu (first menu)
+        if let appMenu = mainMenu.items.first?.submenu {
+            for (index, item) in appMenu.items.enumerated().reversed() {
+                if item.title == "Services" || item.submenu === NSApp.servicesMenu {
+                    appMenu.removeItem(item)
+                    // Remove the separator above it if present
+                    if index > 0 && index - 1 < appMenu.items.count
+                        && appMenu.items[index - 1].isSeparatorItem {
+                        appMenu.removeItem(at: index - 1)
+                    }
+                }
+            }
+            NSApp.servicesMenu = nil
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Cleanup
         statusItem = nil
         openclawService?.stopMonitoring()
     }
