@@ -7,9 +7,9 @@ set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_NAME="OpenClawInstaller"
-APP_NAME="OpenClawInstaller.app"
+APP_NAME="GetClawHub.app"
 BUILD_DIR="$PROJECT_DIR/build"
-DMG_NAME="OpenClawHelper.dmg"
+DMG_NAME="GetClawHub.dmg"
 GITHUB_REPO="firewolf189/GetClowhub"
 DOCS_DIR="$PROJECT_DIR/docs"
 
@@ -74,7 +74,6 @@ done
 # 删除旧的 DMG
 DMG_PATH="$PROJECT_DIR/$DMG_NAME"
 rm -f "$DMG_PATH"
-rm -f "$PROJECT_DIR/OpenClawInstaller.dmg"
 
 # 使用用户私有临时目录（避免 /tmp 的权限和索引问题）
 TMP_DMG_DIR=$(mktemp -d "${TMPDIR}openclaw_dmg.XXXXXX")
@@ -88,7 +87,7 @@ cp -R "$APP_PATH" "$TMP_DMG_DIR/"
 
 # 移除隔离属性，避免"文件已损坏"错误
 echo "🔓 移除隔离属性..."
-xattr -cr "$TMP_DMG_DIR/OpenClawInstaller.app" 2>/dev/null || true
+xattr -cr "$TMP_DMG_DIR/GetClawHub.app" 2>/dev/null || true
 
 # 复制安装脚本（用户双击即可安装，自动处理 Gatekeeper）
 INSTALL_SCRIPT="$PROJECT_DIR/Install OpenClaw Helper.command"
@@ -114,7 +113,7 @@ TMP_DMG="${TMP_DMG_DIR}.dmg"
 rm -f "$TMP_DMG"
 
 for i in 1 2 3; do
-    if hdiutil create -volname "OpenClawHelper" \
+    if hdiutil create -volname "GetClawHub" \
         -srcfolder "$TMP_DMG_DIR" \
         -format UDZO \
         "$TMP_DMG" 2>/dev/null; then

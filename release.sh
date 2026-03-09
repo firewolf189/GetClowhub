@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# OpenClaw Helper 一键发版脚本
+# GetClawHub 一键发版脚本
 # 用法: ./release.sh <版本号>
 # 示例: ./release.sh 1.0.3
 
@@ -24,7 +24,7 @@ OLD_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST")
 NEW_BUILD=$((OLD_BUILD + 1))
 
 echo "====================================="
-echo "  OpenClaw Helper 发版"
+echo "  GetClawHub 发版"
 echo "  $OLD_VERSION (Build $OLD_BUILD) → $NEW_VERSION (Build $NEW_BUILD)"
 echo "====================================="
 echo ""
@@ -51,7 +51,7 @@ echo ""
 echo "📦 [2/5] 构建 DMG..."
 bash "$PROJECT_DIR/build_dmg.sh"
 
-DMG_PATH="$PROJECT_DIR/OpenClawHelper.dmg"
+DMG_PATH="$PROJECT_DIR/GetClawHub.dmg"
 if [ ! -f "$DMG_PATH" ]; then
     echo "❌ DMG 构建失败"
     exit 1
