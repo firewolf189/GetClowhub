@@ -86,6 +86,19 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 2) {
+                Text("GetClawHub")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+                Text("v\(appVersion)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        }
         .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 280)
     }
 }

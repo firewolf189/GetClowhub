@@ -146,11 +146,12 @@ struct InitialView: View {
         VStack(spacing: 30) {
             Spacer()
 
-            Image(systemName: "terminal.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.blue)
+            Image("Logo1")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 100, height: 100)
 
-            Text("OpenClaw Helper")
+            Text("GetClawHub")
                 .font(.largeTitle)
                 .fontWeight(.bold)
 

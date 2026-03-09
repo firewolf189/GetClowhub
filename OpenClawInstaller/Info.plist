@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.2</string>
+	<string>1.0.3</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>LSUIElement</key>
@@ -26,12 +26,12 @@
 	<string>OpenClaw Installer needs permission to manage OpenClaw services.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>SUPublicEDKey</key>
-	<string>95Z+obwEC2QPE0jNtDK2FWc0MsZkQiNZxQNgN7qdF9Y=</string>
-	<key>SUFeedURL</key>
-	<string>https://firewolf189.github.io/GetClowhub/appcast.xml</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://firewolf189.github.io/GetClowhub/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>95Z+obwEC2QPE0jNtDK2FWc0MsZkQiNZxQNgN7qdF9Y=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 </dict>
