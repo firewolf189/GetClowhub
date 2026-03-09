@@ -85,11 +85,14 @@ final class SparkleUpdater: ObservableObject {
 /// Minimal parser that extracts sparkle:shortVersionString from appcast.xml.
 private class AppcastParser: NSObject, XMLParserDelegate {
     private var foundVersion: String?
-    private var currentElement = ""
-    private var currentAttributes: [String: String] = [:]
+    private var isReadingVersion = false
+    private var versionBuffer = ""
 
     func parseVersion(from data: Data) -> String? {
         let parser = XMLParser(data: data)
+        // Disable namespace processing so "sparkle:shortVersionString"
+        // appears as the raw element name rather than being split.
+        parser.shouldProcessNamespaces = false
         parser.delegate = self
         parser.parse()
         return foundVersion
@@ -98,9 +101,24 @@ private class AppcastParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didStartElement elementName: String,
                 namespaceURI: String?, qualifiedName: String?,
                 attributes: [String: String] = [:]) {
-        if elementName == "enclosure" || elementName == "item" {
-            // Check for sparkle:shortVersionString in enclosure attributes
-            if let version = attributes["sparkle:shortVersionString"], foundVersion == nil {
+        if elementName == "sparkle:shortVersionString" && foundVersion == nil {
+            isReadingVersion = true
+            versionBuffer = ""
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if isReadingVersion {
+            versionBuffer += string
+        }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?) {
+        if elementName == "sparkle:shortVersionString" && isReadingVersion {
+            isReadingVersion = false
+            let version = versionBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !version.isEmpty {
                 foundVersion = version
             }
         }
