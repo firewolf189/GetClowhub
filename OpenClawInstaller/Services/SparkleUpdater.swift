@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import Sparkle
 
+@MainActor
 final class SparkleUpdater: ObservableObject {
     private let updaterController: SPUStandardUpdaterController
 
@@ -21,6 +22,8 @@ final class SparkleUpdater: ObservableObject {
     }
 
     func checkForUpdates() {
+        print("[SparkleUpdater] checkForUpdates called, canCheck=\(updaterController.updater.canCheckForUpdates)")
+        print("[SparkleUpdater] feedURL=\(updaterController.updater.feedURL?.absoluteString ?? "nil")")
         updaterController.checkForUpdates(nil)
     }
 
@@ -33,7 +36,6 @@ final class SparkleUpdater: ObservableObject {
     }
 
     /// Fetch appcast.xml and compare versions.
-    @MainActor
     func checkLatestVersion() async {
         guard !isCheckingVersion else { return }
         isCheckingVersion = true
@@ -45,7 +47,10 @@ final class SparkleUpdater: ObservableObject {
         guard let url = URL(string: appcastURL) else { return }
 
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            // Use a no-cache request to avoid stale responses
+            var request = URLRequest(url: url)
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            let (data, _) = try await URLSession.shared.data(for: request)
             let parser = AppcastParser()
             if let remoteVersion = parser.parseVersion(from: data) {
                 latestVersion = remoteVersion
@@ -53,7 +58,6 @@ final class SparkleUpdater: ObservableObject {
                     updateAvailable = true
                 } else {
                     checkSucceeded = true
-                    // Reset the checkmark after 2 seconds
                     Task {
                         try? await Task.sleep(nanoseconds: 2_000_000_000)
                         checkSucceeded = false
@@ -61,7 +65,7 @@ final class SparkleUpdater: ObservableObject {
                 }
             }
         } catch {
-            // Silently fail — user can retry
+            print("[SparkleUpdater] checkLatestVersion error: \(error)")
         }
     }
 

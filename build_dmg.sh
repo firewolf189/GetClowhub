@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# OpenClaw Installer DMG 构建脚本
-# 快速创建 DMG 安装包
+# GetClawHub DMG 构建脚本
+# 构建、签名、公证、打包 DMG
 
 set -e
 
@@ -13,7 +13,18 @@ DMG_NAME="GetClawHub.dmg"
 GITHUB_REPO="firewolf189/GetClowhub"
 DOCS_DIR="$PROJECT_DIR/docs"
 
-echo "🚀 开始构建 OpenClaw Installer..."
+# ===== Developer ID 签名配置 =====
+SIGN_IDENTITY="Developer ID Application: Zhejiang Hecheng Smart Electric Co., Ltd. (LJQJ5BHW7G)"
+TEAM_ID="LJQJ5BHW7G"
+
+# ===== Apple 公证配置 (可通过环境变量覆盖) =====
+# APPLE_ID: Apple ID 邮箱
+# APPLE_APP_PASSWORD: App 专用密码
+# 如果未设置则跳过公证
+APPLE_ID="${APPLE_ID:-}"
+APPLE_APP_PASSWORD="${APPLE_APP_PASSWORD:-}"
+
+echo "🚀 开始构建 GetClawHub..."
 
 # 清理旧的构建
 if [ -d "$BUILD_DIR" ]; then
@@ -45,21 +56,36 @@ RESOURCES_SRC="$PROJECT_DIR/OpenClawInstaller/Resources"
 RESOURCES_DEST="$APP_PATH/Contents/Resources"
 
 if [ -d "$RESOURCES_SRC" ]; then
-    # 复制资源文件到 app bundle
     cp -R "$RESOURCES_SRC/"* "$RESOURCES_DEST/"
     echo "✅ Node.js 资源已添加"
 
-    # 显示已添加的文件
     echo "📋 已添加的资源:"
     ls -lh "$RESOURCES_DEST"/*.tar.gz 2>/dev/null || echo "   (无 .tar.gz 文件)"
-
-    # 重新签名应用（包含新添加的资源）
-    echo "🔐 重新签名应用..."
-    codesign --force --deep --sign - "$APP_PATH" 2>&1 | grep -v "replacing existing signature" || true
-    echo "✅ 签名完成"
 else
     echo "⚠️  警告: Resources 目录不存在，跳过资源复制"
 fi
+
+# ===== Developer ID 签名 =====
+echo "🔐 使用 Developer ID 证书签名..."
+
+# 签名所有 Frameworks 和动态库
+find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.framework" \) 2>/dev/null | while read -r fw; do
+    codesign --force --options runtime --sign "$SIGN_IDENTITY" "$fw" 2>/dev/null || true
+done
+
+# 签名 Frameworks 目录下的子 bundle
+find "$APP_PATH/Contents/Frameworks" -name "*.framework" -type d 2>/dev/null | while read -r fw; do
+    codesign --force --options runtime --sign "$SIGN_IDENTITY" "$fw" 2>/dev/null || true
+done
+
+# 签名主 app (--deep 确保递归签名所有内容, --options runtime 启用 Hardened Runtime)
+codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$APP_PATH"
+echo "✅ Developer ID 签名完成"
+
+# 验证签名
+echo "🔍 验证签名..."
+codesign --verify --deep --strict "$APP_PATH" 2>&1
+echo "✅ 签名验证通过"
 
 # 创建 DMG
 echo "📦 创建 DMG 安装包..."
@@ -75,21 +101,20 @@ done
 DMG_PATH="$PROJECT_DIR/$DMG_NAME"
 rm -f "$DMG_PATH"
 
-# 使用用户私有临时目录（避免 /tmp 的权限和索引问题）
+# 使用用户私有临时目录
 TMP_DMG_DIR=$(mktemp -d "${TMPDIR}openclaw_dmg.XXXXXX")
 
-# 确保脚本退出时清理临时目录
 cleanup() { rm -rf "$TMP_DMG_DIR"; }
 trap cleanup EXIT
 
 # 复制 .app 到临时目录
 cp -R "$APP_PATH" "$TMP_DMG_DIR/"
 
-# 移除隔离属性，避免"文件已损坏"错误
+# 移除隔离属性
 echo "🔓 移除隔离属性..."
 xattr -cr "$TMP_DMG_DIR/GetClawHub.app" 2>/dev/null || true
 
-# 复制安装脚本（用户双击即可安装，自动处理 Gatekeeper）
+# 复制安装脚本
 INSTALL_SCRIPT="$PROJECT_DIR/Install OpenClaw Helper.command"
 if [ -f "$INSTALL_SCRIPT" ]; then
     cp "$INSTALL_SCRIPT" "$TMP_DMG_DIR/"
@@ -98,13 +123,11 @@ if [ -f "$INSTALL_SCRIPT" ]; then
     echo "📄 已添加安装脚本"
 fi
 
-# 创建 Applications 文件夹的符号链接（拖拽安装备选方式）
+# 创建 Applications 符号链接
 ln -s /Applications "$TMP_DMG_DIR/Applications"
 
-# 禁止 Spotlight 索引临时目录，避免 hdiutil 资源忙
+# 禁止 Spotlight 索引
 touch "$TMP_DMG_DIR/.metadata_never_index"
-
-# 等待 Spotlight 释放文件
 sleep 1
 
 # 生成 DMG（带重试）
@@ -128,10 +151,26 @@ if [ ! -f "$TMP_DMG" ]; then
     exit 1
 fi
 
-# 移动到项目目录
 mv "$TMP_DMG" "$DMG_PATH"
-
 echo "✨ DMG 创建成功: $DMG_PATH"
+
+# ===== Apple 公证 (Notarization) =====
+if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
+    echo "📤 提交 Apple 公证..."
+    xcrun notarytool submit "$DMG_PATH" \
+        --apple-id "$APPLE_ID" \
+        --password "$APPLE_APP_PASSWORD" \
+        --team-id "$TEAM_ID" \
+        --wait
+
+    echo "📎 Staple 公证票据到 DMG..."
+    xcrun stapler staple "$DMG_PATH"
+    echo "✅ 公证完成"
+else
+    echo ""
+    echo "⚠️  未设置 APPLE_ID / APPLE_APP_PASSWORD，跳过公证"
+    echo "   运行方式: APPLE_ID=xxx APPLE_APP_PASSWORD=xxx bash build_dmg.sh"
+fi
 
 # ===== Sparkle 自动更新: EdDSA 签名 + appcast.xml 生成 =====
 
@@ -142,12 +181,10 @@ echo "📋 版本: $MARKETING_VERSION (Build $BUILD_NUMBER)"
 
 # 查找 Sparkle 的 sign_update 工具
 SIGN_UPDATE=""
-# 优先查找 SPM 构建产物中的 sign_update
 SPM_SIGN=$(find "$BUILD_DIR" -name "sign_update" -type f 2>/dev/null | head -1)
 if [ -n "$SPM_SIGN" ] && [ -x "$SPM_SIGN" ]; then
     SIGN_UPDATE="$SPM_SIGN"
 fi
-# 也检查 Sparkle 安装路径
 if [ -z "$SIGN_UPDATE" ] && [ -x "/usr/local/bin/sign_update" ]; then
     SIGN_UPDATE="/usr/local/bin/sign_update"
 fi
@@ -157,13 +194,11 @@ if [ -n "$SIGN_UPDATE" ]; then
     EDDSA_SIGNATURE=$("$SIGN_UPDATE" "$DMG_PATH" 2>&1 | grep "sparkle:edSignature" | sed 's/.*sparkle:edSignature="\([^"]*\)".*/\1/')
 
     if [ -z "$EDDSA_SIGNATURE" ]; then
-        # sign_update 有时直接输出签名字符串
         EDDSA_SIGNATURE=$("$SIGN_UPDATE" "$DMG_PATH" 2>&1 | tail -1)
     fi
     echo "✅ EdDSA 签名完成"
 else
     echo "⚠️  未找到 sign_update 工具，跳过 EdDSA 签名"
-    echo "   请运行: swift run sign_update --help （在 Sparkle 源码目录中）"
     EDDSA_SIGNATURE="SIGNATURE_PLACEHOLDER"
 fi
 

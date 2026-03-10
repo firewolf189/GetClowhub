@@ -1,72 +1,77 @@
 #!/bin/bash
-# OpenClaw Helper 安装脚本
-# 双击此文件即可自动安装
+# GetClawHub 安装脚本
+# 双击此文件即可自动安装（自动处理 Gatekeeper 信任问题）
 
 clear
 echo "================================================"
-echo "        OpenClaw Helper 安装程序"
+echo "        GetClawHub Installer"
 echo "================================================"
 echo ""
 
 # 获取脚本所在目录（即 DMG 挂载目录）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_NAME="OpenClawInstaller.app"
+APP_NAME="GetClawHub.app"
 APP_SRC="$SCRIPT_DIR/$APP_NAME"
 APP_DEST="/Applications/$APP_NAME"
 
 # 检查 app 是否存在
 if [ ! -d "$APP_SRC" ]; then
-    echo "❌ 错误: 找不到 $APP_NAME"
-    echo "   请确保从 DMG 中运行此脚本"
+    echo "Error: $APP_NAME not found"
+    echo "Please run this script from the DMG."
     echo ""
-    echo "按回车键退出..."
+    echo "Press Enter to exit..."
     read
     exit 1
 fi
 
-echo "📦 正在安装 OpenClaw Helper..."
+echo "Installing GetClawHub..."
 echo ""
 
-# 移除 quarantine 属性
-echo "   → 移除安全隔离属性..."
-xattr -cr "$APP_SRC" 2>/dev/null
+# 如果目标已存在，先关闭正在运行的实例
+if pgrep -x "GetClawHub" > /dev/null 2>&1; then
+    echo "   -> Closing running GetClawHub..."
+    killall "GetClawHub" 2>/dev/null
+    sleep 1
+fi
 
 # 如果目标已存在，先删除
 if [ -d "$APP_DEST" ]; then
-    echo "   → 移除旧版本..."
+    echo "   -> Removing old version..."
     rm -rf "$APP_DEST" 2>/dev/null
     if [ -d "$APP_DEST" ]; then
-        echo "   → 需要管理员权限移除旧版本..."
+        echo "   -> Requires admin permission..."
         sudo rm -rf "$APP_DEST"
     fi
 fi
 
 # 复制到 Applications
-echo "   → 复制到 Applications 文件夹..."
+echo "   -> Copying to Applications..."
 cp -R "$APP_SRC" "$APP_DEST" 2>/dev/null
 
 if [ $? -ne 0 ]; then
-    echo "   → 需要管理员权限..."
+    echo "   -> Requires admin permission..."
     sudo cp -R "$APP_SRC" "$APP_DEST"
 fi
 
-# 移除目标的 quarantine
+# 移除 quarantine 属性（解决 Gatekeeper 信任问题）
+echo "   -> Removing quarantine attribute..."
 xattr -cr "$APP_DEST" 2>/dev/null
+if [ $? -ne 0 ]; then
+    sudo xattr -cr "$APP_DEST" 2>/dev/null
+fi
 
 # 验证安装
 if [ -d "$APP_DEST" ]; then
     echo ""
-    echo "✅ 安装成功！"
+    echo "Done! GetClawHub has been installed."
     echo ""
-    echo "   正在启动 OpenClaw Helper..."
+    echo "   Launching GetClawHub..."
     open "$APP_DEST"
-    echo ""
-    echo "   如果没有自动启动，请在 Applications 中找到 OpenClaw Helper 打开"
 else
     echo ""
-    echo "❌ 安装失败，请手动将 $APP_NAME 拖入 Applications 文件夹"
+    echo "Installation failed. Please drag $APP_NAME to Applications manually."
 fi
 
 echo ""
-echo "按回车键关闭此窗口..."
+echo "Press Enter to close..."
 read

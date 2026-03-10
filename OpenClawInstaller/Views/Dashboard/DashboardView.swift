@@ -135,16 +135,24 @@ struct SidebarView: View {
                             .buttonStyle(.plain)
                             .help("Update to v\(sparkleUpdater.latestVersion)")
                         } else if sparkleUpdater.checkSucceeded {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(.green)
+                            HStack(spacing: 2) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 10))
+                                Text("Latest")
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.green)
                         } else {
                             Button(action: {
                                 Task { await sparkleUpdater.checkLatestVersion() }
                             }) {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
+                                HStack(spacing: 2) {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .font(.system(size: 10))
+                                    Text("Update")
+                                        .font(.caption2)
+                                }
+                                .foregroundColor(.secondary)
                             }
                             .buttonStyle(.plain)
                             .help("Check for Updates")
