@@ -36,20 +36,45 @@ class ProviderPresetManager {
 
     init() {
         self.localPath = NSString("~/.openclaw/providers_preset.json").expandingTildeInPath
-        ensureLocalCopy()
+        syncWithBundle()
     }
 
-    /// If local preset file doesn't exist, copy from Bundle
-    private func ensureLocalCopy() {
+    /// Sync Bundle presets to local: append new providers, keep existing user versions
+    private func syncWithBundle() {
         let fm = FileManager.default
-        guard !fm.fileExists(atPath: localPath) else { return }
-
-        // Ensure ~/.openclaw/ directory exists
         let dir = (localPath as NSString).deletingLastPathComponent
         try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
 
-        if let bundlePath = Bundle.main.path(forResource: "providers_preset", ofType: "json") {
-            try? fm.copyItem(atPath: bundlePath, toPath: localPath)
+        guard let bundlePresets = loadFromBundle(), !bundlePresets.isEmpty else { return }
+
+        // Local file doesn't exist → copy Bundle directly
+        guard fm.fileExists(atPath: localPath),
+              let localData = try? Data(contentsOf: URL(fileURLWithPath: localPath)),
+              var localPresets = try? JSONDecoder().decode([ProviderPreset].self, from: localData) else {
+            if let bundlePath = Bundle.main.path(forResource: "providers_preset", ofType: "json") {
+                try? fm.copyItem(atPath: bundlePath, toPath: localPath)
+            }
+            return
+        }
+
+        // Find providers in Bundle that are missing locally
+        let localKeys = Set(localPresets.map { $0.key })
+        let newPresets = bundlePresets.filter { !localKeys.contains($0.key) }
+
+        guard !newPresets.isEmpty else { return }
+
+        // Insert new providers before "custom" (custom stays at the end)
+        if let customIndex = localPresets.firstIndex(where: { $0.key == "custom" }) {
+            localPresets.insert(contentsOf: newPresets, at: customIndex)
+        } else {
+            localPresets.append(contentsOf: newPresets)
+        }
+
+        // Write back to local file
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let data = try? encoder.encode(localPresets) {
+            try? data.write(to: URL(fileURLWithPath: localPath))
         }
     }
 
@@ -60,16 +85,16 @@ class ProviderPresetManager {
               let data = try? Data(contentsOf: URL(fileURLWithPath: localPath)),
               let presets = try? JSONDecoder().decode([ProviderPreset].self, from: data) else {
             // Fallback: try loading from Bundle directly
-            return loadFromBundle()
+            return loadFromBundle() ?? []
         }
         return presets
     }
 
-    private func loadFromBundle() -> [ProviderPreset] {
+    private func loadFromBundle() -> [ProviderPreset]? {
         guard let bundlePath = Bundle.main.path(forResource: "providers_preset", ofType: "json"),
               let data = try? Data(contentsOf: URL(fileURLWithPath: bundlePath)),
               let presets = try? JSONDecoder().decode([ProviderPreset].self, from: data) else {
-            return []
+            return nil
         }
         return presets
     }

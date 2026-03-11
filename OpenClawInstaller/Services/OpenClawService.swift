@@ -75,6 +75,12 @@ class OpenClawService: ObservableObject {
         }
     }
 
+    /// The dedicated Node.js path installed by NodeInstaller
+    private var dedicatedNodePath: String {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        return "\(homeDir)/.openclaw/node/bin/node"
+    }
+
     // MARK: - Service Control
 
     /// Start OpenClaw service
@@ -84,7 +90,7 @@ class OpenClawService: ObservableObject {
         status = .starting
         addLog("Starting OpenClaw service...")
 
-        guard let _ = await openclawCmd("--version") else {
+        guard let openclawPath = await getOpenclawPath() else {
             status = .error
             let msg = "openclaw command not found at any known location"
             lastError = msg
@@ -98,8 +104,19 @@ class OpenClawService: ObservableObject {
             addLog("Config gateway.mode=local: \(configOutput ?? "ok")")
         }
 
-        guard let cmd = await openclawCmd("gateway install 2>&1") else {
-            throw ServiceError.notInstalled
+        // Use our dedicated node to run `openclaw gateway install` so that
+        // process.execPath points to ~/.openclaw/node/bin/node.
+        // This ensures openclaw's resolvePreferredNodePath() writes our node
+        // path into the launchd plist.
+        let nodePath = dedicatedNodePath
+        let cmd: String
+        if FileManager.default.isExecutableFile(atPath: nodePath) {
+            cmd = "'\(nodePath)' '\(openclawPath)' gateway install 2>&1"
+            addLog("Using dedicated node: \(nodePath)")
+        } else {
+            // Fallback: if dedicated node not found, use openclaw directly
+            cmd = "'\(openclawPath)' gateway install 2>&1"
+            addLog("Warning: dedicated node not found at \(nodePath), using openclaw directly")
         }
 
         addLog("Running: \(cmd)")

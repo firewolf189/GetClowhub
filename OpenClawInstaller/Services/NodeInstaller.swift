@@ -45,7 +45,24 @@ class NodeInstaller: ObservableObject {
 
     // Bundled Node.js version
     private let bundledNodeVersion = "v24.14.0"
-    private let bundledNodeArch = "arm64"
+
+    /// Node.js installation directory (user-local, no sudo needed)
+    var nodeInstallDir: String {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        return "\(homeDir)/.openclaw/node"
+    }
+
+    /// Detect CPU architecture at runtime (handles Rosetta correctly)
+    private var bundledNodeArch: String {
+        var sysinfo = utsname()
+        uname(&sysinfo)
+        let machine = withUnsafePointer(to: &sysinfo.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+                String(cString: $0)
+            }
+        }
+        return machine == "arm64" ? "arm64" : "x64"
+    }
 
     init(commandExecutor: CommandExecutor) {
         self.commandExecutor = commandExecutor
@@ -141,22 +158,19 @@ class NodeInstaller: ObservableObject {
         }
     }
 
-    /// Download Node.js installer package
+    /// Download Node.js tar.gz package
     func downloadNodePkg(version: String) async throws -> URL {
         let mirror = isChinaRegion ? "国内镜像" : "Official mirror"
         installationStatus = "Downloading Node.js \(version) from \(mirror)..."
         downloadProgress = 0.0
 
-        // Determine architecture
-        #if arch(arm64)
-        let arch = "arm64"
-        #else
-        let arch = "x64"
-        #endif
+        // Determine architecture at runtime
+        let arch = bundledNodeArch
 
-        // Construct download URL based on region
+        // Construct download URL based on region — download tar.gz (not .pkg)
+        // so we can install to ~/.openclaw/node/ without sudo
         let mirrorURL = getNodeMirrorURL()
-        let urlString = "\(mirrorURL)/\(version)/node-\(version)-darwin-\(arch).pkg"
+        let urlString = "\(mirrorURL)/\(version)/node-\(version)-darwin-\(arch).tar.gz"
 
         guard let url = URL(string: urlString) else {
             throw NodeInstallationError.downloadFailed("Invalid download URL")
@@ -167,7 +181,7 @@ class NodeInstaller: ObservableObject {
 
         // Create temporary directory for download
         let tempDir = FileManager.default.temporaryDirectory
-        let destinationURL = tempDir.appendingPathComponent("node-\(version).pkg")
+        let destinationURL = tempDir.appendingPathComponent("node-\(version)-darwin-\(arch).tar.gz")
 
         // Remove existing file if present
         try? FileManager.default.removeItem(at: destinationURL)
@@ -218,6 +232,8 @@ class NodeInstaller: ObservableObject {
         appendLog("Preparing to extract Node.js from \(tarPath.lastPathComponent)...")
         downloadProgress = 0.1
 
+        let targetDir = nodeInstallDir
+
         do {
             // Remove quarantine attribute from tar.gz before extraction
             let _ = try? await commandExecutor.execute(
@@ -227,7 +243,7 @@ class NodeInstaller: ObservableObject {
             )
 
             installationStatus = "Extracting Node.js (this may take a moment)..."
-            appendLog("Extracting Node.js to /usr/local...")
+            appendLog("Extracting Node.js to \(targetDir)...")
             downloadProgress = 0.2
 
             // Start a timer to simulate progress during extraction
@@ -241,20 +257,19 @@ class NodeInstaller: ObservableObject {
                 }
             }
 
-            // Single sudo call: extract Node.js + remove quarantine attributes
-            // Combined to avoid multiple password prompts
+            // Extract to ~/.openclaw/node/ (no sudo needed)
             let installCommand = """
-            mkdir -p /usr/local && \
-            tar -xzf "\(tarPath.path)" -C /usr/local --strip-components=1 && \
-            xattr -cr /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx 2>/dev/null; \
-            xattr -cr /usr/local/lib/node_modules 2>/dev/null; \
+            mkdir -p "\(targetDir)" && \
+            tar -xzf "\(tarPath.path)" -C "\(targetDir)" --strip-components=1 && \
+            xattr -cr "\(targetDir)/bin/node" "\(targetDir)/bin/npm" "\(targetDir)/bin/npx" 2>/dev/null; \
+            xattr -cr "\(targetDir)/lib/node_modules" 2>/dev/null; \
             true
             """
 
             _ = try await commandExecutor.execute(
                 "/bin/bash",
                 args: ["-c", installCommand],
-                withSudo: true
+                withSudo: false
             ) { output in
                 self.appendLog(output)
             }
@@ -267,13 +282,15 @@ class NodeInstaller: ObservableObject {
             downloadProgress = 0.75
 
             // Verify the key binary exists after extraction
-            let nodeExists = FileManager.default.isExecutableFile(atPath: "/usr/local/bin/node")
-            let npmExists = FileManager.default.isExecutableFile(atPath: "/usr/local/bin/npm")
+            let nodeBinPath = "\(targetDir)/bin/node"
+            let npmBinPath = "\(targetDir)/bin/npm"
+            let nodeExists = FileManager.default.isExecutableFile(atPath: nodeBinPath)
+            let npmExists = FileManager.default.isExecutableFile(atPath: npmBinPath)
             appendLog("node binary exists: \(nodeExists), npm binary exists: \(npmExists)")
 
             if !nodeExists {
                 throw NodeInstallationError.installationFailed(
-                    "Node binary not found at /usr/local/bin/node after extraction"
+                    "Node binary not found at \(nodeBinPath) after extraction"
                 )
             }
 
@@ -331,7 +348,7 @@ class NodeInstaller: ObservableObject {
         var nodePath: String? = nil
 
         // 1. Check known installation paths directly (most reliable after tar extraction)
-        let knownPaths = ["/usr/local/bin/node", "/opt/homebrew/bin/node"]
+        let knownPaths = ["\(nodeInstallDir)/bin/node", "/usr/local/bin/node", "/opt/homebrew/bin/node"]
         for path in knownPaths {
             if FileManager.default.isExecutableFile(atPath: path) {
                 nodePath = path
@@ -391,16 +408,16 @@ class NodeInstaller: ObservableObject {
                 let version = try await getLatestNodeVersion()
                 appendLog("Latest LTS version: \(version)")
 
-                // Download package
+                // Download tar.gz package
                 let pkgPath = try await downloadNodePkg(version: version)
                 appendLog("Download complete: \(pkgPath.lastPathComponent)")
 
-                // Check file extension and install accordingly
-                if pkgPath.pathExtension == "pkg" {
-                    try await installNode(from: pkgPath)
-                } else if pkgPath.pathExtension == "gz" || pkgPath.path.hasSuffix(".tar.gz") {
-                    try await installNodeFromTarGz(from: pkgPath)
-                }
+                // Install from tar.gz to ~/.openclaw/node/
+                try await installNodeFromTarGz(from: pkgPath)
+
+                // Clean up downloaded file
+                try? FileManager.default.removeItem(at: pkgPath)
+                appendLog("Cleaned up downloaded package.")
             }
 
             // Verify installation

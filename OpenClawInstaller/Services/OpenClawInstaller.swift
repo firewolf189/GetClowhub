@@ -290,7 +290,7 @@ class OpenClawInstaller: ObservableObject {
         }
     }
 
-    /// Ensure the openclaw bin directory is in the user's shell PATH
+    /// Ensure the openclaw bin directory and dedicated node bin are in the user's shell PATH
     private func ensureBinInPath() async {
         guard let openclawPath = verifiedOpenclawPath else {
             appendLog("No verified openclaw path, skipping PATH configuration")
@@ -301,33 +301,45 @@ class OpenClawInstaller: ObservableObject {
         let binDir = (openclawPath as NSString).deletingLastPathComponent
         appendLog("openclaw bin directory: \(binDir)")
 
-        // Skip if it's a standard system PATH location (already in PATH by default)
-        let standardPaths = ["/usr/local/bin", "/usr/bin", "/opt/homebrew/bin"]
-        if standardPaths.contains(binDir) {
-            appendLog("bin directory \(binDir) is a standard PATH location, skipping")
-            return
-        }
+        // Dedicated node bin directory
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let nodeBinDir = "\(homeDir)/.openclaw/node/bin"
 
-        // Check if this bin dir is already in current PATH
+        // Check if these dirs are already in current PATH
         let pathCheckResult = try? await commandExecutor.execute(
             "/bin/bash", args: ["-l", "-c", "echo $PATH"], withSudo: false
         )
         let currentPath = pathCheckResult?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        if currentPath.contains(binDir) {
-            appendLog("bin directory already in PATH")
+        // Determine which directories need to be added
+        // Skip standard system PATH locations (already in PATH by default)
+        let standardPaths = ["/usr/local/bin", "/usr/bin", "/opt/homebrew/bin"]
+        let needsOpenclawBin = !standardPaths.contains(binDir) && !currentPath.contains(binDir)
+        let needsNodeBin = !currentPath.contains(nodeBinDir)
+
+        if !needsOpenclawBin && !needsNodeBin {
+            appendLog("Both bin directories already in PATH")
             return
         }
 
-        // Add to .zshrc (macOS default shell)
-        appendLog("Adding \(binDir) to PATH in ~/.zshrc...")
+        // Build the PATH export line: node bin first, then openclaw bin
+        var pathEntries: [String] = []
+        if needsNodeBin {
+            pathEntries.append("$HOME/.openclaw/node/bin")
+        }
+        if needsOpenclawBin {
+            pathEntries.append(binDir)
+        }
+        let pathExport = pathEntries.joined(separator: ":")
+
+        appendLog("Adding to PATH in ~/.zshrc: \(pathExport)")
         let addPathCmd = """
             PROFILE_FILE="$HOME/.zshrc"
             [ -f "$HOME/.bash_profile" ] && [ ! -f "$HOME/.zshrc" ] && PROFILE_FILE="$HOME/.bash_profile"
-            if ! grep -qF '\(binDir)' "$PROFILE_FILE" 2>/dev/null; then
+            if ! grep -qF '.openclaw/node/bin' "$PROFILE_FILE" 2>/dev/null; then
                 echo '' >> "$PROFILE_FILE"
-                echo '# npm global bin path (added by OpenClaw Installer)' >> "$PROFILE_FILE"
-                echo 'export PATH="\(binDir):$PATH"' >> "$PROFILE_FILE"
+                echo '# OpenClaw node & npm global bin paths (added by OpenClaw Installer)' >> "$PROFILE_FILE"
+                echo 'export PATH="\(pathExport):$PATH"' >> "$PROFILE_FILE"
             fi
             """
         let _ = try? await commandExecutor.execute(

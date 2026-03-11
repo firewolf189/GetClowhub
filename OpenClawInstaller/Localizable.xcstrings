@@ -1,0 +1,1431 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Welcome to OpenClaw Installer" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "مرحبًا بك في مُثبِّت OpenClaw" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "欢迎使用 OpenClaw 安装器" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "歡迎使用 OpenClaw 安裝器" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Velkommen til OpenClaw Installer" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Welkom bij OpenClaw Installer" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Maligayang pagdating sa OpenClaw Installer" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Tervetuloa OpenClaw-asennusohjelmaan" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Bienvenue dans le programme d'installation d'OpenClaw" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Willkommen beim OpenClaw Installer" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Καλώς ήρθατε στο πρόγραμμα εγκατάστασης OpenClaw" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Üdvözli az OpenClaw Telepítő" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Selamat Datang di Penginstal OpenClaw" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Benvenuto nel programma di installazione di OpenClaw" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw インストーラへようこそ" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 설치 프로그램에 오신 것을 환영합니다" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Selamat Datang ke Pemasang OpenClaw" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "به نصب‌کننده OpenClaw خوش آمدید" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Witamy w instalatorze OpenClaw" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Bem-vindo ao Instalador do OpenClaw" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Добро пожаловать в установщик OpenClaw" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Bienvenido al instalador de OpenClaw" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Välkommen till OpenClaw-installationsprogrammet" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "ยินดีต้อนรับสู่ตัวติดตั้ง OpenClaw" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw Yükleyicisine Hoş Geldiniz" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Chào mừng đến với Trình cài đặt OpenClaw" } }
+      }
+    },
+    "This wizard will guide you through installing OpenClaw on your Mac" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "سيرشدك هذا المعالج خلال تثبيت OpenClaw على جهاز Mac الخاص بك" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本向导将引导您在 Mac 上安装 OpenClaw" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "本精靈將引導您在 Mac 上安裝 OpenClaw" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Denne guide hjælper dig med at installere OpenClaw på din Mac" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Deze wizard begeleidt u bij het installeren van OpenClaw op uw Mac" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Gagabayan ka ng wizard na ito sa pag-install ng OpenClaw sa iyong Mac" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Tämä ohjattu toiminto opastaa sinua asentamaan OpenClaw Mac-tietokoneellesi" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Cet assistant vous guidera lors de l'installation d'OpenClaw sur votre Mac" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Dieser Assistent führt Sie durch die Installation von OpenClaw auf Ihrem Mac" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Αυτός ο οδηγός θα σας καθοδηγήσει στην εγκατάσταση του OpenClaw στο Mac σας" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Ez a varázsló végigvezeti az OpenClaw telepítésén a Mac-en" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Wizard ini akan memandu Anda menginstal OpenClaw di Mac Anda" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Questa procedura guidata ti aiuterà a installare OpenClaw sul tuo Mac" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "このウィザードでは、Mac に OpenClaw をインストールする手順を案内します" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "이 마법사가 Mac에 OpenClaw를 설치하는 과정을 안내합니다" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Wizard ini akan membimbing anda memasang OpenClaw pada Mac anda" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "این راهنما شما را در نصب OpenClaw بر روی Mac راهنمایی می‌کند" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Ten kreator przeprowadzi Cię przez instalację OpenClaw na Twoim Macu" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Este assistente irá guiá-lo na instalação do OpenClaw no seu Mac" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Этот мастер проведёт вас через установку OpenClaw на вашем Mac" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Este asistente le guiará en la instalación de OpenClaw en su Mac" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Den här guiden hjälper dig att installera OpenClaw på din Mac" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "ตัวช่วยนี้จะแนะนำคุณในการติดตั้ง OpenClaw บน Mac ของคุณ" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Bu sihirbaz, Mac'inize OpenClaw kurulumu boyunca size rehberlik edecektir" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Trình hướng dẫn này sẽ giúp bạn cài đặt OpenClaw trên máy Mac" } }
+      }
+    },
+    "Automated Installation" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تثبيت تلقائي" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动安装" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "自動安裝" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Automatisk installation" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Automatische installatie" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Awtomatikong Pag-install" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Automaattinen asennus" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Installation automatique" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Automatische Installation" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Αυτόματη εγκατάσταση" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Automatikus telepítés" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Instalasi Otomatis" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Installazione automatica" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "自動インストール" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "자동 설치" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Pemasangan Automatik" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "نصب خودکار" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Automatyczna instalacja" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Instalação automática" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Автоматическая установка" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Instalación automática" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Automatisk installation" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "การติดตั้งอัตโนมัติ" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Otomatik Kurulum" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Cài đặt tự động" } }
+      }
+    },
+    "Installs Node.js and OpenClaw automatically" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يقوم بتثبيت Node.js و OpenClaw تلقائيًا" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动安装 Node.js 和 OpenClaw" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "自動安裝 Node.js 和 OpenClaw" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Installerer Node.js og OpenClaw automatisk" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Installeert Node.js en OpenClaw automatisch" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Awtomatikong nag-i-install ng Node.js at OpenClaw" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Asentaa Node.js:n ja OpenClaw:n automaattisesti" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Installe automatiquement Node.js et OpenClaw" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Installiert Node.js und OpenClaw automatisch" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Εγκαθιστά αυτόματα το Node.js και το OpenClaw" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Automatikusan telepíti a Node.js-t és az OpenClaw-t" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Menginstal Node.js dan OpenClaw secara otomatis" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Installa automaticamente Node.js e OpenClaw" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Node.js と OpenClaw を自動的にインストールします" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Node.js 및 OpenClaw를 자동으로 설치합니다" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Memasang Node.js dan OpenClaw secara automatik" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "Node.js و OpenClaw را به صورت خودکار نصب می‌کند" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Automatycznie instaluje Node.js i OpenClaw" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Instala o Node.js e o OpenClaw automaticamente" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Автоматически устанавливает Node.js и OpenClaw" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Instala Node.js y OpenClaw automáticamente" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Installerar Node.js och OpenClaw automatiskt" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "ติดตั้ง Node.js และ OpenClaw โดยอัตโนมัติ" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Node.js ve OpenClaw'u otomatik olarak kurar" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Tự động cài đặt Node.js và OpenClaw" } }
+      }
+    },
+    "Easy Configuration" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إعداد سهل" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "轻松配置" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "輕鬆設定" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Nem konfiguration" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Eenvoudige configuratie" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Madaling Pag-configure" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Helppo määritys" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Configuration facile" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Einfache Konfiguration" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Εύκολη διαμόρφωση" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Egyszerű beállítás" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Konfigurasi Mudah" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Configurazione semplice" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "簡単な設定" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "간편한 구성" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Konfigurasi Mudah" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "پیکربندی آسان" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Łatwa konfiguracja" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Configuração fácil" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Простая настройка" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Configuración sencilla" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Enkel konfiguration" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "การกำหนดค่าง่าย" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Kolay Yapılandırma" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Cấu hình dễ dàng" } }
+      }
+    },
+    "Guided setup for your OpenClaw instance" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إعداد موجَّه لنسخة OpenClaw الخاصة بك" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "引导式设置您的 OpenClaw 实例" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "引導式設定您的 OpenClaw 實例" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Guidet opsætning af din OpenClaw-instans" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Begeleide configuratie van uw OpenClaw-instantie" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Ginagabayan na pag-setup para sa iyong OpenClaw instance" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Ohjattu asennus OpenClaw-instanssiisi" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Configuration guidée de votre instance OpenClaw" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Geführte Einrichtung Ihrer OpenClaw-Instanz" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Καθοδηγούμενη ρύθμιση του OpenClaw" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Irányított beállítás az OpenClaw példányhoz" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Pengaturan terpandu untuk instans OpenClaw Anda" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Configurazione guidata della tua istanza OpenClaw" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw インスタンスのガイド付きセットアップ" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 인스턴스를 위한 안내식 설정" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Persediaan berpandu untuk instans OpenClaw anda" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "راه‌اندازی هدایت‌شده برای نمونه OpenClaw شما" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Konfiguracja krok po kroku instancji OpenClaw" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Configuração guiada para sua instância do OpenClaw" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пошаговая настройка вашего экземпляра OpenClaw" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Configuración guiada para su instancia de OpenClaw" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Guidad konfiguration av din OpenClaw-instans" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "การตั้งค่าแบบมีคำแนะนำสำหรับ OpenClaw ของคุณ" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw örneğiniz için rehberli kurulum" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Thiết lập có hướng dẫn cho phiên bản OpenClaw của bạn" } }
+      }
+    },
+    "Secure" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "آمن" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安全" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "安全" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Sikker" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Veilig" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Ligtas" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Turvallinen" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Sécurisé" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Sicher" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Ασφαλές" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Biztonságos" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Aman" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Sicuro" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "安全" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "보안" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Selamat" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "امن" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Bezpieczne" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Seguro" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Безопасность" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Seguro" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Säkert" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "ปลอดภัย" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Güvenli" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Bảo mật" } }
+      }
+    },
+    "Requires administrator privileges for system-level installation" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يتطلب صلاحيات المسؤول للتثبيت على مستوى النظام" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "需要管理员权限进行系统级安装" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "需要管理員權限進行系統級安裝" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Kræver administratorrettigheder til installation på systemniveau" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Vereist beheerdersbevoegdheden voor installatie op systeemniveau" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Nangangailangan ng mga pribilehiyo ng administrator para sa pag-install sa antas ng sistema" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Vaatii järjestelmänvalvojan oikeudet järjestelmätason asennukseen" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nécessite les privilèges administrateur pour l'installation au niveau du système" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Erfordert Administratorrechte für die Installation auf Systemebene" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Απαιτεί δικαιώματα διαχειριστή για εγκατάσταση σε επίπεδο συστήματος" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Rendszerszintű telepítéshez rendszergazdai jogosultságok szükségesek" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Memerlukan hak administrator untuk instalasi tingkat sistem" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Richiede i privilegi di amministratore per l'installazione a livello di sistema" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システムレベルのインストールには管理者権限が必要です" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "시스템 수준 설치에는 관리자 권한이 필요합니다" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Memerlukan keistimewaan pentadbir untuk pemasangan peringkat sistem" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "نیازمند دسترسی مدیر سیستم برای نصب در سطح سیستم" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Wymaga uprawnień administratora do instalacji na poziomie systemu" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Requer privilégios de administrador para instalação no nível do sistema" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Требуются права администратора для установки на уровне системы" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Requiere privilegios de administrador para la instalación a nivel del sistema" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Kräver administratörsbehörighet för installation på systemnivå" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "ต้องใช้สิทธิ์ผู้ดูแลระบบสำหรับการติดตั้งระดับระบบ" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Sistem düzeyinde kurulum için yönetici ayrıcalıkları gerektirir" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Yêu cầu quyền quản trị viên để cài đặt ở cấp hệ thống" } }
+      }
+    },
+    "Quick Setup" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إعداد سريع" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "快速设置" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "快速設定" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Hurtig opsætning" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Snelle installatie" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Mabilis na Pag-setup" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Nopea asennus" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Installation rapide" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Schnelle Einrichtung" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Γρήγορη ρύθμιση" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Gyors beállítás" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Pengaturan Cepat" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Configurazione rapida" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クイックセットアップ" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "빠른 설정" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Persediaan Pantas" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "راه‌اندازی سریع" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Szybka konfiguracja" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Configuração rápida" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Быстрая настройка" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Configuración rápida" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Snabb installation" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "ตั้งค่าอย่างรวดเร็ว" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Hızlı Kurulum" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Thiết lập nhanh" } }
+      }
+    },
+    "Complete installation in just a few minutes" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "أكمل التثبيت في دقائق قليلة فقط" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "只需几分钟即可完成安装" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "只需幾分鐘即可完成安裝" } },
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Fuldfør installationen på blot få minutter" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Voltooi de installatie in slechts een paar minuten" } },
+        "fil" : { "stringUnit" : { "state" : "translated", "value" : "Kumpletuhin ang pag-install sa ilang minuto lamang" } },
+        "fi" : { "stringUnit" : { "state" : "translated", "value" : "Asenna muutamassa minuutissa" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Installation complète en quelques minutes seulement" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Installation in nur wenigen Minuten abschließen" } },
+        "el" : { "stringUnit" : { "state" : "translated", "value" : "Ολοκληρώστε την εγκατάσταση σε λίγα μόνο λεπτά" } },
+        "hu" : { "stringUnit" : { "state" : "translated", "value" : "Telepítés mindössze néhány perc alatt" } },
+        "id" : { "stringUnit" : { "state" : "translated", "value" : "Selesaikan instalasi hanya dalam beberapa menit" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Completa l'installazione in pochi minuti" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "わずか数分でインストール完了" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "몇 분 만에 설치 완료" } },
+        "ms" : { "stringUnit" : { "state" : "translated", "value" : "Selesaikan pemasangan dalam beberapa minit sahaja" } },
+        "fa" : { "stringUnit" : { "state" : "translated", "value" : "نصب را تنها در چند دقیقه تکمیل کنید" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Zakończ instalację w zaledwie kilka minut" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Conclua a instalação em apenas alguns minutos" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Установка всего за несколько минут" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Complete la instalación en solo unos minutos" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Slutför installationen på bara några minuter" } },
+        "th" : { "stringUnit" : { "state" : "translated", "value" : "ติดตั้งเสร็จภายในไม่กี่นาที" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Kurulumu yalnızca birkaç dakika içinde tamamlayın" } },
+        "vi" : { "stringUnit" : { "state" : "translated", "value" : "Hoàn tất cài đặt chỉ trong vài phút" } }
+      }
+    },
+    "Quit" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "退出" } }
+      }
+    },
+    "Get Started" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开始" } }
+      }
+    },
+    "Environment Check" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "环境检查" } }
+      }
+    },
+    "Checking your system environment..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在检查系统环境..." } }
+      }
+    },
+    "Operating System" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "操作系统" } }
+      }
+    },
+    "Available Disk Space" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "可用磁盘空间" } }
+      }
+    },
+    "Not Installed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未安装" } }
+      }
+    },
+    "Issues Found:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "发现问题：" } }
+      }
+    },
+    "Gateway Configuration" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网关配置" } }
+      }
+    },
+    "Set an auth token to secure your OpenClaw gateway" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置身份验证令牌以保护您的 OpenClaw 网关" } }
+      }
+    },
+    "Gateway Auth Token" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网关身份验证令牌" } }
+      }
+    },
+    "Enter a token for gateway access" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入网关访问令牌" } }
+      }
+    },
+    "Generate" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "生成" } }
+      }
+    },
+    "This token is required to access the OpenClaw dashboard and API. You can change it later in the configuration page." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "此令牌用于访问 OpenClaw 控制台和 API。您可以稍后在配置页面中更改。" } }
+      }
+    },
+    "Why is a token needed?" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "为什么需要令牌？" } }
+      }
+    },
+    "The auth token protects your gateway from unauthorized access. It will be written to ~/.openclaw/openclaw.json and used when opening the dashboard." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "身份验证令牌保护您的网关免受未经授权的访问。它将写入 ~/.openclaw/openclaw.json 并在打开控制台时使用。" } }
+      }
+    },
+    "Node.js Installation" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Node.js 安装" } }
+      }
+    },
+    "Installing Node.js..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在安装 Node.js..." } }
+      }
+    },
+    "Installation Log" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装日志" } }
+      }
+    },
+    "Installing..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装中..." } }
+      }
+    },
+    "Installing Node.js" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在安装 Node.js" } }
+      }
+    },
+    "Installation Failed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装失败" } }
+      }
+    },
+    "Error Details:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "错误详情：" } }
+      }
+    },
+    "Possible Solutions:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "可能的解决方案：" } }
+      }
+    },
+    "• Check your internet connection" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 检查您的网络连接" } }
+      }
+    },
+    "• Verify you have sufficient disk space" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 确认您有足够的磁盘空间" } }
+      }
+    },
+    "• Try using a VPN if downloads are slow" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 如果下载速度慢，请尝试使用 VPN" } }
+      }
+    },
+    "• Click 'Retry' to attempt installation again" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 点击\u201c重试\u201d再次尝试安装" } }
+      }
+    },
+    "Node.js Successfully Installed!" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Node.js 安装成功！" } }
+      }
+    },
+    "Version:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "版本：" } }
+      }
+    },
+    "Location:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "位置：" } }
+      }
+    },
+    "Status:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "状态：" } }
+      }
+    },
+    "Ready to use" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "可以使用" } }
+      }
+    },
+    "Retry" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重试" } }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "取消" } }
+      }
+    },
+    "Continue" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "继续" } }
+      }
+    },
+    "OpenClaw Installation" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 安装" } }
+      }
+    },
+    "Installing OpenClaw via npm..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在通过 npm 安装 OpenClaw..." } }
+      }
+    },
+    "Installation Progress" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装进度" } }
+      }
+    },
+    "• Ensure Node.js is properly installed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 确保 Node.js 已正确安装" } }
+      }
+    },
+    "• Check your npm registry connection" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 检查您的 npm 注册表连接" } }
+      }
+    },
+    "• Verify network connectivity" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 验证网络连接" } }
+      }
+    },
+    "• Check the installation log for details" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "• 查看安装日志了解详情" } }
+      }
+    },
+    "OpenClaw Successfully Installed!" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 安装成功！" } }
+      }
+    },
+    "Ready for configuration" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "准备配置" } }
+      }
+    },
+    "You can now proceed to configure OpenClaw settings." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "您现在可以继续配置 OpenClaw 设置。" } }
+      }
+    },
+    "Installation Complete!" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装完成！" } }
+      }
+    },
+    "OpenClaw has been successfully installed on your Mac" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 已成功安装在您的 Mac 上" } }
+      }
+    },
+    "Installed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已安装" } }
+      }
+    },
+    "Configuration" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "配置" } }
+      }
+    },
+    "Completed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已完成" } }
+      }
+    },
+    "Gateway" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网关" } }
+      }
+    },
+    "Starting..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "启动中..." } }
+      }
+    },
+    "Running" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "运行中" } }
+      }
+    },
+    "Starting OpenClaw Gateway service..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在启动 OpenClaw 网关服务..." } }
+      }
+    },
+    "OpenClaw Gateway 已启动" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw Gateway 已启动" } }
+      }
+    },
+    "Gateway failed to start" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网关启动失败" } }
+      }
+    },
+    "Retry Start" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重试启动" } }
+      }
+    },
+    "Go to Management" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "前往管理" } }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "确定" } }
+      }
+    },
+    "Report Issue" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "报告问题" } }
+      }
+    },
+    "Error Report" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "错误报告" } }
+      }
+    },
+    "Error Report Copied" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "错误报告已复制" } }
+      }
+    },
+    "Error details have been copied to your clipboard. Please paste them when reporting the issue." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "错误详情已复制到剪贴板。请在报告问题时粘贴。" } }
+      }
+    },
+    "Error" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "错误" } }
+      }
+    },
+    "Chat" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "聊天" } }
+      }
+    },
+    "Overview" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "概览" } }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置" } }
+      }
+    },
+    "Tools" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "工具" } }
+      }
+    },
+    "Status" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "状态" } }
+      }
+    },
+    "Skills" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "技能" } }
+      }
+    },
+    "Models" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "模型" } }
+      }
+    },
+    "Channels" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "频道" } }
+      }
+    },
+    "Plugins" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "插件" } }
+      }
+    },
+    "Logs" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "日志" } }
+      }
+    },
+    "Doctor" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "诊断" } }
+      }
+    },
+    "Latest" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最新版本" } }
+      }
+    },
+    "Check for Updates" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "检查更新" } }
+      }
+    },
+    "Update" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "更新" } }
+      }
+    },
+    "Switch to Light Mode" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "切换到浅色模式" } }
+      }
+    },
+    "Switch to Dark Mode" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "切换到深色模式" } }
+      }
+    },
+    "Describe a task or ask any question" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "描述一个任务或提出任何问题" } }
+      }
+    },
+    "New Conversation" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "新对话" } }
+      }
+    },
+    "Daily Weather Alerts" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "每日天气提醒" } }
+      }
+    },
+    "Auto push weather updates with outfit & travel tips" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动推送天气更新及穿搭出行建议" } }
+      }
+    },
+    "Remote File Control" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "远程文件管理" } }
+      }
+    },
+    "Edit and manage local files from your phone anytime" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "随时通过手机编辑和管理本地文件" } }
+      }
+    },
+    "Mobile Remote Work" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "移动远程办公" } }
+      }
+    },
+    "Browse and handle tasks on-the-go without a laptop" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无需电脑，随时随地浏览和处理任务" } }
+      }
+    },
+    "Social Media Auto Growth" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "社交媒体自动增长" } }
+      }
+    },
+    "Auto engage and post to grow followers effortlessly" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动互动和发帖，轻松增长粉丝" } }
+      }
+    },
+    "GitHub Auto Development" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GitHub 自动开发" } }
+      }
+    },
+    "You bring ideas, I build repos and ship to stars" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "你提出想法，我来构建仓库并发布" } }
+      }
+    },
+    "Your 24/7 all-in-one AI assistant, always at your service" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "您的全天候一站式 AI 助手，随时为您服务" } }
+      }
+    },
+    "Thinking..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "思考中..." } }
+      }
+    },
+    "Diagnostics Report" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "诊断报告" } }
+      }
+    },
+    "Close" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "关闭" } }
+      }
+    },
+    "System Information" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "系统信息" } }
+      }
+    },
+    "macOS Version" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "macOS 版本" } }
+      }
+    },
+    "Architecture" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "架构" } }
+      }
+    },
+    "Available Space" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "可用空间" } }
+      }
+    },
+    "Start" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "启动" } }
+      }
+    },
+    "Stop" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "停止" } }
+      }
+    },
+    "Restart" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重启" } }
+      }
+    },
+    "OpenClaw Path" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 路径" } }
+      }
+    },
+    "Port" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "端口" } }
+      }
+    },
+    "Gateway listening port" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网关监听端口" } }
+      }
+    },
+    "Auth Token" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "身份验证令牌" } }
+      }
+    },
+    "Enter auth token" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入身份验证令牌" } }
+      }
+    },
+    "Authentication token for gateway access" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网关访问身份验证令牌" } }
+      }
+    },
+    "Hide" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐藏" } }
+      }
+    },
+    "Show" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示" } }
+      }
+    },
+    "Model Provider" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "模型提供商" } }
+      }
+    },
+    "Provider" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "提供商" } }
+      }
+    },
+    "API Base URL" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "API 基础 URL" } }
+      }
+    },
+    "API Key" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "API 密钥" } }
+      }
+    },
+    "Enter API key" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入 API 密钥" } }
+      }
+    },
+    "Add Model" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加模型" } }
+      }
+    },
+    "No models configured. Add models or select a provider preset." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未配置模型。请添加模型或选择提供商预设。" } }
+      }
+    },
+    "Model ID" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "模型 ID" } }
+      }
+    },
+    "Context" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上下文" } }
+      }
+    },
+    "Max Out" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最大输出" } }
+      }
+    },
+    "e.g. gpt-4o" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "例如 gpt-4o" } }
+      }
+    },
+    "Name" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "名称" } }
+      }
+    },
+    "Display name (optional)" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示名称（可选）" } }
+      }
+    },
+    "Context Window" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上下文窗口" } }
+      }
+    },
+    "Max Tokens" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最大令牌数" } }
+      }
+    },
+    "Add" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加" } }
+      }
+    },
+    "Reset" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重置" } }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保存" } }
+      }
+    },
+    "Save & Restart" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保存并重启" } }
+      }
+    },
+    "Advanced" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "高级" } }
+      }
+    },
+    "Edit the full configuration file directly for advanced settings." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "直接编辑完整配置文件以进行高级设置。" } }
+      }
+    },
+    "Open Providers Preset" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开提供商预设" } }
+      }
+    },
+    "Open Config File" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开配置文件" } }
+      }
+    },
+    "Switch Provider" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "切换提供商" } }
+      }
+    },
+    "Switch" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "切换" } }
+      }
+    },
+    "Switching provider will replace the current Base URL and model list. API Key will be cleared. Continue?" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "切换提供商将替换当前的基础 URL 和模型列表。API 密钥将被清除。是否继续？" } }
+      }
+    },
+    "You have unsaved changes" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "您有未保存的更改" } }
+      }
+    },
+    "All" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "全部" } }
+      }
+    },
+    "Ready" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "就绪" } }
+      }
+    },
+    "Missing" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "缺失" } }
+      }
+    },
+    "Market" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "市场" } }
+      }
+    },
+    "Install" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装" } }
+      }
+    },
+    "Refresh" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "刷新" } }
+      }
+    },
+    "Search skills..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "搜索技能..." } }
+      }
+    },
+    "Loading skills..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "加载技能中..." } }
+      }
+    },
+    "No skills found" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未找到技能" } }
+      }
+    },
+    "No matching skills" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有匹配的技能" } }
+      }
+    },
+    "Install Skill" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装技能" } }
+      }
+    },
+    "Paste the install command from Skills Market:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "粘贴技能市场的安装命令：" } }
+      }
+    },
+    "Format: npx skills add <url> --skill <name>" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "格式：npx skills add <url> --skill <name>" } }
+      }
+    },
+    "Invalid format. Command must start with \"npx skills add\"" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "格式无效。命令必须以 \"npx skills add\" 开头" } }
+      }
+    },
+    "Output" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输出" } }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+      }
+    },
+    "Failed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "失败" } }
+      }
+    },
+    "Description" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "描述" } }
+      }
+    },
+    "Details" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "详情" } }
+      }
+    },
+    "Source" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "来源" } }
+      }
+    },
+    "Path" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "路径" } }
+      }
+    },
+    "Requirements" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "要求" } }
+      }
+    },
+    "Bundled" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "内置" } }
+      }
+    },
+    "Extra" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "扩展" } }
+      }
+    },
+    "Workspace" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "工作区" } }
+      }
+    },
+    "Loading models..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "加载模型中..." } }
+      }
+    },
+    "No models configured" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未配置模型" } }
+      }
+    },
+    "Default" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "默认" } }
+      }
+    },
+    "Image Model" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "图像模型" } }
+      }
+    },
+    "Not set" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未设置" } }
+      }
+    },
+    "Fallbacks" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "备选" } }
+      }
+    },
+    "None" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无" } }
+      }
+    },
+    "Img Fallbacks" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "图像备选" } }
+      }
+    },
+    "Fallback Models" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "备选模型" } }
+      }
+    },
+    "Image Fallback Models" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "图像备选模型" } }
+      }
+    },
+    "For aliases and auth configuration, use:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "有关别名和身份验证配置，请使用：" } }
+      }
+    },
+    "Set Image" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设为图像模型" } }
+      }
+    },
+    "Set Img FB" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设为图像备选" } }
+      }
+    },
+    "Set Fallback" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设为备选" } }
+      }
+    },
+    "Set Default" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设为默认" } }
+      }
+    },
+    "Fallback" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "备选" } }
+      }
+    },
+    "Img Fallback" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "图像备选" } }
+      }
+    },
+    "Local" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本地" } }
+      }
+    },
+    "Auth" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已认证" } }
+      }
+    },
+    "Add Channel" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加频道" } }
+      }
+    },
+    "Loading channels..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "加载频道中..." } }
+      }
+    },
+    "No channels configured" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未配置频道" } }
+      }
+    },
+    "Add a channel to get started" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加一个频道以开始" } }
+      }
+    },
+    "Remove Channel" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "移除频道" } }
+      }
+    },
+    "Remove" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "移除" } }
+      }
+    },
+    "Channel Type" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "频道类型" } }
+      }
+    },
+    "Token" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "令牌" } }
+      }
+    },
+    "Enter bot token or API key" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入机器人令牌或 API 密钥" } }
+      }
+    },
+    "For Telegram/Discord: bot token. For Slack: bot token (xoxb-...). Other channels may require different credentials." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Telegram/Discord：机器人令牌。Slack：机器人令牌（xoxb-...）。其他频道可能需要不同的凭据。" } }
+      }
+    },
+    "For channels with complex setup (Slack, Matrix, etc.), use the command line:" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "对于设置复杂的频道（Slack、Matrix 等），请使用命令行：" } }
+      }
+    },
+    "Configured" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已配置" } }
+      }
+    },
+    "Not Configured" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未配置" } }
+      }
+    },
+    "Linked" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已关联" } }
+      }
+    },
+    "Not Linked" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未关联" } }
+      }
+    },
+    "Loading plugins..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "加载插件中..." } }
+      }
+    },
+    "No plugins found" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未找到插件" } }
+      }
+    },
+    "Loaded" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已加载" } }
+      }
+    },
+    "Disabled" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已禁用" } }
+      }
+    },
+    "Disable" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "禁用" } }
+      }
+    },
+    "Enable" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "启用" } }
+      }
+    },
+    "Search logs..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "搜索日志..." } }
+      }
+    },
+    "Auto" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动" } }
+      }
+    },
+    "Export" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "导出" } }
+      }
+    },
+    "Open File" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开文件" } }
+      }
+    },
+    "No Logs Available" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "暂无日志" } }
+      }
+    },
+    "Logs will appear here when the gateway service is running" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网关服务运行时日志将显示在此处" } }
+      }
+    },
+    "OpenClaw Installer" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 安装器" } }
+      }
+    },
+    "for macOS" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "macOS 版" } }
+      }
+    },
+    "Administrator Privileges" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "管理员权限" } }
+      }
+    },
+    "Granted" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已授予" } }
+      }
+    },
+    "Not Granted" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未授予" } }
+      }
+    },
+    "Checking environment..." : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在检查环境..." } }
+      }
+    },
+    "Not Detected" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未检测到" } }
+      }
+    },
+    "Check Environment" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "检查环境" } }
+      }
+    },
+    "Start Installation" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开始安装" } }
+      }
+    },
+    "OpenClaw is installed" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "OpenClaw 已安装" } }
+      }
+    },
+    "Open Dashboard" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开控制台" } }
+      }
+    },
+    "Reinstall" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重新安装" } }
+      }
+    },
+    "Ready to install OpenClaw" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "准备安装 OpenClaw" } }
+      }
+    },
+    "Start Service" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "启动服务" } }
+      }
+    },
+    "Stop Service" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "停止服务" } }
+      }
+    },
+    "Show Main Window" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示主窗口" } }
+      }
+    },
+    "Quit OpenClaw Installer" : {
+      "localizations" : {
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "退出 OpenClaw 安装器" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

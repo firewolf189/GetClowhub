@@ -173,7 +173,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Status item
         let statusItem = NSMenuItem(
-            title: "Status: \(openclawService?.status.rawValue ?? "Unknown")",
+            title: "\(String(localized: "Status:")) \(openclawService?.status.rawValue ?? "Unknown")",
             action: nil,
             keyEquivalent: ""
         )
@@ -185,20 +185,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // Start/Stop
         if openclawService?.status == .running {
             menu.addItem(NSMenuItem(
-                title: "Stop Service",
+                title: String(localized: "Stop Service"),
                 action: #selector(stopService),
                 keyEquivalent: "s"
             ))
         } else {
             menu.addItem(NSMenuItem(
-                title: "Start Service",
+                title: String(localized: "Start Service"),
                 action: #selector(startService),
                 keyEquivalent: "s"
             ))
         }
 
         menu.addItem(NSMenuItem(
-            title: "Restart Service",
+            title: String(localized: "Restart"),
             action: #selector(restartService),
             keyEquivalent: "r"
         ))
@@ -207,7 +207,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Dashboard
         let dashboardItem = NSMenuItem(
-            title: "Open Dashboard",
+            title: String(localized: "Open Dashboard"),
             action: #selector(openDashboardFromMenu),
             keyEquivalent: "d"
         )
@@ -215,7 +215,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         menu.addItem(dashboardItem)
 
         menu.addItem(NSMenuItem(
-            title: "Show Main Window",
+            title: String(localized: "Show Main Window"),
             action: #selector(showMainWindow),
             keyEquivalent: "w"
         ))
@@ -224,7 +224,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Check for Updates
         menu.addItem(NSMenuItem(
-            title: "Check for Updates...",
+            title: String(localized: "Check for Updates"),
             action: #selector(checkForUpdates),
             keyEquivalent: "u"
         ))
@@ -233,7 +233,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Quit
         menu.addItem(NSMenuItem(
-            title: "Quit OpenClaw Installer",
+            title: String(localized: "Quit OpenClaw Installer"),
             action: #selector(quitApp),
             keyEquivalent: "q"
         ))
@@ -352,7 +352,7 @@ struct MenuBarPopoverView: View {
             VStack(spacing: 8) {
                 if openclawService?.status == .running {
                     MenuButton(
-                        title: "Open Dashboard",
+                        title: String(localized: "Open Dashboard"),
                         icon: "safari",
                         action: {
                             openclawService?.openDashboard()
@@ -361,7 +361,7 @@ struct MenuBarPopoverView: View {
                     )
 
                     MenuButton(
-                        title: "Stop Service",
+                        title: String(localized: "Stop Service"),
                         icon: "stop.fill",
                         action: {
                             Task {
@@ -371,7 +371,7 @@ struct MenuBarPopoverView: View {
                     )
                 } else {
                     MenuButton(
-                        title: "Start Service",
+                        title: String(localized: "Start Service"),
                         icon: "play.fill",
                         action: {
                             Task {
@@ -382,7 +382,7 @@ struct MenuBarPopoverView: View {
                 }
 
                 MenuButton(
-                    title: "Show Main Window",
+                    title: String(localized: "Show Main Window"),
                     icon: "macwindow",
                     action: onOpenDashboard
                 )

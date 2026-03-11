@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # GetClawHub DMG 构建脚本
-# 构建、签名、公证、打包 DMG
+# 构建、签名、打包 DMG（不含公证，公证请用 notarize_dmg.sh）
 
 set -e
 
@@ -16,13 +16,6 @@ DOCS_DIR="$PROJECT_DIR/docs"
 # ===== Developer ID 签名配置 =====
 SIGN_IDENTITY="Developer ID Application: Zhejiang Hecheng Smart Electric Co., Ltd. (LJQJ5BHW7G)"
 TEAM_ID="LJQJ5BHW7G"
-
-# ===== Apple 公证配置 (可通过环境变量覆盖) =====
-# APPLE_ID: Apple ID 邮箱
-# APPLE_APP_PASSWORD: App 专用密码
-# 如果未设置则跳过公证
-APPLE_ID="${APPLE_ID:-}"
-APPLE_APP_PASSWORD="${APPLE_APP_PASSWORD:-}"
 
 echo "🚀 开始构建 GetClawHub..."
 
@@ -61,6 +54,94 @@ if [ -d "$RESOURCES_SRC" ]; then
 
     echo "📋 已添加的资源:"
     ls -lh "$RESOURCES_DEST"/*.tar.gz 2>/dev/null || echo "   (无 .tar.gz 文件)"
+
+    # ===== 签名 tar.gz 内的原生二进制文件 =====
+    echo "🔏 开始签名 tar.gz 内的原生二进制文件..."
+    echo "   资源目录: $RESOURCES_DEST"
+
+    # Node.js / V8 可执行文件需要 JIT 权限，否则 Hardened Runtime 会阻止 V8 分配可执行内存
+    NODE_ENTITLEMENTS="$PROJECT_DIR/node-entitlements.plist"
+    if [ ! -f "$NODE_ENTITLEMENTS" ]; then
+        echo "   ❌ 找不到 node-entitlements.plist: $NODE_ENTITLEMENTS"
+        exit 1
+    fi
+    echo "   使用 entitlements: $NODE_ENTITLEMENTS"
+
+    # 带重试的签名函数（Apple 时间戳服务器偶尔不可用）
+    codesign_retry() {
+        local max_retries=5
+        local retry_delay=10
+        for i in $(seq 1 $max_retries); do
+            if codesign "$@" 2>/dev/null; then
+                return 0
+            fi
+            if [ $i -lt $max_retries ]; then
+                echo "   ⏳ 时间戳服务不可用，${retry_delay}秒后重试 ($i/$max_retries)..."
+                sleep $retry_delay
+                retry_delay=$((retry_delay * 2))
+            fi
+        done
+        return 1
+    }
+
+    TARGZ_LIST=$(find "$RESOURCES_DEST" -maxdepth 1 -name "*.tar.gz" -type f 2>/dev/null)
+    if [ -z "$TARGZ_LIST" ]; then
+        echo "   ⚠️ 未找到 tar.gz 文件"
+    else
+        # 使用 here-string 而非管道，避免子 shell 导致签名结果丢失
+        while IFS= read -r TARGZ; do
+            TARGZ_NAME=$(basename "$TARGZ")
+            echo "   📦 处理 $TARGZ_NAME ..."
+
+            # 解压到临时目录
+            SIGN_TMP=$(mktemp -d "${TMPDIR}sign_natives.XXXXXX")
+            tar xzf "$TARGZ" -C "$SIGN_TMP" || { echo "   ✗ 解压失败"; rm -rf "$SIGN_TMP"; continue; }
+
+            # 使用 file 命令检测所有 Mach-O 二进制（比按扩展名匹配更可靠）
+            SIGN_COUNT=0
+            FAIL_COUNT=0
+            while IFS= read -r bin; do
+                [ -z "$bin" ] && continue
+                FILE_INFO=$(file "$bin")
+                if echo "$FILE_INFO" | grep -q "Mach-O"; then
+                    # Mach-O 可执行文件需要 JIT entitlements（V8/Node.js 需要）
+                    # 动态库和 bundle 不需要 entitlements（继承宿主进程的权限）
+                    if echo "$FILE_INFO" | grep -q "executable"; then
+                        if codesign_retry --force --options runtime --timestamp --entitlements "$NODE_ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$bin"; then
+                            echo "   ✓ $(basename "$bin") (executable + entitlements)"
+                            SIGN_COUNT=$((SIGN_COUNT + 1))
+                        else
+                            echo "   ✗ $(basename "$bin") (签名失败)"
+                            FAIL_COUNT=$((FAIL_COUNT + 1))
+                        fi
+                    else
+                        if codesign_retry --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$bin"; then
+                            echo "   ✓ $(basename "$bin")"
+                            SIGN_COUNT=$((SIGN_COUNT + 1))
+                        else
+                            echo "   ✗ $(basename "$bin") (签名失败)"
+                            FAIL_COUNT=$((FAIL_COUNT + 1))
+                        fi
+                    fi
+                fi
+            done < <(find "$SIGN_TMP" -type f)
+
+            echo "   签名统计: 成功 $SIGN_COUNT, 失败 $FAIL_COUNT"
+
+            if [ "$FAIL_COUNT" -gt 0 ]; then
+                echo "   ❌ 存在签名失败的文件，终止构建"
+                rm -rf "$SIGN_TMP"
+                exit 1
+            fi
+
+            # 重新打包
+            echo "   重新打包 $TARGZ_NAME..."
+            (cd "$SIGN_TMP" && tar czf "$TARGZ" *)
+            echo "   ✅ $TARGZ_NAME 完成"
+
+            rm -rf "$SIGN_TMP"
+        done <<< "$TARGZ_LIST"
+    fi
 else
     echo "⚠️  警告: Resources 目录不存在，跳过资源复制"
 fi
@@ -68,18 +149,37 @@ fi
 # ===== Developer ID 签名 =====
 echo "🔐 使用 Developer ID 证书签名..."
 
+# 带重试的签名函数（Apple 时间戳服务器偶尔不可用）
+codesign_with_retry() {
+    local max_retries=5
+    local retry_delay=10
+    for i in $(seq 1 $max_retries); do
+        if codesign "$@" 2>&1; then
+            return 0
+        fi
+        if [ $i -lt $max_retries ]; then
+            echo "   ⏳ 时间戳服务不可用，${retry_delay}秒后重试 ($i/$max_retries)..."
+            sleep $retry_delay
+            retry_delay=$((retry_delay * 2))
+        fi
+    done
+    echo "   ❌ 签名失败，已重试 $max_retries 次"
+    return 1
+}
+
 # 签名所有 Frameworks 和动态库
-find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.framework" \) 2>/dev/null | while read -r fw; do
-    codesign --force --options runtime --sign "$SIGN_IDENTITY" "$fw" 2>/dev/null || true
-done
+while IFS= read -r fw; do
+    codesign_with_retry --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$fw" || true
+done < <(find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.framework" \) 2>/dev/null)
 
 # 签名 Frameworks 目录下的子 bundle
-find "$APP_PATH/Contents/Frameworks" -name "*.framework" -type d 2>/dev/null | while read -r fw; do
-    codesign --force --options runtime --sign "$SIGN_IDENTITY" "$fw" 2>/dev/null || true
-done
+while IFS= read -r fw; do
+    codesign_with_retry --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$fw" || true
+done < <(find "$APP_PATH/Contents/Frameworks" -name "*.framework" -type d 2>/dev/null)
 
 # 签名主 app (--deep 确保递归签名所有内容, --options runtime 启用 Hardened Runtime)
-codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$APP_PATH"
+APP_ENTITLEMENTS="$PROJECT_DIR/app-entitlements.plist"
+codesign_with_retry --force --deep --options runtime --timestamp --entitlements "$APP_ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APP_PATH"
 echo "✅ Developer ID 签名完成"
 
 # 验证签名
@@ -154,24 +254,6 @@ fi
 mv "$TMP_DMG" "$DMG_PATH"
 echo "✨ DMG 创建成功: $DMG_PATH"
 
-# ===== Apple 公证 (Notarization) =====
-if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
-    echo "📤 提交 Apple 公证..."
-    xcrun notarytool submit "$DMG_PATH" \
-        --apple-id "$APPLE_ID" \
-        --password "$APPLE_APP_PASSWORD" \
-        --team-id "$TEAM_ID" \
-        --wait
-
-    echo "📎 Staple 公证票据到 DMG..."
-    xcrun stapler staple "$DMG_PATH"
-    echo "✅ 公证完成"
-else
-    echo ""
-    echo "⚠️  未设置 APPLE_ID / APPLE_APP_PASSWORD，跳过公证"
-    echo "   运行方式: APPLE_ID=xxx APPLE_APP_PASSWORD=xxx bash build_dmg.sh"
-fi
-
 # ===== Sparkle 自动更新: EdDSA 签名 + appcast.xml 生成 =====
 
 # 从 Xcode 项目读取版本号
@@ -240,9 +322,10 @@ APPCAST_EOF
 
 echo "✅ appcast.xml 已生成: $DOCS_DIR/appcast.xml"
 echo ""
-echo "===== 发版步骤 ====="
-echo "1. gh release create v$MARKETING_VERSION \"$DMG_PATH\" --title \"v$MARKETING_VERSION\" --notes \"版本更新\""
-echo "2. git add docs/appcast.xml && git commit -m \"update appcast v$MARKETING_VERSION\" && git push"
+echo "🎉 构建完成！DMG 路径: $DMG_PATH"
+echo ""
+echo "===== 下一步 ====="
+echo "1. 公证: bash notarize_dmg.sh"
+echo "2. 发版: gh release create v$MARKETING_VERSION \"$DMG_PATH\" --title \"v$MARKETING_VERSION\" --notes \"版本更新\""
+echo "3. 推送: git add docs/appcast.xml && git commit -m \"update appcast v$MARKETING_VERSION\" && git push"
 echo "===================="
-
-echo "🎉 构建完成！"

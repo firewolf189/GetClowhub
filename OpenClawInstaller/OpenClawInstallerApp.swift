@@ -56,6 +56,7 @@ struct OpenClawInstallerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var services = AppServices()
     @StateObject private var sparkleUpdater = SparkleUpdater()
+    @StateObject private var languageManager = LanguageManager()
 
     @State private var showPermissionAlert = false
 
@@ -64,6 +65,9 @@ struct OpenClawInstallerApp: App {
             MainContentView(services: services)
                 .frame(minWidth: 960, minHeight: 680)
                 .environmentObject(sparkleUpdater)
+                .environmentObject(languageManager)
+                .environment(\.locale, languageManager.currentLocale ?? .autoupdatingCurrent)
+                .id(languageManager.selectedLanguage)
                 .onAppear {
                     appDelegate.openclawService = services.openclawService
                     appDelegate.sparkleUpdater = sparkleUpdater
@@ -150,11 +154,7 @@ struct InitialView: View {
             Image("Logo1")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 100, height: 100)
-
-            Text("GetClawHub")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .frame(width: 200, height: 200)
 
             Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
                 .font(.subheadline)

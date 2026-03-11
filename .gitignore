@@ -7,6 +7,9 @@ DerivedData/
 # DMG
 *.dmg
 
+# Notarization zip
+*.zip
+
 # macOS
 .DS_Store
 *.swp

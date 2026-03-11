@@ -47,9 +47,9 @@ sed -i '' "s/CURRENT_PROJECT_VERSION = $OLD_BUILD;/CURRENT_PROJECT_VERSION = $NE
 echo "✅ 版本号已更新: $NEW_VERSION (Build $NEW_BUILD)"
 
 # ===== 2. 构建 DMG =====
-echo ""
-echo "📦 [2/5] 构建 DMG..."
-bash "$PROJECT_DIR/build_dmg.sh"
+# echo ""
+# echo "📦 [2/5] 构建 DMG..."
+# bash "$PROJECT_DIR/build_dmg.sh"
 
 DMG_PATH="$PROJECT_DIR/GetClawHub.dmg"
 if [ ! -f "$DMG_PATH" ]; then

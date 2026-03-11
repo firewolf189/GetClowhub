@@ -54,6 +54,7 @@ struct SidebarView: View {
     @Binding var selectedTab: DashboardViewModel.DashboardTab
     @ObservedObject var viewModel: DashboardViewModel
     @EnvironmentObject var sparkleUpdater: SparkleUpdater
+    @EnvironmentObject var languageManager: LanguageManager
     @AppStorage("appAppearance") private var appAppearance: String = "system"
     @Environment(\.colorScheme) private var colorScheme
 
@@ -105,6 +106,42 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .top) {
+            // Language selector
+            HStack(spacing: 6) {
+                Image(systemName: "globe")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+
+                Menu {
+                    ForEach(languageManager.supportedLanguages) { lang in
+                        Button(action: { languageManager.selectedLanguage = lang.id }) {
+                            HStack {
+                                Text(lang.name)
+                                if languageManager.selectedLanguage == lang.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(languageManager.displayName)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 8))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -345,7 +382,7 @@ struct ChatView: View {
 // MARK: - Chat Welcome View
 
 struct ChatWelcomeView: View {
-    private let cards: [(title: String, desc: String)] = [
+    private let cards: [(title: LocalizedStringKey, desc: LocalizedStringKey)] = [
         ("Daily Weather Alerts", "Auto push weather updates with outfit & travel tips"),
         ("Remote File Control", "Edit and manage local files from your phone anytime"),
         ("Mobile Remote Work", "Browse and handle tasks on-the-go without a laptop"),
@@ -361,13 +398,8 @@ struct ChatWelcomeView: View {
             Image("Logo1")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-
-            // Title
-            Text("GetClawHub")
-                .font(.title)
-                .fontWeight(.bold)
+                .frame(width: 200, height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 40))
 
             // Subtitle
             Text("Your 24/7 all-in-one AI assistant, always at your service")
@@ -378,7 +410,7 @@ struct ChatWelcomeView: View {
 
             // Suggestion cards
             HStack(spacing: 12) {
-                ForEach(cards, id: \.title) { card in
+                ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(card.title)
                             .font(.subheadline)
