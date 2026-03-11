@@ -47,9 +47,9 @@ sed -i '' "s/CURRENT_PROJECT_VERSION = $OLD_BUILD;/CURRENT_PROJECT_VERSION = $NE
 echo "✅ 版本号已更新: $NEW_VERSION (Build $NEW_BUILD)"
 
 # ===== 2. 构建 DMG =====
-# echo ""
-# echo "📦 [2/5] 构建 DMG..."
-# bash "$PROJECT_DIR/build_dmg.sh"
+echo ""
+echo "📦 [2/5] 构建 DMG..."
+bash "$PROJECT_DIR/build_dmg.sh"
 
 DMG_PATH="$PROJECT_DIR/GetClawHub.dmg"
 if [ ! -f "$DMG_PATH" ]; then
@@ -79,8 +79,8 @@ echo "📤 [5/5] 提交并推送..."
 cd "$PROJECT_DIR"
 git add docs/appcast.xml \
     OpenClawInstaller/Info.plist \
-    OpenClawInstaller.xcodeproj/project.pbxproj
-git add -A  # 捕获其他可能的改动
+    OpenClawInstaller.xcodeproj/project.pbxproj \
+    .gitignore
 git commit -m "release v$NEW_VERSION: $RELEASE_NOTES"
 git push
 
