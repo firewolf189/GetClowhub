@@ -39,16 +39,26 @@ fi
 
 # ===== 1. 更新版本号 =====
 echo ""
-echo "📋 [1/5] 更新版本号..."
+echo "📋 [1/7] 更新版本号..."
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST"
-sed -i '' "s/MARKETING_VERSION = $OLD_VERSION;/MARKETING_VERSION = $NEW_VERSION;/g" "$PBXPROJ"
+OLD_VERSION_ESCAPED=$(echo "$OLD_VERSION" | sed 's/\./\\./g')
+sed -i '' "s/MARKETING_VERSION = ${OLD_VERSION_ESCAPED};/MARKETING_VERSION = $NEW_VERSION;/g" "$PBXPROJ"
 sed -i '' "s/CURRENT_PROJECT_VERSION = $OLD_BUILD;/CURRENT_PROJECT_VERSION = $NEW_BUILD;/g" "$PBXPROJ"
 echo "✅ 版本号已更新: $NEW_VERSION (Build $NEW_BUILD)"
 
-# ===== 2. 构建 DMG =====
+# ===== 2. 输入更新说明 =====
 echo ""
-echo "📦 [2/5] 构建 DMG..."
+echo "📝 [2/7] 请输入更新说明 (直接回车使用默认):"
+read -r RELEASE_NOTES
+if [ -z "$RELEASE_NOTES" ]; then
+    RELEASE_NOTES="版本 $NEW_VERSION 更新"
+fi
+
+# ===== 3. 构建 DMG =====
+echo ""
+echo "📦 [3/7] 构建 DMG..."
+export RELEASE_NOTES
 bash "$PROJECT_DIR/build_dmg.sh"
 
 DMG_PATH="$PROJECT_DIR/GetClawHub.dmg"
@@ -57,30 +67,86 @@ if [ ! -f "$DMG_PATH" ]; then
     exit 1
 fi
 
-# ===== 3. 输入更新说明 =====
+# ===== 4. Apple 公证 =====
 echo ""
-echo "📝 [3/5] 请输入更新说明 (直接回车使用默认):"
-read -r RELEASE_NOTES
-if [ -z "$RELEASE_NOTES" ]; then
-    RELEASE_NOTES="版本 $NEW_VERSION 更新"
+echo "🍎 [4/7] 提交 Apple 公证..."
+bash "$PROJECT_DIR/notarize_dmg.sh" "$DMG_PATH"
+
+if [ $? -ne 0 ]; then
+    echo "❌ 公证失败，中止发版"
+    exit 1
 fi
 
-# ===== 4. 创建 GitHub Release =====
+# ===== 5. 重新 EdDSA 签名 (公证 staple 会修改 DMG，必须重签) =====
 echo ""
-echo "🚀 [4/5] 创建 GitHub Release..."
+echo "🔏 [5/7] 重新 EdDSA 签名..."
+BUILD_DIR="$PROJECT_DIR/build"
+SIGN_UPDATE=$(find "$BUILD_DIR" -path "*/artifacts/sparkle/Sparkle/bin/sign_update" -type f 2>/dev/null | head -1)
+if [ -z "$SIGN_UPDATE" ] && [ -x "/usr/local/bin/sign_update" ]; then
+    SIGN_UPDATE="/usr/local/bin/sign_update"
+fi
+
+if [ -n "$SIGN_UPDATE" ]; then
+    EDDSA_OUTPUT=$("$SIGN_UPDATE" "$DMG_PATH" 2>&1)
+    EDDSA_SIGNATURE=$(echo "$EDDSA_OUTPUT" | grep "sparkle:edSignature" | sed 's/.*sparkle:edSignature="\([^"]*\)".*/\1/')
+    if [ -z "$EDDSA_SIGNATURE" ]; then
+        EDDSA_SIGNATURE=$(echo "$EDDSA_OUTPUT" | tail -1)
+    fi
+    echo "✅ EdDSA 签名: ${EDDSA_SIGNATURE:0:20}..."
+
+    # 更新 appcast.xml
+    DMG_SIZE=$(stat -f%z "$DMG_PATH")
+    DOCS_DIR="$PROJECT_DIR/docs"
+    GITHUB_REPO="firewolf189/GetClowhub"
+    DMG_DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/v$NEW_VERSION/GetClawHub.dmg"
+
+    cat > "$DOCS_DIR/appcast.xml" << APPCAST_EOF
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>OpenClaw Helper Updates</title>
+    <link>https://firewolf189.github.io/GetClowhub/appcast.xml</link>
+    <description>OpenClaw Helper 版本更新</description>
+    <language>zh-cn</language>
+    <item>
+      <title>Version $NEW_VERSION</title>
+      <sparkle:version>$NEW_BUILD</sparkle:version>
+      <sparkle:shortVersionString>$NEW_VERSION</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>OpenClaw Helper $NEW_VERSION</h2>
+        <ul>
+          <li>${RELEASE_NOTES:-版本更新}</li>
+        </ul>
+      ]]></description>
+      <pubDate>$(date -R)</pubDate>
+      <enclosure url="$DMG_DOWNLOAD_URL"
+                 length="$DMG_SIZE"
+                 type="application/octet-stream"
+                 sparkle:edSignature="$EDDSA_SIGNATURE" />
+    </item>
+  </channel>
+</rss>
+APPCAST_EOF
+    echo "✅ appcast.xml 已更新 (签名 + 文件大小)"
+else
+    echo "⚠️  未找到 sign_update 工具，appcast.xml 签名可能不正确"
+fi
+
+# ===== 6. 创建 GitHub Release =====
+echo ""
+echo "🚀 [6/7] 创建 GitHub Release..."
 gh release create "v$NEW_VERSION" "$DMG_PATH" \
     --title "v$NEW_VERSION" \
     --notes "$RELEASE_NOTES"
 echo "✅ Release 已创建"
 
-# ===== 5. 提交并推送 =====
+# ===== 7. 提交并推送 =====
 echo ""
-echo "📤 [5/5] 提交并推送..."
+echo "📤 [7/7] 提交并推送..."
 cd "$PROJECT_DIR"
 git add docs/appcast.xml \
     OpenClawInstaller/Info.plist \
-    OpenClawInstaller.xcodeproj/project.pbxproj \
-    .gitignore
+    OpenClawInstaller.xcodeproj/project.pbxproj
 git commit -m "release v$NEW_VERSION: $RELEASE_NOTES"
 git push
 
