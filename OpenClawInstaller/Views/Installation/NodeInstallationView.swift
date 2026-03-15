@@ -9,19 +9,12 @@ struct NodeInstallationView: View {
 
             // Title
             VStack(spacing: 12) {
-                if viewModel.nodeInstaller.isInstalling {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .frame(height: 80)
-                } else if viewModel.installationState.nodeInstallationComplete {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.green)
-                } else {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
-                }
+                Image("Logo1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+
+                BrandTextView()
 
                 Text("Node.js Installation")
                     .font(.largeTitle)

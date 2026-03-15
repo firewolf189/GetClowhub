@@ -12,6 +12,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     // Sparkle updater reference (to be set from App)
     var sparkleUpdater: SparkleUpdater?
 
+    // Auth manager reference (to be set from App)
+    var authManager: AuthManager?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         cleanupMainMenu()
@@ -170,6 +173,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     func createMenu() -> NSMenu {
         let menu = NSMenu()
+        #if REQUIRE_LOGIN
+        let loggedIn = authManager?.isLoggedIn ?? false
+        #else
+        let loggedIn = true
+        #endif
 
         // Status item
         let statusItem = NSMenuItem(
@@ -184,24 +192,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Start/Stop
         if openclawService?.status == .running {
-            menu.addItem(NSMenuItem(
+            let stopItem = NSMenuItem(
                 title: String(localized: "Stop Service"),
                 action: #selector(stopService),
                 keyEquivalent: "s"
-            ))
+            )
+            stopItem.isEnabled = loggedIn
+            menu.addItem(stopItem)
         } else {
-            menu.addItem(NSMenuItem(
+            let startItem = NSMenuItem(
                 title: String(localized: "Start Service"),
                 action: #selector(startService),
                 keyEquivalent: "s"
-            ))
+            )
+            startItem.isEnabled = loggedIn
+            menu.addItem(startItem)
         }
 
-        menu.addItem(NSMenuItem(
+        let restartItem = NSMenuItem(
             title: String(localized: "Restart"),
             action: #selector(restartService),
             keyEquivalent: "r"
-        ))
+        )
+        restartItem.isEnabled = loggedIn
+        menu.addItem(restartItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -211,7 +225,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             action: #selector(openDashboardFromMenu),
             keyEquivalent: "d"
         )
-        dashboardItem.isEnabled = openclawService?.status == .running
+        dashboardItem.isEnabled = loggedIn && openclawService?.status == .running
         menu.addItem(dashboardItem)
 
         menu.addItem(NSMenuItem(

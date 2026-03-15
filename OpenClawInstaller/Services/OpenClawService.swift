@@ -2,6 +2,13 @@ import Foundation
 import Combine
 import AppKit
 
+// MARK: - Command Stream Result
+
+enum CommandStreamResult {
+    case completed(String?)
+    case timedOut(String?)
+}
+
 enum ServiceStatus: String {
     case running = "Running"
     case stopped = "Stopped"
@@ -372,6 +379,49 @@ class OpenClawService: ObservableObject {
         return "'\(path)' \(subcommand)"
     }
 
+    /// Build a PATH string that includes common Node.js installation directories.
+    /// macOS GUI apps inherit a minimal environment from launchd, and if the user's
+    /// .zshrc guards with `[[ ! -o interactive ]]` the nvm/npm-global PATH entries
+    /// added in .zshrc are never loaded.  We inject them explicitly.
+    private static func buildEnrichedPath() -> String {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        // Gather extra directories that may contain node / openclaw
+        var extraDirs: [String] = [
+            "\(homeDir)/.openclaw/node/bin",       // dedicated node installed by this app
+            "\(homeDir)/.npm-global/bin",           // global npm prefix
+            "/opt/homebrew/bin",                    // Homebrew (Apple Silicon)
+            "/opt/homebrew/opt/node/bin",           // Homebrew node keg
+            "/usr/local/bin",                       // Homebrew (Intel) / system-wide
+            "\(homeDir)/.volta/bin",
+            "\(homeDir)/.bun/bin",
+            "\(homeDir)/Library/pnpm",
+            "\(homeDir)/.local/bin",
+        ]
+        // nvm: add the latest installed version's bin directory
+        let nvmVersionsDir = "\(homeDir)/.nvm/versions/node"
+        if let entries = try? FileManager.default.contentsOfDirectory(atPath: nvmVersionsDir) {
+            let sorted = entries.filter { $0.hasPrefix("v") }
+                .sorted { CommandExecutor.compareNodeVersions($0, $1) }
+            if let latest = sorted.first {
+                extraDirs.insert("\(nvmVersionsDir)/\(latest)/bin", at: 0)
+            }
+        }
+        // fnm
+        let fnmDir = "\(homeDir)/Library/Application Support/fnm/aliases/default/bin"
+        if FileManager.default.fileExists(atPath: fnmDir) {
+            extraDirs.append(fnmDir)
+        }
+
+        // Start with the current process PATH (may be minimal from launchd)
+        let currentPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
+        let currentDirs = Set(currentPath.components(separatedBy: ":"))
+
+        // Prepend extra dirs that aren't already present
+        var result = extraDirs.filter { !currentDirs.contains($0) }
+        result.append(currentPath)
+        return result.joined(separator: ":")
+    }
+
     /// Run a shell command quietly without triggering UI updates
     /// Uses proper pipe reading pattern to avoid deadlocks, with timeout
     private func runShellQuietly(_ command: String, timeout: TimeInterval = 15) async -> String? {
@@ -380,6 +430,13 @@ class OpenClawService: ObservableObject {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/zsh")
                 process.arguments = ["-l", "-c", command]
+
+                // Enrich environment with common Node.js paths so that
+                // #!/usr/bin/env node shebangs work even when .zshrc is
+                // skipped in non-interactive mode.
+                var env = ProcessInfo.processInfo.environment
+                env["PATH"] = Self.buildEnrichedPath()
+                process.environment = env
 
                 let pipe = Pipe()
                 process.standardOutput = pipe
@@ -579,5 +636,105 @@ class OpenClawService: ObservableObject {
             }
         }
         return await runShellQuietly(resolved, timeout: timeout)
+    }
+
+    /// Run a shell command with streaming output.
+    /// Calls `onOutput` periodically with accumulated stdout so far.
+    /// Returns `.completed` or `.timedOut` with whatever output was captured.
+    func runCommandStreaming(
+        _ command: String,
+        timeout: TimeInterval = 300,
+        onOutput: @escaping @Sendable (String) -> Void
+    ) async -> CommandStreamResult {
+        var resolved = command
+        if resolved.hasPrefix("openclaw ") || resolved.contains(" openclaw ") {
+            if let fullPath = await getOpenclawPath() {
+                if let range = resolved.range(of: "openclaw") {
+                    resolved.replaceSubrange(range, with: "'\(fullPath)'")
+                }
+            }
+        }
+        return await runShellStreaming(resolved, timeout: timeout, onOutput: onOutput)
+    }
+
+    /// Internal streaming shell execution.
+    private func runShellStreaming(
+        _ command: String,
+        timeout: TimeInterval,
+        onOutput: @escaping @Sendable (String) -> Void
+    ) async -> CommandStreamResult {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+                process.arguments = ["-l", "-c", command]
+
+                var env = ProcessInfo.processInfo.environment
+                env["PATH"] = Self.buildEnrichedPath()
+                process.environment = env
+
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = Pipe()
+
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(returning: .completed(nil))
+                    return
+                }
+
+                // Read pipe data in a background thread
+                let accumulatedData = NSMutableData()
+                let dataLock = NSLock()
+                let readGroup = DispatchGroup()
+                readGroup.enter()
+                DispatchQueue(label: "pipe.stream.read").async {
+                    let handle = pipe.fileHandleForReading
+                    while true {
+                        let chunk = handle.availableData
+                        if chunk.isEmpty { break } // EOF
+                        dataLock.lock()
+                        accumulatedData.append(chunk)
+                        dataLock.unlock()
+                    }
+                    readGroup.leave()
+                }
+
+                // Wait for process with timeout, periodically emitting output
+                let deadline = Date().addingTimeInterval(timeout)
+                var lastLength = 0
+                while process.isRunning && Date() < deadline {
+                    Thread.sleep(forTimeInterval: 0.5)
+                    dataLock.lock()
+                    let currentLength = accumulatedData.length
+                    let snapshot: String? = currentLength > lastLength
+                        ? String(data: accumulatedData as Data, encoding: .utf8)
+                        : nil
+                    dataLock.unlock()
+                    if let text = snapshot {
+                        lastLength = currentLength
+                        onOutput(text)
+                    }
+                }
+
+                if process.isRunning {
+                    process.terminate()
+                    readGroup.wait()
+                    dataLock.lock()
+                    let partial = String(data: accumulatedData as Data, encoding: .utf8)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    dataLock.unlock()
+                    continuation.resume(returning: .timedOut(partial))
+                } else {
+                    readGroup.wait()
+                    dataLock.lock()
+                    let output = String(data: accumulatedData as Data, encoding: .utf8)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    dataLock.unlock()
+                    continuation.resume(returning: .completed(output))
+                }
+            }
+        }
     }
 }

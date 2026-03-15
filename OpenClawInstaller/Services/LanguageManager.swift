@@ -44,19 +44,67 @@ final class LanguageManager: ObservableObject {
         Language(id: "vi",      name: "Tiếng Việt"),
     ]
 
-    /// Returns a Locale override when the user has chosen a specific language,
-    /// or nil to follow the system setting.
-    var currentLocale: Locale? {
-        guard selectedLanguage != "system" else { return nil }
+    /// Resolve the system's preferred language to one of our supported language IDs.
+    private var resolvedSystemLanguage: String {
+        let supportedIDs = Set(supportedLanguages.map { $0.id }.filter { $0 != "system" })
+
+        for preferred in Locale.preferredLanguages {
+            // Direct match (e.g. "zh-Hans", "pt-BR")
+            if supportedIDs.contains(preferred) {
+                return preferred
+            }
+            let parts = preferred.split(separator: "-")
+            if parts.count >= 2 {
+                // Try first two segments (zh-Hans, zh-Hant, pt-BR)
+                let twopart = "\(parts[0])-\(parts[1])"
+                if supportedIDs.contains(twopart) {
+                    return twopart
+                }
+            }
+            // Language code only (e.g. "fr-FR" → "fr")
+            let langOnly = String(parts[0])
+            if supportedIDs.contains(langOnly) {
+                return langOnly
+            }
+        }
+        return "en"
+    }
+
+    /// Returns the Locale for the current language selection.
+    var currentLocale: Locale {
+        if selectedLanguage == "system" {
+            return Locale(identifier: resolvedSystemLanguage)
+        }
         return Locale(identifier: selectedLanguage)
     }
 
     /// Display name shown in the language picker button.
     var displayName: String {
-        if selectedLanguage == "system" { return "System" }
+        if selectedLanguage == "system" {
+            let resolved = resolvedSystemLanguage
+            let name = supportedLanguages.first { $0.id == resolved }?.name ?? "System"
+            return "System (\(name))"
+        }
         return supportedLanguages.first { $0.id == selectedLanguage }?.name ?? selectedLanguage
     }
 
     /// The globe icon for the current language direction.
     var globeIcon: String { "globe" }
+
+    /// Returns a Bundle for the current language selection, suitable for
+    /// `String(localized:bundle:)` calls outside SwiftUI views.
+    var localizedBundle: Bundle {
+        let langID: String
+        if selectedLanguage == "system" {
+            langID = resolvedSystemLanguage
+        } else {
+            langID = selectedLanguage
+        }
+        // Try to find a .lproj for the selected language
+        if let path = Bundle.main.path(forResource: langID, ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            return bundle
+        }
+        return Bundle.main
+    }
 }

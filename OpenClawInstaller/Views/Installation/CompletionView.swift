@@ -8,23 +8,14 @@ struct CompletionView: View {
         VStack(spacing: 30) {
             Spacer()
 
-            // Success animation/icon
+            // Success icon
             VStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.green.opacity(0.3), .green.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 120, height: 120)
+                Image("Logo1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
 
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 80))
-                        .foregroundColor(.green)
-                }
+                BrandTextView()
 
                 Text("Installation Complete!")
                     .font(.largeTitle)

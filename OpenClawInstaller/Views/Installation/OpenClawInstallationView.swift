@@ -9,19 +9,12 @@ struct OpenClawInstallationView: View {
 
             // Title
             VStack(spacing: 12) {
-                if viewModel.openclawInstaller.isInstalling {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .frame(height: 80)
-                } else if viewModel.installationState.openclawInstallationComplete {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.green)
-                } else {
-                    Image(systemName: "square.and.arrow.down.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
-                }
+                Image("Logo1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+
+                BrandTextView()
 
                 Text("OpenClaw Installation")
                     .font(.largeTitle)

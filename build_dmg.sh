@@ -5,6 +5,16 @@
 
 set -e
 
+# 默认需要登录
+LOGIN_MODE="REQUIRE_LOGIN"
+SKIP_SIGN=""
+for arg in "$@"; do
+    case "$arg" in
+        --no-login) LOGIN_MODE="" ;;
+        --debug)    SKIP_SIGN="1" ;;
+    esac
+done
+
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_NAME="OpenClawInstaller"
 APP_NAME="GetClawHub.app"
@@ -27,10 +37,19 @@ fi
 
 # 构建项目
 echo "🔨 构建项目..."
+EXTRA_FLAGS=""
+if [ -n "$LOGIN_MODE" ]; then
+    echo "   登录版构建（需要登录）"
+else
+    EXTRA_FLAGS='SWIFT_ACTIVE_COMPILATION_CONDITIONS='
+    echo "   免登录版构建（--no-login）"
+fi
+
 xcodebuild -project "$PROJECT_DIR/$PROJECT_NAME.xcodeproj" \
     -scheme "$PROJECT_NAME" \
     -configuration Release \
     -derivedDataPath "$BUILD_DIR" \
+    $EXTRA_FLAGS \
     clean build
 
 # 查找生成的 .app 文件
@@ -56,6 +75,9 @@ if [ -d "$RESOURCES_SRC" ]; then
     ls -lh "$RESOURCES_DEST"/*.tar.gz 2>/dev/null || echo "   (无 .tar.gz 文件)"
 
     # ===== 签名 tar.gz 内的原生二进制文件 =====
+    if [ -n "$SKIP_SIGN" ]; then
+        echo "⏩ --debug 模式，跳过 tar.gz 内二进制签名"
+    else
     echo "🔏 开始签名 tar.gz 内的原生二进制文件..."
     echo "   资源目录: $RESOURCES_DEST"
 
@@ -142,11 +164,15 @@ if [ -d "$RESOURCES_SRC" ]; then
             rm -rf "$SIGN_TMP"
         done <<< "$TARGZ_LIST"
     fi
+    fi # SKIP_SIGN
 else
     echo "⚠️  警告: Resources 目录不存在，跳过资源复制"
 fi
 
 # ===== Developer ID 签名 =====
+if [ -n "$SKIP_SIGN" ]; then
+    echo "⏩ --debug 模式，跳过 Developer ID 签名和验证"
+else
 echo "🔐 使用 Developer ID 证书签名..."
 
 # 带重试的签名函数（Apple 时间戳服务器偶尔不可用）
@@ -186,6 +212,7 @@ echo "✅ Developer ID 签名完成"
 echo "🔍 验证签名..."
 codesign --verify --deep --strict "$APP_PATH" 2>&1
 echo "✅ 签名验证通过"
+fi # SKIP_SIGN
 
 # 创建 DMG
 echo "📦 创建 DMG 安装包..."
@@ -214,13 +241,11 @@ cp -R "$APP_PATH" "$TMP_DMG_DIR/"
 echo "🔓 移除隔离属性..."
 xattr -cr "$TMP_DMG_DIR/GetClawHub.app" 2>/dev/null || true
 
-# 复制安装脚本
-INSTALL_SCRIPT="$PROJECT_DIR/Install OpenClaw Helper.command"
-if [ -f "$INSTALL_SCRIPT" ]; then
-    cp "$INSTALL_SCRIPT" "$TMP_DMG_DIR/"
-    chmod +x "$TMP_DMG_DIR/Install OpenClaw Helper.command"
-    xattr -cr "$TMP_DMG_DIR/Install OpenClaw Helper.command" 2>/dev/null || true
-    echo "📄 已添加安装脚本"
+# 复制 README
+README_FILE="$PROJECT_DIR/README.md"
+if [ -f "$README_FILE" ]; then
+    cp "$README_FILE" "$TMP_DMG_DIR/"
+    echo "📄 已添加 README.md"
 fi
 
 # 创建 Applications 符号链接
@@ -271,7 +296,10 @@ if [ -z "$SIGN_UPDATE" ] && [ -x "/usr/local/bin/sign_update" ]; then
     SIGN_UPDATE="/usr/local/bin/sign_update"
 fi
 
-if [ -n "$SIGN_UPDATE" ]; then
+if [ -n "$SKIP_SIGN" ]; then
+    echo "⏩ --debug 模式，跳过 EdDSA 签名"
+    EDDSA_SIGNATURE="DEBUG_BUILD"
+elif [ -n "$SIGN_UPDATE" ]; then
     echo "🔏 对 DMG 进行 EdDSA 签名..."
     EDDSA_SIGNATURE=$("$SIGN_UPDATE" "$DMG_PATH" 2>&1 | grep "sparkle:edSignature" | sed 's/.*sparkle:edSignature="\([^"]*\)".*/\1/')
 
@@ -307,7 +335,7 @@ cat > "$DOCS_DIR/appcast.xml" << APPCAST_EOF
       <description><![CDATA[
         <h2>OpenClaw Helper $MARKETING_VERSION</h2>
         <ul>
-          <li>版本更新</li>
+          <li>${RELEASE_NOTES:-版本更新}</li>
         </ul>
       ]]></description>
       <pubDate>$(date -R)</pubDate>

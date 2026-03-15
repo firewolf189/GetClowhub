@@ -124,27 +124,37 @@ class DashboardViewModel: ObservableObject {
     @Published var imageFallbackModels: [String] = []
     @Published var isLoadingModels = false
 
+    // Cron Jobs
+    @Published var cronJobs: [CronJobInfo] = []
+    @Published var isLoadingCronJobs = false
+
     // MARK: - Tab Management
 
     enum DashboardTab: String, CaseIterable, Hashable {
         case chat = "Chat"
         case status = "Status"
+        case persona = "Persona"
+        case subAgents = "Multi-Agent"
         case config = "Configuration"
         case skills = "Skills"
         case models = "Models"
         case channels = "Channels"
         case plugins = "Plugins"
+        case cron = "Cron"
         case logs = "Logs"
 
         var icon: String {
             switch self {
             case .chat: return "message.fill"
             case .status: return "chart.bar.fill"
+            case .persona: return "person.text.rectangle"
+            case .subAgents: return "person.3.fill"
             case .config: return "gearshape"
             case .skills: return "bolt.fill"
             case .models: return "cube.fill"
             case .channels: return "bubble.left.and.bubble.right.fill"
             case .plugins: return "puzzlepiece.fill"
+            case .cron: return "clock.badge"
             case .logs: return "doc.text.magnifyingglass"
             }
         }
@@ -212,6 +222,14 @@ class DashboardViewModel: ObservableObject {
         editedProviderApi = settings.settings.providerApi
         editedConfiguredModels = settings.settings.configuredModels
         availableProviders = presetManager.loadPresets()
+
+        // If no config file exists yet, populate from preset defaults
+        if editedModelBaseUrl.isEmpty,
+           let preset = availableProviders.first(where: { $0.key == editedSelectedProviderKey }) {
+            editedModelBaseUrl = preset.baseUrl
+            editedProviderApi = preset.api
+            editedConfiguredModels = preset.models
+        }
     }
 
     /// Reload from disk and sync fields.
@@ -636,35 +654,227 @@ class DashboardViewModel: ObservableObject {
     // MARK: - Chat
 
     @Published var chatMessages: [ChatMessage] = []
-    @Published var isSendingMessage = false
+    @Published var isSendingMessage = false  // true when any foreground task is active
+    @Published var foregroundTaskIds: Set<UUID> = []  // message IDs of foreground (blocking) tasks
+    @Published var backgroundTaskIds: Set<UUID> = []  // message IDs of background tasks
+    @Published var selectedAgentId: String = "main"
+    @Published var availableAgents: [AgentOption] = [AgentOption(id: "main", name: "main", emoji: "🤖")]
 
-    func sendChatMessage(_ text: String) async {
-        let userMessage = ChatMessage(role: .user, content: text)
+    func loadAvailableAgents() {
+        let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
+        let baseDir = NSString("~/.openclaw").expandingTildeInPath
+        var agents: [AgentOption] = []
+
+        if let data = FileManager.default.contents(atPath: configPath),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let agentsSection = json["agents"] as? [String: Any],
+           let agentList = agentsSection["list"] as? [[String: Any]] {
+            for entry in agentList {
+                guard let agentId = entry["id"] as? String else { continue }
+
+                // Determine workspace path for this agent
+                let workspace: String
+                if let ws = entry["workspace"] as? String {
+                    workspace = (ws as NSString).expandingTildeInPath
+                } else if agentId == "main" {
+                    workspace = (baseDir as NSString).appendingPathComponent("workspace")
+                } else {
+                    workspace = (baseDir as NSString).appendingPathComponent("workspace-\(agentId)")
+                }
+
+                // Read IDENTITY.md and parse emoji/name from file first, fall back to config
+                let identityPath = (workspace as NSString).appendingPathComponent("IDENTITY.md")
+                let identityContent = (try? String(contentsOfFile: identityPath, encoding: .utf8)) ?? ""
+                let parsed = PersonaViewModel.parseIdentity(identityContent)
+
+                let identity = entry["identity"] as? [String: Any]
+
+                let name: String = {
+                    if !parsed.name.isEmpty { return parsed.name }
+                    if let n = identity?["name"] as? String, !n.isEmpty { return n }
+                    return entry["name"] as? String ?? agentId
+                }()
+
+                let emoji: String = {
+                    if !parsed.emoji.isEmpty { return parsed.emoji }
+                    return identity?["emoji"] as? String ?? "🤖"
+                }()
+
+                agents.append(AgentOption(id: agentId, name: name, emoji: emoji))
+            }
+        }
+
+        // Ensure "main" is always present
+        if !agents.contains(where: { $0.id == "main" }) {
+            // Even for main fallback, try reading from IDENTITY.md
+            let mainWorkspace = (baseDir as NSString).appendingPathComponent("workspace")
+            let mainIdentityPath = (mainWorkspace as NSString).appendingPathComponent("IDENTITY.md")
+            let mainContent = (try? String(contentsOfFile: mainIdentityPath, encoding: .utf8)) ?? ""
+            let mainParsed = PersonaViewModel.parseIdentity(mainContent)
+            let mainName = mainParsed.name.isEmpty ? "main" : mainParsed.name
+            let mainEmoji = mainParsed.emoji.isEmpty ? "🤖" : mainParsed.emoji
+            agents.insert(AgentOption(id: "main", name: mainName, emoji: mainEmoji), at: 0)
+        }
+
+        availableAgents = agents
+
+        // Reset selection if current agent no longer exists
+        if !agents.contains(where: { $0.id == selectedAgentId }) {
+            selectedAgentId = "main"
+        }
+    }
+
+    func sendChatMessage(_ text: String, attachments: [URL] = []) async {
+        let userMessage = ChatMessage(role: .user, content: text, attachments: attachments)
         chatMessages.append(userMessage)
 
+        let currentAgentId = selectedAgentId
+        let currentAgentEmoji = availableAgents.first(where: { $0.id == currentAgentId })?.emoji
+
+        // Build the full message: text + file paths
+        var messageParts = [text]
+        for url in attachments {
+            messageParts.append(url.path)
+        }
+        let fullMessage = messageParts.joined(separator: "\n")
+        let escaped = fullMessage.replacingOccurrences(of: "'", with: "'\\''")
+
+        // Insert a placeholder assistant message for streaming updates
+        let msgId = UUID()
+        let placeholderMsg = ChatMessage(role: .assistant, content: "", agentId: currentAgentId, agentEmoji: currentAgentEmoji, taskStatus: .loading, id: msgId)
+        chatMessages.append(placeholderMsg)
+
+        // Track as foreground task
+        foregroundTaskIds.insert(msgId)
         isSendingMessage = true
-        let escaped = text.replacingOccurrences(of: "'", with: "'\\''")
-        let output = await openclawService.runCommand(
-            "openclaw agent --agent main -m '\(escaped)' 2>&1",
-            timeout: 120
-        )
-        let reply = Self.filterAgentOutput(output) ?? "No response"
-        chatMessages.append(ChatMessage(role: .assistant, content: reply))
-        isSendingMessage = false
+
+        // Helper to update message in place
+        func updateMessage(content: String, status: ChatMessage.TaskStatus) {
+            if let idx = self.chatMessages.firstIndex(where: { $0.id == msgId }) {
+                self.chatMessages[idx] = ChatMessage(
+                    role: .assistant, content: content,
+                    agentId: currentAgentId, agentEmoji: currentAgentEmoji,
+                    taskStatus: status, id: msgId
+                )
+            }
+        }
+
+        // Run streaming command in a detached Task so we can await or let it continue in background
+        let resultStream: AsyncStream<(Bool, String?)> = AsyncStream { continuation in
+            Task { [weak self] in
+                guard let self = self else {
+                    continuation.yield((true, nil))
+                    continuation.finish()
+                    return
+                }
+                let result = await self.openclawService.runCommandStreaming(
+                    "openclaw agent --agent \(currentAgentId) -m '\(escaped)' 2>&1",
+                    timeout: 1800
+                ) { [weak self] rawOutput in
+                    guard let self = self else { return }
+                    let filtered = Self.filterAgentOutput(rawOutput) ?? ""
+                    if !filtered.isEmpty {
+                        Task { @MainActor in
+                            if let idx = self.chatMessages.firstIndex(where: { $0.id == msgId }) {
+                                let currentStatus = self.chatMessages[idx].taskStatus
+                                // Don't overwrite if the final result has already been written
+                                guard currentStatus != .completed else { return }
+                                self.chatMessages[idx] = ChatMessage(
+                                    role: .assistant, content: filtered,
+                                    agentId: currentAgentId, agentEmoji: currentAgentEmoji,
+                                    taskStatus: currentStatus, id: msgId
+                                )
+                            }
+                        }
+                    }
+                }
+                switch result {
+                case .completed(let output):
+                    continuation.yield((true, output))
+                case .timedOut(let partialOutput):
+                    continuation.yield((false, partialOutput))
+                }
+                continuation.finish()
+            }
+        }
+
+        // Wait for the result — this runs on MainActor so we can update UI
+        for await (completed, output) in resultStream {
+            let wasBackground = backgroundTaskIds.contains(msgId)
+
+            if completed {
+                let noReply = String(localized: "No response from AI.", bundle: LanguageManager.shared.localizedBundle)
+                let reply = Self.filterAgentOutput(output) ?? noReply
+                updateMessage(content: reply, status: .completed)
+            } else {
+                let partial = Self.filterAgentOutput(output) ?? ""
+                let timeoutMsg = String(localized: "The task timed out and has been terminated. You can try again or switch to another agent.", bundle: LanguageManager.shared.localizedBundle)
+                let reply = partial.isEmpty
+                    ? timeoutMsg
+                    : partial + "\n\n---\n> ⚠️ " + timeoutMsg
+                updateMessage(content: reply, status: .timedOut)
+            }
+
+            // If task was in background, append a notification message at the bottom
+            if wasBackground {
+                let agentName = availableAgents.first(where: { $0.id == currentAgentId })?.name ?? currentAgentId
+                if completed {
+                    let notifyContent = String(format: String(localized: "✅ Background task from **%@** completed", bundle: LanguageManager.shared.localizedBundle), agentName)
+                    let notifyMsg = ChatMessage(role: .assistant, content: notifyContent, agentId: currentAgentId, agentEmoji: currentAgentEmoji, scrollTargetId: msgId)
+                    chatMessages.append(notifyMsg)
+                } else {
+                    let notifyContent = String(format: String(localized: "⚠️ Background task from **%@** timed out", bundle: LanguageManager.shared.localizedBundle), agentName)
+                    let notifyMsg = ChatMessage(role: .assistant, content: notifyContent, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+                    chatMessages.append(notifyMsg)
+                }
+            }
+
+            // Cleanup tracking
+            foregroundTaskIds.remove(msgId)
+            backgroundTaskIds.remove(msgId)
+            isSendingMessage = !foregroundTaskIds.isEmpty
+        }
+    }
+
+    /// Move a foreground task to background, unlocking the input
+    func moveTaskToBackground(_ msgId: UUID) {
+        guard foregroundTaskIds.contains(msgId) else { return }
+        foregroundTaskIds.remove(msgId)
+        backgroundTaskIds.insert(msgId)
+        isSendingMessage = !foregroundTaskIds.isEmpty
+
+        // Update message status to background
+        if let idx = chatMessages.firstIndex(where: { $0.id == msgId }) {
+            let msg = chatMessages[idx]
+            let bgLabel = String(localized: "⏳ Task running in background...", bundle: LanguageManager.shared.localizedBundle)
+            let content = msg.content.isEmpty ? bgLabel : msg.content
+            chatMessages[idx] = ChatMessage(
+                role: .assistant, content: content,
+                agentId: msg.agentId, agentEmoji: msg.agentEmoji,
+                taskStatus: .background, id: msgId
+            )
+        }
     }
 
     /// Filter out system prompt lines from openclaw agent output
-    static func filterAgentOutput(_ output: String?) -> String? {
+    nonisolated static func filterAgentOutput(_ output: String?) -> String? {
         guard let output = output else { return nil }
-        let filtered = output
+        // Strip ANSI escape codes first
+        let ansiPattern = "\u{1B}\\[[0-9;]*[a-zA-Z]"
+        let cleaned = output.replacingOccurrences(of: ansiPattern, with: "", options: .regularExpression)
+        let filtered = cleaned
             .components(separatedBy: "\n")
             .filter { line in
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 if trimmed.isEmpty { return true }
                 if trimmed.hasPrefix("[agent-scope]") { return false }
+                if trimmed.hasPrefix("[plugins]") { return false }
                 if trimmed.hasPrefix("Config warnings:") { return false }
+                if trimmed.hasPrefix("Config overwrite:") { return false }
                 if trimmed.hasPrefix("- plugins.") { return false }
                 if trimmed.hasPrefix("- ") && trimmed.contains("plugin") && trimmed.contains("detected") { return false }
+                if trimmed.contains("plugins.allow is empty") { return false }
+                if trimmed.contains("Multiple agents marked default") { return false }
                 return true
             }
             .joined(separator: "\n")
@@ -723,71 +933,87 @@ class DashboardViewModel: ObservableObject {
     /// Parse `openclaw plugins list` table output.
     /// Table format: │ Name │ ID │ Status │ Source │ Version │
     /// Status values: "loaded", "disabled"
-    /// Multiline rows: only the first line of a row has all columns filled.
+    /// A new row starts when the Status cell is non-empty.
+    /// Continuation lines (Status empty) may carry overflow text for Name or ID.
     static func parsePluginList(output: String?) -> [PluginInfo] {
         guard let output = output else { return [] }
 
         var results: [PluginInfo] = []
-        // Current row accumulator (for multiline cells)
         var currentName: String?
         var currentId: String?
         var currentStatus: String?
+        var currentSource: String?
+
+        func flushRow() {
+            guard var name = currentName, let status = currentStatus else { return }
+            var id = currentId ?? ""
+
+            // If ID is empty, try to extract from Source ("stock:plugin-id/..." or "global:plugin-id/...")
+            if id.isEmpty, let source = currentSource, !source.isEmpty,
+               let colonIdx = source.firstIndex(of: ":"),
+               let slashIdx = source[source.index(after: colonIdx)...].firstIndex(of: "/") {
+                id = String(source[source.index(after: colonIdx)..<slashIdx])
+            }
+
+            // Last resort: derive ID from name
+            if id.isEmpty {
+                id = name.replacingOccurrences(of: "@openclaw/", with: "")
+            }
+
+            if name.isEmpty { name = id }
+
+            let enabled = status == "loaded"
+            results.append(PluginInfo(
+                channel: name,
+                pluginId: id,
+                installed: true,
+                enabled: enabled
+            ))
+        }
 
         for line in output.components(separatedBy: .newlines) {
-            // Skip border lines (┌─, ├─, └─) and non-table lines
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard trimmed.hasPrefix("│") else { continue }
-            // Skip header row
             if trimmed.contains("Name") && trimmed.contains("Status") && trimmed.contains("Source") {
                 continue
             }
 
-            // Split by │ and trim each cell
             let cells = trimmed.components(separatedBy: "│")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
-            // cells[0] is empty (before first │), cells[1]=Name, cells[2]=ID, cells[3]=Status, ...
             guard cells.count >= 4 else { continue }
 
             let name = cells[1]
             let pluginId = cells[2]
             let status = cells[3]
+            let source = cells.count >= 5 ? cells[4] : ""
 
-            if !pluginId.isEmpty {
-                // Flush previous row
-                if let prevName = currentName, let prevId = currentId, let prevStatus = currentStatus {
-                    let enabled = prevStatus == "loaded"
-                    results.append(PluginInfo(
-                        channel: prevName,
-                        pluginId: prevId,
-                        installed: true,
-                        enabled: enabled
-                    ))
-                }
-                // Start new row
-                currentName = name.isEmpty ? pluginId : name
+            if !status.isEmpty {
+                // New row — flush previous
+                flushRow()
+                currentName = name
                 currentId = pluginId
                 currentStatus = status
+                currentSource = source
             } else {
-                // Continuation line — append to name if non-empty
+                // Continuation line — append Name overflow
                 if !name.isEmpty, let existing = currentName {
-                    // Multiline name: e.g. "@openclaw/" on line 1 and "mattermost" on line 2
-                    // Only prepend if previous name ended with / or -
                     if existing.hasSuffix("/") || existing.hasSuffix("-") {
                         currentName = existing + name
+                    } else {
+                        currentName = existing + " " + name
+                    }
+                }
+                // Append ID overflow (IDs never contain spaces, always direct concat)
+                if !pluginId.isEmpty {
+                    if let existing = currentId, !existing.isEmpty {
+                        currentId = existing + pluginId
+                    } else {
+                        currentId = pluginId
                     }
                 }
             }
         }
-        // Flush last row
-        if let prevName = currentName, let prevId = currentId, let prevStatus = currentStatus {
-            let enabled = prevStatus == "loaded"
-            results.append(PluginInfo(
-                channel: prevName,
-                pluginId: prevId,
-                installed: true,
-                enabled: enabled
-            ))
-        }
+        flushRow()
 
         return results
     }
@@ -937,6 +1163,22 @@ class DashboardViewModel: ObservableObject {
         isPerformingAction = false
     }
 
+    func addChannel(channelType: String, appKey: String, appSecret: String) async {
+        isPerformingAction = true
+        let escapedKey = appKey.replacingOccurrences(of: "'", with: "'\\''")
+        let escapedSecret = appSecret.replacingOccurrences(of: "'", with: "'\\''")
+        let output = await openclawService.runCommand(
+            "openclaw channels add --channel \(channelType) --app-key '\(escapedKey)' --app-secret '\(escapedSecret)' 2>&1"
+        )
+        if let output = output, output.lowercased().contains("error") {
+            showErrorMessage("Failed to add \(channelType): \(output)")
+        } else {
+            showSuccessMessage("\(channelType) channel added")
+        }
+        await loadChannels()
+        isPerformingAction = false
+    }
+
     /// Remove a channel
     func removeChannel(_ channel: ChannelInfo) async {
         isPerformingAction = true
@@ -950,6 +1192,203 @@ class DashboardViewModel: ObservableObject {
             showSuccessMessage("\(channel.name) channel removed")
         }
         await loadChannels()
+        isPerformingAction = false
+    }
+
+    // MARK: - Cron Job Management
+
+    /// Load cron jobs by running `openclaw cron list --json`
+    func loadCronJobs() async {
+        isLoadingCronJobs = true
+        let output = await openclawService.runCommand(
+            "openclaw cron list --all --json 2>&1",
+            timeout: 60
+        )
+        cronJobs = Self.parseCronJobList(output: output)
+        isLoadingCronJobs = false
+    }
+
+    /// Parse `openclaw cron list --json` output
+    static func parseCronJobList(output: String?) -> [CronJobInfo] {
+        guard let output = output else { return [] }
+
+        // Strip ANSI escape codes
+        let ansiPattern = "\\u{1B}\\[[0-9;]*[a-zA-Z]"
+        let cleaned = output.replacingOccurrences(of: ansiPattern, with: "", options: .regularExpression)
+
+        // Try to extract JSON from the output (skip any non-JSON lines)
+        let lines = cleaned.components(separatedBy: .newlines)
+        var jsonString = ""
+        var inJson = false
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if !inJson {
+                if trimmed == "[" || trimmed.hasPrefix("[{") || trimmed.hasPrefix("[\"") {
+                    inJson = true
+                } else if trimmed.hasPrefix("{") {
+                    inJson = true
+                }
+            }
+            if inJson {
+                jsonString += line + "\n"
+            }
+        }
+
+        guard !jsonString.isEmpty,
+              let data = jsonString.data(using: .utf8) else { return [] }
+
+        // Try parsing as {"jobs": [...]} or as [...]
+        if let wrapper = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let jobsArray = wrapper["jobs"] as? [[String: Any]] {
+            return jobsArray.compactMap { Self.parseCronJobDict($0) }
+        } else if let jobsArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            return jobsArray.compactMap { Self.parseCronJobDict($0) }
+        }
+
+        return []
+    }
+
+    /// Parse a single cron job dictionary
+    private static func parseCronJobDict(_ dict: [String: Any]) -> CronJobInfo? {
+        guard let id = dict["id"] as? String else { return nil }
+
+        let name = dict["name"] as? String ?? id
+
+        // schedule is a nested object: { kind, expr, tz }
+        let scheduleObj = dict["schedule"] as? [String: Any]
+        let schedule = scheduleObj?["expr"] as? String ?? dict["schedule"] as? String ?? ""
+        let timezone = scheduleObj?["tz"] as? String ?? dict["timezone"] as? String ?? ""
+
+        let agentId = dict["agentId"] as? String ?? dict["agent_id"] as? String ?? ""
+        let sessionTarget = dict["sessionTarget"] as? String ?? dict["session_target"] as? String ?? ""
+
+        // message is nested in payload: { kind, message, timeoutSeconds }
+        let payloadObj = dict["payload"] as? [String: Any]
+        let message = payloadObj?["message"] as? String ?? dict["message"] as? String ?? ""
+
+        let enabled = dict["enabled"] as? Bool ?? true
+
+        // nextRun / lastRun are timestamps in state: { nextRunAtMs, lastRunAtMs }
+        let stateObj = dict["state"] as? [String: Any]
+        let nextRun = Self.formatTimestamp(stateObj?["nextRunAtMs"])
+        let lastRun = Self.formatTimestamp(stateObj?["lastRunAtMs"])
+
+        let status = dict["status"] as? String ?? (enabled ? "idle" : "disabled")
+        let model = dict["model"] as? String ?? ""
+
+        return CronJobInfo(
+            cronId: id,
+            name: name,
+            schedule: schedule,
+            timezone: timezone,
+            agentId: agentId,
+            sessionTarget: sessionTarget,
+            message: message,
+            enabled: enabled,
+            nextRun: nextRun,
+            lastRun: lastRun,
+            status: status,
+            model: model
+        )
+    }
+
+    /// Format a millisecond timestamp to a readable date string
+    private static func formatTimestamp(_ value: Any?) -> String {
+        guard let ms = value as? Double ?? (value as? Int).map({ Double($0) }) else { return "" }
+        let date = Date(timeIntervalSince1970: ms / 1000.0)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.timeZone = TimeZone.current
+        return formatter.string(from: date)
+    }
+
+    /// Add a new cron job
+    func addCronJob(name: String, schedule: String, timezone: String, agentId: String, message: String, sessionTarget: String) async {
+        isPerformingAction = true
+        var cmd = "openclaw cron add --name '\(name)' --cron '\(schedule)'"
+        if !timezone.isEmpty {
+            cmd += " --tz '\(timezone)'"
+        }
+        if !agentId.isEmpty {
+            cmd += " --agent '\(agentId)'"
+        }
+        if !sessionTarget.isEmpty {
+            cmd += " --session-target '\(sessionTarget)'"
+        }
+        if !message.isEmpty {
+            let escapedMessage = message.replacingOccurrences(of: "'", with: "'\\''")
+            cmd += " --message '\(escapedMessage)'"
+        }
+        cmd += " --json 2>&1"
+
+        let output = await openclawService.runCommand(cmd)
+        if let output = output, output.lowercased().contains("error") && !output.contains("{") {
+            showErrorMessage("Failed to add cron job: \(output)")
+        } else {
+            showSuccessMessage("Cron job '\(name)' created")
+        }
+        await loadCronJobs()
+        isPerformingAction = false
+    }
+
+    /// Enable a cron job
+    func enableCronJob(_ job: CronJobInfo) async {
+        isPerformingAction = true
+        let output = await openclawService.runCommand(
+            "openclaw cron enable \(job.cronId) 2>&1"
+        )
+        if let output = output, output.lowercased().contains("error") {
+            showErrorMessage("Failed to enable cron job: \(output)")
+        } else {
+            showSuccessMessage("Cron job '\(job.name)' enabled")
+        }
+        await loadCronJobs()
+        isPerformingAction = false
+    }
+
+    /// Disable a cron job
+    func disableCronJob(_ job: CronJobInfo) async {
+        isPerformingAction = true
+        let output = await openclawService.runCommand(
+            "openclaw cron disable \(job.cronId) 2>&1"
+        )
+        if let output = output, output.lowercased().contains("error") {
+            showErrorMessage("Failed to disable cron job: \(output)")
+        } else {
+            showSuccessMessage("Cron job '\(job.name)' disabled")
+        }
+        await loadCronJobs()
+        isPerformingAction = false
+    }
+
+    /// Remove a cron job
+    func removeCronJob(_ job: CronJobInfo) async {
+        isPerformingAction = true
+        let output = await openclawService.runCommand(
+            "openclaw cron rm \(job.cronId) 2>&1"
+        )
+        if let output = output, output.lowercased().contains("error") {
+            showErrorMessage("Failed to remove cron job: \(output)")
+        } else {
+            showSuccessMessage("Cron job '\(job.name)' removed")
+        }
+        await loadCronJobs()
+        isPerformingAction = false
+    }
+
+    /// Manually run a cron job
+    func runCronJob(_ job: CronJobInfo) async {
+        isPerformingAction = true
+        let output = await openclawService.runCommand(
+            "openclaw cron run \(job.cronId) 2>&1",
+            timeout: 120
+        )
+        if let output = output, output.lowercased().contains("error") {
+            showErrorMessage("Failed to run cron job: \(output)")
+        } else {
+            showSuccessMessage("Cron job '\(job.name)' triggered")
+        }
+        await loadCronJobs()
         isPerformingAction = false
     }
 
@@ -1269,13 +1708,36 @@ struct ModelInfo: Identifiable {
 // MARK: - Chat Message
 
 struct ChatMessage: Identifiable {
-    let id = UUID()
+    let id: UUID
     let role: ChatRole
     let content: String
+    let agentId: String?
+    let agentEmoji: String?
+    let attachments: [URL]
+    let taskStatus: TaskStatus
+    let scrollTargetId: UUID?  // For notification messages: ID of the message to scroll to
+
+    init(role: ChatRole, content: String, agentId: String? = nil, agentEmoji: String? = nil, attachments: [URL] = [], taskStatus: TaskStatus = .completed, id: UUID = UUID(), scrollTargetId: UUID? = nil) {
+        self.id = id
+        self.role = role
+        self.content = content
+        self.agentId = agentId
+        self.agentEmoji = agentEmoji
+        self.attachments = attachments
+        self.taskStatus = taskStatus
+        self.scrollTargetId = scrollTargetId
+    }
 
     enum ChatRole {
         case user
         case assistant
+    }
+
+    enum TaskStatus {
+        case loading      // Foreground: waiting for result
+        case background   // Moved to background, still running
+        case completed    // Done
+        case timedOut     // Timed out, process terminated
     }
 }
 
@@ -1308,4 +1770,30 @@ struct SkillDetailInfo: Identifiable {
     let source: String
     let path: String
     let requirements: [String]
+}
+
+// MARK: - Agent Option
+
+struct AgentOption: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let emoji: String
+}
+
+// MARK: - Cron Job Info
+
+struct CronJobInfo: Identifiable {
+    let id = UUID()
+    let cronId: String
+    let name: String
+    let schedule: String
+    let timezone: String
+    let agentId: String
+    let sessionTarget: String
+    let message: String
+    let enabled: Bool
+    let nextRun: String
+    let lastRun: String
+    let status: String
+    let model: String
 }

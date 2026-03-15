@@ -7,7 +7,7 @@
           "value" : "light"
         }
       ],
-      "filename" : "logo_white.png",
+      "filename" : "logo_white_touxiang.png",
       "idiom" : "universal"
     },
     {
@@ -17,7 +17,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "logo_dark.jpg",
+      "filename" : "logo_dark_touxiang.png",
       "idiom" : "universal"
     }
   ],

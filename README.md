@@ -1,17 +1,16 @@
-# OpenClawInstaller 安装指南
+# GetClawHub Installation Guide
 
-## 把程序拖拽进Applications文件夹
+## Installation
 
-## DMG文件打不开问题解决方案
+Drag **GetClawHub.app** into the **Applications** folder.
 
-如果您在 macOS 上打开 OpenClawInstaller 时遇到来自身份不明开发者"的提示，在系统设置->隐私安全里"允许以下来应用程序"里点击允许    
+## Troubleshooting: App Cannot Be Opened
 
-## 📊 版本信息
+If macOS shows a warning about an unidentified developer, go to **System Settings > Privacy & Security**, then click **Allow** next to the blocked app message.
 
-- **应用名称**: getClawHub
+## Version Info
+
+- **App Name**: GetClawHub
 - **Bundle ID**: com.cc.OpenClawInstaller
-- **签名类型**: Ad-hoc (本地签名)
-- **最低系统**: macOS 13.0 (Ventura)
-- **架构**: Apple Silicon (arm64)
-
----
+- **Minimum OS**: macOS 13.0 (Ventura)
+- **Architecture**: Apple Silicon (arm64)

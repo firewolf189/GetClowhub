@@ -9,9 +9,12 @@ struct ConfigurationView: View {
 
             // Title
             VStack(spacing: 12) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(.blue)
+                Image("Logo1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+
+                BrandTextView()
 
                 Text("Gateway Configuration")
                     .font(.largeTitle)

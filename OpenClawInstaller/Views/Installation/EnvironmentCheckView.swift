@@ -9,19 +9,12 @@ struct EnvironmentCheckView: View {
 
             // Title
             VStack(spacing: 12) {
-                if viewModel.systemEnvironment.isChecking {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .frame(height: 80)
-                } else if viewModel.installationState.errorMessage != nil {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.orange)
-                } else {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.green)
-                }
+                Image("Logo1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+
+                BrandTextView()
 
                 Text("Environment Check")
                     .font(.largeTitle)

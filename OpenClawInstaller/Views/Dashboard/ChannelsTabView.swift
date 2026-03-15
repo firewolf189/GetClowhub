@@ -236,6 +236,22 @@ struct AddChannelSheet: View {
 
     @State private var selectedChannel = "telegram"
     @State private var token = ""
+    @State private var appKey = ""
+    @State private var appSecret = ""
+
+    private var usesAppKeyAuth: Bool {
+        selectedChannel == "dingtalk" || selectedChannel == "feishu"
+    }
+
+    private var canAdd: Bool {
+        if viewModel.isPerformingAction { return false }
+        if usesAppKeyAuth {
+            return !appKey.trimmingCharacters(in: .whitespaces).isEmpty
+                && !appSecret.trimmingCharacters(in: .whitespaces).isEmpty
+        } else {
+            return !token.trimmingCharacters(in: .whitespaces).isEmpty
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -268,20 +284,51 @@ struct AddChannelSheet: View {
                         }
                     }
                     .labelsHidden()
+                    .onChange(of: selectedChannel) { _ in
+                        token = ""
+                        appKey = ""
+                        appSecret = ""
+                    }
                 }
 
-                // Token input
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Token")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                // Credential inputs
+                if usesAppKeyAuth {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("App Key")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
 
-                    SecureField("Enter bot token or API key", text: $token)
-                        .textFieldStyle(.roundedBorder)
+                        SecureField("Enter App Key", text: $appKey)
+                            .textFieldStyle(.roundedBorder)
+                    }
 
-                    Text("For Telegram/Discord: bot token. For Slack: bot token (xoxb-...). Other channels may require different credentials.")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("App Secret")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        SecureField("Enter App Secret", text: $appSecret)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    Text(selectedChannel == "dingtalk"
+                         ? "Go to DingTalk Open Platform to create an app and get the App Key and App Secret."
+                         : "Go to Feishu Open Platform to create an app and get the App ID and App Secret.")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Token")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        SecureField("Enter bot token or API key", text: $token)
+                            .textFieldStyle(.roundedBorder)
+
+                        Text("For Telegram/Discord: bot token. For Slack: bot token (xoxb-...). Other channels may require different credentials.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
 
                 // Tip
@@ -305,12 +352,16 @@ struct AddChannelSheet: View {
 
                 Button("Add") {
                     Task {
-                        await viewModel.addChannel(channelType: selectedChannel, token: token)
+                        if usesAppKeyAuth {
+                            await viewModel.addChannel(channelType: selectedChannel, appKey: appKey, appSecret: appSecret)
+                        } else {
+                            await viewModel.addChannel(channelType: selectedChannel, token: token)
+                        }
                         isPresented = false
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(token.isEmpty || viewModel.isPerformingAction)
+                .disabled(!canAdd)
             }
             .padding(16)
         }

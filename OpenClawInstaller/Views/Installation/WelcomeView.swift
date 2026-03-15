@@ -7,17 +7,14 @@ struct WelcomeView: View {
         VStack(spacing: 30) {
             Spacer()
 
-            // Icon and title
+            // Logo and title
             VStack(spacing: 16) {
-                Image(systemName: "star.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                Image("Logo1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+
+                BrandTextView()
 
                 Text("Welcome to OpenClaw Installer")
                     .font(.largeTitle)

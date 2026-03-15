@@ -233,7 +233,7 @@ class CommandExecutor: ObservableObject {
     }
 
     /// Compare node version strings like "v22.22.0" > "v18.17.0" (descending)
-    private static func compareNodeVersions(_ a: String, _ b: String) -> Bool {
+    static func compareNodeVersions(_ a: String, _ b: String) -> Bool {
         let partsA = a.dropFirst().split(separator: ".").compactMap { Int($0) }
         let partsB = b.dropFirst().split(separator: ".").compactMap { Int($0) }
         for i in 0..<max(partsA.count, partsB.count) {

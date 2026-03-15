@@ -40,7 +40,7 @@ struct ServiceStatusCard: View {
                     .fontWeight(.bold)
 
                 if viewModel.openclawService.status == .running {
-                    Text("Running on port \(viewModel.openclawService.port)")
+                    Text("Running on port \(String(viewModel.openclawService.port))")
                         .font(.body)
                         .foregroundColor(.secondary)
 
