@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.14</title>
-      <sparkle:version>18</sparkle:version>
-      <sparkle:shortVersionString>1.1.14</sparkle:shortVersionString>
+      <title>Version 1.1.15</title>
+      <sparkle:version>19</sparkle:version>
+      <sparkle:shortVersionString>1.1.15</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.14</h2>
+        <h2>OpenClaw Helper 1.1.15</h2>
         <ul>
-          <li>修复帮助助手超时问，部分乱码问题</li>
+          <li>版本 1.1.15 更新</li>
         </ul>
       ]]></description>
-      <pubDate>Sat, 14 Mar 2026 14:49:03 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.14/GetClawHub.dmg"
-                 length="214554297"
+      <pubDate>Sun, 15 Mar 2026 16:14:54 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.15/GetClawHub.dmg"
+                 length="214669871"
                  type="application/octet-stream"
-                 sparkle:edSignature="cE4YabHoHmxn4NXTlzZBtRr+mpNdP+cwMMb2wGvuSvzFLqRk68i5Tdog63Orjmccni4A6y5EVu6d8JZByzq5Cw==" />
+                 sparkle:edSignature="BUSBKFRxDDeBz67aguIC1+a4sdD8MHymy0gr+ZhMtUjZvBmzNaLLujDi0LJcJzz1ICULh5bLyHo6Re7FnqPeAA==" />
     </item>
   </channel>
 </rss>
