@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.17</title>
-      <sparkle:version>21</sparkle:version>
-      <sparkle:shortVersionString>1.1.17</sparkle:shortVersionString>
+      <title>Version 1.1.18</title>
+      <sparkle:version>22</sparkle:version>
+      <sparkle:shortVersionString>1.1.18</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.17</h2>
+        <h2>OpenClaw Helper 1.1.18</h2>
         <ul>
-          <li>- Chat cancellation: Added a cancel button to the chat thinking indicator. Clicking it terminates the</li>
+          <li>add dingding & feishu channel config</li>
         </ul>
       ]]></description>
-      <pubDate>Tue, 17 Mar 2026 22:03:13 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.17/GetClawHub.dmg"
-                 length="216688073"
+      <pubDate>Thu, 19 Mar 2026 17:35:33 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.18/GetClawHub.dmg"
+                 length="216347734"
                  type="application/octet-stream"
-                 sparkle:edSignature="EtpII0JydZUHS7PViMNHd15lLcojesXWCGp9Ub6fKN7GGXLEd8KVlQT6ncm+1NTNsuBMdojySUs0L9uzA1teDA==" />
+                 sparkle:edSignature="JQDv49kpwBICFPWJDz9lWaaLGZrD+vRpf3Bjww9RC8jh1D4r4qBalLvymNO3juRFgez1fEdxtUAcxhG9YYB/DQ==" />
     </item>
   </channel>
 </rss>
