@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.18</title>
-      <sparkle:version>22</sparkle:version>
-      <sparkle:shortVersionString>1.1.18</sparkle:shortVersionString>
+      <title>Version 1.1.19</title>
+      <sparkle:version>23</sparkle:version>
+      <sparkle:shortVersionString>1.1.19</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.18</h2>
+        <h2>OpenClaw Helper 1.1.19</h2>
         <ul>
-          <li>add dingding & feishu channel config</li>
+          <li>bug fix</li>
         </ul>
       ]]></description>
-      <pubDate>Thu, 19 Mar 2026 17:35:33 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.18/GetClawHub.dmg"
-                 length="216347734"
+      <pubDate>Thu, 19 Mar 2026 19:10:49 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.19/GetClawHub.dmg"
+                 length="216805002"
                  type="application/octet-stream"
-                 sparkle:edSignature="JQDv49kpwBICFPWJDz9lWaaLGZrD+vRpf3Bjww9RC8jh1D4r4qBalLvymNO3juRFgez1fEdxtUAcxhG9YYB/DQ==" />
+                 sparkle:edSignature="Wob6Ye730UBFCTZpSNvaR1jPAAab1hocOSAFfsIPRME0nkKxvdsZAf2+6ad/pi6SHP4pI4wxFJBiDnXNoQncAA==" />
     </item>
   </channel>
 </rss>
