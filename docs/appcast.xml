@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.23</title>
-      <sparkle:version>27</sparkle:version>
-      <sparkle:shortVersionString>1.1.23</sparkle:shortVersionString>
+      <title>Version 1.1.25</title>
+      <sparkle:version>29</sparkle:version>
+      <sparkle:shortVersionString>1.1.25</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.23</h2>
+        <h2>OpenClaw Helper 1.1.25</h2>
         <ul>
-          <li>add weixin channel</li>
+          <li>版本 1.1.25 更新</li>
         </ul>
       ]]></description>
-      <pubDate>Tue, 24 Mar 2026 21:01:08 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.23/GetClawHub.dmg"
-                 length="216938008"
+      <pubDate>Sun, 19 Apr 2026 00:24:03 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.25/GetClawHub.dmg"
+                 length="277119293"
                  type="application/octet-stream"
-                 sparkle:edSignature="Qf1JFiCR6j/UbUr63RCcXaRxzDxuPMnJzEEo98vEW5NPAYjipZkmFWWJzOS6hn8EEvbApf/X2FI0g9AnUPSlAA==" />
+                 sparkle:edSignature="mMHTAz2OpxVxp8QgAbZY4NTq1ZfgeaxNu+aAobR3MHQNrQbTkRp4R/WNnJCrmhEKkTBHq2wP8x5FIMVkkU5tAQ==" />
     </item>
   </channel>
 </rss>
