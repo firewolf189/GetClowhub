@@ -56,22 +56,6 @@
 		C3D4E5F6A7B8492A1B2C3D4E /* HelpAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */; };
 		E4F5A6B7C8D94B3A3B4C5D6E /* HelpAssistantWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */; };
 		A5B6C7D8E9F04D4A5B6C7D8E /* 用户指南.md in Resources */ = {isa = PBXBuildFile; fileRef = B5C6D7E8F9A04E4A6B7C8D9E /* 用户指南.md */; };
-		C011AB01A1B2C3D4E5F60001 /* CollabModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C011AB02A1B2C3D4E5F60002 /* CollabModels.swift */; };
-		C011AB01D1E2F3A4B5C60001 /* CommanderConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C011AB01D1E2F3A4B5C60002 /* CommanderConfig.swift */; };
-		C011AB03A1B2C3D4E5F60003 /* CollabViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C011AB04A1B2C3D4E5F60004 /* CollabViewModel.swift */; };
-		C011AB05A1B2C3D4E5F60005 /* CollabWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */; };
-		C011AB07A1B2C3D4E5F60007 /* commander-persona.md in Resources */ = {isa = PBXBuildFile; fileRef = C011AB08A1B2C3D4E5F60008 /* commander-persona.md */; };
-		BD01AA01B1C2D3E4F5A60001 /* BudgetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD01AA02B1C2D3E4F5A60002 /* BudgetModels.swift */; };
-		BD01AA03B1C2D3E4F5A60003 /* BudgetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD01AA04B1C2D3E4F5A60004 /* BudgetService.swift */; };
-		WYQ78GRPE6YHXSKIQXOTVMP7 /* BillingTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */; };
-		BD01AA05B1C2D3E4F5A60005 /* BudgetTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */; };
-		GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */; };
-		MB01AC01D3E4F5A6B7C80001 /* MembershipManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */; };
-		MP01AD02E4F5A6B7C8D90002 /* MarketplaceAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */; };
-		MP01AD04E4F5A6B7C8D90004 /* MarketplaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */; };
-		35641B022F7A02970045A6F7 /* MarketplaceOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35641B012F7A02970045A6F7 /* MarketplaceOverviewView.swift */; };
-		MP01AD06E4F5A6B7C8D90006 /* marketplace_agents.json in Resources */ = {isa = PBXBuildFile; fileRef = MP01AD05E4F5A6B7C8D90005 /* marketplace_agents.json */; };
-		DBUILD001000000000000000 /* DesignSystems in Resources */ = {isa = PBXBuildFile; fileRef = DESIGN000100000000000000 /* DesignSystems */; };
 		MBUILD001000000000000000 /* DesignSystemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DESIGNMGR000000000000000 /* DesignSystemManager.swift */; };
 	/* End PBXBuildFile section */
 
@@ -124,22 +108,6 @@
 		D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpAssistantViewModel.swift; sourceTree = "<group>"; };
 		F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpAssistantWindow.swift; sourceTree = "<group>"; };
 		B5C6D7E8F9A04E4A6B7C8D9E /* 用户指南.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "用户指南.md"; sourceTree = "<group>"; };
-		C011AB02A1B2C3D4E5F60002 /* CollabModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabModels.swift; sourceTree = "<group>"; };
-		C011AB01D1E2F3A4B5C60002 /* CommanderConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommanderConfig.swift; sourceTree = "<group>"; };
-		C011AB04A1B2C3D4E5F60004 /* CollabViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabViewModel.swift; sourceTree = "<group>"; };
-		C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabWindow.swift; sourceTree = "<group>"; };
-		C011AB08A1B2C3D4E5F60008 /* commander-persona.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "commander-persona.md"; sourceTree = "<group>"; };
-		BD01AA02B1C2D3E4F5A60002 /* BudgetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetModels.swift; sourceTree = "<group>"; };
-		BD01AA04B1C2D3E4F5A60004 /* BudgetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetService.swift; sourceTree = "<group>"; };
-		IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingTabView.swift; sourceTree = "<group>"; };
-		BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTabView.swift; sourceTree = "<group>"; };
-		GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
-		MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipManager.swift; sourceTree = "<group>"; };
-		MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceAgent.swift; sourceTree = "<group>"; };
-		MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceDetailView.swift; sourceTree = "<group>"; };
-		35641B012F7A02970045A6F7 /* MarketplaceOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceOverviewView.swift; sourceTree = "<group>"; };
-		MP01AD05E4F5A6B7C8D90005 /* marketplace_agents.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = marketplace_agents.json; sourceTree = "<group>"; };
-		DESIGN000100000000000000 /* DesignSystems */ = {isa = PBXFileReference; lastKnownFileType = folder; path = DesignSystems; sourceTree = SOURCE_ROOT; };
 		DESIGNMGR000000000000000 /* DesignSystemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystemManager.swift; sourceTree = "<group>"; };
 	/* End PBXFileReference section */
 
@@ -187,12 +155,8 @@
 			children = (
 				356410222F5802970045A6F7 /* AppError.swift */,
 				356410232F5802970045A6F7 /* AppSettings.swift */,
-				BD01AA02B1C2D3E4F5A60002 /* BudgetModels.swift */,
-				C011AB02A1B2C3D4E5F60002 /* CollabModels.swift */,
-				C011AB01D1E2F3A4B5C60002 /* CommanderConfig.swift */,
 				B2C3D4E5F6A7491A0B1C2D3E /* HelpFAQ.swift */,
 				356410242F5802970045A6F7 /* InstallationState.swift */,
-				MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */,
 				3564106E2F5802970045A6F7 /* ProviderPreset.swift */,
 				356410252F5802970045A6F7 /* SystemEnvironment.swift */,
 			);
@@ -209,10 +173,8 @@
 		3564102F2F5802970045A6F7 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				BD01AA04B1C2D3E4F5A60004 /* BudgetService.swift */,
 				356410282F5802970045A6F7 /* CommandExecutor.swift */,
 				356410292F5802970045A6F7 /* DiagnosticService.swift */,
-				GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */,
 				356410782F5802970045A6F7 /* LanguageManager.swift */,
 				3564102A2F5802970045A6F7 /* NodeInstaller.swift */,
 				3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */,
@@ -221,7 +183,6 @@
 				3564102E2F5802970045A6F7 /* SparkleUpdater.swift */,
 			
 				ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */,
-				MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */,
 				F1E2D3C4B5A647389021A3B4 /* UninstallManager.swift */,
 			);
 			path = Services;
@@ -230,7 +191,6 @@
 		356410322F5802970045A6F7 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
-				C011AB04A1B2C3D4E5F60004 /* CollabViewModel.swift */,
 				356410302F5802970045A6F7 /* DashboardViewModel.swift */,
 				D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */,
 				356410312F5802970045A6F7 /* InstallationViewModel.swift */,
@@ -241,17 +201,12 @@
 		356410372F5802970045A6F7 /* Dashboard */ = {
 			isa = PBXGroup;
 			children = (
-				IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */,
-				BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */,
 				356410682F5802970045A6F7 /* ChannelsTabView.swift */,
-				C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */,
 				356410332F5802970045A6F7 /* ConfigTabView.swift */,
 				C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */,
 				356410342F5802970045A6F7 /* DashboardView.swift */,
 				F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */,
 				356410352F5802970045A6F7 /* LogsTabView.swift */,
-				MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */,
-				35641B012F7A02970045A6F7 /* MarketplaceOverviewView.swift */,
 				3564106A2F5802970045A6F7 /* ModelsTabView.swift */,
 				356410662F5802970045A6F7 /* PluginsTabView.swift */,
 				356410732F5802970045A6F7 /* SkillsTabView.swift */,
@@ -323,8 +278,6 @@
 		356410722F5802970045A6F7 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				C011AB08A1B2C3D4E5F60008 /* commander-persona.md */,
-				MP01AD05E4F5A6B7C8D90005 /* marketplace_agents.json */,
 				3564106F2F5802970045A6F7 /* providers_preset.json */,
 				B5C6D7E8F9A04E4A6B7C8D9E /* 用户指南.md */,
 			);
@@ -403,10 +356,7 @@
 				3564106D2F5802970045A6F7 /* Assets.xcassets in Resources */,
 				3564107B2F5802970045A6F7 /* Localizable.xcstrings in Resources */,
 				356410712F5802970045A6F7 /* providers_preset.json in Resources */,
-				MP01AD06E4F5A6B7C8D90006 /* marketplace_agents.json in Resources */,
 				A5B6C7D8E9F04D4A5B6C7D8E /* 用户指南.md in Resources */,
-				C011AB07A1B2C3D4E5F60007 /* commander-persona.md in Resources */,
-				DBUILD001000000000000000 /* DesignSystems in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -451,10 +401,6 @@
 				3564106B2F5802970045A6F7 /* ModelsTabView.swift in Sources */,
 				356410742F5802970045A6F7 /* SkillsTabView.swift in Sources */,
 				356410702F5802970045A6F7 /* ProviderPreset.swift in Sources */,
-				BD01AA01B1C2D3E4F5A60001 /* BudgetModels.swift in Sources */,
-				BD01AA03B1C2D3E4F5A60003 /* BudgetService.swift in Sources */,
-				WYQ78GRPE6YHXSKIQXOTVMP7 /* BillingTabView.swift in Sources */,
-				BD01AA05B1C2D3E4F5A60005 /* BudgetTabView.swift in Sources */,
 				356410792F5802970045A6F7 /* LanguageManager.swift in Sources */,
 			
 				FC838E8912A04DD484067D79 /* AuthManager.swift in Sources */,
@@ -464,15 +410,6 @@
 				A2B3C4D5E6F7481A9B0C1D2E /* HelpFAQ.swift in Sources */,
 				C3D4E5F6A7B8492A1B2C3D4E /* HelpAssistantViewModel.swift in Sources */,
 				E4F5A6B7C8D94B3A3B4C5D6E /* HelpAssistantWindow.swift in Sources */,
-				C011AB01A1B2C3D4E5F60001 /* CollabModels.swift in Sources */,
-				C011AB01D1E2F3A4B5C60001 /* CommanderConfig.swift in Sources */,
-				C011AB03A1B2C3D4E5F60003 /* CollabViewModel.swift in Sources */,
-				C011AB05A1B2C3D4E5F60005 /* CollabWindow.swift in Sources */,
-				GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */,
-				MB01AC01D3E4F5A6B7C80001 /* MembershipManager.swift in Sources */,
-				MP01AD02E4F5A6B7C8D90002 /* MarketplaceAgent.swift in Sources */,
-				MP01AD04E4F5A6B7C8D90004 /* MarketplaceDetailView.swift in Sources */,
-				35641B022F7A02970045A6F7 /* MarketplaceOverviewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
