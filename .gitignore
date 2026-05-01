@@ -24,3 +24,5 @@ openclaw_config_tmp.json
 
 # Large bundled resources (exceed GitHub 100MB limit)
 OpenClawInstaller/Resources/*.tar.gz
+
+.claude
