@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import os
 
 struct NodeVersion: Codable {
     let version: String
@@ -176,8 +177,7 @@ class NodeInstaller: ObservableObject {
             throw NodeInstallationError.downloadFailed("Invalid download URL")
         }
 
-        // Log the download source
-        print("📦 Downloading from: \(urlString)")
+        AppLogger.installer.info("Downloading Node from: \(urlString, privacy: .public)")
 
         // Create temporary directory for download
         let tempDir = FileManager.default.temporaryDirectory

@@ -2,6 +2,7 @@ import Foundation
 import Security
 import AppKit
 import Combine
+import os
 
 // MARK: - AuthState
 
@@ -118,7 +119,7 @@ class AuthManager: ObservableObject {
                   httpResponse.statusCode == 200 else {
                 let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
                 let body = String(data: data, encoding: .utf8) ?? ""
-                print("[AuthManager] device-register HTTP \(statusCode): \(body)")
+                AppLogger.auth.error("[AuthManager] device-register HTTP \(statusCode, privacy: .public): \(body, privacy: .public)")
                 state = .error(message: String(format: String(localized: "Login service error (HTTP %d), please try again later"), statusCode))
                 return
             }
@@ -138,7 +139,7 @@ class AuthManager: ObservableObject {
             state = .polling(deviceCode: deviceCode)
             startPolling(deviceCode: deviceCode)
         } catch {
-            print("[AuthManager] device-register failed: \(error)")
+            AppLogger.auth.error("[AuthManager] device-register failed: \(error.localizedDescription, privacy: .public)")
             state = .error(message: String(format: String(localized: "Unable to connect to login service: %@"), error.localizedDescription))
         }
     }

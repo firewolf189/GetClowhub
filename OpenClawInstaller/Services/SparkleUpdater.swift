@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import Sparkle
+import os
 
 @MainActor
 final class SparkleUpdater: ObservableObject {
@@ -22,8 +23,8 @@ final class SparkleUpdater: ObservableObject {
     }
 
     func checkForUpdates() {
-        print("[SparkleUpdater] checkForUpdates called, canCheck=\(updaterController.updater.canCheckForUpdates)")
-        print("[SparkleUpdater] feedURL=\(updaterController.updater.feedURL?.absoluteString ?? "nil")")
+        AppLogger.service.debug("[SparkleUpdater] checkForUpdates called, canCheck=\(self.updaterController.updater.canCheckForUpdates, privacy: .public)")
+        AppLogger.service.debug("[SparkleUpdater] feedURL=\(self.updaterController.updater.feedURL?.absoluteString ?? "nil", privacy: .public)")
         updaterController.checkForUpdates(nil)
     }
 
@@ -65,7 +66,7 @@ final class SparkleUpdater: ObservableObject {
                 }
             }
         } catch {
-            print("[SparkleUpdater] checkLatestVersion error: \(error)")
+            AppLogger.service.error("[SparkleUpdater] checkLatestVersion error: \(error.localizedDescription, privacy: .public)")
         }
     }
 
