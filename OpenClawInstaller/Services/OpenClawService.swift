@@ -255,19 +255,31 @@ class OpenClawService: ObservableObject {
                         if let range = trimmed.range(of: "\\d+", options: .regularExpression) {
                             let pidStr = String(trimmed[range])
                             if let pid = Int(pidStr), pid > 0 {
-                                status = .running
-                                if startTime == nil { startTime = Date() }
-                                if let startTime = startTime {
-                                    uptime = Date().timeIntervalSince(startTime)
-                                }
                                 pidFound = true
                             }
                         }
                     }
                 }
 
-                if !pidFound {
-                    // Loaded but maybe not running; double check with port
+                if pidFound {
+                    // PID exists, but verify the port is actually listening.
+                    // The process may have started but failed to bind the port
+                    // (e.g. "Gateway start blocked: set gateway.mode=local").
+                    let portListening = await isPortListening()
+                    if portListening {
+                        status = .running
+                        if startTime == nil { startTime = Date() }
+                        if let startTime = startTime {
+                            uptime = Date().timeIntervalSince(startTime)
+                        }
+                    } else {
+                        status = .error
+                        lastError = "Service process exists but gateway port \(port) is not listening"
+                        uptime = 0
+                        startTime = nil
+                    }
+                } else {
+                    // Loaded but no PID; double check with port
                     await detectByPort()
                 }
             }
@@ -290,7 +302,9 @@ class OpenClawService: ObservableObject {
             }
         }
 
-        lastError = nil
+        if status != .error {
+            lastError = nil
+        }
     }
 
     /// Parse dashboard URL and port from gateway status output
@@ -313,14 +327,19 @@ class OpenClawService: ObservableObject {
         }
     }
 
-    /// Detect service by checking if the gateway port is in use
-    private func detectByPort() async {
+    /// Check if the gateway port is currently listening
+    private func isPortListening() async -> Bool {
         let lsofOutput = await runShellQuietly(
             "lsof -i :\(port) -sTCP:LISTEN 2>/dev/null | grep -c LISTEN",
             timeout: 5
         )
         let count = Int(lsofOutput?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "0") ?? 0
-        if count > 0 {
+        return count > 0
+    }
+
+    /// Detect service by checking if the gateway port is in use
+    private func detectByPort() async {
+        if await isPortListening() {
             status = .running
             if startTime == nil { startTime = Date() }
         } else {
@@ -383,7 +402,7 @@ class OpenClawService: ObservableObject {
     /// macOS GUI apps inherit a minimal environment from launchd, and if the user's
     /// .zshrc guards with `[[ ! -o interactive ]]` the nvm/npm-global PATH entries
     /// added in .zshrc are never loaded.  We inject them explicitly.
-    private static func buildEnrichedPath() -> String {
+    static func buildEnrichedPath() -> String {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         // Gather extra directories that may contain node / openclaw
         var extraDirs: [String] = [
@@ -423,10 +442,11 @@ class OpenClawService: ObservableObject {
     }
 
     /// Run a shell command quietly without triggering UI updates
-    /// Uses proper pipe reading pattern to avoid deadlocks, with timeout
+    /// Uses proper pipe reading pattern to avoid deadlocks, with timeout.
+    /// Uses DispatchSemaphore instead of busy-wait to avoid CPU spinning.
     private func runShellQuietly(_ command: String, timeout: TimeInterval = 15) async -> String? {
         return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.global(qos: .utility).async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/zsh")
                 process.arguments = ["-l", "-c", command]
@@ -441,6 +461,12 @@ class OpenClawService: ObservableObject {
                 let pipe = Pipe()
                 process.standardOutput = pipe
                 process.standardError = Pipe()
+
+                // Use semaphore to wait for process exit without busy-wait
+                let exitSemaphore = DispatchSemaphore(value: 0)
+                process.terminationHandler = { _ in
+                    exitSemaphore.signal()
+                }
 
                 do {
                     try process.run()
@@ -460,27 +486,23 @@ class OpenClawService: ObservableObject {
                     readGroup.leave()
                 }
 
-                // Wait for process with timeout
-                let deadline = Date().addingTimeInterval(timeout)
-                var timedOut = false
-                while process.isRunning && Date() < deadline {
-                    Thread.sleep(forTimeInterval: 0.1)
-                }
-                if process.isRunning {
+                // Wait for process exit using semaphore (blocks thread, zero CPU)
+                let semaphoreResult = exitSemaphore.wait(timeout: .now() + timeout)
+                if semaphoreResult == .timedOut && process.isRunning {
                     process.terminate()
-                    timedOut = true
                 }
 
-                // Wait for pipe read to complete
-                readGroup.wait()
-
-                if timedOut {
-                    continuation.resume(returning: nil)
-                } else {
-                    let output = String(data: outputData, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    continuation.resume(returning: output)
+                // Wait for pipe read to complete (with timeout to prevent deadlock)
+                let waitResult = readGroup.wait(timeout: .now() + 5)
+                if waitResult == .timedOut {
+                    // Force close the pipe to unblock readDataToEndOfFile
+                    try? pipe.fileHandleForReading.close()
+                    readGroup.wait()
                 }
+
+                let output = String(data: outputData, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                continuation.resume(returning: output)
             }
         }
     }
@@ -629,8 +651,8 @@ class OpenClawService: ObservableObject {
         var resolved = command
         if resolved.hasPrefix("openclaw ") || resolved.contains(" openclaw ") {
             if let fullPath = await getOpenclawPath() {
-                // Replace first occurrence of bare "openclaw" with the resolved path (quoted)
-                if let range = resolved.range(of: "openclaw") {
+                // Use word-boundary match to avoid replacing "openclaw" inside paths like ".openclaw"
+                if let range = resolved.range(of: "(?<![./\\w])openclaw(?= )", options: .regularExpression) {
                     resolved.replaceSubrange(range, with: "'\(fullPath)'")
                 }
             }
@@ -644,27 +666,31 @@ class OpenClawService: ObservableObject {
     func runCommandStreaming(
         _ command: String,
         timeout: TimeInterval = 300,
-        onOutput: @escaping @Sendable (String) -> Void
+        onOutput: @escaping @Sendable (String) -> Void,
+        onProcessReady: (@Sendable (Process) -> Void)? = nil
     ) async -> CommandStreamResult {
         var resolved = command
         if resolved.hasPrefix("openclaw ") || resolved.contains(" openclaw ") {
             if let fullPath = await getOpenclawPath() {
-                if let range = resolved.range(of: "openclaw") {
+                // Use word-boundary match to avoid replacing "openclaw" inside paths like ".openclaw"
+                if let range = resolved.range(of: "(?<![./\\w])openclaw(?= )", options: .regularExpression) {
                     resolved.replaceSubrange(range, with: "'\(fullPath)'")
                 }
             }
         }
-        return await runShellStreaming(resolved, timeout: timeout, onOutput: onOutput)
+        return await runShellStreaming(resolved, timeout: timeout, onOutput: onOutput, onProcessReady: onProcessReady)
     }
 
     /// Internal streaming shell execution.
+    /// Uses DispatchSemaphore for process exit instead of busy-wait.
     private func runShellStreaming(
         _ command: String,
         timeout: TimeInterval,
-        onOutput: @escaping @Sendable (String) -> Void
+        onOutput: @escaping @Sendable (String) -> Void,
+        onProcessReady: (@Sendable (Process) -> Void)? = nil
     ) async -> CommandStreamResult {
         return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.global(qos: .utility).async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/zsh")
                 process.arguments = ["-l", "-c", command]
@@ -675,64 +701,92 @@ class OpenClawService: ObservableObject {
 
                 let pipe = Pipe()
                 process.standardOutput = pipe
-                process.standardError = Pipe()
+                process.standardError = pipe
+
+                // Use semaphore to detect process exit without busy-wait
+                let exitSemaphore = DispatchSemaphore(value: 0)
+                process.terminationHandler = { _ in
+                    exitSemaphore.signal()
+                }
 
                 do {
                     try process.run()
+                    onProcessReady?(process)
                 } catch {
                     continuation.resume(returning: .completed(nil))
                     return
                 }
 
-                // Read pipe data in a background thread
-                let accumulatedData = NSMutableData()
-                let dataLock = NSLock()
+                // Read pipe data in a background thread, converting chunks to string incrementally
+                var accumulatedString = ""
+                let stringLock = NSLock()
+                var hasNewData = false
                 let readGroup = DispatchGroup()
                 readGroup.enter()
                 DispatchQueue(label: "pipe.stream.read").async {
                     let handle = pipe.fileHandleForReading
                     while true {
                         let chunk = handle.availableData
-                        if chunk.isEmpty { break } // EOF
-                        dataLock.lock()
-                        accumulatedData.append(chunk)
-                        dataLock.unlock()
+                        if chunk.isEmpty { break }  // EOF
+                        if let text = String(data: chunk, encoding: .utf8) {
+                            stringLock.lock()
+                            accumulatedString.append(text)
+                            hasNewData = true
+                            stringLock.unlock()
+                        }
                     }
                     readGroup.leave()
                 }
 
                 // Wait for process with timeout, periodically emitting output
-                let deadline = Date().addingTimeInterval(timeout)
-                var lastLength = 0
-                while process.isRunning && Date() < deadline {
-                    Thread.sleep(forTimeInterval: 0.5)
-                    dataLock.lock()
-                    let currentLength = accumulatedData.length
-                    let snapshot: String? = currentLength > lastLength
-                        ? String(data: accumulatedData as Data, encoding: .utf8)
-                        : nil
-                    dataLock.unlock()
-                    if let text = snapshot {
-                        lastLength = currentLength
-                        onOutput(text)
+                // Use semaphore.wait with 1s intervals to check for new output
+                let deadline = DispatchTime.now() + timeout
+                var exited = false
+                while !exited {
+                    let waitResult = exitSemaphore.wait(timeout: .now() + 1.0)
+                    if waitResult == .success {
+                        exited = true
+                    } else if DispatchTime.now() >= deadline {
+                        break  // timeout
+                    }
+                    // Emit accumulated output
+                    stringLock.lock()
+                    let shouldEmit = hasNewData
+                    let snapshot = shouldEmit ? accumulatedString : ""
+                    hasNewData = false
+                    stringLock.unlock()
+                    if shouldEmit {
+                        onOutput(snapshot)
                     }
                 }
 
-                if process.isRunning {
+                if !exited && process.isRunning {
                     process.terminate()
-                    readGroup.wait()
-                    dataLock.lock()
-                    let partial = String(data: accumulatedData as Data, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    dataLock.unlock()
-                    continuation.resume(returning: .timedOut(partial))
+                    // Wait with timeout to prevent deadlock if pipe reader is stuck
+                    let waitResult = readGroup.wait(timeout: .now() + 5)
+                    if waitResult == .timedOut {
+                        // Force close the pipe to unblock the reader
+                        try? pipe.fileHandleForReading.close()
+                        readGroup.wait()
+                    }
+                    stringLock.lock()
+                    let partial = accumulatedString.trimmingCharacters(in: .whitespacesAndNewlines)
+                    stringLock.unlock()
+                    continuation.resume(returning: .timedOut(partial.isEmpty ? nil : partial))
                 } else {
-                    readGroup.wait()
-                    dataLock.lock()
-                    let output = String(data: accumulatedData as Data, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    dataLock.unlock()
-                    continuation.resume(returning: .completed(output))
+                    let waitResult = readGroup.wait(timeout: .now() + 5)
+                    if waitResult == .timedOut {
+                        try? pipe.fileHandleForReading.close()
+                        readGroup.wait()
+                    }
+                    // Emit final output
+                    stringLock.lock()
+                    let output = accumulatedString.trimmingCharacters(in: .whitespacesAndNewlines)
+                    stringLock.unlock()
+                    if !output.isEmpty {
+                        onOutput(output)
+                    }
+                    continuation.resume(returning: .completed(output.isEmpty ? nil : output))
                 }
             }
         }

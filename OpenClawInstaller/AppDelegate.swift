@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private var statusItem: NSStatusItem?
@@ -15,9 +16,36 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     // Auth manager reference (to be set from App)
     var authManager: AuthManager?
 
+    // Membership manager reference (to be set from App)
+    #if REQUIRE_LOGIN
+    var membershipManager: MembershipManager?
+    #endif
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         cleanupMainMenu()
+        requestNotificationPermission()
+        maximizeWindowOnFirstLaunch()
+    }
+
+    /// Maximize the main window on first launch
+    private func maximizeWindowOnFirstLaunch() {
+        let key = "hasLaunchedBefore"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        DispatchQueue.main.async {
+            if let window = NSApplication.shared.windows.first {
+                window.zoom(nil)
+            }
+        }
+    }
+
+    /// Request notification permission on app launch
+    private func requestNotificationPermission() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            print("[AppDelegate] Notification permission requested - granted: \(granted), error: \(error?.localizedDescription ?? "none")")
+        }
     }
 
     /// Called on every event loop iteration.

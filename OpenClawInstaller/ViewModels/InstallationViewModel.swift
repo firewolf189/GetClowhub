@@ -195,6 +195,11 @@ class InstallationViewModel: ObservableObject {
         gateway["mode"] = "local"
         dict["gateway"] = gateway
 
+        // Write tools.profile: "full"
+        var tools = dict["tools"] as? [String: Any] ?? [:]
+        tools["profile"] = "full"
+        dict["tools"] = tools
+
         do {
             let data = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: URL(fileURLWithPath: configPath), options: .atomic)

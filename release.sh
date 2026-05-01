@@ -18,6 +18,42 @@ PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLIST="$PROJECT_DIR/OpenClawInstaller/Info.plist"
 PBXPROJ="$PROJECT_DIR/OpenClawInstaller.xcodeproj/project.pbxproj"
 
+# ===== 前置检查 =====
+echo "🔍 前置检查..."
+
+# 检查 gh 是否安装且已登录
+if ! command -v gh &>/dev/null; then
+    echo "❌ gh (GitHub CLI) 未安装。请先运行: brew install gh && gh auth login"
+    exit 1
+fi
+if ! gh auth status &>/dev/null; then
+    echo "❌ gh 未登录。请先运行: gh auth login"
+    exit 1
+fi
+
+# 检查签名证书
+if ! security find-identity -v -p codesigning 2>/dev/null | grep -q "Developer ID Application"; then
+    echo "❌ 未找到 Developer ID 签名证书。请导入 .p12 证书到 Keychain。"
+    exit 1
+fi
+
+# 检查公证凭据
+if ! xcrun notarytool history --keychain-profile "notary-profile" &>/dev/null; then
+    echo "❌ 未配置公证凭据。请先运行:"
+    echo "   xcrun notarytool store-credentials \"notary-profile\" --apple-id <你的AppleID> --team-id LJQJ5BHW7G --password <App专用密码>"
+    exit 1
+fi
+
+# 检查 Sparkle EdDSA 密钥
+if ! security find-generic-password -a "ed25519" -s "https://sparkle-project.org" &>/dev/null; then
+    echo "❌ 未找到 Sparkle EdDSA 签名密钥。请从另一台电脑导出密钥:"
+    echo "   旧电脑: security find-generic-password -a \"ed25519\" -s \"https://sparkle-project.org\" -w"
+    echo "   新电脑: security add-generic-password -a \"ed25519\" -s \"https://sparkle-project.org\" -w \"<密钥>\""
+    exit 1
+fi
+
+echo "✅ 前置检查通过"
+
 # 读取当前版本
 OLD_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST")
 OLD_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST")
@@ -129,26 +165,49 @@ if [ -n "$SIGN_UPDATE" ]; then
 APPCAST_EOF
     echo "✅ appcast.xml 已更新 (签名 + 文件大小)"
 else
-    echo "⚠️  未找到 sign_update 工具，appcast.xml 签名可能不正确"
+    echo "❌ 未找到 sign_update 工具，无法签名"
+    exit 1
 fi
 
-# ===== 6. 创建 GitHub Release =====
+# ===== 6. 提交并推送 (先于 GitHub Release，确保 appcast.xml 更新) =====
 echo ""
-echo "🚀 [6/7] 创建 GitHub Release..."
-gh release create "v$NEW_VERSION" "$DMG_PATH" \
-    --title "v$NEW_VERSION" \
-    --notes "$RELEASE_NOTES"
-echo "✅ Release 已创建"
-
-# ===== 7. 提交并推送 =====
-echo ""
-echo "📤 [7/7] 提交并推送..."
+echo "📤 [6/7] 提交并推送..."
 cd "$PROJECT_DIR"
 git add docs/appcast.xml \
     OpenClawInstaller/Info.plist \
     OpenClawInstaller.xcodeproj/project.pbxproj
 git commit -m "release v$NEW_VERSION: $RELEASE_NOTES"
 git push
+echo "✅ appcast.xml 已推送，用户可收到更新通知"
+
+# ===== 7. 创建 GitHub Release (失败不阻塞) =====
+echo ""
+echo "🚀 [7/7] 创建 GitHub Release..."
+set +e
+
+# 先创建 release（快）
+gh release create "v$NEW_VERSION" \
+    --title "v$NEW_VERSION" \
+    --notes "$RELEASE_NOTES"
+CREATE_OK=$?
+
+if [ $CREATE_OK -eq 0 ]; then
+    echo "✅ Release 已创建，开始上传 DMG..."
+    # 上传 DMG（慢，带重试）
+    for i in 1 2 3; do
+        if gh release upload "v$NEW_VERSION" "$DMG_PATH" --clobber; then
+            echo "✅ DMG 上传成功"
+            break
+        fi
+        echo "⚠️  DMG 上传失败，重试 ($i/3)..."
+        sleep 5
+    done
+else
+    echo "⚠️  GitHub Release 创建失败（网络问题），请手动执行:"
+    echo "   gh release create \"v$NEW_VERSION\" GetClawHub.dmg --title \"v$NEW_VERSION\" --notes \"$RELEASE_NOTES\""
+fi
+
+set -e
 
 echo ""
 echo "====================================="

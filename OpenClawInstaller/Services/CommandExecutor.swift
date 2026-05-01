@@ -151,7 +151,10 @@ class CommandExecutor: ObservableObject {
                 DispatchQueue.global(qos: .userInitiated).async {
                     let process = Process()
                     process.executableURL = URL(fileURLWithPath: shell)
-                    process.arguments = ["-l", "-c", "which \(command)"]
+                    // GUI apps launch zsh -l which only sources .zprofile/.zshenv, not .zshrc.
+                    // Most users configure PATH in .zshrc, so source it explicitly.
+                    let rcFile = shell == "/bin/zsh" ? ".zshrc" : ".bashrc"
+                    process.arguments = ["-l", "-c", "[ -f \"$HOME/\(rcFile)\" ] && . \"$HOME/\(rcFile)\" 2>/dev/null; which \(command)"]
 
                     let pipe = Pipe()
                     process.standardOutput = pipe

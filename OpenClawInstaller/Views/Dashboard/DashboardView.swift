@@ -1,6 +1,9 @@
 import SwiftUI
+import SwiftTerm
 import UniformTypeIdentifiers
 import AVKit
+import Combine
+import Quartz
 
 struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
@@ -62,9 +65,26 @@ struct SidebarView: View {
     @EnvironmentObject var languageManager: LanguageManager
     #if REQUIRE_LOGIN
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var membershipManager: MembershipManager
     #endif
     @AppStorage("appAppearance") private var appAppearance: String = "system"
     @Environment(\.colorScheme) private var colorScheme
+
+    // Agent context menu state
+    @State private var showCreateAgentSheet = false
+    @StateObject private var createAgentVM: SubAgentsViewModel
+    @State private var deleteAgentConfirmId: String?
+
+    // Marketplace state
+    @State private var marketplaceSearchText = ""
+    @State private var expandedDivisions: Set<String> = []
+    @State private var expandedAgentDivisions: Set<String> = []
+
+    init(selectedTab: Binding<DashboardViewModel.DashboardTab>, viewModel: DashboardViewModel) {
+        self._selectedTab = selectedTab
+        self.viewModel = viewModel
+        self._createAgentVM = StateObject(wrappedValue: SubAgentsViewModel(openclawService: viewModel.openclawService))
+    }
 
     private var isDark: Bool {
         if appAppearance == "dark" { return true }
@@ -73,56 +93,16 @@ struct SidebarView: View {
     }
 
     var body: some View {
-        List(selection: $selectedTab) {
-            ServiceStatusBadge(viewModel: viewModel)
-                .listRowSeparator(.hidden)
-                .padding(.bottom, 8)
-
-            Section("Chat") {
-                Label("Chat", systemImage: "message.fill")
-                    .tag(DashboardViewModel.DashboardTab.chat)
-            }
-
-            Section("Overview") {
-                Label("Status", systemImage: "chart.bar.fill")
-                    .tag(DashboardViewModel.DashboardTab.status)
-            }
-
-            Section("Agent") {
-                Label("Persona", systemImage: "person.text.rectangle")
-                    .tag(DashboardViewModel.DashboardTab.persona)
-                Label("Multi-Agent", systemImage: "person.3.fill")
-                    .tag(DashboardViewModel.DashboardTab.subAgents)
-            }
-
-            Section("Settings") {
-                Label("Configuration", systemImage: "gearshape")
-                    .tag(DashboardViewModel.DashboardTab.config)
-                Label("Skills", systemImage: "bolt.fill")
-                    .tag(DashboardViewModel.DashboardTab.skills)
-                Label("Models", systemImage: "cube.fill")
-                    .tag(DashboardViewModel.DashboardTab.models)
-                Label("Channels", systemImage: "bubble.left.and.bubble.right.fill")
-                    .tag(DashboardViewModel.DashboardTab.channels)
-                Label("Plugins", systemImage: "puzzlepiece.fill")
-                    .tag(DashboardViewModel.DashboardTab.plugins)
-            }
-
-            Section("Tools") {
-                Label("Cron", systemImage: "clock.badge")
-                    .tag(DashboardViewModel.DashboardTab.cron)
-                Label("Logs", systemImage: "doc.text.magnifyingglass")
-                    .tag(DashboardViewModel.DashboardTab.logs)
-
-                Button(action: {
-                    Task { await viewModel.runDiagnostics() }
-                }) {
-                    Label("Doctor", systemImage: "stethoscope")
-                }
-                .buttonStyle(.plain)
+        VStack(spacing: 0) {
+            switch viewModel.sidebarMode {
+            case .config:
+                managementList
+            case .teams:
+                agentsList
+            case .market:
+                marketplaceList
             }
         }
-        .listStyle(.sidebar)
         .safeAreaInset(edge: .top) {
             VStack(spacing: 0) {
                 // User status
@@ -135,7 +115,58 @@ struct SidebarView: View {
                         Text(nickname)
                             .font(.caption)
                             .lineLimit(1)
+
+                        // Membership badge
+                        if let membership = membershipManager.membership {
+                            Text("[\(membership.level.displayName)]")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(membershipBadgeColor(membership.level))
+                        }
+
+                        // Upgrade button for non-max users
+                        if let membership = membershipManager.membership, membership.level != .max {
+                            Button {
+                                var urlString = "\(AuthConfig.baseURL)/pricing"
+                                var params: [String] = []
+                                if let token = authManager.accessToken {
+                                    params.append("token=\(token)")
+                                }
+                                if let uid = authManager.userId {
+                                    params.append("user_id=\(uid)")
+                                }
+                                if !params.isEmpty {
+                                    urlString += "?" + params.joined(separator: "&")
+                                }
+                                if let url = URL(string: urlString) {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            } label: {
+                                Label("会员升级", systemImage: "crown.fill")
+                                    .font(.system(size: 9, weight: .medium))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.orange)
+                        }
+
                         Spacer()
+
+                        // Sync button
+                        if membershipManager.syncState == .syncing {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .scaleEffect(0.7)
+                        } else {
+                            Button {
+                                Task { await membershipManager.syncProfile() }
+                            } label: {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 10))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.secondary)
+                            .help("Sync membership")
+                        }
+
                         Button("Log Out") {
                             authManager.logout()
                         }
@@ -196,6 +227,20 @@ struct SidebarView: View {
 
                 Spacer()
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+
+                // Sidebar mode switcher
+                Picker("", selection: $viewModel.sidebarMode) {
+                    Text(String(localized: "Config", bundle: languageManager.localizedBundle))
+                        .tag(DashboardViewModel.SidebarMode.config)
+                    Text(String(localized: "My Team", bundle: languageManager.localizedBundle))
+                        .tag(DashboardViewModel.SidebarMode.teams)
+                    Text(String(localized: "Market", bundle: languageManager.localizedBundle))
+                        .tag(DashboardViewModel.SidebarMode.market)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
             }
@@ -282,6 +327,398 @@ struct SidebarView: View {
         }
         .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 280)
     }
+
+    #if REQUIRE_LOGIN
+    private func membershipBadgeColor(_ level: MembershipLevel) -> SwiftUI.Color {
+        switch level {
+        case .free: return .gray
+        case .pro: return .blue
+        case .max: return .purple
+        }
+    }
+    #endif
+
+    // MARK: - Management List
+
+    private var managementList: some View {
+        List(selection: $selectedTab) {
+            ServiceStatusBadge(viewModel: viewModel)
+                .listRowSeparator(.hidden)
+                .padding(.bottom, 8)
+
+            Section("Chat") {
+                Label("Chat", systemImage: "message.fill")
+                    .tag(DashboardViewModel.DashboardTab.chat)
+            }
+
+            Section("Overview") {
+                Label(String(localized: "Status", bundle: LanguageManager.shared.localizedBundle), systemImage: "chart.bar.fill")
+                    .tag(DashboardViewModel.DashboardTab.status)
+                Label(String(localized: "Budget", bundle: LanguageManager.shared.localizedBundle), systemImage: "dollarsign.gauge.chart.lefthalf.righthalf")
+                    .tag(DashboardViewModel.DashboardTab.budget)
+                #if REQUIRE_LOGIN
+                Label(String(localized: "Billing", bundle: LanguageManager.shared.localizedBundle), systemImage: "creditcard.fill")
+                    .tag(DashboardViewModel.DashboardTab.billing)
+                #endif
+            }
+
+            Section("Agent") {
+                Label("Persona", systemImage: "person.text.rectangle")
+                    .tag(DashboardViewModel.DashboardTab.persona)
+                Label("Multi-Agent", systemImage: "person.3.fill")
+                    .tag(DashboardViewModel.DashboardTab.subAgents)
+            }
+
+            Section("Settings") {
+                Label("Configuration", systemImage: "gearshape")
+                    .tag(DashboardViewModel.DashboardTab.config)
+                Label("Skills", systemImage: "bolt.fill")
+                    .tag(DashboardViewModel.DashboardTab.skills)
+                Label("Models", systemImage: "cube.fill")
+                    .tag(DashboardViewModel.DashboardTab.models)
+                Label("Channels", systemImage: "bubble.left.and.bubble.right.fill")
+                    .tag(DashboardViewModel.DashboardTab.channels)
+                Label("Plugins", systemImage: "puzzlepiece.fill")
+                    .tag(DashboardViewModel.DashboardTab.plugins)
+            }
+
+            Section("Tools") {
+                Label("Cron", systemImage: "clock.badge")
+                    .tag(DashboardViewModel.DashboardTab.cron)
+                Label("Logs", systemImage: "doc.text.magnifyingglass")
+                    .tag(DashboardViewModel.DashboardTab.logs)
+
+                Button(action: {
+                    Task { await viewModel.runDiagnostics() }
+                }) {
+                    Label("Doctor", systemImage: "stethoscope")
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .listStyle(.sidebar)
+    }
+
+    // MARK: - Agents List
+
+    /// Agents grouped by division for the sidebar
+    private var agentsByDivisionGrouped: [(division: String, agents: [AgentOption])] {
+        let grouped = Dictionary(grouping: viewModel.availableAgents.filter {
+            $0.id != "commander" && $0.id != "main" && !$0.division.isEmpty
+        }) { $0.division }
+
+        // Sort: Custom first, then alphabetical
+        let divisionOrder = ["Custom"] + Self.divisionEmoji.keys.sorted()
+        return divisionOrder.compactMap { div in
+            guard let agents = grouped[div], !agents.isEmpty else { return nil }
+            return (division: div, agents: agents)
+        }
+    }
+
+    private func agentRowWithContextMenu(_ agent: AgentOption) -> some View {
+        let isExecuting = viewModel.isAgentExecuting(agent.id)
+        return AgentListRow(agent: agent, isActive: viewModel.selectedAgentId == agent.id, isExecuting: isExecuting)
+            .tag(agent.id)
+            .contextMenu {
+                Button {
+                    showCreateAgentSheet = true
+                } label: {
+                    Label("New Agent", systemImage: "plus.bubble")
+                }
+
+                if agent.id != "main" && agent.id != "commander" {
+                    Divider()
+                    Button(role: .destructive) {
+                        deleteAgentConfirmId = agent.id
+                    } label: {
+                        Label("Remove Agent", systemImage: "trash")
+                    }
+                }
+            }
+    }
+
+    private var agentsList: some View {
+        List(selection: $viewModel.selectedAgentId) {
+            // Commander — pinned at top, standalone
+            if let commander = viewModel.availableAgents.first(where: { $0.id == "commander" }) {
+                agentRowWithContextMenu(commander)
+            }
+
+            // main — pinned after commander
+            if let main = viewModel.availableAgents.first(where: { $0.id == "main" }) {
+                agentRowWithContextMenu(main)
+            }
+
+            // Grouped by division
+            ForEach(agentsByDivisionGrouped, id: \.division) { group in
+                let emoji = Self.divisionEmoji[group.division] ?? "📁"
+                DisclosureGroup(
+                    isExpanded: Binding<Bool>(
+                        get: { expandedAgentDivisions.contains(group.division) },
+                        set: { isExpanded in
+                            if isExpanded {
+                                expandedAgentDivisions.insert(group.division)
+                            } else {
+                                expandedAgentDivisions.remove(group.division)
+                            }
+                        }
+                    )
+                ) {
+                    ForEach(group.agents) { agent in
+                        agentRowWithContextMenu(agent)
+                    }
+                } label: {
+                    Text(verbatim: "\(emoji) \(group.division) (\(group.agents.count))")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .id("agent-division-\(group.division)")
+            }
+            .animation(nil, value: viewModel.availableAgents)
+        }
+        .listStyle(.sidebar)
+        .onAppear {
+            viewModel.loadAvailableAgents()
+        }
+        .alert("Remove Agent", isPresented: Binding<Bool>(
+            get: { deleteAgentConfirmId != nil },
+            set: { if !$0 { deleteAgentConfirmId = nil } }
+        )) {
+            Button("Remove", role: .destructive) {
+                if let agentId = deleteAgentConfirmId {
+                    let wasSelected = viewModel.selectedAgentId == agentId
+                    Task {
+                        await createAgentVM.deleteAgent(agentId: agentId)
+                        await MainActor.run {
+                            viewModel.loadAvailableAgents()
+                            if wasSelected {
+                                viewModel.selectedAgentId = "main"
+                            }
+                        }
+                    }
+                }
+                deleteAgentConfirmId = nil
+            }
+            Button("Cancel", role: .cancel) {
+                deleteAgentConfirmId = nil
+            }
+        } message: {
+            if let agentId = deleteAgentConfirmId,
+               let agent = viewModel.availableAgents.first(where: { $0.id == agentId }) {
+                Text("Are you sure you want to remove \"\(agent.name)\"? This will delete the agent and its workspace.")
+            }
+        }
+        .sheet(isPresented: $showCreateAgentSheet) {
+            CreateAgentSheet(
+                viewModel: createAgentVM,
+                isPresented: $showCreateAgentSheet,
+                onCreatedWithId: { agentId in
+                    viewModel.loadAvailableAgents()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        viewModel.selectedAgentId = agentId
+                    }
+                }
+            )
+        }
+    }
+
+    // MARK: - Marketplace List
+
+    private static let divisionEmoji: [String: String] = [
+        "Academic": "🎓",
+        "Design": "🎨",
+        "Engineering": "⚙️",
+        "Game Development": "🎮",
+        "Marketing": "📣",
+        "Paid Media": "💰",
+        "Product": "📦",
+        "Project Management": "📋",
+        "Sales": "🤝",
+        "Spatial Computing": "🥽",
+        "Specialized": "⭐",
+        "Support": "🛟",
+        "Testing": "🧪",
+    ]
+
+    private var filteredMarketplaceAgents: [MarketplaceAgent] {
+        MarketplaceCatalog.shared.search(query: marketplaceSearchText)
+    }
+
+    /// Agents grouped by division, used when not searching
+    private var agentsByDivision: [(division: String, agents: [MarketplaceAgent])] {
+        let catalog = MarketplaceCatalog.shared
+        return catalog.divisions.compactMap { div in
+            let agents = catalog.search(query: "", division: div)
+            guard !agents.isEmpty else { return nil }
+            return (division: div, agents: agents)
+        }
+    }
+
+    private var marketplaceList: some View {
+        VStack(spacing: 0) {
+            // Search bar
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search agents...", text: $marketplaceSearchText)
+                    .textFieldStyle(.plain)
+                if !marketplaceSearchText.isEmpty {
+                    Button {
+                        marketplaceSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(8)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .cornerRadius(8)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            // Agent list - tree view or flat search results
+            List(selection: Binding<MarketplaceAgent?>(
+                get: { viewModel.selectedMarketplaceAgent },
+                set: { viewModel.selectedMarketplaceAgent = $0 }
+            )) {
+                if marketplaceSearchText.isEmpty {
+                    // Tree view grouped by division
+                    ForEach(agentsByDivision, id: \.division) { group in
+                        let emoji = Self.divisionEmoji[group.division] ?? "📁"
+                        DisclosureGroup(
+                            isExpanded: Binding<Bool>(
+                                get: { expandedDivisions.contains(group.division) },
+                                set: { isExpanded in
+                                    if isExpanded {
+                                        expandedDivisions.insert(group.division)
+                                    } else {
+                                        expandedDivisions.remove(group.division)
+                                    }
+                                }
+                            )
+                        ) {
+                            ForEach(group.agents) { agent in
+                                MarketplaceAgentRow(agent: agent)
+                                    .tag(agent)
+                            }
+                        } label: {
+                            Text(verbatim: "\(emoji) \(group.division) (\(group.agents.count))")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                    }
+                } else {
+                    // Flat search results
+                    ForEach(filteredMarketplaceAgents) { agent in
+                        MarketplaceAgentRow(agent: agent)
+                            .tag(agent)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+        }
+    }
+}
+
+private struct AgentListRow: View {
+    let agent: AgentOption
+    let isActive: Bool
+    let isExecuting: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(agent.emoji)
+                .font(.system(size: 22))
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(agent.name)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    if isExecuting {
+                        PulsingDot()
+                    } else if isActive {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+
+                if !agent.description.isEmpty {
+                    Text(agent.description)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                if !agent.model.isEmpty {
+                    let displayModel = agent.model.contains("/")
+                        ? String(agent.model.split(separator: "/").last ?? Substring(agent.model))
+                        : agent.model
+                    TagView(text: displayModel, color: .blue)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Pulsing Dot (green breathing animation)
+
+// MARK: - Marketplace Agent Row
+
+private struct MarketplaceAgentRow: View {
+    let agent: MarketplaceAgent
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(agent.emoji)
+                .font(.system(size: 22))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(agent.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+
+                if !agent.description.isEmpty {
+                    Text(agent.description)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                }
+
+                Text(agent.division)
+                    .font(.system(size: 10))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Color.accentColor.opacity(0.1))
+                    .foregroundColor(.accentColor)
+                    .cornerRadius(3)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct PulsingDot: View {
+    @State private var isPulsing = false
+
+    var body: some View {
+        Circle()
+            .fill(Color.green)
+            .frame(width: 8, height: 8)
+            .opacity(isPulsing ? 1.0 : 0.3)
+            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
+            .onAppear { isPulsing = true }
+    }
 }
 
 // MARK: - Service Status Badge
@@ -309,7 +746,7 @@ struct ServiceStatusBadge: View {
         .padding(.vertical, 4)
     }
 
-    private var statusColor: Color {
+    private var statusColor: SwiftUI.Color {
         switch viewModel.openclawService.status {
         case .running: return .green
         case .stopped: return .gray
@@ -324,14 +761,99 @@ struct ServiceStatusBadge: View {
 
 struct DetailContentView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @State private var collabPanelWidth: CGFloat = 320
+    @State private var dragStartWidth: CGFloat = 320
+
+    private let collabPanelMinWidth: CGFloat = 220
+    private let collabPanelMaxWidth: CGFloat = 500
+    private let collabCollapsedWidth: CGFloat = 24
 
     var body: some View {
+        HStack(spacing: 0) {
+            // Collab panel (left column)
+            if viewModel.showCollabPanel {
+                if viewModel.collabPanelCollapsed {
+                    // Collapsed strip
+                    collabCollapsedStrip
+                } else {
+                    // Panel + drag handle
+                    collabPanelContent
+                        .frame(width: collabPanelWidth)
+                    collabDragHandle
+                }
+            }
+
+            // Main detail content
+            mainContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onChange(of: viewModel.selectedTab) { newTab in
+            // Only reload agents when entering chat tab, but preserve current agent selection
+            if newTab == .chat {
+                let currentAgent = viewModel.selectedAgentId
+                let msgCount = viewModel.chatMessages.count
+                print("[TAB_CHANGE] Switching to Chat: currentAgent=\(currentAgent), msgCount=\(msgCount)")
+                viewModel.loadAvailableAgents()
+                // Restore the previously selected agent if it still exists
+                if viewModel.availableAgents.contains(where: { $0.id == currentAgent }) {
+                    viewModel.selectedAgentId = currentAgent
+                    print("[TAB_CHANGE] Restored agent: \(currentAgent), newMsgCount=\(viewModel.chatMessages.count)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Main Content
+
+    private var mainContent: some View {
         Group {
-            switch viewModel.selectedTab {
+            if viewModel.sidebarMode == .market {
+                if let agent = viewModel.selectedMarketplaceAgent {
+                    MarketplaceDetailView(
+                        agent: agent,
+                        openclawService: viewModel.openclawService,
+                        onInstalled: { agentId in
+                            // Switch to agents tab and select the newly installed agent
+                            viewModel.loadAvailableAgents()
+                            viewModel.sidebarMode = .teams
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                viewModel.selectedAgentId = agentId
+                            }
+                        },
+                        onBack: {
+                            viewModel.selectedMarketplaceAgent = nil
+                        }
+                    )
+                    .id(agent.id)
+                } else {
+                    MarketplaceOverviewView(onSelect: { agent in
+                        viewModel.selectedMarketplaceAgent = agent
+                    })
+                }
+            } else if viewModel.sidebarMode == .teams {
+                ChatView(viewModel: viewModel, hideAgentPicker: true)
+            } else {
+                switch viewModel.selectedTab {
             case .chat:
                 ChatView(viewModel: viewModel)
             case .status:
                 StatusTabView(viewModel: viewModel)
+            case .budget:
+                BudgetTabView(viewModel: viewModel)
+            case .billing:
+                #if REQUIRE_LOGIN
+                if let mm = viewModel.membershipManager {
+                    BillingTabView(viewModel: viewModel, membershipManager: mm)
+                } else {
+                    Text("Please log in to view billing.")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                #else
+                Text("Billing is not available in this build.")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                #endif
             case .persona:
                 PersonaTabView()
             case .subAgents:
@@ -351,11 +873,120 @@ struct DetailContentView: View {
             case .logs:
                 LogsTabView(viewModel: viewModel)
             }
-        }
-        .onChange(of: viewModel.selectedTab) { newTab in
-            if newTab == .chat {
-                viewModel.loadAvailableAgents()
             }
+        }
+    }
+
+    // MARK: - Collab Panel
+
+    private var collabDragHandle: some View {
+        CollabDragHandleView()
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        let newWidth = dragStartWidth + value.translation.width
+                        collabPanelWidth = min(max(newWidth, collabPanelMinWidth), collabPanelMaxWidth)
+                    }
+                    .onEnded { _ in
+                        dragStartWidth = collabPanelWidth
+                    }
+            )
+    }
+
+    private var collabPanelContent: some View {
+        VStack(spacing: 0) {
+            if let collabVM = viewModel.collabViewModel {
+                CollabWindowView(
+                    viewModel: collabVM,
+                    onCollapse: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.collabPanelCollapsed = true
+                        }
+                    },
+                    onClose: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.showCollabPanel = false
+                        }
+                    }
+                )
+            } else {
+                Spacer()
+                VStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 28))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    Text("暂无协同任务")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+
+    private var collabCollapsedStrip: some View {
+        VStack {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.collabPanelCollapsed = false
+                }
+            }) {
+                VStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 12))
+                    // Show progress count if available
+                    if let collabVM = viewModel.collabViewModel, collabVM.totalCount > 0 {
+                        Text("\(collabVM.completedCount)/\(collabVM.totalCount)")
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    }
+                }
+                .foregroundColor(.secondary)
+                .frame(width: collabCollapsedWidth)
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+        .overlay(
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(width: 1),
+            alignment: .trailing
+        )
+    }
+}
+
+// MARK: - Collab Drag Handle (NSView-based cursor)
+
+/// Uses NSView's resetCursorRects for stable resize cursor without onHover feedback loops.
+private struct CollabDragHandleView: NSViewRepresentable {
+    func makeNSView(context: Context) -> ResizeCursorView {
+        let view = ResizeCursorView()
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        return view
+    }
+    func updateNSView(_ nsView: ResizeCursorView, context: Context) {}
+
+    class ResizeCursorView: NSView {
+        override var intrinsicContentSize: NSSize {
+            NSSize(width: 5, height: NSView.noIntrinsicMetric)
+        }
+        override func resetCursorRects() {
+            addCursorRect(bounds, cursor: .resizeLeftRight)
+        }
+        override func draw(_ dirtyRect: NSRect) {
+            // Background
+            NSColor.gray.withAlphaComponent(0.08).setFill()
+            dirtyRect.fill()
+            // Center divider line
+            let lineX = (bounds.width - 1) / 2
+            let lineRect = NSRect(x: lineX, y: 0, width: 1, height: bounds.height)
+            NSColor.separatorColor.setFill()
+            lineRect.fill()
         }
     }
 }
@@ -395,12 +1026,15 @@ private let slashCommands: [SlashCommand] = [
     SlashCommand(id: "/exit",       name: "/exit",       description: "Exit app",                 hasParam: false),
     // Skills
     SlashCommand(id: "/skills",     name: "/skills",     description: "Use a skill",              hasParam: true),
+    // Collab
+    SlashCommand(id: "/collab",     name: "/collab",     description: "Multi-agent collab task",   hasParam: true),
 ]
 
 // MARK: - Chat View
 
 struct ChatView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    var hideAgentPicker: Bool = false
     @State private var inputText = ""
     @State private var eventMonitor: Any?
     @State private var queryHistory: [String] = UserDefaults.standard.stringArray(forKey: "chatQueryHistory") ?? []
@@ -417,6 +1051,46 @@ struct ChatView: View {
     @State private var agentJustSelected: Bool = false
     // File attachments
     @State private var attachedFiles: [URL] = []
+    // Scroll debounce for streaming content
+    @State private var scrollDebounceWork: DispatchWorkItem?
+    // Smart scroll: only auto-scroll if user is at bottom
+    @State private var shouldAutoScroll: Bool = true
+    @State private var autoScrollDisableTimer: Timer?
+    // Store ScrollViewProxy so sendMessage() can scroll to bottom
+    @State private var chatScrollProxy: ScrollViewProxy?
+    // Create agent sheet
+    @State private var showCreateAgentSheet = false
+    @StateObject private var createAgentVM: SubAgentsViewModel
+    // Workspace file browser
+    @State private var fileBrowserOpen = false
+    @State private var editingFilePath: String?
+    @State private var editingFileDirty = false
+    // Built-in terminal
+    @State private var terminalOpen = false
+    @State private var terminalHeight: CGFloat = 120
+    // File editor fullscreen state (persists across file switches)
+    @State private var editorFullscreen = false
+
+    init(viewModel: DashboardViewModel, hideAgentPicker: Bool = false) {
+        self._viewModel = ObservedObject(wrappedValue: viewModel)
+        self.hideAgentPicker = hideAgentPicker
+        self._createAgentVM = StateObject(wrappedValue: SubAgentsViewModel(openclawService: viewModel.openclawService))
+    }
+
+    /// The currently selected agent (for header bar display).
+    private var currentAgent: AgentOption? {
+        viewModel.availableAgents.first { $0.id == viewModel.selectedAgentId }
+    }
+
+    /// Workspace path for the terminal, matching WorkspaceFilePanel logic.
+    private var terminalWorkspacePath: String {
+        let base = NSString("~/.openclaw").expandingTildeInPath
+        let id = viewModel.selectedAgentId
+        if id == "main" {
+            return (base as NSString).appendingPathComponent("workspace")
+        }
+        return (base as NSString).appendingPathComponent("workspace-\(id)")
+    }
 
     // MARK: - Chat Message List (extracted for compiler performance)
 
@@ -427,7 +1101,11 @@ struct ChatView: View {
                 ChatWelcomeView()
             } else {
                 LazyVStack(spacing: 16) {
-                    ForEach(viewModel.chatMessages) { message in
+                    Color.clear
+                        .frame(height: 1)
+                        .id("chatTop")
+
+                    ForEach(viewModel.chatMessages, id: \.id) { message in
                         if !(message.role == .assistant && message.content.isEmpty && message.attachments.isEmpty) {
                             if message.scrollTargetId != nil {
                                 BackgroundTaskNotification(message: message, scrollProxy: proxy)
@@ -439,7 +1117,7 @@ struct ChatView: View {
                         }
                     }
 
-                    ForEach(viewModel.chatMessages.filter { $0.taskStatus == .loading && $0.content.isEmpty }) { loadingMsg in
+                    ForEach(viewModel.chatMessages.filter { $0.taskStatus == .loading && $0.content.isEmpty }, id: \.id) { loadingMsg in
                         ThinkingIndicator(
                             message: loadingMsg,
                             viewModel: viewModel
@@ -459,18 +1137,27 @@ struct ChatView: View {
             scrollView
                 .defaultScrollAnchor(.bottom)
                 .onChange(of: viewModel.chatMessages.count) { _ in
-                    withAnimation { proxy.scrollTo("chatBottom", anchor: .bottom) }
-                }
-                .onChange(of: viewModel.chatMessages.last?.content) { _ in
-                    withAnimation { proxy.scrollTo("chatBottom", anchor: .bottom) }
+                    // Only auto-scroll if user hasn't disabled it by scrolling up
+                    if shouldAutoScroll {
+                        // Use animated scroll so LazyVStack can progressively create views
+                        // during the scroll animation, avoiding white flash from instant jump
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo("chatBottom", anchor: .bottom)
+                            }
+                        }
+                    }
                 }
         } else {
             scrollView
                 .onChange(of: viewModel.chatMessages.count) { _ in
-                    withAnimation { proxy.scrollTo("chatBottom", anchor: .bottom) }
-                }
-                .onChange(of: viewModel.chatMessages.last?.content) { _ in
-                    withAnimation { proxy.scrollTo("chatBottom", anchor: .bottom) }
+                    if shouldAutoScroll {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo("chatBottom", anchor: .bottom)
+                            }
+                        }
+                    }
                 }
                 .onAppear {
                     if !viewModel.chatMessages.isEmpty {
@@ -545,9 +1232,109 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                chatScrollContent(proxy: proxy)
+            // Agent Header Bar (only in Agents sidebar mode)
+            if hideAgentPicker, let agent = currentAgent {
+                AgentHeaderBar(
+                    agent: agent,
+                    defaultModel: viewModel.modelOverview.defaultModel,
+                    onNewAgent: { showCreateAgentSheet = true },
+                    onSettingsTap: {
+                        viewModel.loadSelectedAgentDetail()
+                        Task { await viewModel.loadModelsForSettings() }
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            fileBrowserOpen = false
+                            editingFilePath = nil
+                            terminalOpen = false
+                            viewModel.agentSettingsOpen = true
+                        }
+                    },
+                    onFileBrowser: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            viewModel.agentSettingsOpen = false
+                            editingFilePath = nil
+                            terminalOpen = false
+                            fileBrowserOpen.toggle()
+                        }
+                    },
+                    onTerminal: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            viewModel.agentSettingsOpen = false
+                            fileBrowserOpen = false
+                            editingFilePath = nil
+                            terminalOpen.toggle()
+                        }
+                    },
+                    onCollab: viewModel.selectedAgentId == "commander" ? {
+                        let _ = viewModel.getOrCreateCollabViewModel()
+                        viewModel.collabViewModel?.loadSessionHistory()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.showCollabPanel.toggle()
+                            if viewModel.showCollabPanel {
+                                viewModel.collabPanelCollapsed = false
+                            }
+                        }
+                    } : nil
+                )
             }
+
+            ScrollViewReader { proxy in
+                ZStack(alignment: .bottomTrailing) {
+                    chatScrollContent(proxy: proxy)
+                        .onAppear {
+                            chatScrollProxy = proxy
+                            // When switching back to chat page from another tab, scroll to latest message
+                            if !viewModel.chatMessages.isEmpty && shouldAutoScroll {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    proxy.scrollTo("chatBottom", anchor: .bottom)
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    proxy.scrollTo("chatBottom", anchor: .bottom)
+                                }
+                            }
+                        }
+
+                    // Floating scroll buttons
+                    if !viewModel.chatMessages.isEmpty {
+                        VStack(spacing: 8) {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    proxy.scrollTo("chatTop", anchor: .top)
+                                }
+                            } label: {
+                                Image(systemName: "chevron.up")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 28, height: 28)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Circle())
+                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                            }
+                            .buttonStyle(.plain)
+                            .help(String(localized: "Scroll to top"))
+
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    proxy.scrollTo("chatBottom", anchor: .bottom)
+                                }
+                                shouldAutoScroll = true
+                            } label: {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 28, height: 28)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Circle())
+                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                            }
+                            .buttonStyle(.plain)
+                            .help(String(localized: "Scroll to bottom"))
+                        }
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 12)
+                    }
+                }
+            }
+            .id("chatScrollView")
 
             // Floating card input bar with slash command overlay
             ZStack(alignment: .bottom) {
@@ -773,16 +1560,18 @@ struct ChatView: View {
                         .buttonStyle(.plain)
                         .help("New Conversation")
 
-                        Picker("", selection: $viewModel.selectedAgentId) {
-                            ForEach(viewModel.availableAgents) { agent in
-                                Text("\(agent.emoji) \(agent.name)")
-                                    .tag(agent.id)
+                        if !hideAgentPicker {
+                            Picker("", selection: $viewModel.selectedAgentId) {
+                                ForEach(viewModel.availableAgents) { agent in
+                                    Text("\(agent.emoji) \(agent.name)")
+                                        .tag(agent.id)
+                                }
                             }
+                            .labelsHidden()
+                            .fixedSize()
+                            .controlSize(.small)
+                            .help("Select Agent")
                         }
-                        .labelsHidden()
-                        .fixedSize()
-                        .controlSize(.small)
-                        .help("Select Agent")
 
                         Spacer()
 
@@ -888,14 +1677,61 @@ struct ChatView: View {
             }
             .animation(.easeInOut(duration: 0.15), value: showSlashPanel)
             .animation(.easeInOut(duration: 0.15), value: showSkillsPanel)
+
+            // Terminal panel (below input bar)
+            if terminalOpen {
+                VStack(spacing: 0) {
+                    TerminalDragHandle(height: $terminalHeight)
+                    TerminalPanelView(
+                        workspacePath: terminalWorkspacePath,
+                        onClose: { withAnimation { terminalOpen = false } }
+                    )
+                    .frame(height: terminalHeight)
+                }
+                .background(Color(NSColor.windowBackgroundColor))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.08), radius: 8, y: -2)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            }
         }
+        .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             viewModel.loadAvailableAgents()
             if viewModel.skills.isEmpty {
                 Task { await viewModel.loadSkills() }
             }
+
+            // Monitor scroll wheel events to detect user scrolling
+            NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                // User scrolled, disable auto-scroll temporarily
+                shouldAutoScroll = false
+
+                // Re-enable auto-scroll after user stops scrolling for 3 seconds
+                autoScrollDisableTimer?.invalidate()
+                autoScrollDisableTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                    shouldAutoScroll = true
+                }
+
+                return event
+            }
+
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 guard let responder = event.window?.firstResponder, responder is NSTextView else {
+                    return event
+                }
+                // Don't intercept keys when the code editor's NSTextView is focused
+                if let tv = responder as? NSTextView, tv.identifier?.rawValue == "codeEditorTextView" {
+                    return event
+                }
+
+                // Don't intercept keys when a CommitTextField (rename/new file) is focused
+                if let tv = responder as? NSTextView,
+                   tv.identifier?.rawValue == "commitTextField" {
                     return event
                 }
 
@@ -1090,6 +1926,9 @@ struct ChatView: View {
                 NSEvent.removeMonitor(monitor)
                 focusMonitor = nil
             }
+            // Clean up timer
+            autoScrollDisableTimer?.invalidate()
+            autoScrollDisableTimer = nil
         }
         .onChange(of: inputText) { _ in
             // Reset slash/skills/agent selection index when input changes
@@ -1111,17 +1950,88 @@ struct ChatView: View {
                 }
             }
         }
+        .overlay(alignment: .trailing) {
+            if viewModel.agentSettingsOpen, let detail = viewModel.selectedAgentDetail {
+                AgentSettingsPanel(
+                    viewModel: viewModel,
+                    agent: detail,
+                    onClose: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            viewModel.agentSettingsOpen = false
+                        }
+                    }
+                )
+                .transition(.move(edge: .trailing))
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if fileBrowserOpen {
+                HStack(spacing: 0) {
+                    WorkspaceFilePanel(
+                        agentId: viewModel.selectedAgentId,
+                        editingFilePath: $editingFilePath,
+                        editingFileDirty: editingFileDirty,
+                        onClose: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                editingFilePath = nil
+                                editingFileDirty = false
+                                fileBrowserOpen = false
+                            }
+                        }
+                    )
+
+                    if let path = editingFilePath {
+                        FileEditorPanel(
+                            filePath: path,
+                            onClose: {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    editingFilePath = nil
+                                    editingFileDirty = false
+                                }
+                            },
+                            onDirtyChanged: { dirty in
+                                editingFileDirty = dirty
+                            },
+                            isFullscreen: $editorFullscreen
+                        )
+                        .id(path)
+                        .transition(.move(edge: .trailing))
+                    }
+                }
+                .transition(.move(edge: .trailing))
+            }
+        }
+        .onChange(of: viewModel.selectedAgentId) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                viewModel.agentSettingsOpen = false
+                fileBrowserOpen = false
+                editingFilePath = nil
+                terminalOpen = false
+            }
+        }
+        .sheet(isPresented: $showCreateAgentSheet) {
+            CreateAgentSheet(
+                viewModel: createAgentVM,
+                isPresented: $showCreateAgentSheet,
+                onCreatedWithId: { agentId in
+                    viewModel.loadAvailableAgents()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        viewModel.selectedAgentId = agentId
+                    }
+                }
+            )
+        }
     }
 
     private var canSend: Bool {
         let hasText = !inputText.trimmingCharacters(in: .whitespaces).isEmpty
         let hasFiles = !attachedFiles.isEmpty
-        return (hasText || hasFiles) && !viewModel.isSendingMessage
+        return (hasText || hasFiles) && !viewModel.isCurrentAgentSending
     }
 
     /// Whether the input area (text + attachment) should be locked
     private var isInputLocked: Bool {
-        viewModel.isSendingMessage
+        viewModel.isCurrentAgentSending
     }
 
     private func sendMessage() {
@@ -1170,13 +2080,160 @@ struct ChatView: View {
             return
         }
 
+        // Handle /collab command
+        if lower.hasPrefix("/collab ") {
+            let taskDescription = String(text.dropFirst("/collab ".count)).trimmingCharacters(in: .whitespaces)
+            guard !taskDescription.isEmpty else { return }
+
+            // Show user message
+            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+
+            // Show placeholder
+            let isChinese = LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
+            let clarifyingText = isChinese ? "正在了解需求..." : "Understanding requirements..."
+            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander", agentEmoji: "🎯"))
+
+            let collabVM = viewModel.getOrCreateCollabViewModel()
+
+            // Open collab window
+            viewModel.showCollabPanel = true
+            viewModel.collabPanelCollapsed = false
+
+            Task {
+                await collabVM.startCollab(taskDescription)
+                // Note: chat messages are now managed by CollabViewModel phases
+                // (clarify questions, decompose plan, final result are appended by VM)
+            }
+            return
+        }
+
+        // Route messages to active collab session based on phase (only when on Commander tab)
+        // Skip routing when session is stale (not running + not in an interactive phase)
+        if viewModel.selectedAgentId == "commander",
+           let collabVM = viewModel.collabViewModel,
+           collabVM.session != nil {
+            let collabPhase = collabVM.phase
+            let isInteractivePhase = (collabPhase == .clarifying || collabPhase == .awaitingApproval)
+
+            if collabVM.isRunning || isInteractivePhase {
+                if collabPhase == .clarifying {
+                    // User is answering Commander's clarification questions
+                    viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+                    Task {
+                        await collabVM.handleClarifyResponse(text)
+                    }
+                    return
+                }
+
+                if collabPhase == .awaitingApproval {
+                    viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+                    let confirmWords = ["确认", "ok", "go", "执行", "开始", "yes", "confirm", "start"]
+                    if confirmWords.contains(lower) {
+                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
+                            role: .assistant,
+                            content: "开始执行任务...",
+                            agentId: "commander",
+                            agentEmoji: "🎯"
+                        ))
+                        Task {
+                            await collabVM.confirmAndExecute()
+                        }
+                    } else {
+                        // User wants to continue discussing / adjust requirements
+                        Task {
+                            await collabVM.handleClarifyResponse(text)
+                        }
+                    }
+                    return
+                }
+
+                if collabPhase == .executing || collabPhase == .summarizing || collabPhase == .completed {
+                    // Route to existing chat handler during/after execution
+                    viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+                    Task {
+                        if let reply = await collabVM.handleUserMessage(text) {
+                            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
+                                role: .assistant,
+                                content: reply,
+                                agentId: "commander",
+                                agentEmoji: "🎯"
+                            ))
+                        }
+                    }
+                    return
+                }
+            }
+            // Stale session (not running, not interactive) — fall through to start new collab
+        }
+
+        // Auto-trigger collab when chatting with Commander (no active collab session)
+        // First check intent — simple questions get direct replies without entering collab
+        if viewModel.selectedAgentId == "commander" {
+            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+
+            let collabVM = viewModel.getOrCreateCollabViewModel()
+
+            // Show thinking placeholder
+            let thinkingId = UUID()
+            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: "", agentId: "commander", agentEmoji: "🎯", taskStatus: .loading, id: thinkingId))
+            viewModel.isSendingMessage = true
+
+            Task {
+                let directReply = await collabVM.checkIntent(text)
+
+                // Remove thinking placeholder
+                await MainActor.run {
+                    if let idx = viewModel.chatMessagesByAgent["commander"]?.firstIndex(where: { $0.id == thinkingId }) {
+                        viewModel.chatMessagesByAgent["commander"]?.remove(at: idx)
+                    }
+                }
+
+                if let reply = directReply {
+                    // Commander answered directly — no collab needed
+                    await MainActor.run {
+                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
+                            role: .assistant,
+                            content: reply,
+                            agentId: "commander",
+                            agentEmoji: "🎯"
+                        ))
+                        viewModel.isSendingMessage = false
+                    }
+                } else {
+                    // Commander says this needs collab — proceed with full flow
+                    await MainActor.run {
+                        let isChinese = LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
+                        let clarifyingText = isChinese ? "正在了解需求..." : "Understanding requirements..."
+                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander", agentEmoji: "🎯"))
+
+                        viewModel.showCollabPanel = true
+                        viewModel.collabPanelCollapsed = false
+                        viewModel.isSendingMessage = false
+                    }
+                    await collabVM.startCollab(text)
+                }
+            }
+            return
+        }
+
         let isResetCommand = (lower == "/new" || lower == "/reset")
+
+        // Ensure scroll to bottom when user sends a message
+        shouldAutoScroll = true
 
         Task {
             await viewModel.sendChatMessage(text, attachments: files)
             if isResetCommand {
                 await MainActor.run { viewModel.clearChat() }
             }
+        }
+    }
+
+    /// Scroll chat to the latest message with animation.
+    private func scrollToBottom() {
+        guard let proxy = chatScrollProxy else { return }
+        withAnimation(.easeOut(duration: 0.25)) {
+            proxy.scrollTo("chatBottom", anchor: .bottom)
         }
     }
 
@@ -1213,15 +2270,54 @@ struct ChatView: View {
         panel.allowedContentTypes = [
             .image, .pdf, .plainText,
             .audio, .movie,
+            // Office
             UTType(filenameExtension: "doc")!,
             UTType(filenameExtension: "docx")!,
             UTType(filenameExtension: "xls")!,
             UTType(filenameExtension: "xlsx")!,
             UTType(filenameExtension: "ppt")!,
             UTType(filenameExtension: "pptx")!,
+            // Data & Markup
             UTType(filenameExtension: "csv")!,
             UTType(filenameExtension: "json")!,
             UTType(filenameExtension: "md")!,
+            UTType(filenameExtension: "xml")!,
+            UTType(filenameExtension: "yaml")!,
+            UTType(filenameExtension: "yml")!,
+            UTType(filenameExtension: "toml")!,
+            UTType(filenameExtension: "ini")!,
+            UTType(filenameExtension: "env")!,
+            UTType(filenameExtension: "conf")!,
+            UTType(filenameExtension: "properties")!,
+            // Source code
+            UTType(filenameExtension: "py")!,
+            UTType(filenameExtension: "js")!,
+            UTType(filenameExtension: "ts")!,
+            UTType(filenameExtension: "swift")!,
+            UTType(filenameExtension: "java")!,
+            UTType(filenameExtension: "go")!,
+            UTType(filenameExtension: "rs")!,
+            UTType(filenameExtension: "c")!,
+            UTType(filenameExtension: "cpp")!,
+            UTType(filenameExtension: "h")!,
+            UTType(filenameExtension: "rb")!,
+            UTType(filenameExtension: "php")!,
+            UTType(filenameExtension: "sh")!,
+            UTType(filenameExtension: "sql")!,
+            UTType(filenameExtension: "r")!,
+            // Web
+            UTType(filenameExtension: "html")!,
+            UTType(filenameExtension: "htm")!,
+            UTType(filenameExtension: "css")!,
+            UTType(filenameExtension: "scss")!,
+            UTType(filenameExtension: "vue")!,
+            UTType(filenameExtension: "jsx")!,
+            UTType(filenameExtension: "tsx")!,
+            // Log & Notebook
+            UTType(filenameExtension: "log")!,
+            UTType(filenameExtension: "ipynb")!,
+            // Mind map
+            UTType(filenameExtension: "xmind")!,
         ]
         if panel.runModal() == .OK {
             for url in panel.urls {
@@ -1420,7 +2516,25 @@ struct ThinkingIndicator: View {
             .background(Color(NSColor.controlBackgroundColor))
             .cornerRadius(12)
 
-            // "转后台" button — only visible after 60 seconds
+            // Cancel button — always visible
+            Button(action: {
+                viewModel.cancelChat(message.id)
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "xmark.circle")
+                        .font(.system(size: 11))
+                    Text("Cancel")
+                        .font(.caption)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color.red.opacity(0.12))
+                .foregroundColor(.red)
+                .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
+
+            // "Move to Background" button — only visible after 60 seconds
             if showBackgroundButton {
                 Button(action: {
                     viewModel.moveTaskToBackground(message.id)
@@ -1453,13 +2567,14 @@ struct ThinkingIndicator: View {
     }
 
     private func startTimer() {
+        stopTimer()
         elapsedSeconds = 0
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            DispatchQueue.main.async {
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak viewModel] _ in
+            DispatchQueue.main.async { [weak viewModel] in
                 elapsedSeconds += 1
                 // Auto-move to background at 120 seconds
-                if elapsedSeconds >= 120 && viewModel.foregroundTaskIds.contains(message.id) {
-                    viewModel.moveTaskToBackground(message.id)
+                if elapsedSeconds >= 120, let vm = viewModel, vm.foregroundTaskIds.contains(message.id) {
+                    vm.moveTaskToBackground(message.id)
                 }
             }
         }
@@ -1482,35 +2597,36 @@ struct ThinkingIndicator: View {
 struct ChatBubble: View {
     let message: ChatMessage
     @State private var isHovering = false
+    @State private var cachedMediaURLs: [URL] = []
+    @State private var lastMediaScanContent: String = ""
 
-    /// Media file URLs detected in assistant response text
-    private var detectedMediaURLs: [URL] {
-        guard message.role == .assistant else { return [] }
-        let mediaExtensions: Set<String> = [
+    /// Cached regex for media URL detection (compiled once, reused)
+    private static let mediaFileRegex: NSRegularExpression? = {
+        let mediaExtensions = [
             "mp4", "mov", "avi", "mkv", "webm", "m4v",
             "mp3", "wav", "m4a", "aac", "flac", "ogg", "wma", "aiff",
             "jpg", "jpeg", "png", "gif", "bmp", "webp", "heic", "tiff",
         ]
-        let text = message.content
-        var urls: [URL] = []
-
-        // Direct file paths with media extensions
         let extPattern = mediaExtensions.joined(separator: "|")
         let filePattern = "(/[^\\s\"'`<>()\\[\\]]+\\.(?:\(extPattern)))(?=[\\s\"'`.,;:!?)\\]\\n]|$)"
-        if let regex = try? NSRegularExpression(pattern: filePattern, options: [.caseInsensitive, .anchorsMatchLines]) {
-            let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
-            for match in matches {
-                let captureRange = match.numberOfRanges > 1 ? match.range(at: 1) : match.range
-                if let range = Range(captureRange, in: text) {
-                    let path = String(text[range])
-                    let url = URL(fileURLWithPath: path)
-                    if FileManager.default.fileExists(atPath: url.path), !urls.contains(url) {
-                        urls.append(url)
-                    }
+        return try? NSRegularExpression(pattern: filePattern, options: [.caseInsensitive, .anchorsMatchLines])
+    }()
+
+    /// Scan for media file URLs — only called from .onChange, result stored in cachedMediaURLs
+    private static func scanMediaURLs(in text: String) -> [URL] {
+        guard let regex = mediaFileRegex else { return [] }
+        var urls: [URL] = []
+        let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        for match in matches {
+            let captureRange = match.numberOfRanges > 1 ? match.range(at: 1) : match.range
+            if let range = Range(captureRange, in: text) {
+                let path = String(text[range])
+                let url = URL(fileURLWithPath: path)
+                if FileManager.default.fileExists(atPath: url.path), !urls.contains(url) {
+                    urls.append(url)
                 }
             }
         }
-
         return urls
     }
 
@@ -1546,8 +2662,9 @@ struct ChatBubble: View {
                 if !message.content.isEmpty {
                     ZStack(alignment: .topTrailing) {
                         if message.role == .assistant {
+                            // Always use SelectableMarkdownView to show markdown format
+                            // Throttling is applied inside SelectableMarkdownView to prevent CPU 100%
                             SelectableMarkdownView(content: message.content)
-                                .fixedSize(horizontal: false, vertical: true)
                                 .padding(10)
                                 .background(backgroundColor)
                                 .cornerRadius(12)
@@ -1590,10 +2707,19 @@ struct ChatBubble: View {
                     }
                 }
 
+                // Loading indicator for AI output
+                if message.role == .assistant && message.taskStatus == .loading && !message.content.isEmpty {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                    }
+                    .padding(.top, 4)
+                }
+
                 // Detected media files from assistant response
-                if !detectedMediaURLs.isEmpty {
+                if !cachedMediaURLs.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(detectedMediaURLs, id: \.absoluteString) { url in
+                        ForEach(cachedMediaURLs, id: \.absoluteString) { url in
                             AttachmentThumbnail(url: url)
                         }
                     }
@@ -1610,6 +2736,19 @@ struct ChatBubble: View {
                     }
                     .padding(.top, 2)
                 }
+
+                // Cancelled task indicator
+                if message.taskStatus == .cancelled {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.orange)
+                        Text("Cancelled")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.top, 2)
+                }
             }
 
             if message.role == .assistant { Spacer(minLength: 60) }
@@ -1622,15 +2761,85 @@ struct ChatBubble: View {
                     .frame(width: 32, height: 32)
             }
         }
+        .onAppear {
+            // Initial scan for media URLs when bubble first appears
+            if message.role == .assistant && lastMediaScanContent != message.content {
+                lastMediaScanContent = message.content
+                cachedMediaURLs = ChatBubble.scanMediaURLs(in: message.content)
+            }
+        }
+        .onChange(of: message.content) { newContent in
+            // Only re-scan for media URLs when content actually changes
+            guard message.role == .assistant, newContent != lastMediaScanContent else { return }
+            lastMediaScanContent = newContent
+            cachedMediaURLs = ChatBubble.scanMediaURLs(in: newContent)
+        }
     }
 
-    private var backgroundColor: Color {
+    private var backgroundColor: SwiftUI.Color {
         message.role == .user ? .accentColor : Color(NSColor.controlBackgroundColor)
     }
 
     private func copyToClipboard(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+}
+
+// MARK: - Typewriter Text for Streaming
+
+class TypewriterEngine: ObservableObject {
+    @Published var displayed: String = ""
+    private var target: String = ""
+    private var visibleLength: Int = 0
+    private var timer: Timer?
+
+    func setTarget(_ text: String) {
+        target = text
+        guard timer == nil else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
+    private func tick() {
+        if visibleLength < target.count {
+            // Type 15 chars at a time to reduce CPU usage during long streaming output
+            visibleLength = min(visibleLength + 15, target.count)
+            displayed = String(target.prefix(visibleLength))
+        } else {
+            timer?.invalidate()
+            timer = nil
+        }
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    deinit {
+        timer?.invalidate()
+    }
+}
+
+struct TypewriterText: View {
+    let fullText: String
+    @StateObject private var engine = TypewriterEngine()
+
+    var body: some View {
+        Text(engine.displayed)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            engine.setTarget(fullText)
+        }
+        .onChange(of: fullText) { newText in
+            engine.setTarget(newText)
+        }
+        .onDisappear {
+            engine.stop()
+        }
     }
 }
 
@@ -1656,23 +2865,34 @@ struct AttachmentThumbnail: View {
     }
 
     var body: some View {
-        switch fileType {
-        case .image:
-            if let nsImage = NSImage(contentsOf: url) {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 300, maxHeight: 300)
-                    .cornerRadius(8)
-            } else {
+        Button(action: { NSWorkspace.shared.open(url) }) {
+            switch fileType {
+            case .image:
+                if let nsImage = NSImage(contentsOf: url) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 300, maxHeight: 300)
+                        .cornerRadius(8)
+                } else {
+                    fileIcon
+                }
+            case .video:
+                InlineVideoPlayer(url: url)
+            case .audio:
+                InlineAudioPlayer(url: url)
+            case .other:
                 fileIcon
             }
-        case .video:
-            InlineVideoPlayer(url: url)
-        case .audio:
-            InlineAudioPlayer(url: url)
-        case .other:
-            fileIcon
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
         }
     }
 
@@ -1700,8 +2920,13 @@ struct AttachmentThumbnail: View {
         case "xls", "xlsx", "csv": return "tablecells.fill"
         case "ppt", "pptx": return "rectangle.fill.on.rectangle.fill"
         case "zip", "rar", "7z", "tar", "gz": return "archivebox.fill"
-        case "json", "xml", "yaml", "yml": return "curlybraces"
-        case "md", "txt": return "doc.plaintext"
+        case "json", "xml", "yaml", "yml", "toml", "ini", "env", "conf", "properties": return "curlybraces"
+        case "md", "txt", "log": return "doc.plaintext"
+        case "xmind": return "brain.head.profile"
+        case "py", "js", "ts", "swift", "java", "go", "rs", "c", "cpp", "h",
+             "rb", "php", "sh", "sql", "r", "jsx", "tsx", "vue": return "chevron.left.forwardslash.chevron.right"
+        case "html", "htm", "css", "scss": return "globe"
+        case "ipynb": return "book.closed.fill"
         default: return "doc.fill"
         }
     }
@@ -2076,50 +3301,273 @@ struct BrandTextView: View {
 
 // MARK: - Selectable Markdown View (WKWebView-based)
 
+// MARK: - Native Markdown View (lightweight, no WKWebView)
+
+/// Renders markdown using SwiftUI's native AttributedString.
+/// Zero WKWebView overhead — no process spawn, no HTML parsing, no height measurement.
+struct NativeMarkdownView: View {
+    let content: String
+
+    var body: some View {
+        Text(attributedContent)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var attributedContent: AttributedString {
+        (try? AttributedString(markdown: content, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(content)
+    }
+}
+
+// MARK: - Selectable Markdown View (WKWebView-based, used by HelpAssistantWindow)
+
 import WebKit
+
+/// Cache for rendered Markdown HTML to avoid repeated parsing during SwiftUI layout cycles.
+private let markdownHTMLCache = NSCache<NSString, NSString>()
+/// Cache for measured heights to avoid 22pt → actual height jump when LazyVStack recreates views.
+private let markdownHeightCache = NSCache<NSString, NSNumber>()
 
 /// Renders markdown as selectable rich text via WKWebView.
 /// Supports free multi-line text selection and proper markdown rendering.
-struct SelectableMarkdownView: NSViewRepresentable {
+/// Includes throttling to prevent CPU 100% during streaming updates.
+struct SelectableMarkdownView: View {
     let content: String
+    var onReady: (() -> Void)? = nil
+    @State private var height: CGFloat
+    @State private var throttledContent: String
+    @State private var updateTimer: Timer?
+
+    init(content: String, onReady: (() -> Void)? = nil) {
+        self.content = content
+        self.onReady = onReady
+        // Use cached height to prevent 22pt → actual height jump on LazyVStack recreation
+        let heightKey = "\(content.hashValue)" as NSString
+        if let cached = markdownHeightCache.object(forKey: heightKey) {
+            _height = State(initialValue: CGFloat(cached.doubleValue))
+        } else {
+            _height = State(initialValue: 22)
+        }
+        // Initialize with actual content so _MarkdownWebView can load cached HTML in makeNSView
+        _throttledContent = State(initialValue: content)
+    }
+
+    var body: some View {
+        _MarkdownWebView(content: throttledContent, dynamicHeight: $height)
+            .frame(height: max(height, 22))
+            .onChange(of: height) { newHeight in
+                if newHeight > 22 {
+                    onReady?()
+                }
+            }
+            .onChange(of: content) { newContent in
+                // Throttle updates: only update WKWebView every 0.5 seconds
+                // This prevents CPU 100% during streaming while still showing content
+                updateTimer?.invalidate()
+                updateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                    throttledContent = newContent
+                    updateTimer = nil
+                }
+                // Also update immediately if content grows significantly (every 500+ chars)
+                // This shows streaming progress without excessive WKWebView reloads
+                if newContent.count > throttledContent.count + 500 {
+                    throttledContent = newContent
+                }
+            }
+            .onAppear {
+                // Critical: sync throttledContent immediately when view appears
+                // to avoid showing empty content on first render
+                throttledContent = content
+            }
+            .onDisappear {
+                updateTimer?.invalidate()
+                // IMPORTANT: Apply the latest content before disappearing to prevent message loss
+                throttledContent = content
+                updateTimer = nil
+            }
+    }
+}
+
+/// WKWebView subclass that forwards scroll events to the parent view,
+/// allowing the outer SwiftUI ScrollView to handle page scrolling.
+private class ScrollThroughWebView: WKWebView {
+    /// Called when the view's width changes (throttled), for height re-measurement.
+    var onResize: (() -> Void)?
+    private var resizeWorkItem: DispatchWorkItem?
+
+    override func scrollWheel(with event: NSEvent) {
+        nextResponder?.scrollWheel(with: event)
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        let oldWidth = frame.size.width
+        super.setFrameSize(newSize)
+        // Only trigger on width changes (height is managed by dynamicHeight binding)
+        if abs(newSize.width - oldWidth) > 1 {
+            resizeWorkItem?.cancel()
+            let item = DispatchWorkItem { [weak self] in
+                self?.onResize?()
+            }
+            resizeWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: item)
+        }
+    }
+}
+
+private struct _MarkdownWebView: NSViewRepresentable {
+    let content: String
+    @Binding var dynamicHeight: CGFloat
     @Environment(\.colorScheme) private var colorScheme
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(dynamicHeight: $dynamicHeight)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = ScrollThroughWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
-        context.coordinator.webView = webView
-        context.coordinator.lastContent = ""
+
+        // Wire resize callback to re-measure height when window width changes
+        webView.onResize = { [weak webView, weak coordinator = context.coordinator] in
+            guard let webView = webView, let coordinator = coordinator else { return }
+            coordinator.remeasureHeight(webView: webView)
+        }
+
+        let isDark = (colorScheme == .dark)
+
+        // Try to load cached HTML directly (for LazyVStack recreation of already-rendered messages)
+        if !content.isEmpty {
+            let contentHash = content.hashValue
+            let cacheKey = "\(isDark ? "d" : "l"):\(contentHash)" as NSString
+            if let cachedHTML = markdownHTMLCache.object(forKey: cacheKey) {
+                // Cache hit: load full HTML immediately — no transparent shell, no async delay
+                webView.loadHTMLString(cachedHTML as String, baseURL: nil)
+                context.coordinator.lastSource = content
+                context.coordinator.lastIsDark = isDark
+                return webView
+            }
+        }
+
+        // Cache miss (new content): preload transparent shell, then build async
+        let textColor = isDark ? "#e0e0e0" : "#1d1d1f"
+        webView.loadHTMLString("""
+            <html><head><meta charset='utf-8'>
+            <style>* { margin:0; padding:0; } body { background:transparent; color:\(textColor); font-family:-apple-system,sans-serif; font-size:13px; }</style>
+            </head><body></body></html>
+            """, baseURL: nil)
+        context.coordinator.lastSource = ""
+        context.coordinator.lastIsDark = isDark
         loadHTML(in: webView, coordinator: context.coordinator)
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.webView = webView
         loadHTML(in: webView, coordinator: context.coordinator)
     }
 
     private func loadHTML(in webView: WKWebView, coordinator: Coordinator) {
-        let html = Self.buildHTML(content, isDark: colorScheme == .dark)
-        guard html != coordinator.lastContent else { return }
-        coordinator.lastContent = html
-        webView.loadHTMLString(html, baseURL: nil)
+        let isDark = (colorScheme == .dark)
+        // Skip when neither content nor theme changed
+        guard content != coordinator.lastSource || isDark != coordinator.lastIsDark else { return }
+        coordinator.lastSource = content
+        coordinator.lastIsDark = isDark
+
+        // Bump generation so any in-flight build knows it's stale
+        coordinator.buildGeneration += 1
+        let myGeneration = coordinator.buildGeneration
+        let currentContent = content
+
+        // Serial queue: only one buildHTML runs at a time.
+        // Stale tasks skip the expensive buildHTML call immediately.
+        coordinator.buildQueue.async { [weak coordinator] in
+            guard let coordinator = coordinator else { return }
+
+            // If a newer request arrived while we waited in the queue, skip
+            if myGeneration != coordinator.buildGeneration { return }
+
+            let contentHash = currentContent.hashValue
+            let cacheKey = "\(isDark ? "d" : "l"):\(contentHash)" as NSString
+            let html: String
+            if let cached = markdownHTMLCache.object(forKey: cacheKey) {
+                html = cached as String
+            } else {
+                html = MarkdownHTML.buildHTML(currentContent, isDark: isDark)
+                markdownHTMLCache.setObject(html as NSString, forKey: cacheKey)
+            }
+
+            DispatchQueue.main.async { [weak coordinator] in
+                guard coordinator != nil else { return }
+                webView.loadHTMLString(html, baseURL: nil)
+            }
+        }
     }
 
-    // MARK: - Coordinator for height tracking
-
     class Coordinator: NSObject, WKNavigationDelegate {
-        weak var webView: WKWebView?
-        var lastContent: String = ""
-        private var heightConstraint: NSLayoutConstraint?
+        var lastSource: String = ""
+        var lastIsDark: Bool = false
+        /// Serial queue ensures only one buildHTML runs at a time
+        let buildQueue = DispatchQueue(label: "markdown.build", qos: .utility)
+        /// Incremented on each loadHTML call; stale builds check this to skip work
+        var buildGeneration: Int = 0
+        private var dynamicHeight: Binding<CGFloat>
+
+        init(dynamicHeight: Binding<CGFloat>) {
+            self.dynamicHeight = dynamicHeight
+        }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            updateHeight(webView)
+            measureHeight(webView: webView, attempt: 0)
+        }
+
+        /// Measure content height, retrying if the WKWebView hasn't received
+        /// its layout width yet (which would produce an inflated height).
+        private func measureHeight(webView: WKWebView, attempt: Int) {
+            let delay: TimeInterval = attempt == 0 ? 0.1 : 1.0
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self else { return }
+                self.evaluateHeight(webView: webView) { newHeight, width in
+                    if width > 10 {
+                        self.applyHeight(newHeight)
+                    } else if attempt < 1 {
+                        // Width still ~0, layout not ready — retry only once more
+                        self.measureHeight(webView: webView, attempt: attempt + 1)
+                    }
+                }
+            }
+        }
+
+        /// Re-measure height immediately (called on window resize).
+        func remeasureHeight(webView: WKWebView) {
+            evaluateHeight(webView: webView) { [weak self] newHeight, width in
+                guard width > 10 else { return }
+                self?.applyHeight(newHeight)
+            }
+        }
+
+        private func evaluateHeight(webView: WKWebView, completion: @escaping (CGFloat, CGFloat) -> Void) {
+            let js = "JSON.stringify({h:Math.ceil(document.body.scrollHeight),w:document.body.clientWidth})"
+            webView.evaluateJavaScript(js) { result, _ in
+                guard let jsonStr = result as? String,
+                      let data = jsonStr.data(using: .utf8),
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let h = json["h"] as? CGFloat,
+                      let w = json["w"] as? CGFloat, h > 0 else { return }
+                DispatchQueue.main.async {
+                    completion(h + 4, w)
+                }
+            }
+        }
+
+        private func applyHeight(_ newHeight: CGFloat) {
+            // Only update if height actually changed to avoid SwiftUI re-render loop
+            if abs(dynamicHeight.wrappedValue - newHeight) > 1 {
+                dynamicHeight.wrappedValue = newHeight
+            }
+            // Cache height for LazyVStack recreation
+            let heightKey = "\(lastSource.hashValue)" as NSString
+            markdownHeightCache.setObject(NSNumber(value: Double(newHeight)), forKey: heightKey)
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -2130,27 +3578,61 @@ struct SelectableMarkdownView: NSViewRepresentable {
                 decisionHandler(.allow)
             }
         }
-
-        private func updateHeight(_ webView: WKWebView) {
-            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, _ in
-                guard let height = result as? CGFloat, height > 0 else { return }
-                DispatchQueue.main.async {
-                    if let constraint = self?.heightConstraint {
-                        constraint.constant = height
-                    } else {
-                        webView.translatesAutoresizingMaskIntoConstraints = false
-                        let c = webView.heightAnchor.constraint(equalToConstant: height)
-                        c.priority = .defaultHigh
-                        c.isActive = true
-                        self?.heightConstraint = c
-                    }
-                    webView.invalidateIntrinsicContentSize()
-                }
-            }
-        }
     }
+}
 
-    // MARK: - Build HTML
+// MARK: - Markdown → HTML
+
+enum MarkdownHTML {
+    // MARK: - Cached Regex Patterns (Performance optimization)
+
+    /// Cached regex for display math patterns ($$...$$)
+    private static let displayMathRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "\\$\\$([\\s\\S]*?)\\$\\$")
+    }()
+
+    /// Cached regex for inline math patterns ($...$)
+    private static let inlineMathRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "(?<!\\$)\\$(?!\\$)([^$]+)\\$(?!\\$)")
+    }()
+
+    /// Cached regex for image markdown ![alt](url)
+    private static let imageRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)")
+    }()
+
+    /// Cached regex for link markdown [text](url)
+    private static let linkRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "\\[([^\\]]+)\\]\\(([^)]+)\\)")
+    }()
+
+    /// Cached regex for bold **text** or __text__
+    private static let boldAsteriskRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*")
+    }()
+
+    private static let boldUnderscoreRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "__(.+?)__")
+    }()
+
+    /// Cached regex for italic *text* or _text_
+    private static let italicAsteriskRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)")
+    }()
+
+    private static let italicUnderscoreRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "(?<![\\w])_(.+?)_(?![\\w])")
+    }()
+
+    /// Cached regex for strikethrough ~~text~~
+    private static let strikethroughRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "~~(.+?)~~")
+    }()
+
+    /// Cached regex for inline code `text`
+    private static let inlineCodeRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "`([^`]+)`")
+    }()
 
     static func buildHTML(_ markdown: String, isDark: Bool) -> String {
         let textColor = isDark ? "#e0e0e0" : "#1d1d1f"
@@ -2165,13 +3647,30 @@ struct SelectableMarkdownView: NSViewRepresentable {
 
         return """
         <html><head><meta charset='utf-8'>
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: true
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+        </script>
         <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { background: transparent; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             font-size: 13px; color: \(textColor); line-height: 1.6;
             -webkit-user-select: text; cursor: text;
             word-wrap: break-word; overflow-wrap: break-word;
+            overflow: hidden;
+            padding-bottom: 4px;
         }
         h1 { font-size: 20px; font-weight: 700; margin: 12px 0 6px; }
         h2 { font-size: 17px; font-weight: 700; margin: 10px 0 5px; }
@@ -2200,29 +3699,69 @@ struct SelectableMarkdownView: NSViewRepresentable {
         li { margin: 2px 0; }
         hr { border: none; border-top: 1px solid \(borderColor); margin: 10px 0; }
         img { max-width: 100%; }
+        .math-formula { margin: 8px 0; }
         </style></head><body>\(body)</body></html>
         """
     }
 
     // MARK: - Markdown → HTML conversion
 
-    private static func convertMarkdown(_ markdown: String) -> String {
-        let lines = markdown.components(separatedBy: "\n")
+    static func convertMarkdown(_ markdown: String) -> String {
+        // First, extract and preserve math formulas (both inline $...$ and display $$...$$)
+        var processedMarkdown = markdown
+        var mathPlaceholders: [String: String] = [:]
+        var mathCounter = 0
+
+        // Extract display math blocks ($$...$$) first
+        if let regex = displayMathRegex {
+            let nsString = processedMarkdown as NSString
+            let matches = regex.matches(in: processedMarkdown, range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                if let mathRange = Range(match.range, in: processedMarkdown) {
+                    let placeholder = ":MATHDISPLAY\(mathCounter):"
+                    let formula = String(processedMarkdown[mathRange])
+                    mathPlaceholders[placeholder] = formula
+                    processedMarkdown.replaceSubrange(mathRange, with: placeholder)
+                    mathCounter += 1
+                }
+            }
+        }
+
+        // Extract inline math ($...$) - must come after display math
+        if let regex = inlineMathRegex {
+            let nsString = processedMarkdown as NSString
+            let matches = regex.matches(in: processedMarkdown, range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                if let mathRange = Range(match.range, in: processedMarkdown) {
+                    let placeholder = ":MATHINLINE\(mathCounter):"
+                    let formula = String(processedMarkdown[mathRange])
+                    mathPlaceholders[placeholder] = formula
+                    processedMarkdown.replaceSubrange(mathRange, with: placeholder)
+                    mathCounter += 1
+                }
+            }
+        }
+
+        let lines = processedMarkdown.components(separatedBy: "\n")
+        // Pre-trim all lines once to avoid repeated trimming in inner loops
+        let trimmedLines = lines.map { fastTrim($0) }
         var html = ""
         var i = 0
 
         while i < lines.count {
             let line = lines[i]
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let trimmed = trimmedLines[i]
 
             // Code block
-            if trimmed.hasPrefix("```") {
+            if startsWithBytes(trimmed, 0x60, 0x60, 0x60) { // ```
                 var codeContent = ""
+                var closed = false
                 i += 1
                 while i < lines.count {
                     let codeLine = lines[i]
-                    if codeLine.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                    if startsWithBytes(trimmedLines[i], 0x60, 0x60, 0x60) { // ```
                         i += 1
+                        closed = true
                         break
                     }
                     if !codeContent.isEmpty { codeContent += "\n" }
@@ -2230,6 +3769,7 @@ struct SelectableMarkdownView: NSViewRepresentable {
                     i += 1
                 }
                 html += "<pre><code>\(escapeHTML(codeContent))</code></pre>"
+                // If unclosed, remaining lines were consumed — content is already in codeContent
                 continue
             }
 
@@ -2239,12 +3779,12 @@ struct SelectableMarkdownView: NSViewRepresentable {
                 continue
             }
 
-            // Table: starts with | and next line is separator
-            if trimmed.hasPrefix("|") && trimmed.contains("|") {
+            // Table: starts with | and contains |
+            if startsWithByte(trimmed, 0x7C) && trimmed.contains("|") { // |
                 var tableLines: [String] = []
                 while i < lines.count {
-                    let tl = lines[i].trimmingCharacters(in: .whitespaces)
-                    if tl.hasPrefix("|") && tl.contains("|") {
+                    let tl = trimmedLines[i]
+                    if startsWithByte(tl, 0x7C) && tl.contains("|") {
                         tableLines.append(tl)
                         i += 1
                     } else {
@@ -2256,42 +3796,50 @@ struct SelectableMarkdownView: NSViewRepresentable {
             }
 
             // Heading: # to ######
-            if trimmed.hasPrefix("#") {
-                if let spaceIdx = trimmed.firstIndex(of: " ") {
-                    let hashPart = trimmed[trimmed.startIndex..<spaceIdx]
-                    if hashPart.allSatisfy({ $0 == "#" }) && hashPart.count <= 6 {
-                        let level = hashPart.count
-                        let headingText = String(trimmed[trimmed.index(after: spaceIdx)...])
-                        html += "<h\(level)>\(processInline(headingText))</h\(level)>"
-                        i += 1
-                        continue
-                    }
+            if startsWithByte(trimmed, 0x23) { // #
+                // Fast UTF-8 scan: count '#' then expect space
+                var hashCount = 0
+                let tUtf8 = trimmed.utf8
+                var hIdx = tUtf8.startIndex
+                while hIdx < tUtf8.endIndex && tUtf8[hIdx] == 0x23 { // '#'
+                    hashCount += 1
+                    hIdx = tUtf8.index(after: hIdx)
+                }
+                if hashCount >= 1 && hashCount <= 6 && hIdx < tUtf8.endIndex && tUtf8[hIdx] == 0x20 {
+                    let headingText = String(trimmed[trimmed.index(trimmed.startIndex, offsetBy: hashCount + 1)...])
+                    html += "<h\(hashCount)>\(processInline(headingText, mathPlaceholders: mathPlaceholders))</h\(hashCount)>"
+                    i += 1
+                    continue
                 }
             }
 
-            // Horizontal rule
-            if isHorizontalRule(trimmed) {
+            // Horizontal rule — require only dashes/stars/underscores + spaces, at least 3 chars
+            if trimmed.utf8.count >= 3 && isHorizontalRule(trimmed) {
                 html += "<hr>"
                 i += 1
                 continue
             }
 
             // Blockquote
-            if trimmed.hasPrefix(">") {
+            if startsWithByte(trimmed, 0x3E) { // >
                 var quoteLines: [String] = []
                 while i < lines.count {
-                    let ql = lines[i].trimmingCharacters(in: .whitespaces)
+                    let ql = trimmedLines[i]
                     if ql.hasPrefix("> ") {
                         quoteLines.append(String(ql.dropFirst(2)))
                         i += 1
                     } else if ql == ">" {
                         quoteLines.append("")
                         i += 1
+                    } else if ql.hasPrefix(">") {
+                        // Handle >text without space after >
+                        quoteLines.append(String(ql.dropFirst(1)))
+                        i += 1
                     } else {
                         break
                     }
                 }
-                html += "<blockquote>\(quoteLines.map { processInline($0) }.joined(separator: "<br>"))</blockquote>"
+                html += "<blockquote>\(quoteLines.map { processInline($0, mathPlaceholders: mathPlaceholders) }.joined(separator: "<br>"))</blockquote>"
                 continue
             }
 
@@ -2299,9 +3847,9 @@ struct SelectableMarkdownView: NSViewRepresentable {
             if isUnorderedListItem(trimmed) {
                 html += "<ul>"
                 while i < lines.count {
-                    let li = lines[i].trimmingCharacters(in: .whitespaces)
+                    let li = trimmedLines[i]
                     if isUnorderedListItem(li) {
-                        html += "<li>\(processInline(String(li.dropFirst(2))))</li>"
+                        html += "<li>\(processInline(String(li.dropFirst(2)), mathPlaceholders: mathPlaceholders))</li>"
                         i += 1
                     } else {
                         break
@@ -2315,9 +3863,9 @@ struct SelectableMarkdownView: NSViewRepresentable {
             if isOrderedListItem(trimmed) {
                 html += "<ol>"
                 while i < lines.count {
-                    let li = lines[i].trimmingCharacters(in: .whitespaces)
+                    let li = trimmedLines[i]
                     if let content = orderedListContent(li) {
-                        html += "<li>\(processInline(content))</li>"
+                        html += "<li>\(processInline(content, mathPlaceholders: mathPlaceholders))</li>"
                         i += 1
                     } else {
                         break
@@ -2330,18 +3878,28 @@ struct SelectableMarkdownView: NSViewRepresentable {
             // Regular paragraph — collect consecutive non-special lines
             var paraLines: [String] = []
             while i < lines.count {
-                let pl = lines[i].trimmingCharacters(in: .whitespaces)
-                if pl.isEmpty || pl.hasPrefix("```") || pl.hasPrefix("#") || pl.hasPrefix("|")
-                    || pl.hasPrefix(">") || isUnorderedListItem(pl) || isOrderedListItem(pl)
+                let pl = trimmedLines[i]
+                if pl.isEmpty || startsWithBytes(pl, 0x60, 0x60, 0x60) || startsWithByte(pl, 0x23)
+                    || startsWithByte(pl, 0x7C) || startsWithByte(pl, 0x3E)
+                    || isUnorderedListItem(pl) || isOrderedListItem(pl)
                     || isHorizontalRule(pl) {
                     break
                 }
-                paraLines.append(processInline(pl))
+                paraLines.append(processInline(pl, mathPlaceholders: mathPlaceholders))
                 i += 1
             }
             if !paraLines.isEmpty {
                 html += "<p>\(paraLines.joined(separator: "<br>"))</p>"
+            } else {
+                // Safety: if no pattern matched and paragraph collector didn't consume the line,
+                // skip it to prevent infinite loop (e.g., a lone "#" without heading text)
+                i += 1
             }
+        }
+
+        // Restore all math placeholders
+        for (placeholder, formula) in mathPlaceholders {
+            html = html.replacingOccurrences(of: placeholder, with: formula)
         }
 
         return html
@@ -2349,31 +3907,118 @@ struct SelectableMarkdownView: NSViewRepresentable {
 
     // MARK: - Helpers
 
+    /// Fast check if string starts with given ASCII byte. Uses withCString for zero generic overhead.
+    @inline(__always)
+    private static func startsWithByte(_ s: String, _ byte: UInt8) -> Bool {
+        return s.withCString { ptr in
+            UInt8(bitPattern: ptr[0]) == byte
+        }
+    }
+
+    /// Fast check if string starts with given ASCII bytes. Uses withCString for zero generic overhead.
+    @inline(__always)
+    private static func startsWithBytes(_ s: String, _ b0: UInt8, _ b1: UInt8, _ b2: UInt8) -> Bool {
+        return s.withCString { ptr in
+            UInt8(bitPattern: ptr[0]) == b0 && UInt8(bitPattern: ptr[1]) == b1 && UInt8(bitPattern: ptr[2]) == b2
+        }
+    }
+
+    /// Fast whitespace trim using direct UTF-8 byte access.
+    /// Avoids CFCharacterSetIsLongCharacterMember and generic iterator/subscript overhead in -Onone.
+    /// Only trims ASCII whitespace which matches Markdown semantics.
+    private static func fastTrim(_ s: String) -> String {
+        // Use withUTF8 for direct pointer access — zero overhead, no generic dispatch
+        return s.withCString { cstr -> String in
+            var len = 0
+            while cstr[len] != 0 { len += 1 }
+            guard len > 0 else { return "" }
+            var lo = 0
+            var hi = len - 1
+            while lo <= hi {
+                let b = UInt8(bitPattern: cstr[lo])
+                if b == 0x20 || b == 0x09 || b == 0x0A || b == 0x0D { lo += 1 }
+                else { break }
+            }
+            guard lo <= hi else { return "" }
+            while hi > lo {
+                let b = UInt8(bitPattern: cstr[hi])
+                if b == 0x20 || b == 0x09 || b == 0x0A || b == 0x0D { hi -= 1 }
+                else { break }
+            }
+            if lo == 0 && hi == len - 1 { return s }
+            let buf = UnsafeBufferPointer(
+                start: UnsafeRawPointer(cstr.advanced(by: lo))
+                    .assumingMemoryBound(to: UInt8.self),
+                count: hi - lo + 1
+            )
+            return String(decoding: buf, as: UTF8.self)
+        }
+    }
+
     private static func isHorizontalRule(_ s: String) -> Bool {
-        let dashes = s.filter { $0 == "-" }.count
-        let stars = s.filter { $0 == "*" }.count
-        let underscores = s.filter { $0 == "_" }.count
-        if dashes >= 3 && s.allSatisfy({ $0 == "-" || $0 == " " }) { return true }
-        if stars >= 3 && s.allSatisfy({ $0 == "*" || $0 == " " }) && !s.contains("**") { return true }
-        if underscores >= 3 && s.allSatisfy({ $0 == "_" || $0 == " " }) { return true }
-        return false
+        return s.withCString { ptr in
+            var dashes = 0, stars = 0, underscores = 0
+            var i = 0
+            while ptr[i] != 0 {
+                let b = UInt8(bitPattern: ptr[i])
+                switch b {
+                case 0x2D: dashes += 1
+                case 0x2A: stars += 1
+                case 0x5F: underscores += 1
+                case 0x20: break
+                default: return false
+                }
+                i += 1
+            }
+            let total = dashes + stars + underscores
+            return total >= 3 && (dashes == total || stars == total || underscores == total)
+        }
     }
 
     private static func isUnorderedListItem(_ s: String) -> Bool {
-        s.hasPrefix("- ") || s.hasPrefix("* ") || s.hasPrefix("+ ")
+        return s.withCString { ptr in
+            let first = UInt8(bitPattern: ptr[0])
+            let second = UInt8(bitPattern: ptr[1])
+            return second == 0x20 && (first == 0x2D || first == 0x2A || first == 0x2B)
+        }
     }
 
     private static func isOrderedListItem(_ s: String) -> Bool {
-        orderedListContent(s) != nil
+        return s.withCString { ptr in
+            var i = 0
+            var digitCount = 0
+            while ptr[i] != 0 {
+                let b = UInt8(bitPattern: ptr[i])
+                if b >= 0x30 && b <= 0x39 {
+                    digitCount += 1; i += 1
+                } else if b == 0x2E && digitCount > 0 {
+                    return UInt8(bitPattern: ptr[i + 1]) == 0x20
+                } else {
+                    return false
+                }
+            }
+            return false
+        }
     }
 
     private static func orderedListContent(_ s: String) -> String? {
-        guard let dotIdx = s.firstIndex(of: ".") else { return nil }
-        let prefix = s[s.startIndex..<dotIdx]
-        guard !prefix.isEmpty && prefix.allSatisfy({ $0.isNumber }) else { return nil }
-        let afterDot = s[s.index(after: dotIdx)...]
-        guard afterDot.hasPrefix(" ") else { return nil }
-        return String(afterDot.dropFirst())
+        return s.withCString { ptr in
+            var i = 0
+            var digitCount = 0
+            while ptr[i] != 0 {
+                let b = UInt8(bitPattern: ptr[i])
+                if b >= 0x30 && b <= 0x39 {
+                    digitCount += 1; i += 1
+                } else if b == 0x2E && digitCount > 0 {
+                    guard UInt8(bitPattern: ptr[i + 1]) == 0x20 else { return nil }
+                    // Return content after "N. "
+                    return String(cString: ptr.advanced(by: i + 2))
+                } else {
+                    return nil
+                }
+            }
+            return nil
+        }
     }
 
     private static func renderTable(_ lines: [String]) -> String {
@@ -2401,54 +4046,50 @@ struct SelectableMarkdownView: NSViewRepresentable {
 
     // MARK: - Inline markdown processing
 
-    private static func processInline(_ text: String) -> String {
+    private static func processInline(_ text: String, mathPlaceholders: [String: String] = [:]) -> String {
         var result = escapeHTML(text)
+        // Fast path: skip regex if no markdown-related characters present
+        let hasMarkdownChars = result.utf8.contains(where: { byte in
+            byte == 0x5B    // '['  (links/images)
+            || byte == 0x2A // '*'  (bold/italic)
+            || byte == 0x5F // '_'  (bold/italic)
+            || byte == 0x7E // '~'  (strikethrough)
+            || byte == 0x60 // '`'  (inline code)
+            || byte == 0x21 // '!'  (images)
+        })
+        guard hasMarkdownChars else { return result }
         // Images ![alt](url)
-        result = result.replacingOccurrences(
-            of: "!\\[([^\\]]*)\\]\\(([^)]+)\\)",
-            with: "<img src=\"$2\" alt=\"$1\">",
-            options: .regularExpression
-        )
+        if let regex = imageRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<img src=\"$2\" alt=\"$1\">")
+        }
         // Links [text](url)
-        result = result.replacingOccurrences(
-            of: "\\[([^\\]]+)\\]\\(([^)]+)\\)",
-            with: "<a href=\"$2\">$1</a>",
-            options: .regularExpression
-        )
-        // Bold **text** or __text__
-        result = result.replacingOccurrences(
-            of: "\\*\\*(.+?)\\*\\*",
-            with: "<strong>$1</strong>",
-            options: .regularExpression
-        )
-        result = result.replacingOccurrences(
-            of: "__(.+?)__",
-            with: "<strong>$1</strong>",
-            options: .regularExpression
-        )
-        // Italic *text* or _text_
-        result = result.replacingOccurrences(
-            of: "(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)",
-            with: "<em>$1</em>",
-            options: .regularExpression
-        )
-        result = result.replacingOccurrences(
-            of: "(?<![\\w])_(.+?)_(?![\\w])",
-            with: "<em>$1</em>",
-            options: .regularExpression
-        )
+        if let regex = linkRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<a href=\"$2\">$1</a>")
+        }
+        // Bold **text**
+        if let regex = boldAsteriskRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<strong>$1</strong>")
+        }
+        // Bold __text__
+        if let regex = boldUnderscoreRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<strong>$1</strong>")
+        }
+        // Italic *text*
+        if let regex = italicAsteriskRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<em>$1</em>")
+        }
+        // Italic _text_
+        if let regex = italicUnderscoreRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<em>$1</em>")
+        }
         // Strikethrough ~~text~~
-        result = result.replacingOccurrences(
-            of: "~~(.+?)~~",
-            with: "<s>$1</s>",
-            options: .regularExpression
-        )
+        if let regex = strikethroughRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<s>$1</s>")
+        }
         // Inline code `text`
-        result = result.replacingOccurrences(
-            of: "`([^`]+)`",
-            with: "<code>$1</code>",
-            options: .regularExpression
-        )
+        if let regex = inlineCodeRegex {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<code>$1</code>")
+        }
         return result
     }
 
@@ -2457,6 +4098,2276 @@ struct SelectableMarkdownView: NSViewRepresentable {
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
+    }
+}
+
+// MARK: - Agent Header Bar
+
+private struct AgentHeaderBar: View {
+    let agent: AgentOption
+    let defaultModel: String
+    let onNewAgent: () -> Void
+    let onSettingsTap: () -> Void
+    let onFileBrowser: () -> Void
+    let onTerminal: () -> Void
+    var onCollab: (() -> Void)? = nil
+
+    private var resolvedModel: String {
+        let raw = agent.model.isEmpty ? defaultModel : agent.model
+        guard !raw.isEmpty, raw != "-" else { return "" }
+        return raw.contains("/") ? String(raw.split(separator: "/").last ?? Substring(raw)) : raw
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Text(agent.emoji)
+                    .font(.system(size: 28))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(agent.name)
+                        .font(.headline)
+                    if !agent.description.isEmpty {
+                        Text(agent.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    if !resolvedModel.isEmpty {
+                        TagView(text: resolvedModel, color: .blue)
+                    }
+                }
+
+                Spacer()
+
+                Button(action: onNewAgent) {
+                    Image(systemName: "plus.bubble")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("New Agent")
+
+                Button(action: onSettingsTap) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onFileBrowser) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Workspace Files")
+
+                Button(action: onTerminal) {
+                    Image(systemName: "terminal")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Terminal")
+
+                if let onCollab = onCollab {
+                    Button(action: onCollab) {
+                        Image(systemName: "arrow.triangle.branch")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Collab Tasks")
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+
+            Divider()
+        }
+    }
+}
+
+// MARK: - Agent Settings Panel
+
+private struct AgentSettingsPanel: View {
+    @ObservedObject var viewModel: DashboardViewModel
+    let agent: SubAgentInfo
+    let onClose: () -> Void
+
+    @State private var selectedModel: String = ""
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left edge shadow divider
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: 1)
+                .shadow(color: .black.opacity(0.15), radius: 6, x: -3, y: 0)
+
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack(spacing: 10) {
+                    Text(agent.emoji)
+                        .font(.title2)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(agent.name)
+                            .font(.headline)
+                        Text(agent.id)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .frame(width: 24, height: 24)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(16)
+
+                Divider()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Info section
+                        VStack(alignment: .leading, spacing: 6) {
+                            // Model picker
+                            HStack(spacing: 6) {
+                                Image(systemName: "cpu")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("Model:")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Picker("", selection: $selectedModel) {
+                                    Text("Default (inherit)").tag("")
+                                    ForEach(viewModel.availableModelsForSettings) { model in
+                                        Text(model.name).tag(model.id)
+                                    }
+                                }
+                                .labelsHidden()
+                                .controlSize(.small)
+                                .frame(maxWidth: 260)
+                                .onChange(of: selectedModel) { newValue in
+                                    if newValue != agent.model {
+                                        viewModel.updateAgentModel(model: newValue)
+                                    }
+                                }
+                            }
+
+                            // Workspace path (clickable → open in Finder)
+                            if !agent.workspace.isEmpty {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "folder")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(agent.workspace.replacingOccurrences(
+                                        of: FileManager.default.homeDirectoryForCurrentUser.path,
+                                        with: "~"
+                                    ))
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    NSWorkspace.shared.open(URL(fileURLWithPath: agent.workspace))
+                                }
+                                .onHover { inside in
+                                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                                }
+                            }
+
+                            // Binding details
+                            if !agent.bindingDetails.isEmpty {
+                                ForEach(agent.bindingDetails, id: \.self) { binding in
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "link")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text(binding)
+                                            .font(.system(.caption, design: .monospaced))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+
+                        Divider()
+
+                        // Persona editors (collapsed by default)
+                        VStack(alignment: .leading, spacing: 12) {
+                            MarkdownFileEditor(
+                                title: "IDENTITY.md",
+                                icon: "person.crop.circle",
+                                content: viewModel.settingsBinding(for: .identity),
+                                isDirty: viewModel.selectedAgentDetail?.identityDirty ?? false,
+                                onSave: {
+                                    viewModel.saveAgentPersonaFile(file: .identity)
+                                },
+                                initiallyExpanded: false
+                            )
+
+                            MarkdownFileEditor(
+                                title: "SOUL.md",
+                                icon: "heart.fill",
+                                content: viewModel.settingsBinding(for: .soul),
+                                isDirty: viewModel.selectedAgentDetail?.soulDirty ?? false,
+                                onSave: {
+                                    viewModel.saveAgentPersonaFile(file: .soul)
+                                },
+                                initiallyExpanded: false
+                            )
+
+                            MarkdownFileEditor(
+                                title: "MEMORY.md",
+                                icon: "brain.head.profile",
+                                content: viewModel.settingsBinding(for: .memory),
+                                isDirty: viewModel.selectedAgentDetail?.memoryDirty ?? false,
+                                onSave: {
+                                    viewModel.saveAgentPersonaFile(file: .memory)
+                                },
+                                initiallyExpanded: false
+                            )
+
+                            // Additional .md files — only shown when present in workspace
+                            if viewModel.hasPersonaFile("USER.md") {
+                                MarkdownFileEditor(
+                                    title: "USER.md",
+                                    icon: "person.fill",
+                                    content: viewModel.settingsBindingByName("USER.md"),
+                                    isDirty: viewModel.isFileDirtyByName("USER.md"),
+                                    onSave: { viewModel.savePersonaFileByName("USER.md") },
+                                    initiallyExpanded: false
+                                )
+                            }
+
+                            if viewModel.hasPersonaFile("AGENTS.md") {
+                                MarkdownFileEditor(
+                                    title: "AGENTS.md",
+                                    icon: "person.3.fill",
+                                    content: viewModel.settingsBindingByName("AGENTS.md"),
+                                    isDirty: viewModel.isFileDirtyByName("AGENTS.md"),
+                                    onSave: { viewModel.savePersonaFileByName("AGENTS.md") },
+                                    initiallyExpanded: false
+                                )
+                            }
+
+                            if viewModel.hasPersonaFile("BOOTSTRAP.md") {
+                                MarkdownFileEditor(
+                                    title: "BOOTSTRAP.md",
+                                    icon: "power",
+                                    content: viewModel.settingsBindingByName("BOOTSTRAP.md"),
+                                    isDirty: viewModel.isFileDirtyByName("BOOTSTRAP.md"),
+                                    onSave: { viewModel.savePersonaFileByName("BOOTSTRAP.md") },
+                                    initiallyExpanded: false
+                                )
+                            }
+
+                            if viewModel.hasPersonaFile("HEARTBEAT.md") {
+                                MarkdownFileEditor(
+                                    title: "HEARTBEAT.md",
+                                    icon: "heart.text.clipboard",
+                                    content: viewModel.settingsBindingByName("HEARTBEAT.md"),
+                                    isDirty: viewModel.isFileDirtyByName("HEARTBEAT.md"),
+                                    onSave: { viewModel.savePersonaFileByName("HEARTBEAT.md") },
+                                    initiallyExpanded: false
+                                )
+                            }
+
+                            if viewModel.hasPersonaFile("TOOLS.md") {
+                                MarkdownFileEditor(
+                                    title: "TOOLS.md",
+                                    icon: "wrench.and.screwdriver",
+                                    content: viewModel.settingsBindingByName("TOOLS.md"),
+                                    isDirty: viewModel.isFileDirtyByName("TOOLS.md"),
+                                    onSave: { viewModel.savePersonaFileByName("TOOLS.md") },
+                                    initiallyExpanded: false
+                                )
+                            }
+                        }
+                        .padding(16)
+                    }
+                }
+            }
+            .frame(width: 380)
+            .background(Color(NSColor.windowBackgroundColor))
+        }
+        .onAppear {
+            selectedModel = agent.model
+        }
+    }
+}
+
+// MARK: - Workspace File Panel
+
+private struct WorkspaceFilePanel: View {
+    let agentId: String
+    @Binding var editingFilePath: String?
+    let editingFileDirty: Bool
+    let onClose: () -> Void
+
+    @State private var expandedFolders: Set<String> = []
+    @State private var isSearching = false
+    @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
+
+    // Context menu state
+    @State private var renamingPath: String?
+    @State private var renamingText: String = ""
+    @State private var newItemParent: String?
+    @State private var newItemIsFolder: Bool = false
+    @State private var newItemName: String = ""
+    @State private var clipboardPath: String?
+    @State private var clipboardIsCut: Bool = false
+    @State private var deleteConfirmPath: String?
+    @State private var refreshTrigger: Int = 0
+    @FocusState private var isRenameFocused: Bool
+    @FocusState private var isNewItemFocused: Bool
+
+    private var workspacePath: String {
+        let base = NSString("~/.openclaw").expandingTildeInPath
+        if agentId == "main" {
+            return (base as NSString).appendingPathComponent("workspace")
+        }
+        return (base as NSString).appendingPathComponent("workspace-\(agentId)")
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: 1)
+                .shadow(color: .black.opacity(0.15), radius: 6, x: -3, y: 0)
+
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack(spacing: 8) {
+                    Image(systemName: "folder.fill")
+                        .foregroundColor(.accentColor)
+                    Text("Workspace")
+                        .font(.headline)
+                    Spacer()
+
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isSearching.toggle()
+                            if !isSearching {
+                                searchText = ""
+                                isSearchFocused = false
+                            } else {
+                                isSearchFocused = true
+                            }
+                        }
+                    }) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 12))
+                            .foregroundColor(isSearching ? .accentColor : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Search Files")
+
+                    Button(action: {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: workspacePath))
+                    }) {
+                        Image(systemName: "arrow.up.forward.square")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open in Finder")
+
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .frame(width: 24, height: 24)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(16)
+
+                // Search bar
+                if isSearching {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        TextField("Search files...", text: $searchText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12))
+                            .focused($isSearchFocused)
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(6)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                }
+
+                Divider()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+                        if query.isEmpty {
+                            let visibleItems = buildVisibleItems(root: workspacePath, depth: 0)
+                            ForEach(visibleItems, id: \.item.path) { entry in
+                                fileRowView(item: entry.item, depth: entry.depth)
+                            }
+                            // New item input row at workspace root level
+                            if newItemParent == workspacePath {
+                                newItemInputRow(depth: 0)
+                            }
+                        } else {
+                            let results = searchFiles(root: workspacePath, query: query)
+                            if results.isEmpty {
+                                Text("No results")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(12)
+                            } else {
+                                ForEach(results, id: \.path) { item in
+                                    searchResultRow(item: item)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .id(refreshTrigger)
+            }
+            .frame(width: 280)
+            .background(Color(NSColor.windowBackgroundColor))
+            .alert("Delete", isPresented: Binding<Bool>(
+                get: { deleteConfirmPath != nil },
+                set: { if !$0 { deleteConfirmPath = nil } }
+            )) {
+                Button("Delete", role: .destructive) {
+                    if let path = deleteConfirmPath {
+                        performDelete(path: path)
+                    }
+                    deleteConfirmPath = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    deleteConfirmPath = nil
+                }
+            } message: {
+                if let path = deleteConfirmPath {
+                    Text("Are you sure you want to delete \"\((path as NSString).lastPathComponent)\"?")
+                }
+            }
+        }
+    }
+
+    // MARK: - Search result row (flat, with relative path)
+
+    private func searchResultRow(item: FileItem) -> some View {
+        let isSelected = editingFilePath == item.path
+        let isDirtyFile = isSelected && editingFileDirty
+        let relativePath = item.path.replacingOccurrences(of: workspacePath + "/", with: "")
+
+        return Button(action: {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                if item.isDirectory {
+                    // Expand all ancestor folders + this folder, then exit search
+                    var current = item.path
+                    while current != workspacePath && current != "/" {
+                        expandedFolders.insert(current)
+                        current = (current as NSString).deletingLastPathComponent
+                    }
+                    searchText = ""
+                    isSearching = false
+                    isSearchFocused = false
+                } else {
+                    editingFilePath = item.path
+                }
+            }
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: item.isDirectory ? "folder.fill" : fileIcon(for: item.name))
+                    .font(.system(size: 13))
+                    .foregroundColor(item.isDirectory ? .accentColor : .secondary)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.name)
+                        .font(.system(size: 13))
+                        .foregroundColor(isSelected ? .white : .primary)
+                        .lineLimit(1)
+                    if relativePath != item.name {
+                        Text(relativePath)
+                            .font(.system(size: 10))
+                            .foregroundColor(isSelected ? .white.opacity(0.7) : .secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+
+                if isDirtyFile {
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 6, height: 6)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(isSelected ? Color.accentColor.opacity(0.85) : Color.clear)
+            .cornerRadius(4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Recursive file search
+
+    private func searchFiles(root: String, query: String) -> [FileItem] {
+        var results: [FileItem] = []
+        searchFilesRecursive(directory: root, query: query, depth: 0, results: &results)
+        return results.sorted {
+            // Directories first, then by name
+            if $0.isDirectory != $1.isDirectory { return $0.isDirectory }
+            return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+
+    private func searchFilesRecursive(directory: String, query: String, depth: Int, results: inout [FileItem]) {
+        guard depth < 3 else { return }
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: directory) else { return }
+        for name in names {
+            if name.hasPrefix(".") { continue }
+            let fullPath = (directory as NSString).appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            fm.fileExists(atPath: fullPath, isDirectory: &isDir)
+            if name.lowercased().contains(query) {
+                results.append(FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue))
+            }
+            if isDir.boolValue {
+                searchFilesRecursive(directory: fullPath, query: query, depth: depth + 1, results: &results)
+            }
+        }
+    }
+
+    private struct DepthItem {
+        let item: FileItem
+        let depth: Int
+    }
+
+    private func buildVisibleItems(root: String, depth: Int) -> [DepthItem] {
+        var result: [DepthItem] = []
+        let items = listDirectory(root)
+        for item in items {
+            result.append(DepthItem(item: item, depth: depth))
+            if item.isDirectory && expandedFolders.contains(item.path) {
+                result.append(contentsOf: buildVisibleItems(root: item.path, depth: depth + 1))
+                // New item input row inside this expanded directory
+                if newItemParent == item.path {
+                    result.append(DepthItem(
+                        item: FileItem(name: "__new_item_placeholder__", path: item.path + "/__new_item__", isDirectory: false),
+                        depth: depth + 1
+                    ))
+                }
+            }
+        }
+        return result
+    }
+
+    @ViewBuilder
+    private func fileRowView(item: FileItem, depth: Int) -> some View {
+        // Placeholder for new item input
+        if item.name == "__new_item_placeholder__" {
+            newItemInputRow(depth: depth)
+        } else {
+            fileRowContent(item: item, depth: depth)
+        }
+    }
+
+    @ViewBuilder
+    private func fileRowContent(item: FileItem, depth: Int) -> some View {
+        let isExpanded = expandedFolders.contains(item.path)
+        let isSelected = editingFilePath == item.path
+        let isDirtyFile = isSelected && editingFileDirty
+        let isRenaming = renamingPath == item.path
+
+        if isRenaming {
+            // Rename mode: standalone row (not inside Button, so Enter works on TextField)
+            HStack(spacing: 6) {
+                if item.isDirectory {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 12)
+                } else {
+                    Spacer().frame(width: 12)
+                }
+
+                Image(systemName: item.isDirectory ? "folder.fill" : fileIcon(for: item.name))
+                    .font(.system(size: 13))
+                    .foregroundColor(item.isDirectory ? .accentColor : .secondary)
+
+                CommitTextField(
+                    text: $renamingText,
+                    onCommit: { value in performRename(oldPath: item.path, newName: value) },
+                    onCancel: { renamingPath = nil; refreshTrigger += 1 }
+                )
+                .frame(height: 22)
+
+                Spacer()
+            }
+            .padding(.leading, CGFloat(depth) * 16 + 12)
+            .padding(.trailing, 12)
+            .padding(.vertical, 5)
+            .background(Color.accentColor.opacity(0.15))
+            .cornerRadius(4)
+        } else {
+            // Normal mode: clickable button row
+            Button(action: {
+                if item.isDirectory {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        if isExpanded {
+                            expandedFolders.remove(item.path)
+                        } else {
+                            expandedFolders.insert(item.path)
+                        }
+                    }
+                } else {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        editingFilePath = item.path
+                    }
+                }
+            }) {
+                HStack(spacing: 6) {
+                    if item.isDirectory {
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .frame(width: 12)
+                    } else {
+                        Spacer().frame(width: 12)
+                    }
+
+                    Image(systemName: item.isDirectory ? "folder.fill" : fileIcon(for: item.name))
+                        .font(.system(size: 13))
+                        .foregroundColor(item.isDirectory ? .accentColor : .secondary)
+
+                    Text(item.name)
+                        .font(.system(size: 13))
+                        .foregroundColor(isSelected ? .white : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    if isDirtyFile {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 6, height: 6)
+                    }
+
+                    Spacer()
+                }
+                .padding(.leading, CGFloat(depth) * 16 + 12)
+                .padding(.trailing, 12)
+                .padding(.vertical, 5)
+                .background(isSelected ? Color.accentColor.opacity(0.85) : Color.clear)
+                .cornerRadius(4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+            Button {
+                let parent = item.isDirectory ? item.path : (item.path as NSString).deletingLastPathComponent
+                beginNewItem(parent: parent, isFolder: false)
+            } label: {
+                Label("New File", systemImage: "doc.badge.plus")
+            }
+
+            Button {
+                let parent = item.isDirectory ? item.path : (item.path as NSString).deletingLastPathComponent
+                beginNewItem(parent: parent, isFolder: true)
+            } label: {
+                Label("New Folder", systemImage: "folder.badge.plus")
+            }
+
+            Divider()
+
+            Button {
+                renamingText = item.name
+                renamingPath = item.path
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isRenameFocused = true
+                }
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+
+            Divider()
+
+            Button {
+                clipboardPath = item.path
+                clipboardIsCut = true
+            } label: {
+                Label("Cut", systemImage: "scissors")
+            }
+
+            Button {
+                clipboardPath = item.path
+                clipboardIsCut = false
+            } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+
+            if item.isDirectory, let clip = clipboardPath, !clip.isEmpty {
+                Button {
+                    performPaste(into: item.path)
+                } label: {
+                    Label("Paste", systemImage: "doc.on.clipboard")
+                }
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                deleteConfirmPath = item.path
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        }
+    }
+
+    // MARK: - New item inline input row
+
+    private func newItemInputRow(depth: Int) -> some View {
+        HStack(spacing: 6) {
+            Spacer().frame(width: 12)
+            Image(systemName: newItemIsFolder ? "folder.badge.plus" : "doc.badge.plus")
+                .font(.system(size: 13))
+                .foregroundColor(.accentColor)
+            CommitTextField(
+                text: $newItemName,
+                placeholder: newItemIsFolder ? "Folder name" : "File name",
+                onCommit: { value in performNewItem(name: value) },
+                onCancel: { cancelNewItem() }
+            )
+            .frame(height: 22)
+        }
+        .padding(.leading, CGFloat(depth) * 16 + 12)
+        .padding(.trailing, 12)
+        .padding(.vertical, 5)
+    }
+
+    // MARK: - File operations
+
+    private func beginNewItem(parent: String, isFolder: Bool) {
+        newItemParent = parent
+        newItemIsFolder = isFolder
+        newItemName = ""
+        expandedFolders.insert(parent)
+        refreshTrigger += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isNewItemFocused = true
+        }
+    }
+
+    private func cancelNewItem() {
+        newItemParent = nil
+        newItemName = ""
+        refreshTrigger += 1
+    }
+
+    private func performNewItem(name inputName: String) {
+        guard let parent = newItemParent else { return }
+        let name = inputName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { cancelNewItem(); return }
+        let fullPath = (parent as NSString).appendingPathComponent(name)
+        let fm = FileManager.default
+        if newItemIsFolder {
+            try? fm.createDirectory(atPath: fullPath, withIntermediateDirectories: true)
+        } else {
+            fm.createFile(atPath: fullPath, contents: nil)
+        }
+        newItemParent = nil
+        newItemName = ""
+        refreshTrigger += 1
+    }
+
+    private func performRename(oldPath: String, newName inputName: String) {
+        let newName = inputName.trimmingCharacters(in: .whitespaces)
+        guard !newName.isEmpty, newName != (oldPath as NSString).lastPathComponent else {
+            renamingPath = nil
+            refreshTrigger += 1
+            return
+        }
+        let parent = (oldPath as NSString).deletingLastPathComponent
+        let newPath = (parent as NSString).appendingPathComponent(newName)
+        let fm = FileManager.default
+        do {
+            try fm.moveItem(atPath: oldPath, toPath: newPath)
+            if editingFilePath == oldPath {
+                editingFilePath = newPath
+            }
+        } catch {}
+        renamingPath = nil
+        refreshTrigger += 1
+    }
+
+    private func performDelete(path: String) {
+        try? FileManager.default.removeItem(atPath: path)
+        if let editing = editingFilePath, editing.hasPrefix(path) {
+            editingFilePath = nil
+        }
+        if let clip = clipboardPath, clip.hasPrefix(path) {
+            clipboardPath = nil
+        }
+        refreshTrigger += 1
+    }
+
+    private func performPaste(into directory: String) {
+        guard let source = clipboardPath else { return }
+        let name = (source as NSString).lastPathComponent
+        var dest = (directory as NSString).appendingPathComponent(name)
+        let fm = FileManager.default
+
+        // Avoid overwriting: append " copy" if needed
+        if !clipboardIsCut && fm.fileExists(atPath: dest) {
+            let baseName = (name as NSString).deletingPathExtension
+            let ext = (name as NSString).pathExtension
+            var counter = 1
+            repeat {
+                let suffix = counter == 1 ? " copy" : " copy \(counter)"
+                let newName = ext.isEmpty ? "\(baseName)\(suffix)" : "\(baseName)\(suffix).\(ext)"
+                dest = (directory as NSString).appendingPathComponent(newName)
+                counter += 1
+            } while fm.fileExists(atPath: dest)
+        }
+
+        do {
+            if clipboardIsCut {
+                try fm.moveItem(atPath: source, toPath: dest)
+                if let editing = editingFilePath, editing.hasPrefix(source) {
+                    editingFilePath = editing.replacingOccurrences(of: source, with: dest)
+                }
+                clipboardPath = nil
+            } else {
+                try fm.copyItem(atPath: source, toPath: dest)
+            }
+        } catch {}
+
+        expandedFolders.insert(directory)
+        refreshTrigger += 1
+    }
+
+    private func fileIcon(for name: String) -> String {
+        let ext = (name as NSString).pathExtension.lowercased()
+        switch ext {
+        case "md": return "doc.richtext"
+        case "json": return "curlybraces"
+        case "yaml", "yml": return "list.bullet.rectangle"
+        case "txt": return "doc.text"
+        case "py": return "chevron.left.forwardslash.chevron.right"
+        case "swift": return "swift"
+        case "js", "ts": return "chevron.left.forwardslash.chevron.right"
+        default: return "doc"
+        }
+    }
+
+    private func listDirectory(_ path: String) -> [FileItem] {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: path) else { return [] }
+        var items: [FileItem] = []
+        for name in names.sorted() {
+            if name.hasPrefix(".") { continue }
+            let fullPath = (path as NSString).appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            fm.fileExists(atPath: fullPath, isDirectory: &isDir)
+            items.append(FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue))
+        }
+        // Folders first, then files
+        return items.sorted { a, b in
+            if a.isDirectory != b.isDirectory { return a.isDirectory }
+            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+    }
+}
+
+// MARK: - Commit TextField (reliable Enter + focus-loss on macOS)
+
+private class EnterResignsTextField: NSTextField {
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        // Tag the field editor so the global key monitor can skip it
+        if let editor = currentEditor() as? NSTextView {
+            editor.identifier = NSUserInterfaceItemIdentifier("commitTextField")
+        }
+        return result
+    }
+
+    override func keyDown(with event: NSEvent) {
+        // Enter (keyCode 36) or Return (keyCode 76) → resign focus
+        if event.keyCode == 36 || event.keyCode == 76 {
+            window?.makeFirstResponder(nil)
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
+private struct CommitTextField: NSViewRepresentable {
+    @Binding var text: String
+    var placeholder: String = ""
+    var onCommit: (String) -> Void
+    var onCancel: (() -> Void)?
+
+    func makeNSView(context: Context) -> EnterResignsTextField {
+        let tf = EnterResignsTextField()
+        tf.placeholderString = placeholder
+        tf.font = NSFont.systemFont(ofSize: 13)
+        tf.isBordered = true
+        tf.bezelStyle = .roundedBezel
+        tf.focusRingType = .exterior
+        tf.delegate = context.coordinator
+        tf.stringValue = text
+        DispatchQueue.main.async {
+            tf.window?.makeFirstResponder(tf)
+            tf.currentEditor()?.selectAll(nil)
+        }
+        return tf
+    }
+
+    func updateNSView(_ nsView: EnterResignsTextField, context: Context) {
+        context.coordinator.onCommit = onCommit
+        context.coordinator.onCancel = onCancel
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, onCommit: onCommit, onCancel: onCancel)
+    }
+
+    class Coordinator: NSObject, NSTextFieldDelegate {
+        @Binding var text: String
+        var onCommit: (String) -> Void
+        var onCancel: (() -> Void)?
+
+        init(text: Binding<String>, onCommit: @escaping (String) -> Void, onCancel: (() -> Void)?) {
+            self._text = text
+            self.onCommit = onCommit
+            self.onCancel = onCancel
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let tf = obj.object as? NSTextField else { return }
+            text = tf.stringValue
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+                onCancel?()
+                return true
+            }
+            return false
+        }
+
+        // Fires on Enter (resign) and any other focus loss
+        func controlTextDidEndEditing(_ obj: Notification) {
+            guard let tf = obj.object as? NSTextField else { return }
+            onCommit(tf.stringValue)
+        }
+    }
+}
+
+private struct FileItem {
+    let name: String
+    let path: String
+    let isDirectory: Bool
+}
+
+// MARK: - File Editor Panel
+
+private enum FileViewMode {
+    case preview    // QLPreviewView (read-only, syntax highlight / media playback)
+    case editor     // TextEditor (editable)
+}
+
+private enum FileCategory {
+    case text       // .txt, .yaml, .yml, .csv, .log — open in editor directly
+    case code       // .py, .swift, .js, .ts, .json, .go, .rb, .rs, .sh, .md, etc. — preview first, edit button
+    case media      // audio/video — preview only
+    case image      // .png, .jpg, .gif, .svg, etc. — preview only
+    case other      // everything else — preview
+
+    var supportsEditing: Bool {
+        switch self {
+        case .text, .code: return true
+        case .media, .image, .other: return false
+        }
+    }
+
+    var defaultMode: FileViewMode {
+        return .preview
+    }
+
+    static func detect(ext: String) -> FileCategory {
+        switch ext.lowercased() {
+        case "txt", "yaml", "yml", "csv", "log", "ini", "cfg", "conf", "toml":
+            return .text
+        case "md", "py", "swift", "js", "ts", "jsx", "tsx", "json", "go", "rb", "rs",
+             "sh", "bash", "zsh", "c", "cpp", "h", "hpp", "java", "kt", "lua",
+             "r", "sql", "html", "css", "scss", "xml", "dockerfile", "makefile":
+            return .code
+        case "mp3", "wav", "m4a", "aac", "flac", "ogg", "aiff",
+             "mp4", "mov", "avi", "mkv", "m4v", "webm":
+            return .media
+        case "png", "jpg", "jpeg", "gif", "bmp", "tiff", "svg", "webp", "ico", "heic":
+            return .image
+        default:
+            return .other
+        }
+    }
+
+    static func languageName(ext: String) -> String {
+        switch ext.lowercased() {
+        case "py": return "Python"
+        case "swift": return "Swift"
+        case "js": return "JavaScript"
+        case "ts": return "TypeScript"
+        case "jsx": return "JSX"
+        case "tsx": return "TSX"
+        case "json": return "JSON"
+        case "go": return "Go"
+        case "rb": return "Ruby"
+        case "rs": return "Rust"
+        case "sh", "bash", "zsh": return "Shell"
+        case "c": return "C"
+        case "cpp", "hpp": return "C++"
+        case "h": return "C/C++ Header"
+        case "java": return "Java"
+        case "kt": return "Kotlin"
+        case "lua": return "Lua"
+        case "r": return "R"
+        case "sql": return "SQL"
+        case "html": return "HTML"
+        case "css": return "CSS"
+        case "scss": return "SCSS"
+        case "xml": return "XML"
+        case "md": return "Markdown"
+        case "txt": return "Plain Text"
+        case "yaml", "yml": return "YAML"
+        case "toml": return "TOML"
+        case "ini", "cfg", "conf": return "Config"
+        case "csv": return "CSV"
+        case "log": return "Log"
+        case "dockerfile": return "Dockerfile"
+        case "makefile": return "Makefile"
+        default: return ext.uppercased()
+        }
+    }
+}
+
+private struct FileEditorPanel: View {
+    let filePath: String
+    let onClose: () -> Void
+    var onDirtyChanged: ((Bool) -> Void)?
+
+    @State private var content: String = ""
+    @State private var originalContent: String = ""
+    @State private var isLoading = true
+    @State private var saveMessage: String?
+    @State private var viewMode: FileViewMode = .editor
+    @Binding var isFullscreen: Bool
+    @State private var fontSize: CGFloat = 13
+    @State private var cursorLine: Int = 1
+    @State private var cursorColumn: Int = 1
+    @State private var wordWrap = true
+
+    private var fileName: String {
+        (filePath as NSString).lastPathComponent
+    }
+
+    private var fileExt: String {
+        (filePath as NSString).pathExtension
+    }
+
+    private var category: FileCategory {
+        FileCategory.detect(ext: fileExt)
+    }
+
+    private var isDirty: Bool {
+        content != originalContent
+    }
+
+    private var fileSizeString: String {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: filePath),
+              let size = attrs[.size] as? UInt64 else { return "" }
+        if size < 1024 { return "\(size) B" }
+        if size < 1024 * 1024 { return String(format: "%.1f KB", Double(size) / 1024) }
+        return String(format: "%.1f MB", Double(size) / (1024 * 1024))
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: 1)
+                .shadow(color: .black.opacity(0.15), radius: 6, x: -3, y: 0)
+
+            VStack(spacing: 0) {
+                // Header
+                headerBar
+                Divider()
+
+                // Content
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                } else if viewMode == .editor {
+                    CodeEditorView(
+                        text: $content,
+                        fontSize: fontSize,
+                        wordWrap: wordWrap,
+                        fileExtension: fileExt,
+                        cursorLine: $cursorLine,
+                        cursorColumn: $cursorColumn
+                    )
+                } else if category.supportsEditing && !["md", "html", "htm"].contains(fileExt.lowercased()) {
+                    // Text/code preview: read-only with syntax highlighting
+                    CodeEditorView(
+                        text: .constant(content),
+                        fontSize: fontSize,
+                        wordWrap: wordWrap,
+                        fileExtension: fileExt,
+                        cursorLine: $cursorLine,
+                        cursorColumn: $cursorColumn,
+                        isReadOnly: true
+                    )
+                } else if fileExt.lowercased() == "md" {
+                    MarkdownPreviewView(markdown: content)
+                } else if ["html", "htm"].contains(fileExt.lowercased()) {
+                    HTMLPreviewView(fileURL: URL(fileURLWithPath: filePath))
+                } else {
+                    QuickLookPreview(url: URL(fileURLWithPath: filePath))
+                }
+
+                // Status bar
+                if viewMode == .editor {
+                    Divider()
+                    statusBar
+                }
+            }
+            .frame(maxWidth: isFullscreen ? .infinity : 480)
+            .background(Color(NSColor.windowBackgroundColor))
+        }
+        .onAppear { loadFile() }
+        .onChange(of: filePath) { _ in loadFile() }
+        .onChange(of: isDirty) { dirty in
+            onDirtyChanged?(dirty)
+        }
+    }
+
+    // MARK: - Header
+
+    private var headerBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: headerIcon)
+                .foregroundColor(.accentColor)
+            Text(fileName)
+                .font(.headline)
+                .lineLimit(1)
+                .onTapGesture(count: 2) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(filePath, forType: .string)
+                    saveMessage = "Path copied"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        if saveMessage == "Path copied" { saveMessage = nil }
+                    }
+                }
+                .help("Double-click to copy path")
+
+            if viewMode == .editor && isDirty {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 8, height: 8)
+            }
+
+            if let msg = saveMessage {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundColor(.green)
+            }
+
+            Spacer()
+
+            // Font size controls
+            if viewMode == .editor {
+                Button(action: { if fontSize > 9 { fontSize -= 1 } }) {
+                    Image(systemName: "textformat.size.smaller")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Decrease font size (⌘-)")
+
+                Text("\(Int(fontSize))")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 18)
+
+                Button(action: { if fontSize < 28 { fontSize += 1 } }) {
+                    Image(systemName: "textformat.size.larger")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Increase font size (⌘+)")
+
+                // Word wrap toggle
+                Button(action: { wordWrap.toggle() }) {
+                    Image(systemName: "text.word.spacing")
+                        .font(.system(size: 12))
+                        .foregroundColor(wordWrap ? .accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(wordWrap ? "Disable word wrap" : "Enable word wrap")
+
+                Divider().frame(height: 16)
+            }
+
+            // Toggle preview/edit for code files
+            if category.supportsEditing {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        viewMode = (viewMode == .preview) ? .editor : .preview
+                    }
+                }) {
+                    Image(systemName: viewMode == .preview ? "pencil.line" : "eye")
+                        .font(.system(size: 14))
+                        .foregroundColor(.accentColor)
+                }
+                .buttonStyle(.plain)
+                .help(viewMode == .preview ? "Edit" : "Preview")
+            }
+
+            // Save via Cmd+S (hidden)
+            if viewMode == .editor {
+                Button(action: save) { EmptyView() }
+                    .keyboardShortcut("s", modifiers: .command)
+                    .frame(width: 0, height: 0)
+                    .hidden()
+
+                // Font size keyboard shortcuts
+                Button(action: { if fontSize < 28 { fontSize += 1 } }) { EmptyView() }
+                    .keyboardShortcut("+", modifiers: .command)
+                    .frame(width: 0, height: 0)
+                    .hidden()
+
+                Button(action: { if fontSize > 9 { fontSize -= 1 } }) { EmptyView() }
+                    .keyboardShortcut("-", modifiers: .command)
+                    .frame(width: 0, height: 0)
+                    .hidden()
+            }
+
+            // Fullscreen toggle
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isFullscreen.toggle()
+                }
+            }) {
+                Image(systemName: isFullscreen
+                      ? "arrow.down.right.and.arrow.up.left"
+                      : "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(isFullscreen ? "Exit Fullscreen" : "Fullscreen")
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 24, height: 24)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Status Bar
+
+    private var statusBar: some View {
+        HStack(spacing: 16) {
+            Text("Ln \(cursorLine), Col \(cursorColumn)")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.secondary)
+
+            Text("UTF-8")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+            Text(FileCategory.languageName(ext: fileExt))
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Text(fileSizeString)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+
+    private var headerIcon: String {
+        switch category {
+        case .media: return "play.circle"
+        case .image: return "photo"
+        case .code: return "chevron.left.forwardslash.chevron.right"
+        case .text: return "doc.text"
+        case .other: return "doc"
+        }
+    }
+
+    private func loadFile() {
+        isLoading = true
+        saveMessage = nil
+        viewMode = category.defaultMode
+        cursorLine = 1
+        cursorColumn = 1
+
+        if category.supportsEditing {
+            if let data = FileManager.default.contents(atPath: filePath),
+               let text = String(data: data, encoding: .utf8) {
+                let formatted = fileExt.lowercased() == "json" ? prettyJSON(text) : text
+                content = formatted
+                originalContent = formatted
+            } else {
+                content = ""
+                originalContent = ""
+            }
+        }
+        isLoading = false
+    }
+
+    private func save() {
+        do {
+            try content.write(toFile: filePath, atomically: true, encoding: .utf8)
+            originalContent = content
+            saveMessage = "Saved"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                if saveMessage == "Saved" { saveMessage = nil }
+            }
+        } catch {
+            saveMessage = "Error"
+        }
+    }
+
+    private func prettyJSON(_ raw: String) -> String {
+        guard let data = raw.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data),
+              let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
+              let result = String(data: pretty, encoding: .utf8) else {
+            return raw
+        }
+        return result
+    }
+}
+
+// MARK: - Code Editor View (NSTextView with Line Numbers + Find Bar)
+
+private struct CodeEditorView: NSViewRepresentable {
+    @Binding var text: String
+    var fontSize: CGFloat
+    var wordWrap: Bool
+    var fileExtension: String
+    @Binding var cursorLine: Int
+    @Binding var cursorColumn: Int
+    var isReadOnly: Bool = false
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        guard let textView = scrollView.documentView as? NSTextView else {
+            return scrollView
+        }
+
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+
+        textView.isEditable = !isReadOnly
+        textView.isSelectable = true
+        textView.allowsUndo = true
+        textView.usesFindBar = true
+        textView.isIncrementalSearchingEnabled = true
+        textView.isRichText = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.delegate = context.coordinator
+        textView.textContainerInset = NSSize(width: 4, height: 8)
+        textView.identifier = NSUserInterfaceItemIdentifier("codeEditorTextView")
+
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        textView.drawsBackground = true
+        textView.backgroundColor = isDark
+            ? NSColor(calibratedRed: 0.12, green: 0.12, blue: 0.13, alpha: 1.0)
+            : NSColor.white
+        textView.textColor = isDark ? NSColor.white : NSColor.black
+        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+
+        if wordWrap {
+            textView.isHorizontallyResizable = false
+            textView.textContainer?.widthTracksTextView = true
+        } else {
+            scrollView.hasHorizontalScroller = true
+            textView.isHorizontallyResizable = true
+            textView.textContainer?.widthTracksTextView = false
+            textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        }
+
+        textView.string = text
+        SyntaxHighlighter.highlight(textView: textView, fileExtension: fileExtension, fontSize: fontSize)
+
+        // Observe selection changes for cursor position
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.textViewDidChangeSelection(_:)),
+            name: NSTextView.didChangeSelectionNotification,
+            object: textView
+        )
+
+        // Observe scroll
+        if let clipView = scrollView.contentView as? NSClipView {
+            clipView.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(
+                context.coordinator,
+                selector: #selector(Coordinator.boundsDidChange(_:)),
+                name: NSView.boundsDidChangeNotification,
+                object: clipView
+            )
+        }
+
+        context.coordinator.textView = textView
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+
+        // Never interrupt IME composition (e.g. Chinese/Japanese input)
+        guard !textView.hasMarkedText() else { return }
+
+        if !context.coordinator.isUpdatingFromDelegate && textView.string != text {
+            let selectedRanges = textView.selectedRanges
+            textView.string = text
+            SyntaxHighlighter.highlight(textView: textView, fileExtension: fileExtension, fontSize: fontSize)
+            textView.selectedRanges = selectedRanges
+        }
+
+        if textView.font?.pointSize != fontSize {
+            textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        }
+
+        let needsHorizontalScroller = !wordWrap
+        if scrollView.hasHorizontalScroller != needsHorizontalScroller {
+            scrollView.hasHorizontalScroller = needsHorizontalScroller
+            if wordWrap {
+                textView.isHorizontallyResizable = false
+                textView.textContainer?.widthTracksTextView = true
+            } else {
+                textView.isHorizontallyResizable = true
+                textView.textContainer?.widthTracksTextView = false
+                textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            }
+        }
+    }
+
+    class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: CodeEditorView
+        weak var textView: NSTextView?
+        var isUpdatingFromDelegate = false
+
+        init(_ parent: CodeEditorView) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let tv = notification.object as? NSTextView else { return }
+            isUpdatingFromDelegate = true
+            parent.text = tv.string
+            // Defer flag reset so it covers SwiftUI's batched updateNSView call
+            DispatchQueue.main.async {
+                self.isUpdatingFromDelegate = false
+            }
+            SyntaxHighlighter.highlight(textView: tv, fileExtension: parent.fileExtension, fontSize: parent.fontSize)
+        }
+
+        @objc func textViewDidChangeSelection(_ notification: Notification) {
+            guard let tv = notification.object as? NSTextView else { return }
+            let selectedRange = tv.selectedRange()
+            let text = tv.string
+            let nsText = text as NSString
+
+            let lineRange = nsText.lineRange(for: NSRange(location: selectedRange.location, length: 0))
+            let lineStart = lineRange.location
+
+            var line = 1
+            var idx = 0
+            while idx < selectedRange.location && idx < nsText.length {
+                if nsText.character(at: idx) == 0x0A { line += 1 }
+                idx += 1
+            }
+
+            let col = selectedRange.location - lineStart + 1
+
+            DispatchQueue.main.async {
+                self.parent.cursorLine = line
+                self.parent.cursorColumn = col
+            }
+        }
+
+        @objc func boundsDidChange(_ notification: Notification) {
+        }
+    }
+}
+
+// MARK: - Line Number Gutter (replaces NSRulerView to avoid tile() corruption)
+
+private class LineNumberGutterView: NSView {
+    weak var textView: NSTextView?
+
+    override var isFlipped: Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        // Background
+        NSColor.controlBackgroundColor.setFill()
+        dirtyRect.fill()
+
+        // Separator line on the right edge
+        NSColor.separatorColor.setStroke()
+        let sep = NSBezierPath()
+        sep.move(to: NSPoint(x: bounds.maxX - 0.5, y: dirtyRect.minY))
+        sep.line(to: NSPoint(x: bounds.maxX - 0.5, y: dirtyRect.maxY))
+        sep.lineWidth = 0.5
+        sep.stroke()
+
+        guard let textView = textView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer,
+              let scrollView = textView.enclosingScrollView else { return }
+
+        let visibleRect = scrollView.contentView.bounds
+        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
+        let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+
+        let font = NSFont.monospacedSystemFont(ofSize: (textView.font?.pointSize ?? 13) - 2, weight: .regular)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.secondaryLabelColor
+        ]
+
+        let nsString = textView.string as NSString
+        guard nsString.length > 0 else { return }
+
+        // Find line number for the first visible character
+        var lineNumber = 1
+        var idx = 0
+        while idx < charRange.location && idx < nsString.length {
+            if nsString.character(at: idx) == 0x0A { lineNumber += 1 }
+            idx += 1
+        }
+
+        // Draw line numbers for visible lines
+        var charIndex = charRange.location
+        while charIndex < NSMaxRange(charRange) && charIndex < nsString.length {
+            let lineRange = nsString.lineRange(for: NSRange(location: charIndex, length: 0))
+
+            let glyphIdx = layoutManager.glyphIndexForCharacter(at: lineRange.location)
+            var lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
+            lineRect.origin.y += textView.textContainerInset.height
+
+            let yPos = lineRect.origin.y - visibleRect.origin.y
+            let lineStr = "\(lineNumber)" as NSString
+            let strSize = lineStr.size(withAttributes: attrs)
+            let drawPoint = NSPoint(
+                x: bounds.width - strSize.width - 8,
+                y: yPos + (lineRect.height - strSize.height) / 2
+            )
+            lineStr.draw(at: drawPoint, withAttributes: attrs)
+
+            lineNumber += 1
+            charIndex = NSMaxRange(lineRange)
+            if charIndex == lineRange.location { charIndex += 1 } // prevent infinite loop
+        }
+    }
+}
+
+// MARK: - Syntax Highlighter
+
+private struct SyntaxHighlighter {
+
+    struct Rule {
+        let pattern: String
+        let color: NSColor
+        let options: NSRegularExpression.Options
+
+        init(_ pattern: String, _ color: NSColor, options: NSRegularExpression.Options = []) {
+            self.pattern = pattern
+            self.color = color
+            self.options = options
+        }
+    }
+
+    static func highlight(textView: NSTextView, fileExtension: String, fontSize: CGFloat) {
+        guard let layoutManager = textView.layoutManager else { return }
+        let source = textView.string
+        let fullRange = NSRange(location: 0, length: (source as NSString).length)
+        guard fullRange.length > 0 else { return }
+
+        // Clear previous temporary highlighting
+        layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: fullRange)
+
+        // Apply rules via temporary attributes (display-only, does not modify textStorage)
+        let rules = Self.rules(for: fileExtension)
+        for rule in rules {
+            guard let regex = try? NSRegularExpression(pattern: rule.pattern, options: rule.options) else { continue }
+            regex.enumerateMatches(in: source, options: [], range: fullRange) { match, _, _ in
+                guard let matchRange = match?.range, matchRange.location != NSNotFound else { return }
+                layoutManager.addTemporaryAttribute(.foregroundColor, value: rule.color, forCharacterRange: matchRange)
+            }
+        }
+    }
+
+    // MARK: - Language Rules
+
+    private static func rules(for ext: String) -> [Rule] {
+        switch ext.lowercased() {
+        case "py":          return pythonRules
+        case "swift":       return swiftRules
+        case "js", "jsx":   return jsRules
+        case "ts", "tsx":   return tsRules
+        case "json":        return jsonRules
+        case "go":          return goRules
+        case "rb":          return rubyRules
+        case "rs":          return rustRules
+        case "sh", "bash", "zsh": return shellRules
+        case "c", "cpp", "h", "hpp": return cRules
+        case "java", "kt":  return javaRules
+        case "html", "xml": return htmlRules
+        case "css", "scss": return cssRules
+        case "sql":         return sqlRules
+        case "yaml", "yml": return yamlRules
+        case "toml", "ini", "cfg", "conf": return configRules
+        case "md":          return markdownRules
+        case "lua":         return luaRules
+        case "dockerfile":  return dockerRules
+        case "makefile":    return makefileRules
+        default:            return genericRules
+        }
+    }
+
+    // Colors
+    private static let kKeyword   = NSColor.systemPink
+    private static let kString    = NSColor.systemGreen
+    private static let kComment   = NSColor.systemGray
+    private static let kNumber    = NSColor.systemOrange
+    private static let kType      = NSColor.systemTeal
+    private static let kFunction  = NSColor.systemBlue
+    private static let kConstant  = NSColor.systemPurple
+    private static let kTag       = NSColor.systemRed
+    private static let kAttr      = NSColor.systemOrange
+    private static let kHeading   = NSColor.systemBlue
+
+    // Shared patterns
+    private static let pDoubleStr = "\"(?:[^\"\\\\]|\\\\.)*\""
+    private static let pSingleStr = "'(?:[^'\\\\]|\\\\.)*'"
+    private static let pNumber    = "\\b(?:0[xXoObB])?[0-9][0-9_]*\\.?[0-9_]*(?:[eE][+-]?[0-9]+)?\\b"
+    private static let pLineComment = "//.*"
+    private static let pHashComment = "#.*"
+    private static let pBlockComment = "/\\*[\\s\\S]*?\\*/"
+
+    // MARK: Python
+    private static var pythonRules: [Rule] { [
+        Rule(pHashComment, kComment),
+        Rule("\"\"\"[\\s\\S]*?\"\"\"", kString, options: []),
+        Rule("'''[\\s\\S]*?'''", kString, options: []),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:def|class|if|elif|else|for|while|return|import|from|as|try|except|finally|with|raise|yield|lambda|pass|break|continue|and|or|not|in|is|async|await|global|nonlocal|del|assert)\\b", kKeyword),
+        Rule("\\b(?:True|False|None|self|cls)\\b", kConstant),
+        Rule("\\b(?:int|float|str|bool|list|dict|tuple|set|bytes|object|type|Exception)\\b", kType),
+        Rule("@\\w+", kFunction),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: Swift
+    private static var swiftRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:func|var|let|if|else|guard|switch|case|default|for|while|repeat|return|import|class|struct|enum|protocol|extension|init|deinit|self|super|throw|throws|try|catch|do|break|continue|where|in|as|is|typealias|associatedtype|async|await|actor|some|any|macro)\\b", kKeyword),
+        Rule("\\b(?:true|false|nil|Self)\\b", kConstant),
+        Rule("\\b(?:String|Int|Double|Float|Bool|Array|Dictionary|Optional|Set|Result|Void|Any|AnyObject|Error|Codable|Hashable|Equatable|Identifiable|View|State|Binding|Published|ObservableObject|EnvironmentObject)\\b", kType),
+        Rule("@\\w+", kFunction),
+        Rule("#\\w+", kKeyword),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: JavaScript
+    private static var jsRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule("`(?:[^`\\\\]|\\\\.)*`", kString),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:function|var|let|const|if|else|for|while|do|switch|case|default|return|break|continue|throw|try|catch|finally|new|delete|typeof|instanceof|in|of|class|extends|super|import|export|from|as|default|async|await|yield|this|void)\\b", kKeyword),
+        Rule("\\b(?:true|false|null|undefined|NaN|Infinity)\\b", kConstant),
+        Rule("\\b(?:Array|Object|String|Number|Boolean|Function|Promise|Map|Set|RegExp|Error|Date|Math|JSON|console)\\b", kType),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: TypeScript
+    private static var tsRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule("`(?:[^`\\\\]|\\\\.)*`", kString),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:function|var|let|const|if|else|for|while|do|switch|case|default|return|break|continue|throw|try|catch|finally|new|delete|typeof|instanceof|in|of|class|extends|super|import|export|from|as|default|async|await|yield|this|void|type|interface|enum|namespace|declare|abstract|implements|readonly|keyof|infer)\\b", kKeyword),
+        Rule("\\b(?:true|false|null|undefined|NaN|Infinity)\\b", kConstant),
+        Rule("\\b(?:string|number|boolean|any|unknown|never|void|object|symbol|bigint|Array|Object|Promise|Map|Set|Record|Partial|Required|Omit|Pick)\\b", kType),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: JSON
+    private static var jsonRules: [Rule] { [
+        Rule(pDoubleStr + "(?=\\s*:)", kFunction),
+        Rule(pDoubleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:true|false|null)\\b", kConstant),
+    ] }
+
+    // MARK: Go
+    private static var goRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule("`[^`]*`", kString),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:func|var|const|if|else|for|range|switch|case|default|return|break|continue|go|defer|select|chan|map|struct|interface|type|package|import|fallthrough|goto)\\b", kKeyword),
+        Rule("\\b(?:true|false|nil|iota)\\b", kConstant),
+        Rule("\\b(?:int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|float32|float64|complex64|complex128|string|bool|byte|rune|error|any)\\b", kType),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: Ruby
+    private static var rubyRules: [Rule] { [
+        Rule(pHashComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:def|class|module|if|elsif|else|unless|while|until|for|do|end|return|break|next|yield|begin|rescue|ensure|raise|require|include|extend|attr_accessor|attr_reader|attr_writer|puts|print|lambda|proc)\\b", kKeyword),
+        Rule("\\b(?:true|false|nil|self)\\b", kConstant),
+        Rule(":[a-zA-Z_]\\w*", kConstant),
+        Rule("@{1,2}\\w+", kType),
+        Rule("\\b\\w+(?=[?!]?\\()", kFunction),
+    ] }
+
+    // MARK: Rust
+    private static var rustRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:fn|let|mut|if|else|match|for|while|loop|return|break|continue|struct|enum|impl|trait|type|use|mod|pub|crate|self|super|where|async|await|move|unsafe|extern|const|static|ref|as|in|dyn|macro_rules)\\b", kKeyword),
+        Rule("\\b(?:true|false|None|Some|Ok|Err|Self)\\b", kConstant),
+        Rule("\\b(?:i8|i16|i32|i64|i128|isize|u8|u16|u32|u64|u128|usize|f32|f64|bool|char|str|String|Vec|Option|Result|Box|Rc|Arc|HashMap|HashSet)\\b", kType),
+        Rule("\\b\\w+(?=\\()", kFunction),
+        Rule("#\\[.*?\\]", kFunction),
+    ] }
+
+    // MARK: Shell
+    private static var shellRules: [Rule] { [
+        Rule(pHashComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:if|then|else|elif|fi|for|while|do|done|case|esac|in|function|return|exit|local|export|source|alias|unalias|set|unset|readonly|shift|eval|exec|trap)\\b", kKeyword),
+        Rule("\\$\\{?[a-zA-Z_]\\w*\\}?", kType),
+        Rule("\\$[0-9#?@*!$-]", kType),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: C / C++
+    private static var cRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("#\\s*(?:include|define|ifdef|ifndef|endif|pragma|if|else|elif|undef|error|warning)\\b.*", kFunction),
+        Rule("\\b(?:if|else|for|while|do|switch|case|default|return|break|continue|struct|union|enum|typedef|sizeof|static|extern|inline|const|volatile|register|auto|void|goto|class|public|private|protected|virtual|override|template|typename|namespace|using|new|delete|try|catch|throw|noexcept|constexpr|nullptr|this|operator)\\b", kKeyword),
+        Rule("\\b(?:int|char|short|long|float|double|unsigned|signed|bool|size_t|string|vector|map|set|auto|wchar_t|int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t)\\b", kType),
+        Rule("\\b(?:true|false|NULL|nullptr|TRUE|FALSE)\\b", kConstant),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: Java / Kotlin
+    private static var javaRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:if|else|for|while|do|switch|case|default|return|break|continue|class|interface|extends|implements|new|this|super|import|package|public|private|protected|static|final|abstract|synchronized|volatile|transient|native|try|catch|finally|throw|throws|void|enum|instanceof|assert|when|fun|val|var|data|object|companion|override|open|sealed|suspend|inline|reified|lateinit|by|constructor|init)\\b", kKeyword),
+        Rule("\\b(?:true|false|null|it)\\b", kConstant),
+        Rule("\\b(?:int|long|short|byte|float|double|char|boolean|String|Integer|Long|Float|Double|Boolean|Object|List|Map|Set|Array|ArrayList|HashMap|void|Void|Any|Unit|Nothing|Int)\\b", kType),
+        Rule("@\\w+", kFunction),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: HTML / XML
+    private static var htmlRules: [Rule] { [
+        Rule("<!--[\\s\\S]*?-->", kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule("</?\\w+", kTag),
+        Rule("/?>", kTag),
+        Rule("\\b[a-zA-Z-]+(?=\\s*=)", kAttr),
+    ] }
+
+    // MARK: CSS / SCSS
+    private static var cssRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("[.#][a-zA-Z_][\\w-]*", kTag),
+        Rule("@[a-zA-Z][\\w-]*", kKeyword),
+        Rule("\\b[a-zA-Z-]+(?=\\s*:)", kFunction),
+        Rule("#[0-9a-fA-F]{3,8}\\b", kConstant),
+        Rule("\\$[a-zA-Z_][\\w-]*", kType),
+    ] }
+
+    // MARK: SQL
+    private static var sqlRules: [Rule] { [
+        Rule("--.*", kComment),
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pSingleStr, kString),
+        Rule(pDoubleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|DROP|ALTER|ADD|INDEX|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AND|OR|NOT|IN|IS|NULL|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|UNION|DISTINCT|EXISTS|BETWEEN|LIKE|CASE|WHEN|THEN|ELSE|END|BEGIN|COMMIT|ROLLBACK|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|DEFAULT|CHECK|CONSTRAINT|VIEW|TRIGGER|FUNCTION|PROCEDURE|GRANT|REVOKE|WITH|RECURSIVE)\\b", kKeyword, options: [.caseInsensitive]),
+        Rule("\\b(?:INT|INTEGER|VARCHAR|TEXT|BOOLEAN|BOOL|DATE|TIMESTAMP|FLOAT|DOUBLE|DECIMAL|NUMERIC|CHAR|BLOB|SERIAL|BIGINT|SMALLINT|REAL)\\b", kType, options: [.caseInsensitive]),
+        Rule("\\b(?:COUNT|SUM|AVG|MIN|MAX|COALESCE|IFNULL|NULLIF|CAST|CONVERT|CONCAT|LENGTH|SUBSTR|TRIM|UPPER|LOWER|NOW|CURRENT_TIMESTAMP)\\b", kFunction, options: [.caseInsensitive]),
+    ] }
+
+    // MARK: YAML
+    private static var yamlRules: [Rule] { [
+        Rule(pHashComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("^\\s*[\\w.-]+(?=\\s*:)", kFunction, options: [.anchorsMatchLines]),
+        Rule("\\b(?:true|false|yes|no|null|~)\\b", kConstant, options: [.caseInsensitive]),
+    ] }
+
+    // MARK: Config (TOML / INI)
+    private static var configRules: [Rule] { [
+        Rule(pHashComment, kComment),
+        Rule(";.*", kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("^\\s*\\[.*?\\]", kTag, options: [.anchorsMatchLines]),
+        Rule("^\\s*[\\w.-]+(?=\\s*=)", kFunction, options: [.anchorsMatchLines]),
+        Rule("\\b(?:true|false)\\b", kConstant, options: [.caseInsensitive]),
+    ] }
+
+    // MARK: Markdown
+    private static var markdownRules: [Rule] { [
+        Rule("^#{1,6}\\s+.*$", kHeading, options: [.anchorsMatchLines]),
+        Rule("\\*\\*(?:[^*]|\\*(?!\\*))+\\*\\*", kKeyword),
+        Rule("\\*(?:[^*])+\\*", kConstant),
+        Rule("`[^`\n]+`", kString),
+        Rule("```[\\s\\S]*?```", kString, options: [.dotMatchesLineSeparators]),
+        Rule("^\\s*[-*+]\\s", kTag, options: [.anchorsMatchLines]),
+        Rule("^\\s*\\d+\\.\\s", kTag, options: [.anchorsMatchLines]),
+        Rule("\\[([^\\]]*)\\]\\([^)]*\\)", kFunction),
+    ] }
+
+    // MARK: Lua
+    private static var luaRules: [Rule] { [
+        Rule("--\\[\\[[\\s\\S]*?\\]\\]", kComment, options: [.dotMatchesLineSeparators]),
+        Rule("--.*", kComment),
+        Rule("\\[\\[[\\s\\S]*?\\]\\]", kString, options: [.dotMatchesLineSeparators]),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+        Rule("\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|goto)\\b", kKeyword),
+        Rule("\\b(?:true|false|nil)\\b", kConstant),
+        Rule("\\b\\w+(?=\\()", kFunction),
+    ] }
+
+    // MARK: Dockerfile
+    private static var dockerRules: [Rule] { [
+        Rule(pHashComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule("^\\s*(?:FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL|AS)\\b", kKeyword, options: [.anchorsMatchLines, .caseInsensitive]),
+        Rule("\\$\\{?[a-zA-Z_]\\w*\\}?", kType),
+    ] }
+
+    // MARK: Makefile
+    private static var makefileRules: [Rule] { [
+        Rule(pHashComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule("^[a-zA-Z_][\\w.-]*(?=\\s*:)", kTag, options: [.anchorsMatchLines]),
+        Rule("\\$[({][^)}]+[)}]", kType),
+        Rule("\\b(?:ifeq|ifneq|ifdef|ifndef|else|endif|include|define|endef|override|export|unexport|vpath|PHONY)\\b", kKeyword),
+    ] }
+
+    // MARK: Generic fallback
+    private static var genericRules: [Rule] { [
+        Rule(pBlockComment, kComment, options: [.dotMatchesLineSeparators]),
+        Rule(pLineComment, kComment),
+        Rule(pHashComment, kComment),
+        Rule(pDoubleStr, kString),
+        Rule(pSingleStr, kString),
+        Rule(pNumber, kNumber),
+    ] }
+}
+
+// MARK: - Line Number Ruler View
+
+private class LineNumberRulerView: NSRulerView {
+    private weak var textView: NSTextView?
+
+    init(textView: NSTextView) {
+        self.textView = textView
+        super.init(scrollView: textView.enclosingScrollView!, orientation: .verticalRuler)
+        self.ruleThickness = 40
+        self.clientView = textView
+    }
+
+    required init(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func drawHashMarksAndLabels(in rect: NSRect) {
+        guard let textView = self.textView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+
+        // Background
+        NSColor.controlBackgroundColor.setFill()
+        rect.fill()
+
+        // Separator line
+        NSColor.separatorColor.setStroke()
+        let separatorPath = NSBezierPath()
+        separatorPath.move(to: NSPoint(x: bounds.maxX - 0.5, y: rect.minY))
+        separatorPath.line(to: NSPoint(x: bounds.maxX - 0.5, y: rect.maxY))
+        separatorPath.lineWidth = 0.5
+        separatorPath.stroke()
+
+        let font = NSFont.monospacedSystemFont(ofSize: (textView.font?.pointSize ?? 13) - 2, weight: .regular)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.secondaryLabelColor
+        ]
+
+        let nsString = textView.string as NSString
+        let visibleRect = scrollView!.contentView.bounds
+        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
+        let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+
+        // Find the line number for the first visible character
+        var lineNumber = 1
+        var idx = 0
+        while idx < charRange.location && idx < nsString.length {
+            if nsString.character(at: idx) == 0x0A {
+                lineNumber += 1
+            }
+            idx += 1
+        }
+
+        // Draw line numbers for visible lines
+        var charIndex = charRange.location
+        while charIndex < NSMaxRange(charRange) {
+            let lineRange = nsString.lineRange(for: NSRange(location: charIndex, length: 0))
+
+            let glyphIdx = layoutManager.glyphIndexForCharacter(at: lineRange.location)
+            var lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
+            lineRect.origin.y += textView.textContainerInset.height
+
+            // Convert to ruler coordinates
+            let yPos = lineRect.origin.y - visibleRect.origin.y
+
+            let lineStr = "\(lineNumber)" as NSString
+            let strSize = lineStr.size(withAttributes: attrs)
+            let drawPoint = NSPoint(
+                x: ruleThickness - strSize.width - 8,
+                y: yPos + (lineRect.height - strSize.height) / 2
+            )
+            lineStr.draw(at: drawPoint, withAttributes: attrs)
+
+            lineNumber += 1
+            charIndex = NSMaxRange(lineRange)
+        }
+    }
+}
+
+// MARK: - QuickLook Preview (NSViewRepresentable)
+
+// MARK: - Markdown Preview (WKWebView)
+
+private struct MarkdownPreviewView: NSViewRepresentable {
+    let markdown: String
+
+    func makeNSView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.setValue(false, forKey: "drawsBackground")
+        loadMarkdown(webView)
+        return webView
+    }
+
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        loadMarkdown(webView)
+    }
+
+    private func loadMarkdown(_ webView: WKWebView) {
+        let escaped = markdown
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "`", with: "\\`")
+            .replacingOccurrences(of: "$", with: "\\$")
+
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let bgColor = isDark ? "#1e1e1e" : "#ffffff"
+        let textColor = isDark ? "#d4d4d4" : "#1e1e1e"
+        let codeBg = isDark ? "#2d2d2d" : "#f5f5f5"
+        let borderColor = isDark ? "#444" : "#ddd"
+        let linkColor = isDark ? "#569cd6" : "#0366d6"
+        let headingColor = isDark ? "#e0e0e0" : "#111111"
+
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+                color: \(textColor);
+                background: \(bgColor);
+                padding: 16px 20px;
+                margin: 0;
+                word-wrap: break-word;
+            }
+            h1, h2, h3, h4, h5, h6 { color: \(headingColor); margin-top: 1.2em; margin-bottom: 0.4em; }
+            h1 { font-size: 1.8em; border-bottom: 1px solid \(borderColor); padding-bottom: 0.3em; }
+            h2 { font-size: 1.4em; border-bottom: 1px solid \(borderColor); padding-bottom: 0.2em; }
+            h3 { font-size: 1.2em; }
+            a { color: \(linkColor); text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            code {
+                background: \(codeBg);
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: "SF Mono", Menlo, monospace;
+                font-size: 0.9em;
+            }
+            pre {
+                background: \(codeBg);
+                padding: 12px;
+                border-radius: 6px;
+                overflow-x: auto;
+            }
+            pre code { background: none; padding: 0; }
+            blockquote {
+                border-left: 4px solid \(borderColor);
+                margin: 0.5em 0;
+                padding: 0.2em 1em;
+                color: \(isDark ? "#999" : "#666");
+            }
+            table { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
+            th, td { border: 1px solid \(borderColor); padding: 6px 12px; text-align: left; }
+            th { background: \(codeBg); font-weight: 600; }
+            img { max-width: 100%; }
+            hr { border: none; border-top: 1px solid \(borderColor); margin: 1.5em 0; }
+            ul, ol { padding-left: 1.5em; }
+            li { margin: 0.2em 0; }
+        </style>
+        </head>
+        <body>
+        <div id="content"></div>
+        <script>
+            document.getElementById('content').innerHTML = marked.parse(`\(escaped)`);
+        </script>
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(html, baseURL: nil)
+    }
+}
+
+// MARK: - HTML Preview (WKWebView)
+
+private struct HTMLPreviewView: NSViewRepresentable {
+    let fileURL: URL
+
+    func makeNSView(context: Context) -> WKWebView {
+        let webView = WKWebView(frame: .zero)
+        webView.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
+        return webView
+    }
+
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        webView.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
+    }
+}
+
+private struct QuickLookPreview: NSViewRepresentable {
+    let url: URL
+
+    func makeNSView(context: Context) -> QLPreviewView {
+        let view = QLPreviewView(frame: .zero, style: .normal)!
+        view.autostarts = true
+        view.previewItem = url as QLPreviewItem
+        return view
+    }
+
+    func updateNSView(_ nsView: QLPreviewView, context: Context) {
+        nsView.previewItem = url as QLPreviewItem
+    }
+}
+
+// MARK: - Terminal Panel
+
+private struct TerminalPanelView: View {
+    let workspacePath: String
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "terminal")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                Text("Terminal")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color(NSColor.windowBackgroundColor))
+
+            Divider()
+
+            SwiftTermView(workspacePath: workspacePath)
+        }
+        .background(Color(NSColor.textBackgroundColor))
+    }
+}
+
+private struct SwiftTermView: NSViewRepresentable {
+    let workspacePath: String
+
+    func makeNSView(context: Context) -> SwiftTerm.LocalProcessTerminalView {
+        let tv = SwiftTerm.LocalProcessTerminalView(frame: .zero)
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        let cwd: String
+        if !workspacePath.isEmpty, FileManager.default.fileExists(atPath: workspacePath) {
+            cwd = workspacePath
+        } else {
+            cwd = FileManager.default.homeDirectoryForCurrentUser.path
+        }
+        tv.startProcess(executable: shell, args: [], environment: nil, execName: nil, currentDirectory: cwd)
+        tv.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        return tv
+    }
+
+    func updateNSView(_ nsView: SwiftTerm.LocalProcessTerminalView, context: Context) {}
+}
+
+private struct TerminalDragHandle: View {
+    @Binding var height: CGFloat
+    @State private var dragStart: CGFloat?
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.gray.opacity(0.3))
+            .frame(height: 4)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                if inside {
+                    NSCursor.resizeUpDown.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        if dragStart == nil { dragStart = height }
+                        let newHeight = (dragStart ?? height) - value.translation.height
+                        height = min(max(newHeight, 80), 500)
+                    }
+                    .onEnded { _ in dragStart = nil }
+            )
     }
 }
 

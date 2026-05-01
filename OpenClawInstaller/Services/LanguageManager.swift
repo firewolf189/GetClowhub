@@ -100,6 +100,14 @@ final class LanguageManager: ObservableObject {
         } else {
             langID = selectedLanguage
         }
+
+        // English is the sourceLanguage — Xcode does not generate en.lproj
+        // for String Catalogs. Use a minimal empty bundle so that
+        // String(localized:bundle:) returns the key itself (the English text).
+        if langID == "en" {
+            return LanguageManager.emptyBundle
+        }
+
         // Try to find a .lproj for the selected language
         if let path = Bundle.main.path(forResource: langID, ofType: "lproj"),
            let bundle = Bundle(path: path) {
@@ -107,4 +115,13 @@ final class LanguageManager: ObservableObject {
         }
         return Bundle.main
     }
+
+    /// An empty bundle that contains no localizations, forcing
+    /// `String(localized:bundle:)` to fall back to the key (English source text).
+    private static let emptyBundle: Bundle = {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("EmptyBundle.bundle", isDirectory: true)
+        try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        return Bundle(url: tmpDir) ?? Bundle.main
+    }()
 }

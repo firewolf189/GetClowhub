@@ -59,6 +59,7 @@ struct OpenClawInstallerApp: App {
     @StateObject private var languageManager = LanguageManager()
     #if REQUIRE_LOGIN
     @StateObject private var authManager = AuthManager()
+    @StateObject private var membershipManager = MembershipManager()
     #endif
 
     @State private var showPermissionAlert = false
@@ -71,6 +72,7 @@ struct OpenClawInstallerApp: App {
                 .environmentObject(languageManager)
                 #if REQUIRE_LOGIN
                 .environmentObject(authManager)
+                .environmentObject(membershipManager)
                 #endif
                 .environment(\.locale, languageManager.currentLocale)
                 .id(languageManager.selectedLanguage)
@@ -79,6 +81,9 @@ struct OpenClawInstallerApp: App {
                     appDelegate.sparkleUpdater = sparkleUpdater
                     #if REQUIRE_LOGIN
                     appDelegate.authManager = authManager
+                    appDelegate.membershipManager = membershipManager
+                    membershipManager.setup(authManager: authManager)
+                    services.dashboardViewModel.membershipManager = membershipManager
                     authManager.checkOnLaunch()
                     #endif
                 }

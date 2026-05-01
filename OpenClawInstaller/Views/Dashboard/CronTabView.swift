@@ -81,9 +81,6 @@ struct CronTabView: View {
                                         }
                                     }
                                 },
-                                onRun: {
-                                    Task { await viewModel.runCronJob(job) }
-                                },
                                 onRemove: {
                                     Task { await viewModel.removeCronJob(job) }
                                 }
@@ -119,7 +116,6 @@ struct CronJobRow: View {
     let job: CronJobInfo
     let isPerformingAction: Bool
     let onToggle: () -> Void
-    let onRun: () -> Void
     let onRemove: () -> Void
 
     @State private var showRemoveConfirm = false
@@ -201,15 +197,6 @@ struct CronJobRow: View {
             .buttonStyle(.plain)
             .disabled(isPerformingAction)
             .help(job.enabled ? "Disable" : "Enable")
-
-            // Manual run button
-            Button(action: onRun) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.bordered)
-            .disabled(isPerformingAction)
-            .help("Run Now")
 
             // Delete button
             Button(action: { showRemoveConfirm = true }) {

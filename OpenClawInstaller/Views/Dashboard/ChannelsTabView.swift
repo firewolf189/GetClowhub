@@ -167,15 +167,15 @@ struct ChannelRow: View {
             .buttonStyle(.bordered)
             .tint(.red)
             .disabled(isPerformingAction)
-            .alert("Remove Channel", isPresented: $showRemoveConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Remove", role: .destructive) { onRemove() }
-            } message: {
-                Text("Are you sure you want to remove the \(channel.name) channel? This will delete its configuration.")
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .alert("Remove Channel", isPresented: $showRemoveConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) { onRemove() }
+        } message: {
+            Text("Are you sure you want to remove the \(channel.name) channel? This will delete its configuration.")
+        }
     }
 
     private var statusColor: Color {
@@ -206,6 +206,7 @@ struct ChannelRow: View {
         case "feishu": return "bird.fill"
         case "nostr": return "antenna.radiowaves.left.and.right"
         case "tlon": return "globe"
+        case "weixin": return "message.fill"
         default: return "bubble.left.and.bubble.right"
         }
     }
@@ -238,13 +239,37 @@ struct AddChannelSheet: View {
     @State private var token = ""
     @State private var appKey = ""
     @State private var appSecret = ""
+    @State private var pluginsLoaded = false
 
     private var usesAppKeyAuth: Bool {
         selectedChannel == "dingtalk" || selectedChannel == "feishu"
     }
 
+    private var usesQRLogin: Bool {
+        selectedChannel == "weixin"
+    }
+
+    /// Map channel type to expected plugin ID
+    private var expectedPluginId: String {
+        switch selectedChannel {
+        case "weixin": return "openclaw-weixin"
+        default: return selectedChannel
+        }
+    }
+
+    /// Check if the plugin for the selected channel is installed
+    private var isPluginInstalled: Bool {
+        if !pluginsLoaded { return true } // Don't block while loading
+        let target = expectedPluginId.lowercased()
+        return viewModel.plugins.contains { plugin in
+            plugin.pluginId.lowercased() == target
+        }
+    }
+
     private var canAdd: Bool {
+        if !isPluginInstalled { return false }
         if viewModel.isPerformingAction { return false }
+        if usesQRLogin { return false }
         if usesAppKeyAuth {
             return !appKey.trimmingCharacters(in: .whitespaces).isEmpty
                 && !appSecret.trimmingCharacters(in: .whitespaces).isEmpty
@@ -257,12 +282,13 @@ struct AddChannelSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Add Channel")
+                Text(String(localized: "Add Channel", bundle: LanguageManager.shared.localizedBundle))
                     .font(.headline)
 
                 Spacer()
 
-                Button("Cancel") {
+                Button(String(localized: "Cancel", bundle: LanguageManager.shared.localizedBundle)) {
+                    viewModel.resetWeixinLogin()
                     isPresented = false
                 }
                 .keyboardShortcut(.cancelAction)
@@ -274,7 +300,7 @@ struct AddChannelSheet: View {
             VStack(alignment: .leading, spacing: 16) {
                 // Channel picker
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Channel Type")
+                    Text(String(localized: "Channel Type", bundle: LanguageManager.shared.localizedBundle))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -288,84 +314,203 @@ struct AddChannelSheet: View {
                         token = ""
                         appKey = ""
                         appSecret = ""
+                        viewModel.resetWeixinLogin()
                     }
                 }
 
-                // Credential inputs
-                if usesAppKeyAuth {
+                // Plugin not installed warning
+                if !isPluginInstalled {
+                    Label(
+                        String(localized: "Plugin for \(selectedChannel.capitalized) is not installed. Please install the plugin first.", bundle: LanguageManager.shared.localizedBundle),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                }
+
+                if usesQRLogin {
+                    // Weixin QR Login Flow
+                    VStack(spacing: 12) {
+                        switch viewModel.weixinLoginStatus {
+                        case .idle:
+                            VStack(spacing: 12) {
+                                Image(systemName: "qrcode")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+
+                                Text(String(localized: "Click the button below to start WeChat QR login", bundle: LanguageManager.shared.localizedBundle))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                Button(String(localized: "Start QR Login", bundle: LanguageManager.shared.localizedBundle)) {
+                                    viewModel.loginWeixinChannel()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(!isPluginInstalled)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
+
+                        case .waitingScan:
+                            if let qrImage = viewModel.weixinQRImage {
+                                VStack(spacing: 8) {
+                                    Text(String(localized: "Scan with WeChat to connect", bundle: LanguageManager.shared.localizedBundle))
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+
+                                    Image(nsImage: qrImage)
+                                        .interpolation(.none)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 200, height: 200)
+                                        .background(Color.white)
+                                        .cornerRadius(8)
+
+                                    HStack(spacing: 8) {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                        Text(String(localized: "Waiting for scan...", bundle: LanguageManager.shared.localizedBundle))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                            } else {
+                                VStack(spacing: 8) {
+                                    ProgressView()
+                                        .scaleEffect(1.2)
+                                    Text(String(localized: "Generating QR code...", bundle: LanguageManager.shared.localizedBundle))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 20)
+                            }
+
+                        case .success:
+                            VStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.green)
+
+                                Text(String(localized: "WeChat connected successfully!", bundle: LanguageManager.shared.localizedBundle))
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+
+                                Button(String(localized: "Done", bundle: LanguageManager.shared.localizedBundle)) {
+                                    viewModel.resetWeixinLogin()
+                                    isPresented = false
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
+
+                        case .failed(let message):
+                            VStack(spacing: 12) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.red)
+
+                                Text(message)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+
+                                Button(String(localized: "Retry", bundle: LanguageManager.shared.localizedBundle)) {
+                                    viewModel.loginWeixinChannel()
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
+                        }
+                    }
+                } else if usesAppKeyAuth {
+                    // Credential inputs
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("App Key")
+                        Text(String(localized: "App Key", bundle: LanguageManager.shared.localizedBundle))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        SecureField("Enter App Key", text: $appKey)
+                        SecureField(String(localized: "Enter App Key", bundle: LanguageManager.shared.localizedBundle), text: $appKey)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("App Secret")
+                        Text(String(localized: "App Secret", bundle: LanguageManager.shared.localizedBundle))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        SecureField("Enter App Secret", text: $appSecret)
+                        SecureField(String(localized: "Enter App Secret", bundle: LanguageManager.shared.localizedBundle), text: $appSecret)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     Text(selectedChannel == "dingtalk"
-                         ? "Go to DingTalk Open Platform to create an app and get the App Key and App Secret."
-                         : "Go to Feishu Open Platform to create an app and get the App ID and App Secret.")
+                         ? String(localized: "Go to DingTalk Open Platform to create an app and get the App Key and App Secret.", bundle: LanguageManager.shared.localizedBundle)
+                         : String(localized: "Go to Feishu Open Platform to create an app and get the App ID and App Secret.", bundle: LanguageManager.shared.localizedBundle))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Token")
+                        Text(String(localized: "Token", bundle: LanguageManager.shared.localizedBundle))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        SecureField("Enter bot token or API key", text: $token)
+                        SecureField(String(localized: "Enter bot token or API key", bundle: LanguageManager.shared.localizedBundle), text: $token)
                             .textFieldStyle(.roundedBorder)
 
-                        Text("For Telegram/Discord: bot token. For Slack: bot token (xoxb-...). Other channels may require different credentials.")
+                        Text(String(localized: "For Telegram/Discord: bot token. For Slack: bot token (xoxb-...). Other channels may require different credentials.", bundle: LanguageManager.shared.localizedBundle))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
 
-                // Tip
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("For channels with complex setup (Slack, Matrix, etc.), use the command line:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("openclaw channels add --channel <type> --help")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                }
-            }
-            .padding(16)
-
-            Divider()
-
-            // Footer
-            HStack {
-                Spacer()
-
-                Button("Add") {
-                    Task {
-                        if usesAppKeyAuth {
-                            await viewModel.addChannel(channelType: selectedChannel, appKey: appKey, appSecret: appSecret)
-                        } else {
-                            await viewModel.addChannel(channelType: selectedChannel, token: token)
-                        }
-                        isPresented = false
+                // Tip (not for Weixin)
+                if !usesQRLogin {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(localized: "For channels with complex setup (Slack, Matrix, etc.), use the command line:", bundle: LanguageManager.shared.localizedBundle))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("openclaw channels add --channel <type> --help")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .textSelection(.enabled)
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canAdd)
             }
             .padding(16)
+
+            if !usesQRLogin {
+                Divider()
+
+                // Footer
+                HStack {
+                    Spacer()
+
+                    Button(String(localized: "Add", bundle: LanguageManager.shared.localizedBundle)) {
+                        Task {
+                            if usesAppKeyAuth {
+                                await viewModel.addChannel(channelType: selectedChannel, appKey: appKey, appSecret: appSecret)
+                            } else {
+                                await viewModel.addChannel(channelType: selectedChannel, token: token)
+                            }
+                            isPresented = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canAdd)
+                }
+                .padding(16)
+            }
         }
         .frame(width: 480)
+        .task {
+            if viewModel.plugins.isEmpty {
+                await viewModel.loadPlugins()
+            }
+            pluginsLoaded = true
+        }
     }
 }
 

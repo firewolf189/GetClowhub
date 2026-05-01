@@ -5,13 +5,13 @@
 
 set -e
 
-# 默认需要登录
+# 默认需要登录，始终构建 universal (arm64 + x86_64)
 LOGIN_MODE="REQUIRE_LOGIN"
 SKIP_SIGN=""
 for arg in "$@"; do
     case "$arg" in
-        --no-login) LOGIN_MODE="" ;;
-        --debug)    SKIP_SIGN="1" ;;
+        --no-login)  LOGIN_MODE="" ;;
+        --debug)     SKIP_SIGN="1" ;;
     esac
 done
 
@@ -27,7 +27,7 @@ DOCS_DIR="$PROJECT_DIR/docs"
 SIGN_IDENTITY="Developer ID Application: Zhejiang Hecheng Smart Electric Co., Ltd. (LJQJ5BHW7G)"
 TEAM_ID="LJQJ5BHW7G"
 
-echo "🚀 开始构建 GetClawHub..."
+echo "🚀 开始构建 GetClawHub (universal: arm64 + x86_64)..."
 
 # 清理旧的构建
 if [ -d "$BUILD_DIR" ]; then
@@ -49,6 +49,10 @@ xcodebuild -project "$PROJECT_DIR/$PROJECT_NAME.xcodeproj" \
     -scheme "$PROJECT_NAME" \
     -configuration Release \
     -derivedDataPath "$BUILD_DIR" \
+    -sdk macosx \
+    -destination "generic/platform=macOS" \
+    ARCHS="arm64 x86_64" \
+    ONLY_ACTIVE_ARCH=NO \
     $EXTRA_FLAGS \
     clean build
 
@@ -69,6 +73,8 @@ RESOURCES_DEST="$APP_PATH/Contents/Resources"
 
 if [ -d "$RESOURCES_SRC" ]; then
     cp -R "$RESOURCES_SRC/"* "$RESOURCES_DEST/"
+    echo "   Universal 构建，保留全部 Node.js 包"
+
     echo "✅ Node.js 资源已添加"
 
     echo "📋 已添加的资源:"
@@ -220,7 +226,7 @@ echo "📦 创建 DMG 安装包..."
 # 卸载可能已挂载的 DMG
 echo "🔄 卸载已挂载的 DMG..."
 hdiutil detach "/Volumes/$PROJECT_NAME" 2>/dev/null || true
-for vol in /Volumes/*OpenClaw*; do
+for vol in /Volumes/*OpenClaw* /Volumes/GetClawHub*; do
     [ -d "$vol" ] && hdiutil detach "$vol" -force 2>/dev/null || true
 done
 
@@ -236,6 +242,27 @@ trap cleanup EXIT
 
 # 复制 .app 到临时目录
 cp -R "$APP_PATH" "$TMP_DMG_DIR/"
+
+# ===== 确保 DesignSystems 目录被正确复制 =====
+# 这是修复 awesome-design-system agent 招募时无法找到 DesignSystems 的关键步骤
+echo "📚 确保 DesignSystems 目录被复制..."
+DESIGN_SRC="$APP_PATH/Contents/Resources/DesignSystems"
+DESIGN_DST="$TMP_DMG_DIR/GetClawHub.app/Contents/Resources/DesignSystems"
+
+if [ -d "$DESIGN_SRC" ]; then
+    # 删除可能不完整的副本
+    rm -rf "$DESIGN_DST" 2>/dev/null || true
+    # 强制复制以确保完整性
+    cp -R "$DESIGN_SRC" "$DESIGN_DST" 2>&1
+    if [ -d "$DESIGN_DST" ]; then
+        DESIGN_COUNT=$(find "$DESIGN_DST" -maxdepth 1 -type d | wc -l)
+        echo "✅ DesignSystems 已复制到 DMG ($((DESIGN_COUNT - 1)) 个设计系统)"
+    else
+        echo "⚠️  警告: DesignSystems 复制失败"
+    fi
+else
+    echo "⚠️  警告: Release build 中找不到 DesignSystems，跳过复制"
+fi
 
 # 移除隔离属性
 echo "🔓 移除隔离属性..."
@@ -264,11 +291,12 @@ for i in 1 2 3; do
     if hdiutil create -volname "GetClawHub" \
         -srcfolder "$TMP_DMG_DIR" \
         -format UDZO \
-        "$TMP_DMG" 2>/dev/null; then
+        "$TMP_DMG"; then
         break
     fi
-    echo "⏳ 资源忙，等待重试 ($i/3)..."
-    sleep 3
+    echo "⏳ DMG 创建失败，等待重试 ($i/3)..."
+    rm -f "$TMP_DMG"
+    sleep 5
 done
 
 if [ ! -f "$TMP_DMG" ]; then

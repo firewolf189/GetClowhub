@@ -15,76 +15,77 @@ struct SubAgentsTabView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header
-                HStack {
-                    Text("Multi-Agent")
-                        .font(.title2)
-                        .fontWeight(.bold)
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    HStack {
+                        Text("Multi-Agent")
+                            .font(.title2)
+                            .fontWeight(.bold)
 
-                    if !viewModel.agents.isEmpty {
-                        Text("(\(viewModel.agents.count) agents)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        if !viewModel.agents.isEmpty {
+                            Text("(\(viewModel.agents.count) agents)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Button(action: { showCreateSheet = true }) {
+                            Label("New Agent", systemImage: "plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(viewModel.isPerformingAction)
+
+                        Button(action: {
+                            Task { await viewModel.loadAgents() }
+                        }) {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(viewModel.isLoading || viewModel.isPerformingAction)
                     }
 
-                    Spacer()
+                    if viewModel.isLoading && viewModel.agents.isEmpty {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("Loading agents...")
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(40)
+                    } else if viewModel.agents.isEmpty {
+                        // Empty state
+                        VStack(spacing: 12) {
+                            Image(systemName: "person.3")
+                                .font(.system(size: 48))
+                                .foregroundColor(.secondary)
 
-                    Button(action: { showCreateSheet = true }) {
-                        Label("New Agent", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(viewModel.isPerformingAction)
+                            Text("No agents yet")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
 
-                    Button(action: {
-                        Task { await viewModel.loadAgents() }
-                    }) {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(viewModel.isLoading || viewModel.isPerformingAction)
-                }
-
-                if viewModel.isLoading && viewModel.agents.isEmpty {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Loading agents...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                } else if viewModel.agents.isEmpty {
-                    // Empty state
-                    VStack(spacing: 12) {
-                        Image(systemName: "person.3")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-
-                        Text("No agents yet")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        Text("Create an agent to specialize in different tasks")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(12)
-                } else {
-                    // Agent list
-                    ForEach(viewModel.agents) { agent in
-                        SubAgentCard(
-                            agent: agent,
-                            isExpanded: viewModel.expandedAgent == agent.id,
+                            Text("Create an agent to specialize in different tasks")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(40)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(12)
+                    } else {
+                        // Agent card grid
+                        AgentCardGrid(
+                            agents: viewModel.agents,
+                            expandedAgent: viewModel.expandedAgent,
                             isPerformingAction: viewModel.isPerformingAction,
-                            onToggle: { viewModel.toggleExpand(agent.id) },
-                            onSave: { file in
+                            availableModels: viewModel.availableModels,
+                            onToggle: { id in viewModel.toggleExpand(id) },
+                            onSave: { agent, file in
                                 viewModel.save(agentId: agent.id, file: file)
                                 let fileName: String
                                 switch file {
@@ -95,26 +96,45 @@ struct SubAgentsTabView: View {
                                 }
                                 showSaveToast(String(format: String(localized: "%@ %@ saved"), agent.name, fileName))
                             },
-                            onDelete: {
+                            onSaveByName: { agent, fileName in
+                                viewModel.saveByName(agentId: agent.id, fileName: fileName)
+                                showSaveToast(String(format: String(localized: "%@ %@ saved"), agent.name, fileName))
+                            },
+                            onDelete: { agent in
                                 let name = agent.name
                                 Task {
                                     await viewModel.deleteAgent(agentId: agent.id)
                                     showSaveToast("Agent \"\(name)\" deleted")
                                 }
                             },
-                            onOpenWorkspace: {
+                            onOpenWorkspace: { agent in
                                 if !agent.workspace.isEmpty {
                                     NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: agent.workspace)
                                 }
                             },
-                            identityContent: viewModel.binding(for: agent.id, file: .identity),
-                            soulContent: viewModel.binding(for: agent.id, file: .soul),
-                            memoryContent: viewModel.binding(for: agent.id, file: .memory)
+                            onModelChange: { agent, model in
+                                viewModel.updateModel(agentId: agent.id, model: model)
+                                let shortModel = model.isEmpty ? "Default" : (model.components(separatedBy: "/").last ?? model)
+                                showSaveToast(String(format: String(localized: "%@ model → %@"), agent.name, shortModel))
+                            },
+                            bindingForAgent: { agentId, file in
+                                viewModel.binding(for: agentId, file: file)
+                            },
+                            bindingByNameForAgent: { agentId, fileName in
+                                viewModel.bindingByName(for: agentId, fileName: fileName)
+                            }
                         )
                     }
                 }
+                .padding(24)
             }
-            .padding(24)
+            .onChange(of: viewModel.expandedAgent) { newValue in
+                if let agentId = newValue {
+                    withAnimation {
+                        scrollProxy.scrollTo("detail-\(agentId)", anchor: .top)
+                    }
+                }
+            }
         }
         .overlay(alignment: .top) {
             if showSaveSuccess {
@@ -145,6 +165,7 @@ struct SubAgentsTabView: View {
         .animation(.easeInOut, value: showSaveSuccess)
         .task {
             await viewModel.loadAgents()
+            await viewModel.loadModels()
         }
         .sheet(isPresented: $showCreateSheet) {
             CreateAgentSheet(
@@ -168,164 +189,165 @@ struct SubAgentsTabView: View {
     }
 }
 
-// MARK: - Sub Agent Card
+// MARK: - Agent Card Grid
 
-struct SubAgentCard: View {
+private struct AgentCardGrid: View {
+    let agents: [SubAgentInfo]
+    let expandedAgent: String?
+    let isPerformingAction: Bool
+    let availableModels: [ModelOption]
+    let onToggle: (String) -> Void
+    let onSave: (SubAgentInfo, PersonaViewModel.FileType) -> Void
+    let onSaveByName: (SubAgentInfo, String) -> Void
+    let onDelete: (SubAgentInfo) -> Void
+    let onOpenWorkspace: (SubAgentInfo) -> Void
+    let onModelChange: (SubAgentInfo, String) -> Void
+    let bindingForAgent: (String, PersonaViewModel.FileType) -> Binding<String>
+    let bindingByNameForAgent: (String, String) -> Binding<String>
+
+    private var rows: [[SubAgentInfo]] {
+        stride(from: 0, to: agents.count, by: 3).map { i in
+            Array(agents[i..<min(i + 3, agents.count)])
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                // Card row
+                HStack(spacing: 12) {
+                    ForEach(row) { agent in
+                        AgentSummaryCard(
+                            agent: agent,
+                            isSelected: expandedAgent == agent.id,
+                            isPerformingAction: isPerformingAction,
+                            onToggle: { onToggle(agent.id) },
+                            onDelete: { onDelete(agent) }
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    // Fill remaining slots with invisible spacers
+                    if row.count < 3 {
+                        ForEach(0..<(3 - row.count), id: \.self) { _ in
+                            Color.clear.frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+
+                // Detail panel below the row containing the expanded agent
+                if let expandedId = expandedAgent,
+                   let agent = row.first(where: { $0.id == expandedId }) {
+                    AgentDetailPanel(
+                        agent: agent,
+                        isPerformingAction: isPerformingAction,
+                        availableModels: availableModels,
+                        onClose: { onToggle(expandedId) },
+                        onSave: { file in onSave(agent, file) },
+                        onSaveByName: { fileName in onSaveByName(agent, fileName) },
+                        onOpenWorkspace: { onOpenWorkspace(agent) },
+                        onModelChange: { model in onModelChange(agent, model) },
+                        identityContent: bindingForAgent(agent.id, .identity),
+                        soulContent: bindingForAgent(agent.id, .soul),
+                        memoryContent: bindingForAgent(agent.id, .memory),
+                        userContent: bindingByNameForAgent(agent.id, "USER.md"),
+                        agentsContent: bindingByNameForAgent(agent.id, "AGENTS.md"),
+                        bootstrapContent: bindingByNameForAgent(agent.id, "BOOTSTRAP.md"),
+                        heartbeatContent: bindingByNameForAgent(agent.id, "HEARTBEAT.md"),
+                        toolsContent: bindingByNameForAgent(agent.id, "TOOLS.md")
+                    )
+                    .id("detail-\(expandedId)")
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: expandedAgent)
+    }
+}
+
+// MARK: - Agent Summary Card
+
+private struct AgentSummaryCard: View {
     let agent: SubAgentInfo
-    let isExpanded: Bool
+    let isSelected: Bool
     let isPerformingAction: Bool
     let onToggle: () -> Void
-    let onSave: (PersonaViewModel.FileType) -> Void
     let onDelete: () -> Void
-    let onOpenWorkspace: () -> Void
-    @Binding var identityContent: String
-    @Binding var soulContent: String
-    @Binding var memoryContent: String
 
+    @State private var isHovering = false
     @State private var showDeleteConfirm = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Card header
-            Button(action: onToggle) {
-                HStack(spacing: 12) {
-                    Text(agent.emoji)
-                        .font(.title2)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Text(agent.name)
-                                .font(.headline)
-
-                            if agent.isDefault {
-                                Text("Default")
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(Color.orange.opacity(0.2))
-                                    .foregroundColor(.orange)
-                                    .cornerRadius(4)
-                            }
-                        }
-
-                        HStack(spacing: 4) {
-                            Text(agent.id)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        // Tags row
-                        HStack(spacing: 6) {
-                            if !agent.model.isEmpty {
-                                let shortModel = agent.model.components(separatedBy: "/").last ?? agent.model
-                                TagView(text: shortModel, color: .blue)
-                            }
-
-                            if agent.bindingsCount > 0 {
-                                TagView(text: "\(agent.bindingsCount) binding\(agent.bindingsCount > 1 ? "s" : "")", color: .purple)
-                            }
-
-                            if !agent.identitySource.isEmpty {
-                                TagView(text: agent.identitySource, color: .secondary)
-                            }
-                        }
-                    }
-
+        Button(action: onToggle) {
+            VStack(spacing: 8) {
+                // Top-right delete button area
+                HStack {
                     Spacer()
-
-                    if !agent.isDefault {
+                    if !agent.isDefault && agent.id != "commander" && isHovering {
                         Button(action: { showDeleteConfirm = true }) {
-                            Image(systemName: "trash")
-                                .foregroundColor(.red)
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
                         .disabled(isPerformingAction)
-                        .padding(.trailing, 8)
+                        .transition(.opacity)
+                    } else {
+                        // Reserve space
+                        Color.clear.frame(width: 14, height: 14)
                     }
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
                 }
-                .padding(16)
+
+                // Emoji
+                Text(agent.emoji)
+                    .font(.system(size: 36))
+
+                // Name
+                Text(agent.name)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                // ID
+                Text(agent.id)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+
+                // Model + Default tags
+                HStack(spacing: 4) {
+                    if !agent.model.isEmpty {
+                        let shortModel = agent.model.components(separatedBy: "/").last ?? agent.model
+                        TagView(text: shortModel, color: .blue)
+                    }
+                    if agent.isDefault {
+                        TagView(text: "Default", color: .orange)
+                    }
+                }
+
+                // Document status dots
+                HStack(spacing: 8) {
+                    DocStatusDot(label: "ID", hasContent: !agent.identityContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    DocStatusDot(label: "SOUL", hasContent: !agent.soulContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    DocStatusDot(label: "MEM", hasContent: !agent.memoryContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(.top, 4)
             }
-            .buttonStyle(.plain)
-
-            // Expanded detail
-            if isExpanded {
-                Divider()
-
-                VStack(alignment: .leading, spacing: 12) {
-                    // Info section
-                    VStack(alignment: .leading, spacing: 6) {
-                        if !agent.workspace.isEmpty {
-                            HStack(spacing: 6) {
-                                Image(systemName: "folder")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(agent.workspace.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-
-                                Button(action: onOpenWorkspace) {
-                                    Image(systemName: "arrow.right.circle")
-                                        .font(.caption)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.blue)
-                                .help("Open in Finder")
-                            }
-                        }
-
-                        if !agent.bindingDetails.isEmpty {
-                            VStack(alignment: .leading, spacing: 2) {
-                                ForEach(agent.bindingDetails, id: \.self) { binding in
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "link")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text(binding)
-                                            .font(.system(.caption, design: .monospaced))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Divider()
-
-                    // Persona editors
-                    MarkdownFileEditor(
-                        title: "IDENTITY.md",
-                        icon: "person.crop.circle",
-                        content: $identityContent,
-                        isDirty: agent.identityDirty,
-                        onSave: { onSave(.identity) }
-                    )
-
-                    MarkdownFileEditor(
-                        title: "SOUL.md",
-                        icon: "heart.fill",
-                        content: $soulContent,
-                        isDirty: agent.soulDirty,
-                        onSave: { onSave(.soul) }
-                    )
-
-                    MarkdownFileEditor(
-                        title: "MEMORY.md",
-                        icon: "brain.head.profile",
-                        content: $memoryContent,
-                        isDirty: agent.memoryDirty,
-                        onSave: { onSave(.memory) }
-                    )
-                }
-                .padding(16)
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+            )
+            .shadow(color: .black.opacity(isHovering ? 0.15 : 0.05), radius: isHovering ? 6 : 2, y: isHovering ? 3 : 1)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
             }
         }
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(12)
         .alert("Delete Agent", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) { onDelete() }
@@ -335,9 +357,244 @@ struct SubAgentCard: View {
     }
 }
 
+// MARK: - Doc Status Dot
+
+private struct DocStatusDot: View {
+    let label: String
+    let hasContent: Bool
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Circle()
+                .fill(hasContent ? Color.green : Color.gray.opacity(0.4))
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Agent Detail Panel
+
+private struct AgentDetailPanel: View {
+    let agent: SubAgentInfo
+    let isPerformingAction: Bool
+    let availableModels: [ModelOption]
+    let onClose: () -> Void
+    let onSave: (PersonaViewModel.FileType) -> Void
+    let onSaveByName: (String) -> Void
+    let onOpenWorkspace: () -> Void
+    let onModelChange: (String) -> Void
+    @Binding var identityContent: String
+    @Binding var soulContent: String
+    @Binding var memoryContent: String
+    @Binding var userContent: String
+    @Binding var agentsContent: String
+    @Binding var bootstrapContent: String
+    @Binding var heartbeatContent: String
+    @Binding var toolsContent: String
+
+    @State private var selectedModel: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 10) {
+                Text(agent.emoji)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(agent.name)
+                        .font(.headline)
+                    Text(agent.id)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if !agent.workspace.isEmpty {
+                    Button(action: onOpenWorkspace) {
+                        Label("Open Workspace", systemImage: "folder")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 24, height: 24)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(16)
+
+            Divider()
+
+            // Info section
+            VStack(alignment: .leading, spacing: 6) {
+                // Model picker
+                HStack(spacing: 6) {
+                    Image(systemName: "cpu")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("Model:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Picker("", selection: $selectedModel) {
+                        Text("Default (inherit)").tag("")
+                        ForEach(availableModels) { model in
+                            Text(model.name).tag(model.id)
+                        }
+                    }
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .frame(maxWidth: 260)
+                    .onChange(of: selectedModel) { newValue in
+                        if newValue != agent.model {
+                            onModelChange(newValue)
+                        }
+                    }
+                }
+
+                if !agent.workspace.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(agent.workspace.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~"))
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+
+                if !agent.bindingDetails.isEmpty {
+                    ForEach(agent.bindingDetails, id: \.self) { binding in
+                        HStack(spacing: 6) {
+                            Image(systemName: "link")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(binding)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            // Persona editors (collapsed by default)
+            VStack(alignment: .leading, spacing: 12) {
+                MarkdownFileEditor(
+                    title: "IDENTITY.md",
+                    icon: "person.crop.circle",
+                    content: $identityContent,
+                    isDirty: agent.identityDirty,
+                    onSave: { onSave(.identity) },
+                    initiallyExpanded: false
+                )
+
+                MarkdownFileEditor(
+                    title: "SOUL.md",
+                    icon: "heart.fill",
+                    content: $soulContent,
+                    isDirty: agent.soulDirty,
+                    onSave: { onSave(.soul) },
+                    initiallyExpanded: false
+                )
+
+                MarkdownFileEditor(
+                    title: "MEMORY.md",
+                    icon: "brain.head.profile",
+                    content: $memoryContent,
+                    isDirty: agent.memoryDirty,
+                    onSave: { onSave(.memory) },
+                    initiallyExpanded: false
+                )
+
+                // Additional .md files — only shown when present in workspace
+                if !agent.userContent.isEmpty || !agent.userOriginal.isEmpty {
+                    MarkdownFileEditor(
+                        title: "USER.md",
+                        icon: "person.fill",
+                        content: $userContent,
+                        isDirty: agent.userDirty,
+                        onSave: { onSaveByName("USER.md") },
+                        initiallyExpanded: false
+                    )
+                }
+
+                if !agent.agentsContent.isEmpty || !agent.agentsOriginal.isEmpty {
+                    MarkdownFileEditor(
+                        title: "AGENTS.md",
+                        icon: "person.3.fill",
+                        content: $agentsContent,
+                        isDirty: agent.agentsDirty,
+                        onSave: { onSaveByName("AGENTS.md") },
+                        initiallyExpanded: false
+                    )
+                }
+
+                if !agent.bootstrapContent.isEmpty || !agent.bootstrapOriginal.isEmpty {
+                    MarkdownFileEditor(
+                        title: "BOOTSTRAP.md",
+                        icon: "power",
+                        content: $bootstrapContent,
+                        isDirty: agent.bootstrapDirty,
+                        onSave: { onSaveByName("BOOTSTRAP.md") },
+                        initiallyExpanded: false
+                    )
+                }
+
+                if !agent.heartbeatContent.isEmpty || !agent.heartbeatOriginal.isEmpty {
+                    MarkdownFileEditor(
+                        title: "HEARTBEAT.md",
+                        icon: "heart.text.clipboard",
+                        content: $heartbeatContent,
+                        isDirty: agent.heartbeatDirty,
+                        onSave: { onSaveByName("HEARTBEAT.md") },
+                        initiallyExpanded: false
+                    )
+                }
+
+                if !agent.toolsContent.isEmpty || !agent.toolsOriginal.isEmpty {
+                    MarkdownFileEditor(
+                        title: "TOOLS.md",
+                        icon: "wrench.and.screwdriver",
+                        content: $toolsContent,
+                        isDirty: agent.toolsDirty,
+                        onSave: { onSaveByName("TOOLS.md") },
+                        initiallyExpanded: false
+                    )
+                }
+            }
+            .padding(16)
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.accentColor.opacity(0.5), lineWidth: 1.5)
+        )
+        .onAppear {
+            selectedModel = agent.model
+        }
+    }
+}
+
 // MARK: - Tag View
 
-private struct TagView: View {
+struct TagView: View {
     let text: String
     let color: Color
 
@@ -358,10 +615,18 @@ struct CreateAgentSheet: View {
     @ObservedObject var viewModel: SubAgentsViewModel
     @Binding var isPresented: Bool
     var onCreated: ((String) -> Void)?
+    var onCreatedWithId: ((String) -> Void)?
 
     @State private var agentId = ""
     @State private var displayName = ""
     @State private var selectedModel = ""
+    @State private var selectedDivision = "Custom"
+
+    private static let divisionOptions = [
+        "Custom", "Academic", "Design", "Engineering", "Game Development",
+        "Marketing", "Paid Media", "Product", "Project Management",
+        "Sales", "Spatial Computing", "Specialized", "Support", "Testing"
+    ]
 
     /// Sanitize input to valid agent ID chars (lowercase a-z, 0-9, hyphen)
     private var sanitizedId: String {
@@ -466,6 +731,24 @@ struct CreateAgentSheet: View {
                         .labelsHidden()
                     }
                 }
+
+                // Division picker
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Division")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Picker("", selection: $selectedDivision) {
+                        ForEach(Self.divisionOptions, id: \.self) { div in
+                            Text(div).tag(div)
+                        }
+                    }
+                    .labelsHidden()
+
+                    Text("Agent category for sidebar grouping")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(16)
 
@@ -482,10 +765,12 @@ struct CreateAgentSheet: View {
                         await viewModel.createAgent(
                             agentId: sanitizedId,
                             displayName: name,
-                            model: selectedModel
+                            model: selectedModel,
+                            division: selectedDivision
                         )
                         isPresented = false
                         onCreated?(finalName)
+                        onCreatedWithId?(sanitizedId)
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -518,14 +803,29 @@ struct SubAgentInfo: Identifiable {
     var identityContent: String = ""
     var soulContent: String = ""
     var memoryContent: String = ""
+    var userContent: String = ""
+    var agentsContent: String = ""
+    var bootstrapContent: String = ""
+    var heartbeatContent: String = ""
+    var toolsContent: String = ""
 
     var identityOriginal: String = ""
     var soulOriginal: String = ""
     var memoryOriginal: String = ""
+    var userOriginal: String = ""
+    var agentsOriginal: String = ""
+    var bootstrapOriginal: String = ""
+    var heartbeatOriginal: String = ""
+    var toolsOriginal: String = ""
 
     var identityDirty: Bool { identityContent != identityOriginal }
     var soulDirty: Bool { soulContent != soulOriginal }
     var memoryDirty: Bool { memoryContent != memoryOriginal }
+    var userDirty: Bool { userContent != userOriginal }
+    var agentsDirty: Bool { agentsContent != agentsOriginal }
+    var bootstrapDirty: Bool { bootstrapContent != bootstrapOriginal }
+    var heartbeatDirty: Bool { heartbeatContent != heartbeatOriginal }
+    var toolsDirty: Bool { toolsContent != toolsOriginal }
 }
 
 // MARK: - Model Option
@@ -572,13 +872,28 @@ class SubAgentsViewModel: ObservableObject {
             let identityContent = readFile(ws, "IDENTITY.md")
             let soulContent = readFile(ws, "SOUL.md")
             let memoryContent = readFile(ws, "MEMORY.md")
+            let userContent = readFile(ws, "USER.md")
+            let agentsContent = readFile(ws, "AGENTS.md")
+            let bootstrapContent = readFile(ws, "BOOTSTRAP.md")
+            let heartbeatContent = readFile(ws, "HEARTBEAT.md")
+            let toolsContent = readFile(ws, "TOOLS.md")
 
             parsed[i].identityContent = identityContent
             parsed[i].soulContent = soulContent
             parsed[i].memoryContent = memoryContent
+            parsed[i].userContent = userContent
+            parsed[i].agentsContent = agentsContent
+            parsed[i].bootstrapContent = bootstrapContent
+            parsed[i].heartbeatContent = heartbeatContent
+            parsed[i].toolsContent = toolsContent
             parsed[i].identityOriginal = identityContent
             parsed[i].soulOriginal = soulContent
             parsed[i].memoryOriginal = memoryContent
+            parsed[i].userOriginal = userContent
+            parsed[i].agentsOriginal = agentsContent
+            parsed[i].bootstrapOriginal = bootstrapContent
+            parsed[i].heartbeatOriginal = heartbeatContent
+            parsed[i].toolsOriginal = toolsContent
 
             // Parse creature from IDENTITY.md
             let identity = PersonaViewModel.parseIdentity(identityContent)
@@ -589,7 +904,8 @@ class SubAgentsViewModel: ObservableObject {
 
         NSLog("[SubAgents] loadAgents: loaded %d agents, updating UI", parsed.count)
         await MainActor.run {
-            agents = parsed
+            // Filter out internal agents (commander, help-assistant) from user-facing list
+            agents = parsed.filter { !DashboardViewModel.internalAgentIds.contains($0.id) }
             isLoading = false
         }
     }
@@ -724,7 +1040,7 @@ class SubAgentsViewModel: ObservableObject {
 
     // MARK: - Create Agent via CLI
 
-    func createAgent(agentId: String, displayName: String, model: String) async {
+    func createAgent(agentId: String, displayName: String, model: String, division: String = "Custom") async {
         guard !agentId.isEmpty else { return }
 
         await MainActor.run {
@@ -763,6 +1079,7 @@ class SubAgentsViewModel: ObservableObject {
         - **Creature:**\u{20}
         - **Vibe:**\u{20}
         - **Emoji:** \(emoji)
+        - **Division:** \(division)
 
         ---
 
@@ -798,7 +1115,7 @@ class SubAgentsViewModel: ObservableObject {
     }
 
     /// Patch openclaw.json to add identity { name, emoji } to a specific agent in agents.list
-    private static func patchAgentIdentity(configPath: String, agentId: String, name: String, emoji: String) {
+    static func patchAgentIdentity(configPath: String, agentId: String, name: String, emoji: String) {
         guard let data = FileManager.default.contents(atPath: configPath),
               var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               var agents = root["agents"] as? [String: Any],
@@ -879,6 +1196,53 @@ class SubAgentsViewModel: ObservableObject {
         await MainActor.run { isPerformingAction = false }
     }
 
+    // MARK: - Update Model
+
+    func updateModel(agentId: String, model: String) {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let configPath = "\(homeDir)/.openclaw/openclaw.json"
+        Self.patchAgentModel(configPath: configPath, agentId: agentId, model: model)
+
+        // Update local state immediately
+        if let idx = agents.firstIndex(where: { $0.id == agentId }) {
+            agents[idx].model = model
+        }
+    }
+
+    static func patchAgentModel(configPath: String, agentId: String, model: String) {
+        guard let data = FileManager.default.contents(atPath: configPath),
+              var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              var agents = root["agents"] as? [String: Any],
+              var list = agents["list"] as? [[String: Any]] else {
+            NSLog("[SubAgents] patchAgentModel: failed to read config")
+            return
+        }
+
+        guard let idx = list.firstIndex(where: { $0["id"] as? String == agentId }) else {
+            NSLog("[SubAgents] patchAgentModel: agent %@ not found in list", agentId)
+            return
+        }
+
+        if model.isEmpty {
+            list[idx].removeValue(forKey: "model")
+        } else {
+            list[idx]["model"] = model
+        }
+        agents["list"] = list
+        root["agents"] = agents
+
+        guard let updatedData = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) else {
+            NSLog("[SubAgents] patchAgentModel: failed to serialize")
+            return
+        }
+
+        let backupPath = configPath + ".bak"
+        try? FileManager.default.removeItem(atPath: backupPath)
+        try? FileManager.default.copyItem(atPath: configPath, toPath: backupPath)
+        try? updatedData.write(to: URL(fileURLWithPath: configPath))
+        NSLog("[SubAgents] patchAgentModel: wrote model for %@ -> %@", agentId, model.isEmpty ? "(default)" : model)
+    }
+
     // MARK: - File-based Persona Editing (unchanged)
 
     func toggleExpand(_ id: String) {
@@ -927,6 +1291,58 @@ class SubAgentsViewModel: ObservableObject {
             agents[idx].memoryOriginal = agents[idx].memoryContent
         case .user:
             break
+        }
+    }
+
+    func bindingByName(for agentId: String, fileName: String) -> Binding<String> {
+        Binding<String>(
+            get: {
+                guard let idx = self.agents.firstIndex(where: { $0.id == agentId }) else { return "" }
+                switch fileName {
+                case "USER.md": return self.agents[idx].userContent
+                case "AGENTS.md": return self.agents[idx].agentsContent
+                case "BOOTSTRAP.md": return self.agents[idx].bootstrapContent
+                case "HEARTBEAT.md": return self.agents[idx].heartbeatContent
+                case "TOOLS.md": return self.agents[idx].toolsContent
+                default: return ""
+                }
+            },
+            set: { newValue in
+                guard let idx = self.agents.firstIndex(where: { $0.id == agentId }) else { return }
+                switch fileName {
+                case "USER.md": self.agents[idx].userContent = newValue
+                case "AGENTS.md": self.agents[idx].agentsContent = newValue
+                case "BOOTSTRAP.md": self.agents[idx].bootstrapContent = newValue
+                case "HEARTBEAT.md": self.agents[idx].heartbeatContent = newValue
+                case "TOOLS.md": self.agents[idx].toolsContent = newValue
+                default: break
+                }
+            }
+        )
+    }
+
+    func saveByName(agentId: String, fileName: String) {
+        guard let idx = agents.firstIndex(where: { $0.id == agentId }) else { return }
+        let workspace = agents[idx].workspace
+        guard !workspace.isEmpty else { return }
+
+        switch fileName {
+        case "USER.md":
+            writeFile(workspace, fileName, content: agents[idx].userContent)
+            agents[idx].userOriginal = agents[idx].userContent
+        case "AGENTS.md":
+            writeFile(workspace, fileName, content: agents[idx].agentsContent)
+            agents[idx].agentsOriginal = agents[idx].agentsContent
+        case "BOOTSTRAP.md":
+            writeFile(workspace, fileName, content: agents[idx].bootstrapContent)
+            agents[idx].bootstrapOriginal = agents[idx].bootstrapContent
+        case "HEARTBEAT.md":
+            writeFile(workspace, fileName, content: agents[idx].heartbeatContent)
+            agents[idx].heartbeatOriginal = agents[idx].heartbeatContent
+        case "TOOLS.md":
+            writeFile(workspace, fileName, content: agents[idx].toolsContent)
+            agents[idx].toolsOriginal = agents[idx].toolsContent
+        default: break
         }
     }
 

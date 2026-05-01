@@ -20,10 +20,13 @@ enum AuthConfig {
     static let clientId = "getclawhub-macos"
     static let baseURL = "https://www.getclawhub.com"
     // static let baseURL = "http://localhost:5001"
+    // static let baseURL = "http://ai-town.cn:5001/"
     static let deviceRegisterPath = "/api/auth/device-register"
     static let devicePollPath = "/api/auth/device-poll"
     static let refreshPath = "/api/auth/refresh"
     static let keychainService = "com.getclawhub.auth"
+    static let profilePath = "/api/user/profile"
+    static let keysBillingPath = "/api/user/keys-billing"
     static let pollingInterval: TimeInterval = 5
     static let pollingTimeout: TimeInterval = 600
     static let maxLoginAttempts = 5
@@ -34,6 +37,17 @@ enum AuthConfig {
 @MainActor
 class AuthManager: ObservableObject {
     @Published var state: AuthState = .checking
+
+    let loginSubject = PassthroughSubject<String, Never>()
+    let logoutSubject = PassthroughSubject<Void, Never>()
+
+    var accessToken: String? {
+        readKeychain(key: "access_token")
+    }
+
+    var userId: String? {
+        readKeychain(key: "user_id")
+    }
 
     var isLoggedIn: Bool {
         if case .loggedIn = state { return true }
@@ -66,6 +80,9 @@ class AuthManager: ObservableObject {
                     if refreshed {
                         let nickname = readKeychain(key: "user_nickname") ?? "User"
                         state = .loggedIn(nickname: nickname)
+                        if let token = self.accessToken {
+                            loginSubject.send(token)
+                        }
                     } else {
                         state = .notLoggedIn
                     }
@@ -76,6 +93,7 @@ class AuthManager: ObservableObject {
 
         let nickname = readKeychain(key: "user_nickname") ?? "User"
         state = .loggedIn(nickname: nickname)
+        loginSubject.send(accessToken)
     }
 
     // MARK: - Login
@@ -152,7 +170,9 @@ class AuthManager: ObservableObject {
         deleteKeychain(key: "refresh_token")
         deleteKeychain(key: "token_expires_at")
         deleteKeychain(key: "user_nickname")
+        deleteKeychain(key: "user_id")
         state = .notLoggedIn
+        logoutSubject.send()
     }
 
     // MARK: - Retry
@@ -226,11 +246,15 @@ class AuthManager: ObservableObject {
                     if let user = json["user"] as? [String: Any],
                        let name = user["nickname"] as? String {
                         nickname = name
+                        if let uid = user["user_id"] as? String {
+                            saveKeychain(key: "user_id", value: uid)
+                        }
                     }
                     saveKeychain(key: "user_nickname", value: nickname)
 
                     loginAttempts = 0
                     state = .loggedIn(nickname: nickname)
+                    loginSubject.send(accessToken)
                 }
             }
             // If status is "pending", keep polling (do nothing)

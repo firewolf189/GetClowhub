@@ -25,7 +25,6 @@ class HelpAssistantViewModel: ObservableObject {
     private weak var dashboardViewModel: DashboardViewModel?
     private let faqMatcher = HelpFAQMatcher.shared
     private var userGuideContent: String = ""
-    private var isSessionInitialized = false
 
     var isServiceRunning: Bool {
         dashboardViewModel?.openclawService.status == .running
@@ -47,6 +46,106 @@ class HelpAssistantViewModel: ObservableObject {
            let content = try? String(contentsOf: url, encoding: .utf8) {
             userGuideContent = content
         }
+    }
+
+    // MARK: - Ensure Help Agent
+
+    /// Create a dedicated help-assistant agent in openclaw.json if it doesn't exist.
+    /// Also ensures IDENTITY.md and SOUL.md are written to the workspace directory
+    /// (openclaw reads persona from workspace, not agentDir).
+    private func ensureHelpAgent() {
+        let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
+        guard let data = FileManager.default.contents(atPath: configPath),
+              var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+
+        var agentsSection = json["agents"] as? [String: Any] ?? [:]
+        var agentList = agentsSection["list"] as? [[String: Any]] ?? []
+
+        let agentDir = NSString("~/.openclaw/agents/help-assistant/agent").expandingTildeInPath
+        let workspaceDir = NSString("~/.openclaw/workspace-help-assistant").expandingTildeInPath
+
+        // Always ensure SOUL.md and IDENTITY.md are up-to-date in the workspace
+        try? FileManager.default.createDirectory(atPath: workspaceDir, withIntermediateDirectories: true)
+
+        let soulContent = buildSoulContent()
+        let soulPath = (workspaceDir as NSString).appendingPathComponent("SOUL.md")
+        try? soulContent.write(toFile: soulPath, atomically: true, encoding: .utf8)
+
+        let identityContent = """
+        # IDENTITY.md - Who Am I?
+
+        - **Name:** Help Assistant
+        - **Creature:** GetClawHub Customer Support Bot
+        - **Vibe:** Concise, practical, helpful
+        - **Emoji:** ❓
+        """
+        let identityPath = (workspaceDir as NSString).appendingPathComponent("IDENTITY.md")
+        try? identityContent.write(toFile: identityPath, atomically: true, encoding: .utf8)
+
+        // Check if agent already exists in config
+        if agentList.contains(where: { ($0["id"] as? String) == "help-assistant" }) {
+            return
+        }
+
+        // Create agent directory
+        try? FileManager.default.createDirectory(atPath: agentDir, withIntermediateDirectories: true)
+
+        let entry: [String: Any] = [
+            "id": "help-assistant",
+            "name": "help-assistant",
+            "default": false,
+            "identity": [
+                "name": "Help Assistant",
+                "emoji": "❓"
+            ],
+            "agentDir": agentDir,
+            "workspace": workspaceDir
+        ]
+        agentList.append(entry)
+        agentsSection["list"] = agentList
+        json["agents"] = agentsSection
+
+        if let updatedData = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys]) {
+            try? updatedData.write(to: URL(fileURLWithPath: configPath))
+        }
+    }
+
+    // MARK: - Build SOUL.md Content
+
+    /// Build the SOUL.md persona content for the Help Assistant agent.
+    /// This is written to the workspace so openclaw loads it as the agent's system prompt.
+    private func buildSoulContent() -> String {
+        var parts: [String] = []
+
+        parts.append("""
+        # SOUL.md - GetClawHub Help Assistant
+
+        ## You Are
+
+        You are the GetClawHub Help Assistant, a customer support bot exclusively for the GetClawHub macOS application.
+
+        ## Rules
+
+        1. ONLY answer questions related to GetClawHub usage, features, configuration, and troubleshooting.
+        2. If the user asks anything unrelated to GetClawHub (coding help, general knowledge, casual chat, etc.), politely decline and say: "This question is beyond my scope. Please use the Chat page to ask your AI assistant." (Use the user's language for this response.)
+        3. ALWAYS reply in the same language the user uses. If the user writes in Chinese, reply in Chinese. If in English, reply in English. Match the user's language exactly.
+        4. Keep answers concise, practical, and step-by-step.
+        5. When referencing app pages, use their exact names: Chat, Status, Persona, Multi-Agent, Configuration, Skills, Models, Channels, Plugins, Cron, Logs, Doctor.
+        """)
+
+        if !userGuideContent.isEmpty {
+            parts.append("""
+            ## User Guide
+
+            Below is the complete GetClawHub User Guide. Base all your answers on this document:
+
+            ---
+            \(userGuideContent)
+            ---
+            """)
+        }
+
+        return parts.joined(separator: "\n\n")
     }
 
     // MARK: - Send Question
@@ -72,20 +171,22 @@ class HelpAssistantViewModel: ObservableObject {
 
         isLoading = true
 
-        // First message: include system prompt + user guide to initialize the session
-        // Subsequent messages: only send the user's question
+        // Ensure the dedicated help-assistant agent exists with up-to-date SOUL.md
+        ensureHelpAgent()
+
+        // Only inject dynamic context (app state) — static persona is in SOUL.md
+        let contextInfo = buildContextInfo()
         let fullMessage: String
-        if !isSessionInitialized {
-            let systemPrompt = buildSystemPrompt()
+        if contextInfo.isEmpty {
+            fullMessage = question
+        } else {
             fullMessage = """
-            [System Instructions]
-            \(systemPrompt)
+            [Current App Context]
+            \(contextInfo)
 
             [User Question]
             \(question)
             """
-        } else {
-            fullMessage = question
         }
 
         // Write to temp file to avoid shell escaping issues with large content (12KB+ user guide)
@@ -104,13 +205,10 @@ class HelpAssistantViewModel: ObservableObject {
             }
 
             let escapedPath = tempFile.path.replacingOccurrences(of: "'", with: "'\\''")
-            let command = "openclaw agent --agent main --session-id getclawhub-help-assistant -m \"$(cat '\(escapedPath)')\" 2>&1"
+            // Use dedicated help-assistant agent to avoid polluting the main chat session.
+            let command = "openclaw agent --agent help-assistant -m \"$(cat '\(escapedPath)')\" 2>&1"
             let output = await vm.openclawService.runCommand(command, timeout: 120)
             let reply = Self.filterOutput(output)
-
-            if reply != nil {
-                isSessionInitialized = true
-            }
 
             messages.append(HelpMessage(role: .assistant, content: reply ?? "Sorry, I could not get a response. Please try again."))
             isLoading = false
@@ -129,53 +227,26 @@ class HelpAssistantViewModel: ObservableObject {
         }
     }
 
-    // MARK: - System Prompt Builder
+    // MARK: - Context Info Builder
 
-    private func buildSystemPrompt() -> String {
-        var parts: [String] = []
+    /// Build dynamic context about current app state to inject into messages.
+    /// Static persona and user guide are in SOUL.md (loaded by openclaw automatically).
+    private func buildContextInfo() -> String {
+        guard let vm = dashboardViewModel else { return "" }
 
-        // Part 1: Role and boundaries
-        parts.append("""
-        You are the GetClawHub Help Assistant, a customer support bot exclusively for the GetClawHub macOS application.
+        let tabName = vm.selectedTab.rawValue
+        let serviceStatus = vm.openclawService.status.rawValue
+        let version = vm.openclawService.version.isEmpty ? "Unknown" : vm.openclawService.version
+        let port = vm.openclawService.port
+        let provider = vm.editedSelectedProviderKey.isEmpty ? "Not configured" : vm.editedSelectedProviderKey
 
-        Rules:
-        1. ONLY answer questions related to GetClawHub usage, features, configuration, and troubleshooting.
-        2. If the user asks anything unrelated to GetClawHub (coding help, general knowledge, casual chat, etc.), politely decline and say: "This question is beyond my scope. Please use the Chat page to ask your AI assistant." (Use the user's language for this response.)
-        3. ALWAYS reply in the same language the user uses. If the user writes in Chinese, reply in Chinese. If in English, reply in English. Match the user's language exactly.
-        4. Keep answers concise, practical, and step-by-step.
-        5. When referencing app pages, use their exact names: Chat, Status, Persona, Multi-Agent, Configuration, Skills, Models, Channels, Plugins, Cron, Logs, Doctor.
-        """)
-
-        // Part 2: User guide
-        if !userGuideContent.isEmpty {
-            parts.append("""
-            Below is the complete GetClawHub User Guide. Base all your answers on this document:
-
-            ---
-            \(userGuideContent)
-            ---
-            """)
-        }
-
-        // Part 3: Current context
-        if let vm = dashboardViewModel {
-            let tabName = vm.selectedTab.rawValue
-            let serviceStatus = vm.openclawService.status.rawValue
-            let version = vm.openclawService.version.isEmpty ? "Unknown" : vm.openclawService.version
-            let port = vm.openclawService.port
-            let provider = vm.editedSelectedProviderKey.isEmpty ? "Not configured" : vm.editedSelectedProviderKey
-
-            parts.append("""
-            Current app context:
-            - Active page: \(tabName)
-            - Service status: \(serviceStatus)
-            - OpenClaw version: \(version)
-            - Configured provider: \(provider)
-            - Port: \(port)
-            """)
-        }
-
-        return parts.joined(separator: "\n\n")
+        return """
+        - Active page: \(tabName)
+        - Service status: \(serviceStatus)
+        - OpenClaw version: \(version)
+        - Configured provider: \(provider)
+        - Port: \(port)
+        """
     }
 
     // MARK: - Output Filtering
@@ -278,6 +349,18 @@ class HelpAssistantViewModel: ObservableObject {
                 ("如何搜索日志？", "How to search logs?"),
                 ("日志颜色含义？", "What do log colors mean?"),
                 ("如何导出日志？", "How to export logs?"),
+            ]
+        case .budget:
+            return [
+                ("如何设置预算？", "How to set a budget?"),
+                ("预算告警怎么用？", "How do budget alerts work?"),
+                ("如何查看费用？", "How to view costs?"),
+            ]
+        case .billing:
+            return [
+                ("如何查看账单？", "How to view billing?"),
+                ("Key 的消费额度是多少？", "What is the spend limit for a key?"),
+                ("账单多久重置？", "How often does the budget reset?"),
             ]
         }
     }
