@@ -80,7 +80,7 @@ struct OfficialServiceBillingSection: View {
             } else if !membershipManager.keysBilling.isEmpty {
                 VStack(spacing: 10) {
                     ForEach(membershipManager.keysBilling) { billing in
-                        KeyBillingCard(billing: billing)
+                        KeyBillingCard(billing: billing, membershipModels: membershipManager.membership?.models ?? [])
                     }
                 }
             } else {
@@ -109,6 +109,11 @@ struct OfficialServiceBillingSection: View {
 
 struct KeyBillingCard: View {
     let billing: KeyBillingInfo
+    let membershipModels: [String]
+
+    private var displayModels: [String] {
+        membershipModels.isEmpty ? billing.models : membershipModels
+    }
 
     private var spendPercent: Double {
         guard let max = billing.maxBudget, max > 0 else { return 0 }
@@ -230,7 +235,7 @@ struct KeyBillingCard: View {
             .padding(.bottom, 10)
 
             // ── Models tags ──
-            if !billing.models.isEmpty {
+            if !displayModels.isEmpty {
                 Divider()
                     .padding(.bottom, 8)
 
@@ -241,7 +246,7 @@ struct KeyBillingCard: View {
                         .textCase(.uppercase)
 
                     FlowLayout(spacing: 4) {
-                        ForEach(billing.models, id: \.self) { model in
+                        ForEach(displayModels, id: \.self) { model in
                             Text(model)
                                 .font(.system(.caption2, design: .monospaced))
                                 .padding(.horizontal, 6)

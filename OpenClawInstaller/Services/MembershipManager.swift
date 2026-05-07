@@ -359,7 +359,16 @@ class MembershipManager: ObservableObject {
     }
 
     private static func parseBillingArray(_ data: Data) -> [KeyBillingInfo] {
-        guard let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        // API returns { "user_budget": {...}, "keys": [...] }
+        let array: [[String: Any]]
+        if let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let keys = root["keys"] as? [[String: Any]] {
+            array = keys
+        } else if let directArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            array = directArray
+        } else {
+            return []
+        }
 
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
