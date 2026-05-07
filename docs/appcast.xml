@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.34</title>
-      <sparkle:version>39</sparkle:version>
-      <sparkle:shortVersionString>1.1.34</sparkle:shortVersionString>
+      <title>Version 1.1.36</title>
+      <sparkle:version>41</sparkle:version>
+      <sparkle:shortVersionString>1.1.36</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.34</h2>
+        <h2>OpenClaw Helper 1.1.36</h2>
         <ul>
-          <li>modify models</li>
+          <li>设置</li>
         </ul>
       ]]></description>
-      <pubDate>Wed, 29 Apr 2026 10:06:07 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.34/GetClawHub.dmg"
-                 length="278316246"
+      <pubDate>Thu, 07 May 2026 17:59:28 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.36/GetClawHub.dmg"
+                 length="278303617"
                  type="application/octet-stream"
-                 sparkle:edSignature="FdBC9GUtsgpSJSbVzYfKlq4EOHev9uqgez72aM+/AubDzzNg6ekX1AWiK5eGoSJgACJw2c3tj9/TAVnkGcn0Dw==" />
+                 sparkle:edSignature="xOk7519l4y84bF8rIjRMxCTQk5n8NeUij5p1QWhoW8WpHXvj5Gg+XLNO/OUH9DqWWr+I3MUXwgiICxsnoR2jAA==" />
     </item>
   </channel>
 </rss>
