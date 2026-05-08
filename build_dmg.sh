@@ -287,8 +287,12 @@ echo "📦 正在打包 DMG..."
 TMP_DMG="${TMP_DMG_DIR}.dmg"
 rm -f "$TMP_DMG"
 
+# Volname 用 "GetClawHub Installer" 而非 "GetClawHub":
+# 当用户机器上 /Applications/GetClawHub.app 已经存在时,macOS 会把新 DMG 卷里
+# 同路径(/Volumes/GetClawHub/GetClawHub.app)的写入视为"应用伪造",触发 TCC
+# Operation not permitted。换个卷名既能避开冲突,挂载时显示也更清晰。
 for i in 1 2 3; do
-    if hdiutil create -volname "GetClawHub" \
+    if hdiutil create -volname "GetClawHub Installer" \
         -srcfolder "$TMP_DMG_DIR" \
         -format UDZO \
         "$TMP_DMG"; then
