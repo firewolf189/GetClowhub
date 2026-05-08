@@ -55,15 +55,18 @@ struct EnvironmentCheckView: View {
                     CheckResultRow(
                         title: "Node.js",
                         value: viewModel.systemEnvironment.nodeInfo?.version ?? "Not Installed",
-                        status: viewModel.systemEnvironment.nodeInfo != nil ? .success : .warning
+                        status: .info
                     )
 
-                    if let nodeInfo = viewModel.systemEnvironment.nodeInfo, !nodeInfo.isCompatible {
-                        Text("⚠️ Node.js version \(nodeInfo.version) is not compatible. Version 18+ is required.")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                            .padding(.leading, 40)
-                    }
+                    // The installer bundles its own Node.js v24.14.0 and uses it
+                    // exclusively, so the user's system Node version (if any) is
+                    // informational only — never a blocker. Show a hint under the
+                    // row so users with Node 18/20/etc don't think they need to
+                    // upgrade their system before proceeding.
+                    Text("ℹ️ OpenClaw 自带独立的 Node.js v24.14.0，与系统 Node 互不影响")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 40)
 
                     CheckResultRow(
                         title: "OpenClaw",

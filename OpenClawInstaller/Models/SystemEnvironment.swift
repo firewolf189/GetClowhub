@@ -224,10 +224,12 @@ class SystemEnvironment: ObservableObject {
             issues.append("At least 1 GB of free disk space is required")
         }
 
-        // Check Node.js compatibility
-        if let node = nodeInfo, !node.isCompatible {
-            issues.append("Node.js version \(node.version) is not compatible. Version 22 or higher is required.")
-        }
+        // Note: we deliberately do NOT gate on the user's system Node.js version.
+        // The installer bundles its own Node.js v24.14.0 to ~/.openclaw/node/bin
+        // and runs openclaw exclusively against that, so any pre-existing Node
+        // (or none at all) is fine. Pre-install screens that surface the user's
+        // Node version do so for information only — InstallationViewModel will
+        // still trigger the bundled Node install when needed.
 
         return (issues.isEmpty, issues)
     }

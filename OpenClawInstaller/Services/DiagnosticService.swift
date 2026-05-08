@@ -156,22 +156,14 @@ class DiagnosticService: ObservableObject {
         await systemEnvironment.detectNode()
 
         if let nodeInfo = systemEnvironment.nodeInfo {
-            // Node is installed
-            if nodeInfo.isCompatible {
-                checks.append(DiagnosticCheck(
-                    name: "Node.js Version",
-                    status: .passed,
-                    message: "\(nodeInfo.version) is installed",
-                    suggestion: nil
-                ))
-            } else {
-                checks.append(DiagnosticCheck(
-                    name: "Node.js Version",
-                    status: .warning,
-                    message: "\(nodeInfo.version) - Upgrade recommended",
-                    suggestion: "Upgrade to Node.js 18 or later for best compatibility"
-                ))
-            }
+            // Node is detected — version doesn't matter, openclaw runs against
+            // the bundled v24.14.0 at ~/.openclaw/node/bin/. Display as info.
+            checks.append(DiagnosticCheck(
+                name: "Node.js Version",
+                status: .passed,
+                message: "\(nodeInfo.version) detected (bundled v24.14.0 will be used)",
+                suggestion: nil
+            ))
 
             checks.append(DiagnosticCheck(
                 name: "Node.js Path",
