@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.37</title>
-      <sparkle:version>42</sparkle:version>
-      <sparkle:shortVersionString>1.1.37</sparkle:shortVersionString>
+      <title>Version 1.1.38</title>
+      <sparkle:version>43</sparkle:version>
+      <sparkle:shortVersionString>1.1.38</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.37</h2>
+        <h2>OpenClaw Helper 1.1.38</h2>
         <ul>
-          <li>bug fix</li>
+          <li>修复长任务 Agent 超时终止异常,新增 SIGKILL 兜底防止进程残留</li>
         </ul>
       ]]></description>
-      <pubDate>Thu, 07 May 2026 22:06:28 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.37/GetClawHub.dmg"
-                 length="278316899"
+      <pubDate>Fri, 08 May 2026 16:42:55 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.38/GetClawHub.dmg"
+                 length="15940861"
                  type="application/octet-stream"
-                 sparkle:edSignature="IeIbbzz1MnsQqn7lz+o6q4JP9LJaJ0XPKu9zhRw/5hU1v/DibNgTLL6+yn0MDspTOfabVK6+dAg0zPaytfLnBQ==" />
+                 sparkle:edSignature="PwpNhk4Pdvepg6aHGZN+xXcuyIArlT4Sz9QQ6DzklAaR6KWZs4VqpKaa3GYqEr/WmPJ/YUYcAsoYMC8W72o+AQ==" />
     </item>
   </channel>
 </rss>
