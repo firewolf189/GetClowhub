@@ -145,6 +145,31 @@ class CommandExecutor: ObservableObject {
 
     /// Get command path (uses login shell to get full user PATH)
     func getCommandPath(_ command: String) async -> String? {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+
+        // 0. Highest priority: this app's bundled installation paths.
+        //
+        // The installer puts Node at ~/.openclaw/node/bin (v24.14.0) and openclaw at
+        // ~/.npm-global/bin. At runtime OpenClawService.runShell* injects these as the
+        // PATH prefix via buildEnrichedPath(), so the bundled Node is always what
+        // actually runs openclaw.mjs. Detection must match runtime — otherwise the
+        // user's pre-existing Homebrew/nvm Node 18 makes the diagnostic flag
+        // "Node.js version not compatible (>=22 required)" even though our v24.14.0
+        // is the one in effect. This is the v1.1.39 user-reported issue.
+        let bundledPath: String? = {
+            switch command {
+            case "node", "npm", "npx":
+                return "\(homeDir)/.openclaw/node/bin/\(command)"
+            case "openclaw":
+                return "\(homeDir)/.npm-global/bin/openclaw"
+            default:
+                return nil
+            }
+        }()
+        if let p = bundledPath, FileManager.default.isExecutableFile(atPath: p) {
+            return p
+        }
+
         // 1. Try `which` via login shells (both zsh and bash)
         for shell in ["/bin/zsh", "/bin/bash"] {
             let path = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
@@ -192,8 +217,7 @@ class CommandExecutor: ObservableObject {
             }
         }
 
-        // 2. Fallback: check common installation locations
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        // 2. Fallback: check common installation locations (homeDir declared above)
         var candidates = [
             "\(homeDir)/.npm-global/bin/\(command)",
             "/opt/homebrew/bin/\(command)",
