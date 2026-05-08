@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.38</title>
-      <sparkle:version>43</sparkle:version>
-      <sparkle:shortVersionString>1.1.38</sparkle:shortVersionString>
+      <title>Version 1.1.39</title>
+      <sparkle:version>44</sparkle:version>
+      <sparkle:shortVersionString>1.1.39</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.38</h2>
+        <h2>OpenClaw Helper 1.1.39</h2>
         <ul>
-          <li>修复长任务 Agent 超时终止异常,新增 SIGKILL 兜底防止进程残留</li>
+          <li>修复 v1.1.38 安装失败问题（缺失 bundled openclaw 资源），build_dmg.sh 新增 preflight 校验</li>
         </ul>
       ]]></description>
-      <pubDate>Fri, 08 May 2026 16:42:55 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.38/GetClawHub.dmg"
-                 length="15940861"
+      <pubDate>Fri, 08 May 2026 18:03:01 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.39/GetClawHub.dmg"
+                 length="276666219"
                  type="application/octet-stream"
-                 sparkle:edSignature="PwpNhk4Pdvepg6aHGZN+xXcuyIArlT4Sz9QQ6DzklAaR6KWZs4VqpKaa3GYqEr/WmPJ/YUYcAsoYMC8W72o+AQ==" />
+                 sparkle:edSignature="o1RQr+2nAdhcBSWBwMUyNvRH6rQmNpSGw6YeZHmOLjjBuERebSfLEcG8o2Ofyn9Shsl1gy8SvlWH7OT+eMf9AA==" />
     </item>
   </channel>
 </rss>
