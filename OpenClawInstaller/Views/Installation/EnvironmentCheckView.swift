@@ -52,18 +52,23 @@ struct EnvironmentCheckView: View {
 
                     Divider()
 
+                    // We ship our own Node.js v24.14.0 to ~/.openclaw/node/bin and run
+                    // openclaw exclusively against that, so the user's system Node
+                    // version is never a blocker — show whatever we detected (or
+                    // "未安装") as plain info, with a caption clarifying the bundled
+                    // runtime is independent.
                     CheckResultRow(
                         title: "Node.js",
-                        value: viewModel.systemEnvironment.nodeInfo?.version ?? "Not Installed",
+                        value: {
+                            if let v = viewModel.systemEnvironment.nodeInfo?.version {
+                                return "\(v) (将使用内置 v24.14.0)"
+                            }
+                            return "未安装 (将自动安装内置 v24.14.0)"
+                        }(),
                         status: .info
                     )
 
-                    // The installer bundles its own Node.js v24.14.0 and uses it
-                    // exclusively, so the user's system Node version (if any) is
-                    // informational only — never a blocker. Show a hint under the
-                    // row so users with Node 18/20/etc don't think they need to
-                    // upgrade their system before proceeding.
-                    Text("ℹ️ OpenClaw 自带独立的 Node.js v24.14.0，与系统 Node 互不影响")
+                    Text("ℹ️ OpenClaw 自带独立的 Node.js v24.14.0，无需系统 Node 即可运行")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.leading, 40)
