@@ -1318,6 +1318,9 @@ struct ChatView: View {
     @ObservedObject var viewModel: DashboardViewModel
     var hideAgentPicker: Bool = false
     @State private var inputText = ""
+    /// Currently selected input mode (聊天/执行任务/代码模式). Wired into
+    /// the picker above the text editor; doesn't yet alter behavior.
+    @State private var inputMode: ChatInputMode = .chat
     @State private var eventMonitor: Any?
     @State private var queryHistory: [String] = UserDefaults.standard.stringArray(forKey: "chatQueryHistory") ?? []
     @State private var historyIndex: Int = -1
@@ -1514,50 +1517,11 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Agent Header Bar (only in Agents sidebar mode)
-            if hideAgentPicker, let agent = currentAgent {
-                AgentHeaderBar(
-                    agent: agent,
-                    defaultModel: viewModel.modelOverview.defaultModel,
-                    onNewAgent: { showCreateAgentSheet = true },
-                    onSettingsTap: {
-                        viewModel.loadSelectedAgentDetail()
-                        Task { await viewModel.loadModelsForSettings() }
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            fileBrowserOpen = false
-                            editingFilePath = nil
-                            terminalOpen = false
-                            viewModel.agentSettingsOpen = true
-                        }
-                    },
-                    onFileBrowser: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.agentSettingsOpen = false
-                            editingFilePath = nil
-                            terminalOpen = false
-                            fileBrowserOpen.toggle()
-                        }
-                    },
-                    onTerminal: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.agentSettingsOpen = false
-                            fileBrowserOpen = false
-                            editingFilePath = nil
-                            terminalOpen.toggle()
-                        }
-                    },
-                    onCollab: viewModel.selectedAgentId == "commander" ? {
-                        let _ = viewModel.getOrCreateCollabViewModel()
-                        viewModel.collabViewModel?.loadSessionHistory()
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.showCollabPanel.toggle()
-                            if viewModel.showCollabPanel {
-                                viewModel.collabPanelCollapsed = false
-                            }
-                        }
-                    } : nil
-                )
-            }
+            // New top header bar — always visible in chat. Replaces the old
+            // hideAgentPicker-only AgentHeaderBar (the legacy header is kept
+            // around as dead code in case we need to revive any of its
+            // file-browser / terminal entry points later).
+            ChatHeaderBar(viewModel: viewModel)
 
             ScrollViewReader { proxy in
                 ZStack(alignment: .bottomTrailing) {
@@ -1842,18 +1806,9 @@ struct ChatView: View {
                         .buttonStyle(.plain)
                         .help("New Conversation")
 
-                        if !hideAgentPicker {
-                            Picker("", selection: $viewModel.selectedAgentId) {
-                                ForEach(viewModel.availableAgents) { agent in
-                                    Text("\(agent.emoji) \(agent.name)")
-                                        .tag(agent.id)
-                                }
-                            }
-                            .labelsHidden()
-                            .fixedSize()
-                            .controlSize(.small)
-                            .help("Select Agent")
-                        }
+                        // Agent picker moved to ChatHeaderBar; mode picker
+                        // takes its place at the top of the input footer.
+                        ChatInputModePicker(mode: $inputMode)
 
                         Spacer()
 
@@ -6650,6 +6605,218 @@ private struct TerminalDragHandle: View {
                     }
                     .onEnded { _ in dragStart = nil }
             )
+    }
+}
+
+// MARK: - Chat Header Bar (top of chat view)
+
+/// New top-of-chat header bar matching the redesign: editable session
+/// title, agent picker, model display, service status, share / more menu.
+/// Self-contained — owns its own rename alert state so the parent
+/// (ChatView) doesn't need to thread bindings through.
+struct ChatHeaderBar: View {
+    @ObservedObject var viewModel: DashboardViewModel
+    @State private var renameOpen = false
+    @State private var renameDraft = ""
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Session title + inline edit pencil
+            HStack(spacing: 6) {
+                Text(currentSessionTitle)
+                    .font(.system(size: 15, weight: .medium))
+                    .lineLimit(1)
+                if currentSessionId != nil {
+                    Button {
+                        renameDraft = currentSessionTitle
+                        renameOpen = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Rename session")
+                }
+            }
+
+            Spacer()
+
+            // Agent picker (was inline in input area; moved here per design)
+            HStack(spacing: 6) {
+                Text("Agent:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Picker("", selection: $viewModel.selectedAgentId) {
+                    ForEach(viewModel.availableAgents) { agent in
+                        Text("\(agent.emoji) \(agent.name)").tag(agent.id)
+                    }
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
+            }
+
+            // Model display (read-only here; full editor is in Configuration tab)
+            HStack(spacing: 6) {
+                Text("Model:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(modelDisplay)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+
+            // Service status pill
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(viewModel.openclawService.status == .running ? Color.green : Color.secondary)
+                    .frame(width: 7, height: 7)
+                Text(viewModel.openclawService.status == .running ? "Running" : "Stopped")
+                    .font(.caption)
+                    .foregroundColor(viewModel.openclawService.status == .running ? .green : .secondary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+
+            // Share — exports current session as Markdown via NSSavePanel
+            Button {
+                if let sid = currentSessionId {
+                    viewModel.exportSession(sid)
+                }
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+                    .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(currentSessionId == nil)
+
+            // More menu — clear / new session shortcuts
+            Menu {
+                Button {
+                    viewModel.createNewSession()
+                } label: {
+                    Label("New Session", systemImage: "plus.circle")
+                }
+                if let sid = currentSessionId {
+                    Button {
+                        viewModel.exportSession(sid)
+                    } label: {
+                        Label("Export…", systemImage: "square.and.arrow.up")
+                    }
+                    Divider()
+                    Button(role: .destructive) {
+                        viewModel.chatMessagesByAgent[viewModel.selectedAgentId] = []
+                    } label: {
+                        Label("Clear Conversation", systemImage: "trash")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(NSColor.windowBackgroundColor))
+        .overlay(alignment: .bottom) { Divider() }
+        .alert("Rename Session", isPresented: $renameOpen, actions: {
+            TextField("Session name", text: $renameDraft)
+            Button("Save") {
+                if let sid = currentSessionId {
+                    viewModel.renameSession(sid, to: renameDraft)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        })
+    }
+
+    private var currentSessionId: UUID? {
+        viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId]
+    }
+
+    private var currentSessionTitle: String {
+        guard let sid = currentSessionId,
+              let meta = viewModel.sessionsByAgent[viewModel.selectedAgentId]?.first(where: { $0.id == sid }) else {
+            return "新会话"
+        }
+        return meta.title
+    }
+
+    /// Best-effort model name for display. Falls back gracefully when the
+    /// model overview hasn't loaded yet (cold start).
+    private var modelDisplay: String {
+        let m = viewModel.modelOverview.defaultModel
+        return m.isEmpty ? "—" : m
+    }
+}
+
+// MARK: - Input Mode Picker (above the chat input area)
+
+/// Three-mode segmented picker matching the redesign: 聊天 / 执行任务 /
+/// 代码模式. Currently UI-only — actual behavior coupling per mode can be
+/// layered in later; for now all three modes route through the same
+/// sendMessage() pipeline.
+enum ChatInputMode: String, CaseIterable {
+    case chat
+    case task
+    case code
+
+    var localizedLabel: LocalizedStringKey {
+        switch self {
+        case .chat: return "Chat"
+        case .task: return "Run Task"
+        case .code: return "Code Mode"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .chat: return "message"
+        case .task: return "terminal.fill"
+        case .code: return "chevron.left.forwardslash.chevron.right"
+        }
+    }
+}
+
+struct ChatInputModePicker: View {
+    @Binding var mode: ChatInputMode
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("Mode:")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            ForEach(ChatInputMode.allCases, id: \.self) { m in
+                Button {
+                    mode = m
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: m.icon)
+                            .font(.system(size: 10))
+                        Text(m.localizedLabel)
+                            .font(.system(size: 11))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(mode == m ? Color.accentColor.opacity(0.15) : Color.clear)
+                    )
+                    .foregroundColor(mode == m ? .accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
     }
 }
 
