@@ -6694,6 +6694,13 @@ struct SessionDetailsPanel: View {
         .frame(width: 300)
         .background(Color(NSColor.windowBackgroundColor))
         .overlay(alignment: .leading) { Divider() }
+        // Pre-load the model list once when the panel first appears so the
+        // model dropdown isn't empty on first click.
+        .task {
+            if viewModel.availableModelsForSettings.isEmpty {
+                await viewModel.loadModelsForSettings()
+            }
+        }
     }
 
     // MARK: - Details tab
@@ -6774,9 +6781,22 @@ struct SessionDetailsPanel: View {
                 HStack(spacing: 4) {
                     Text(agent?.name ?? viewModel.selectedAgentId)
                         .font(.system(size: 14, weight: .semibold))
-                    Image(systemName: "pencil")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                    // Pencil: opens the existing agent settings panel
+                    // (loadSelectedAgentDetail + agentSettingsOpen = true)
+                    // — same entry point the legacy AgentHeaderBar used.
+                    Button {
+                        viewModel.loadSelectedAgentDetail()
+                        Task { await viewModel.loadModelsForSettings() }
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.agentSettingsOpen = true
+                        }
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Edit agent")
                 }
                 if let desc = agent?.description, !desc.isEmpty {
                     Text(desc)
@@ -6798,24 +6818,61 @@ struct SessionDetailsPanel: View {
         )
     }
 
+    /// Resolves the model that should display for the *current* agent.
+    /// Falls back to the global default when an agent has no per-agent model
+    /// override — that mirrors the runtime behavior of openclaw.
+    private var currentAgentModel: String {
+        let agentModel = viewModel.availableAgents
+            .first { $0.id == viewModel.selectedAgentId }?
+            .model ?? ""
+        if !agentModel.isEmpty { return agentModel }
+        return viewModel.modelOverview.defaultModel
+    }
+
     private var modelRow: some View {
-        let modelName = viewModel.modelOverview.defaultModel
-        return HStack(spacing: 6) {
-            Image(systemName: "cube.fill")
-                .font(.system(size: 12))
-                .foregroundColor(.accentColor)
-            Text(modelName.isEmpty ? "—" : modelName)
-                .font(.system(size: 13))
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10))
-                .foregroundColor(.secondary)
+        // Use a Menu so the row is itself the picker — clicking anywhere on
+        // it surfaces the model list. Selecting writes back via
+        // updateAgentModel which patches openclaw.json and reloads agents.
+        Menu {
+            if viewModel.availableModelsForSettings.isEmpty {
+                Text("Loading models…")
+            } else {
+                ForEach(viewModel.availableModelsForSettings) { m in
+                    Button {
+                        viewModel.updateAgentModel(model: m.id)
+                    } label: {
+                        HStack {
+                            Text(m.name)
+                            if m.id == currentAgentModel {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "cube.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.accentColor)
+                Text(currentAgentModel.isEmpty ? "—" : currentAgentModel)
+                    .font(.system(size: 13))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor))
-        )
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
     }
 
     /// Mock tool list. Until we wire to real skill / plugin enablement state,

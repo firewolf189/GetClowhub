@@ -61901,6 +61901,38 @@
           }
         }
       }
+    },
+    "Loading models…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载模型…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在載入模型…"
+          }
+        }
+      }
+    },
+    "Edit agent": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑智能体"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編輯智慧體"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
