@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.41</title>
-      <sparkle:version>46</sparkle:version>
-      <sparkle:shortVersionString>1.1.41</sparkle:shortVersionString>
+      <title>Version 1.1.42</title>
+      <sparkle:version>47</sparkle:version>
+      <sparkle:shortVersionString>1.1.42</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.41</h2>
+        <h2>OpenClaw Helper 1.1.42</h2>
         <ul>
-          <li>修复有旧版 Node 的用户被红色阻断卡在环境检查页的问题；澄清 Node 版本提示文案</li>
+          <li>版本 1.1.42 更新</li>
         </ul>
       ]]></description>
-      <pubDate>Sat, 09 May 2026 00:19:57 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.41/GetClawHub.dmg"
-                 length="276836571"
+      <pubDate>Sat, 09 May 2026 11:42:54 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.42/GetClawHub.dmg"
+                 length="276679308"
                  type="application/octet-stream"
-                 sparkle:edSignature="3zHkfRGaMP3K9j6QZyKP/sZ+/Py7srHlWrLsCwIkhuRbpsVa4gVTd85LoBO6XzqU/MSHU8iEzZ24T1aHbuMtCw==" />
+                 sparkle:edSignature="PYBP0Gw8t4irJHf2SKxXZQ/LPwoEIQaVCTmthJS/l/XlN/3mKsrR7vGCrVqXH6tXRSsxQwCqZ+GXM4259v/UBQ==" />
     </item>
   </channel>
 </rss>
