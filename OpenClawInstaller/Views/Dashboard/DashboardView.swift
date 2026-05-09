@@ -360,7 +360,7 @@ struct SidebarView: View {
 
             // ─── Settings & Support ───
             Section("Settings & Support") {
-                Label("Configuration", systemImage: "gearshape")
+                Label("Settings", systemImage: "gearshape")
                     .tag(DashboardViewModel.DashboardTab.config)
 
                 Button {
@@ -6708,8 +6708,9 @@ struct SessionDetailsPanel: View {
         sectionTitle("Model")
         modelRow
 
-        // Tool status (mock — wire to real state once backend data is available)
-        sectionTitle("Tool Status")
+        // Tool status (mock — wire to real state once backend data is available).
+        // Header + count are rendered together inside toolStatusList so the
+        // count sits on the same line as the section name, per the design.
         toolStatusList
 
         // Session info
@@ -6738,8 +6739,14 @@ struct SessionDetailsPanel: View {
                         .foregroundColor(item.color)
                         .frame(width: 14)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.title)
-                            .font(.system(size: 12, weight: .medium))
+                        HStack(spacing: 4) {
+                            if let emoji = item.emoji {
+                                Text(emoji)
+                                    .font(.system(size: 12))
+                            }
+                            Text(item.isUser ? "User" : "Assistant")
+                                .font(.system(size: 12, weight: .medium))
+                        }
                         Text(item.subtitle)
                             .font(.caption2)
                             .foregroundColor(.secondary)
@@ -6824,21 +6831,26 @@ struct SessionDetailsPanel: View {
         ]
         let enabled = mock.filter { $0.1 }.count
         return VStack(alignment: .leading, spacing: 6) {
+            // Combined section header + count, matching the mockup's
+            // single-line "Tool Status     X / Y enabled" presentation.
             HStack {
                 Text("Tool Status")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Text("\(enabled) / \(mock.count) enabled")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
+            .padding(.top, 4)
             ForEach(mock, id: \.0) { name, on in
                 HStack(spacing: 8) {
                     Circle()
                         .fill(on ? Color.green : Color.secondary.opacity(0.4))
                         .frame(width: 7, height: 7)
-                    Text(name)
+                    // LocalizedStringKey(name) so the literal English keys
+                    // get translated via Localizable.xcstrings (Text(name)
+                    // alone treats `name` as a plain String and skips lookup).
+                    Text(LocalizedStringKey(name))
                         .font(.system(size: 12))
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -6906,7 +6918,11 @@ struct SessionDetailsPanel: View {
         let id: UUID
         let icon: String
         let color: SwiftUI.Color
-        let title: String
+        // Split into role + emoji so the role gets localized; concatenated
+        // strings (e.g. "🤖 Assistant") would be treated as plain Strings
+        // by Text and skip the xcstrings lookup.
+        let isUser: Bool
+        let emoji: String?
         let subtitle: String
     }
 
@@ -6931,13 +6947,13 @@ struct SessionDetailsPanel: View {
                 icon = "ellipsis.circle"
                 color = .secondary
             }
-            let title = msg.role == .user ? "User" : (msg.agentEmoji.map { "\($0) Assistant" } ?? "Assistant")
             let preview = msg.content.prefix(80).replacingOccurrences(of: "\n", with: " ")
             return ActivityItem(
                 id: msg.id,
                 icon: icon,
                 color: color,
-                title: title,
+                isUser: msg.role == .user,
+                emoji: msg.role == .user ? nil : msg.agentEmoji,
                 subtitle: String(preview)
             )
         }

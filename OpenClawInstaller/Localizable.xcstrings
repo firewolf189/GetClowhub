@@ -3594,13 +3594,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "代理"
+            "value": "智能体"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "代理"
+            "value": "智慧體"
           }
         }
       }
@@ -25214,7 +25214,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "退出"
+            "value": "退出登录"
           }
         },
         "zh-Hant": {
@@ -50101,13 +50101,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "运行时间"
+            "value": "运行时长"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "運行時間"
+            "value": "執行時長"
           }
         }
       }
