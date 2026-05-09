@@ -362,6 +362,18 @@ class HelpAssistantViewModel: ObservableObject {
                 ("Key 的消费额度是多少？", "What is the spend limit for a key?"),
                 ("账单多久重置？", "How often does the budget reset?"),
             ]
+        case .market:
+            return [
+                ("如何安装智能体？", "How to install an agent?"),
+                ("市场里都有什么？", "What's in the marketplace?"),
+                ("如何卸载智能体？", "How to uninstall an agent?"),
+            ]
+        case .tasksLogs:
+            return [
+                ("如何创建定时任务？", "How to create a cron job?"),
+                ("如何查看历史日志？", "How to view past logs?"),
+                ("如何导出执行记录？", "How to export logs?"),
+            ]
         }
     }
 

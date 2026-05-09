@@ -269,6 +269,8 @@ class DashboardViewModel: ObservableObject {
         case billing = "Billing"
         case persona = "Persona"
         case subAgents = "Multi-Agent"
+        case market = "Marketplace"     // skill / agent marketplace (was sidebarMode)
+        case tasksLogs = "Tasks/Logs"   // combined Cron + Logs view
         case config = "Configuration"
         case skills = "Skills"
         case models = "Models"
@@ -285,6 +287,8 @@ class DashboardViewModel: ObservableObject {
             case .billing: return "creditcard.fill"
             case .persona: return "person.text.rectangle"
             case .subAgents: return "person.3.fill"
+            case .market: return "storefront"
+            case .tasksLogs: return "checklist"
             case .config: return "gearshape"
             case .skills: return "bolt.fill"
             case .models: return "cube.fill"

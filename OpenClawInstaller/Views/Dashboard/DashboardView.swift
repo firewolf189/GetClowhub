@@ -102,238 +102,16 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            switch viewModel.sidebarMode {
-            case .config:
-                managementList
-            case .teams:
-                agentsList
-            case .market:
-                marketplaceList
-            }
+            sidebarTopHeader
+            #if REQUIRE_LOGIN
+            sidebarUserRow
+            #endif
+            Divider()
+            sidebarMainList
+            Divider()
+            sidebarBottomBar
         }
-        .safeAreaInset(edge: .top) {
-            VStack(spacing: 0) {
-                // User status
-                #if REQUIRE_LOGIN
-                HStack(spacing: 6) {
-                    if case .loggedIn(let nickname) = authManager.state {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.green)
-                        Text(nickname)
-                            .font(.caption)
-                            .lineLimit(1)
-
-                        // Membership badge
-                        if let membership = membershipManager.membership {
-                            Text("[\(membership.level.displayName)]")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(membershipBadgeColor(membership.level))
-                        }
-
-                        // Upgrade button for non-max users
-                        if let membership = membershipManager.membership, membership.level != .max {
-                            Button {
-                                var urlString = "\(AuthConfig.baseURL)/pricing"
-                                var params: [String] = []
-                                if let token = authManager.accessToken {
-                                    params.append("token=\(token)")
-                                }
-                                if let uid = authManager.userId {
-                                    params.append("user_id=\(uid)")
-                                }
-                                if !params.isEmpty {
-                                    urlString += "?" + params.joined(separator: "&")
-                                }
-                                if let url = URL(string: urlString) {
-                                    NSWorkspace.shared.open(url)
-                                }
-                            } label: {
-                                Label("会员升级", systemImage: "crown.fill")
-                                    .font(.system(size: 9, weight: .medium))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(.orange)
-                        }
-
-                        Spacer()
-
-                        // Sync button
-                        if membershipManager.syncState == .syncing {
-                            ProgressView()
-                                .controlSize(.mini)
-                                .scaleEffect(0.7)
-                        } else {
-                            Button {
-                                Task { await membershipManager.syncProfile() }
-                            } label: {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                    .font(.system(size: 10))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(.secondary)
-                            .help("Sync membership")
-                        }
-
-                        Button("Log Out") {
-                            authManager.logout()
-                        }
-                        .font(.caption2)
-                        .buttonStyle(.plain)
-                        .foregroundColor(.secondary)
-                    } else {
-                        Image(systemName: "person.crop.circle.badge.questionmark")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                        Text("Not Logged In")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button("Log In") {
-                            authManager.login()
-                        }
-                        .font(.caption2)
-                        .buttonStyle(.plain)
-                        .foregroundColor(.accentColor)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-
-                Divider()
-                #endif
-
-                // Language selector
-                HStack(spacing: 6) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-
-                Menu {
-                    ForEach(languageManager.supportedLanguages) { lang in
-                        Button(action: { languageManager.selectedLanguage = lang.id }) {
-                            HStack {
-                                Text(lang.name)
-                                if languageManager.selectedLanguage == lang.id {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(languageManager.displayName)
-                            .font(.caption)
-                            .foregroundColor(.primary)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 8))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-
-                Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-
-                // Sidebar mode switcher
-                Picker("", selection: $viewModel.sidebarMode) {
-                    Text(String(localized: "Config", bundle: languageManager.localizedBundle))
-                        .tag(DashboardViewModel.SidebarMode.config)
-                    Text(String(localized: "My Team", bundle: languageManager.localizedBundle))
-                        .tag(DashboardViewModel.SidebarMode.teams)
-                    Text(String(localized: "Market", bundle: languageManager.localizedBundle))
-                        .tag(DashboardViewModel.SidebarMode.market)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("GetClawHub")
-                        .font(.caption)
-                        .fontWeight(.medium)
-
-                    HStack(spacing: 4) {
-                        Text("v\(sparkleUpdater.currentVersion)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-
-                        // Version check button / status
-                        if sparkleUpdater.isCheckingVersion {
-                            ProgressView()
-                                .controlSize(.mini)
-                                .scaleEffect(0.7)
-                        } else if sparkleUpdater.updateAvailable {
-                            Button(action: { sparkleUpdater.checkForUpdates() }) {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "arrow.up.circle.fill")
-                                        .font(.system(size: 10))
-                                    Text("v\(sparkleUpdater.latestVersion)")
-                                        .font(.caption2)
-                                }
-                                .foregroundColor(.green)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Update to v\(sparkleUpdater.latestVersion)")
-                        } else if sparkleUpdater.checkSucceeded {
-                            HStack(spacing: 2) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 10))
-                                Text("Latest")
-                                    .font(.caption2)
-                            }
-                            .foregroundColor(.green)
-                        } else {
-                            Button(action: {
-                                Task { await sparkleUpdater.checkLatestVersion() }
-                            }) {
-                                HStack(spacing: 2) {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                        .font(.system(size: 10))
-                                    Text("Update")
-                                        .font(.caption2)
-                                }
-                                .foregroundColor(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Check for Updates")
-                        }
-                    }
-                }
-
-                Spacer()
-
-                Button(action: {
-                    HelpAssistantWindowController.shared.showWindow(dashboardViewModel: viewModel)
-                }) {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Help Assistant")
-
-                Button(action: {
-                    appAppearance = isDark ? "light" : "dark"
-                }) {
-                    Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help(isDark ? "Switch to Light Mode" : "Switch to Dark Mode")
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 16)
-        }
-        .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 280)
+        .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
         // Chat session rename — bound to sessionRenameId; clearing it dismisses
         .alert("Rename Session",
                isPresented: Binding(
@@ -385,7 +163,353 @@ struct SidebarView: View {
     }
     #endif
 
-    // MARK: - Management List
+    // MARK: - Sidebar Top Header (Logo + dropdown menu)
+
+    /// Top of the sidebar: app logo, name, and a chevron menu housing language
+    /// picker, update check, and "About" — items that don't deserve a full
+    /// sidebar row but still need to be reachable.
+    private var sidebarTopHeader: some View {
+        HStack(spacing: 8) {
+            Image("Logo1")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 22)
+            Text("GetClawHub")
+                .font(.system(size: 14, weight: .semibold))
+            Spacer()
+            Menu {
+                // Language sub-menu
+                Menu {
+                    ForEach(languageManager.supportedLanguages) { lang in
+                        Button {
+                            languageManager.selectedLanguage = lang.id
+                        } label: {
+                            HStack {
+                                Text(lang.name)
+                                if languageManager.selectedLanguage == lang.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Label(String(localized: "Language", bundle: languageManager.localizedBundle),
+                          systemImage: "globe")
+                }
+                Divider()
+                Button {
+                    Task { await sparkleUpdater.checkLatestVersion() }
+                } label: {
+                    Label(String(localized: "Check for Updates", bundle: languageManager.localizedBundle),
+                          systemImage: "arrow.triangle.2.circlepath")
+                }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Sidebar User Row
+
+    #if REQUIRE_LOGIN
+    /// Avatar + nickname + membership badge + 企业版 upgrade button.
+    /// Hidden when login is not required (open-source builds).
+    private var sidebarUserRow: some View {
+        HStack(spacing: 6) {
+            if case .loggedIn(let nickname) = authManager.state {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.green)
+                Text(nickname)
+                    .font(.caption)
+                    .lineLimit(1)
+                if let membership = membershipManager.membership {
+                    Text("[\(membership.level.displayName)]")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(membershipBadgeColor(membership.level))
+                }
+                Spacer()
+                if let membership = membershipManager.membership, membership.level != .max {
+                    Button {
+                        var urlString = "\(AuthConfig.baseURL)/pricing"
+                        var params: [String] = []
+                        if let token = authManager.accessToken {
+                            params.append("token=\(token)")
+                        }
+                        if let uid = authManager.userId {
+                            params.append("user_id=\(uid)")
+                        }
+                        if !params.isEmpty {
+                            urlString += "?" + params.joined(separator: "&")
+                        }
+                        if let url = URL(string: urlString) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        Label("Enterprise", systemImage: "crown.fill")
+                            .font(.system(size: 9, weight: .medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.orange.opacity(0.15))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.orange)
+                }
+            } else {
+                Image(systemName: "person.crop.circle.badge.questionmark")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+                Text("Not Logged In")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button("Log In") {
+                    authManager.login()
+                }
+                .font(.caption2)
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+    }
+    #endif
+
+    // MARK: - Sidebar Main List (the new unified list)
+
+    /// Replaces the old 3-mode picker. All navigation lives here as one List
+    /// with sections — main nav, recent sessions, system status, settings.
+    private var sidebarMainList: some View {
+        List(selection: $selectedTab) {
+            // ─── Main Nav ───
+            Section {
+                Label(String(localized: "Chat", bundle: languageManager.localizedBundle),
+                      systemImage: "message.fill")
+                    .tag(DashboardViewModel.DashboardTab.chat)
+                Label(String(localized: "Agent", bundle: languageManager.localizedBundle),
+                      systemImage: "person.text.rectangle")
+                    .tag(DashboardViewModel.DashboardTab.persona)
+                Label(String(localized: "Multi-Agent", bundle: languageManager.localizedBundle),
+                      systemImage: "person.3.fill")
+                    .tag(DashboardViewModel.DashboardTab.subAgents)
+                Label(String(localized: "Marketplace", bundle: languageManager.localizedBundle),
+                      systemImage: "storefront")
+                    .tag(DashboardViewModel.DashboardTab.market)
+                Label(String(localized: "Tasks/Logs", bundle: languageManager.localizedBundle),
+                      systemImage: "checklist")
+                    .tag(DashboardViewModel.DashboardTab.tasksLogs)
+            }
+
+            // ─── Recent Sessions ───
+            Section {
+                sessionsSectionContent
+            } header: {
+                HStack {
+                    Text("Recent Sessions")
+                    Spacer()
+                    Button {
+                        viewModel.createNewSession()
+                        selectedTab = .chat
+                    } label: {
+                        HStack(spacing: 2) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 9))
+                            Text("New Session")
+                        }
+                        .font(.system(size: 11))
+                        .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // ─── System ───
+            Section("System") {
+                Label {
+                    HStack {
+                        Text("Service Status")
+                        Spacer()
+                        Text(viewModel.openclawService.status == .running ? "Running" : "Stopped")
+                            .font(.caption)
+                            .foregroundColor(viewModel.openclawService.status == .running ? .green : .secondary)
+                    }
+                } icon: {
+                    Circle()
+                        .fill(viewModel.openclawService.status == .running ? Color.green : Color.secondary)
+                        .frame(width: 8, height: 8)
+                }
+                .tag(DashboardViewModel.DashboardTab.status)
+                Label("Budget", systemImage: "dollarsign.gauge.chart.lefthalf.righthalf")
+                    .tag(DashboardViewModel.DashboardTab.budget)
+                #if REQUIRE_LOGIN
+                Label("Billing", systemImage: "creditcard.fill")
+                    .tag(DashboardViewModel.DashboardTab.billing)
+                #endif
+            }
+
+            // ─── Settings & Support ───
+            Section("Settings & Support") {
+                Label("Configuration", systemImage: "gearshape")
+                    .tag(DashboardViewModel.DashboardTab.config)
+
+                Button {
+                    HelpAssistantWindowController.shared.showWindow(dashboardViewModel: viewModel)
+                } label: {
+                    Label("Help Center", systemImage: "questionmark.circle")
+                }
+                .buttonStyle(.plain)
+
+                #if REQUIRE_LOGIN
+                if case .loggedIn = authManager.state {
+                    Button {
+                        authManager.logout()
+                    } label: {
+                        Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+                #endif
+            }
+        }
+        .listStyle(.sidebar)
+    }
+
+    // MARK: - Sessions Section Content (extracted so it stays readable)
+
+    @ViewBuilder
+    private var sessionsSectionContent: some View {
+        let agentSessions = viewModel.sessionsByAgent[viewModel.selectedAgentId] ?? []
+        let activeId = viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId]
+        let filteredSessions = sessionSearchText.isEmpty
+            ? agentSessions
+            : agentSessions.filter {
+                $0.title.localizedCaseInsensitiveContains(sessionSearchText)
+            }
+
+        // Inline search field — only shown when there's any history
+        if !agentSessions.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                TextField("Search", text: $sessionSearchText)
+                    .textFieldStyle(.plain)
+                if !sessionSearchText.isEmpty {
+                    Button {
+                        sessionSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .listRowSeparator(.hidden)
+        }
+
+        if agentSessions.isEmpty {
+            Text("No sessions yet")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .listRowSeparator(.hidden)
+        } else if filteredSessions.isEmpty {
+            Text("No matches")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .listRowSeparator(.hidden)
+        } else {
+            ForEach(filteredSessions) { meta in
+                Button {
+                    viewModel.switchSession(to: meta.id)
+                    selectedTab = .chat
+                } label: {
+                    ChatSessionRow(meta: meta, isActive: activeId == meta.id)
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        sessionRenameId = meta.id
+                        sessionRenameDraft = meta.title
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+                    Button {
+                        viewModel.togglePinSession(meta.id)
+                    } label: {
+                        Label(meta.isPinned ? "Unpin" : "Pin",
+                              systemImage: meta.isPinned ? "pin.slash" : "pin")
+                    }
+                    Button {
+                        viewModel.exportSession(meta.id)
+                    } label: {
+                        Label("Export…", systemImage: "square.and.arrow.up")
+                    }
+                    Divider()
+                    Button {
+                        viewModel.archiveSession(meta.id)
+                    } label: {
+                        Label("Archive", systemImage: "archivebox")
+                    }
+                    Button(role: .destructive) {
+                        sessionDeleteId = meta.id
+                    } label: {
+                        Label("Delete…", systemImage: "trash")
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Sidebar Bottom Bar (version + theme toggle)
+
+    private var sidebarBottomBar: some View {
+        HStack(spacing: 8) {
+            // Version + update badge (small inline)
+            HStack(spacing: 4) {
+                Text("v\(sparkleUpdater.currentVersion)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                if sparkleUpdater.updateAvailable {
+                    Button {
+                        sparkleUpdater.checkForUpdates()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.green)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Update available: v\(sparkleUpdater.latestVersion)")
+                }
+            }
+            Spacer()
+            Button {
+                appAppearance = isDark ? "light" : "dark"
+            } label: {
+                Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(isDark ? "Switch to Light Mode" : "Switch to Dark Mode")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - (legacy — kept for compile only; no longer referenced) Management List
 
     private var managementList: some View {
         List(selection: $selectedTab) {
@@ -411,45 +535,39 @@ struct SidebarView: View {
                         $0.title.localizedCaseInsensitiveContains(sessionSearchText)
                     }
 
-                // Search field — only show when there's something to search.
-                // Hides itself when the agent has zero sessions to keep the
-                // sidebar minimal in the empty state.
+                // Search field — visually a plain inline TextField, only
+                // shown once the agent has any history (no point offering
+                // search over an empty set). The leading magnifyingglass
+                // and trailing clear button mimic NSSearchField conventions.
                 if !agentSessions.isEmpty {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundColor(.secondary)
                         TextField("Search", text: $sessionSearchText)
                             .textFieldStyle(.plain)
-                            .font(.system(size: 12))
                         if !sessionSearchText.isEmpty {
                             Button {
                                 sessionSearchText = ""
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 10))
+                                    .font(.system(size: 11))
                                     .foregroundColor(.secondary)
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
                     .listRowSeparator(.hidden)
                 }
 
                 if agentSessions.isEmpty {
                     Text("No sessions yet")
-                        .font(.caption2)
+                        .font(.callout)
                         .foregroundColor(.secondary)
                         .listRowSeparator(.hidden)
                 } else if filteredSessions.isEmpty {
-                    Text("No matches for \"\(sessionSearchText)\"")
-                        .font(.caption2)
+                    Text("No matches")
+                        .font(.callout)
                         .foregroundColor(.secondary)
                         .listRowSeparator(.hidden)
                 } else {
@@ -499,7 +617,6 @@ struct SidebarView: View {
                     selectedTab = .chat
                 } label: {
                     Label("New Session", systemImage: "plus.circle")
-                        .font(.caption)
                         .foregroundColor(.accentColor)
                 }
                 .buttonStyle(.plain)
@@ -961,23 +1078,51 @@ struct DetailContentView: View {
 
     private var mainContent: some View {
         ZStack {
-            // ChatView stays alive — hidden when not active to preserve WKWebView instances
-            let showChat = (viewModel.sidebarMode == .teams)
-                || (viewModel.sidebarMode == .config && viewModel.selectedTab == .chat)
-            ChatView(viewModel: viewModel, hideAgentPicker: viewModel.sidebarMode == .teams)
+            // ChatView stays alive — hidden when not active to preserve WKWebView instances.
+            // sidebarMode is being phased out; selectedTab == .chat is the canonical signal now.
+            let showChat = viewModel.selectedTab == .chat
+            ChatView(viewModel: viewModel, hideAgentPicker: false)
                 .opacity(showChat ? 1 : 0)
                 .allowsHitTesting(showChat)
 
             if !showChat {
                 Group {
-                    if viewModel.sidebarMode == .market {
+                    switch viewModel.selectedTab {
+                    case .chat:
+                        EmptyView()
+                    case .status:
+                        StatusTabView(viewModel: viewModel)
+                    case .budget:
+                        BudgetTabView(viewModel: viewModel)
+                    case .billing:
+                        #if REQUIRE_LOGIN
+                        if let mm = viewModel.membershipManager {
+                            BillingTabView(viewModel: viewModel, membershipManager: mm)
+                        } else {
+                            Text("Please log in to view billing.")
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        #else
+                        Text("Billing is not available in this build.")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        #endif
+                    case .persona:
+                        PersonaTabView()
+                    case .subAgents:
+                        SubAgentsTabView(openclawService: viewModel.openclawService)
+                    case .market:
+                        // Marketplace lives in the main content area now (was a
+                        // sidebar mode). Detail view replaces overview when an
+                        // agent is selected; back arrow clears selection.
                         if let agent = viewModel.selectedMarketplaceAgent {
                             MarketplaceDetailView(
                                 agent: agent,
                                 openclawService: viewModel.openclawService,
                                 onInstalled: { agentId in
                                     viewModel.loadAvailableAgents()
-                                    viewModel.sidebarMode = .teams
+                                    viewModel.selectedTab = .chat
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                         viewModel.selectedAgentId = agentId
                                     }
@@ -992,47 +1137,22 @@ struct DetailContentView: View {
                                 viewModel.selectedMarketplaceAgent = agent
                             })
                         }
-                    } else {
-                        switch viewModel.selectedTab {
-                        case .chat:
-                            EmptyView()
-                        case .status:
-                            StatusTabView(viewModel: viewModel)
-                        case .budget:
-                            BudgetTabView(viewModel: viewModel)
-                        case .billing:
-                            #if REQUIRE_LOGIN
-                            if let mm = viewModel.membershipManager {
-                                BillingTabView(viewModel: viewModel, membershipManager: mm)
-                            } else {
-                                Text("Please log in to view billing.")
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
-                            #else
-                            Text("Billing is not available in this build.")
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            #endif
-                        case .persona:
-                            PersonaTabView()
-                        case .subAgents:
-                            SubAgentsTabView(openclawService: viewModel.openclawService)
-                        case .config:
-                            ConfigTabView(viewModel: viewModel)
-                        case .skills:
-                            SkillsTabView(viewModel: viewModel)
-                        case .models:
-                            ModelsTabView(viewModel: viewModel)
-                        case .channels:
-                            ChannelsTabView(viewModel: viewModel)
-                        case .plugins:
-                            PluginsTabView(viewModel: viewModel)
-                        case .cron:
-                            CronTabView(viewModel: viewModel)
-                        case .logs:
-                            LogsTabView(viewModel: viewModel)
-                        }
+                    case .tasksLogs:
+                        TasksLogsTabView(viewModel: viewModel)
+                    case .config:
+                        ConfigTabView(viewModel: viewModel)
+                    case .skills:
+                        SkillsTabView(viewModel: viewModel)
+                    case .models:
+                        ModelsTabView(viewModel: viewModel)
+                    case .channels:
+                        ChannelsTabView(viewModel: viewModel)
+                    case .plugins:
+                        PluginsTabView(viewModel: viewModel)
+                    case .cron:
+                        CronTabView(viewModel: viewModel)
+                    case .logs:
+                        LogsTabView(viewModel: viewModel)
                     }
                 }
             }
@@ -6533,6 +6653,46 @@ private struct TerminalDragHandle: View {
     }
 }
 
+// MARK: - Tasks / Logs Combined Tab
+
+/// Wraps Cron + Logs behind one sidebar entry "任务/执行记录". A segmented
+/// picker on top swaps which inner view is active so users don't have to
+/// hunt across two separate sidebar items.
+struct TasksLogsTabView: View {
+    @ObservedObject var viewModel: DashboardViewModel
+
+    enum SubTab: String, CaseIterable {
+        case tasks  // maps to CronTabView
+        case logs   // maps to LogsTabView
+    }
+    @State private var subTab: SubTab = .tasks
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $subTab) {
+                Text(String(localized: "Tasks", bundle: LanguageManager.shared.localizedBundle))
+                    .tag(SubTab.tasks)
+                Text(String(localized: "Logs", bundle: LanguageManager.shared.localizedBundle))
+                    .tag(SubTab.logs)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            Divider()
+
+            switch subTab {
+            case .tasks:
+                CronTabView(viewModel: viewModel)
+            case .logs:
+                LogsTabView(viewModel: viewModel)
+            }
+        }
+    }
+}
+
 // MARK: - Chat Session Row (sidebar)
 
 /// Single row inside the Sessions sidebar section. Renders the title, an
@@ -6543,29 +6703,22 @@ struct ChatSessionRow: View {
     let isActive: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            if meta.isPinned {
-                Image(systemName: "pin.fill")
-                    .font(.system(size: 9))
-                    .foregroundColor(.orange)
-            } else {
-                // Reserve space so titles align between pinned and unpinned rows.
-                Spacer().frame(width: 9)
-            }
+        HStack(spacing: 8) {
+            // Use bubble icon to thematically match the "Chat" Label above,
+            // but subtler color so it doesn't compete for attention.
+            Image(systemName: meta.isPinned ? "pin.fill" : "bubble.left")
+                .font(.system(size: 11))
+                .foregroundColor(meta.isPinned ? .orange : .secondary)
+                .frame(width: 14, alignment: .center)
+
             Text(meta.title.isEmpty ? "新会话" : meta.title)
-                .font(.system(size: 12))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundColor(isActive ? .accentColor : .primary)
-            Spacer()
+                .fontWeight(isActive ? .medium : .regular)
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 2)
-        .padding(.horizontal, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(isActive ? Color.accentColor.opacity(0.15) : Color.clear)
-        )
-        .help("\(meta.messageCount) messages · \(Self.relativeTime(meta.updatedAt))")
+        .help("\(meta.messageCount) · \(Self.relativeTime(meta.updatedAt))")
     }
 
     private static func relativeTime(_ date: Date) -> String {
