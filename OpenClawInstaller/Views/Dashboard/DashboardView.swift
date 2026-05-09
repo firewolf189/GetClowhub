@@ -75,6 +75,13 @@ struct SidebarView: View {
     @StateObject private var createAgentVM: SubAgentsViewModel
     @State private var deleteAgentConfirmId: String?
 
+    // Chat session management state
+    // (rename + delete need a sheet/alert at the sidebar level; pin/archive/
+    //  export are fire-and-forget so they don't need any state at all)
+    @State private var sessionRenameId: UUID?
+    @State private var sessionRenameDraft: String = ""
+    @State private var sessionDeleteId: UUID?
+
     // Marketplace state
     @State private var marketplaceSearchText = ""
     @State private var expandedDivisions: Set<String> = []
@@ -326,6 +333,45 @@ struct SidebarView: View {
             .padding(.horizontal, 16)
         }
         .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 280)
+        // Chat session rename — bound to sessionRenameId; clearing it dismisses
+        .alert("Rename Session",
+               isPresented: Binding(
+                   get: { sessionRenameId != nil },
+                   set: { if !$0 { sessionRenameId = nil } }
+               ),
+               actions: {
+                   TextField("Session name", text: $sessionRenameDraft)
+                   Button("Save") {
+                       if let id = sessionRenameId {
+                           viewModel.renameSession(id, to: sessionRenameDraft)
+                       }
+                       sessionRenameId = nil
+                   }
+                   Button("Cancel", role: .cancel) {
+                       sessionRenameId = nil
+                   }
+               })
+        // Delete confirmation — destructive action so we always require confirm
+        .confirmationDialog(
+            "Delete this session?",
+            isPresented: Binding(
+                get: { sessionDeleteId != nil },
+                set: { if !$0 { sessionDeleteId = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let id = sessionDeleteId {
+                    viewModel.deleteSession(id)
+                }
+                sessionDeleteId = nil
+            }
+            Button("Cancel", role: .cancel) {
+                sessionDeleteId = nil
+            }
+        } message: {
+            Text("Messages in this session will be permanently removed. This cannot be undone.")
+        }
     }
 
     #if REQUIRE_LOGIN
@@ -369,6 +415,36 @@ struct SidebarView: View {
                             ChatSessionRow(meta: meta, isActive: activeId == meta.id)
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                sessionRenameId = meta.id
+                                sessionRenameDraft = meta.title
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            Button {
+                                viewModel.togglePinSession(meta.id)
+                            } label: {
+                                Label(meta.isPinned ? "Unpin" : "Pin",
+                                      systemImage: meta.isPinned ? "pin.slash" : "pin")
+                            }
+                            Button {
+                                viewModel.exportSession(meta.id)
+                            } label: {
+                                Label("Export…", systemImage: "square.and.arrow.up")
+                            }
+                            Divider()
+                            Button {
+                                viewModel.archiveSession(meta.id)
+                            } label: {
+                                Label("Archive", systemImage: "archivebox")
+                            }
+                            Button(role: .destructive) {
+                                sessionDeleteId = meta.id
+                            } label: {
+                                Label("Delete…", systemImage: "trash")
+                            }
+                        }
                     }
                 }
 

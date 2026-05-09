@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import os.log
 
 private let chatLog = Logger(subsystem: "com.openclaw.installer", category: "Chat")
@@ -920,6 +921,106 @@ class DashboardViewModel: ObservableObject {
         selectedSessionIdByAgent[agentId] = sessionId
         chatMessagesByAgent[agentId] = target.messages
         rebuildSessionsMirror()
+    }
+
+    /// Update the title of a stored session. Empty / whitespace-only strings
+    /// are ignored so we never end up with an unreadable row.
+    func renameSession(_ sessionId: UUID, to newTitle: String) {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              var session = chatSessionStore.loadSession(id: sessionId) else { return }
+        session.title = trimmed
+        session.updatedAt = Date()
+        chatSessionStore.saveSession(session)
+        rebuildSessionsMirror()
+    }
+
+    /// Permanently remove a session (file + index entry). If we're deleting
+    /// the active session, automatically promote the next-newest session, or
+    /// mint an empty one if none remain — never leave the chat view broken.
+    func deleteSession(_ sessionId: UUID) {
+        let agentId = selectedAgentId
+        let wasActive = selectedSessionIdByAgent[agentId] == sessionId
+        chatSessionStore.deleteSession(id: sessionId)
+        if wasActive {
+            promoteNextSession(forAgent: agentId)
+        }
+        rebuildSessionsMirror()
+    }
+
+    /// Toggle pinned state. Pinned sessions float to the top of the sidebar
+    /// list regardless of recency.
+    func togglePinSession(_ sessionId: UUID) {
+        guard var session = chatSessionStore.loadSession(id: sessionId) else { return }
+        session.isPinned.toggle()
+        session.updatedAt = Date()
+        chatSessionStore.saveSession(session)
+        rebuildSessionsMirror()
+    }
+
+    /// Mark a session as archived. Archived sessions stay on disk but are
+    /// hidden from the default sidebar list. Active session promotion is the
+    /// same as delete — we don't want to leave the user staring at a row
+    /// that was just hidden.
+    func archiveSession(_ sessionId: UUID) {
+        let agentId = selectedAgentId
+        let wasActive = selectedSessionIdByAgent[agentId] == sessionId
+        guard var session = chatSessionStore.loadSession(id: sessionId) else { return }
+        session.isArchived = true
+        session.updatedAt = Date()
+        chatSessionStore.saveSession(session)
+        if wasActive {
+            promoteNextSession(forAgent: agentId)
+        }
+        rebuildSessionsMirror()
+    }
+
+    /// Export a session to Markdown via NSSavePanel. The file uses the
+    /// session title as the default name.
+    func exportSession(_ sessionId: UUID) {
+        guard let session = chatSessionStore.loadSession(id: sessionId) else { return }
+        let markdown = Self.sessionMarkdown(session)
+        let panel = NSSavePanel()
+        panel.title = "Export Chat Session"
+        panel.nameFieldStringValue = "\(session.title.replacingOccurrences(of: "/", with: "_")).md"
+        panel.allowedContentTypes = [.plainText]
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            try? markdown.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// After delete/archive of the active session, pick a successor from the
+    /// remaining list, or mint a new empty session when nothing's left.
+    private func promoteNextSession(forAgent agentId: String) {
+        if let next = chatSessionStore.sessions(forAgent: agentId).first {
+            selectedSessionIdByAgent[agentId] = next.id
+            if let loaded = chatSessionStore.loadSession(id: next.id) {
+                chatMessagesByAgent[agentId] = loaded.messages
+            }
+        } else {
+            // No surviving sessions — mint a fresh empty one. Inline the
+            // create logic rather than calling createNewSession() because
+            // the latter would call flushActiveSession on the just-deleted
+            // session id and create a stray file.
+            let new = ChatSession(agentId: agentId)
+            chatSessionStore.saveSession(new)
+            selectedSessionIdByAgent[agentId] = new.id
+            chatMessagesByAgent[agentId] = []
+        }
+    }
+
+    private static func sessionMarkdown(_ s: ChatSession) -> String {
+        let df = ISO8601DateFormatter()
+        var out = "# \(s.title)\n\n"
+        out += "_Created: \(df.string(from: s.createdAt))_  \n"
+        out += "_Updated: \(df.string(from: s.updatedAt))_\n\n"
+        out += "---\n\n"
+        for m in s.messages {
+            let role = m.role == .user ? "**User**" : "**Assistant**"
+            out += "\(role):\n\n\(m.content)\n\n---\n\n"
+        }
+        return out
     }
 
     /// Mint a fresh empty session for the current agent and switch to it.
