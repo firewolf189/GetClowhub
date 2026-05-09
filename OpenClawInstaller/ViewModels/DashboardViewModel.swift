@@ -178,6 +178,24 @@ class DashboardViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // ─── Chat session persistence ───
+        // 1. Build the metadata mirror from disk so the sidebar can render
+        //    history immediately, before the user ever opens chat.
+        rebuildSessionsMirror()
+        // 2. For every agent that already has stored sessions, restore the
+        //    most-recent one into chatMessagesByAgent so reopening chat shows
+        //    the previous conversation rather than an empty state.
+        restoreActiveSessionsFromStore()
+        // 3. Watch chatMessagesByAgent and persist the in-memory view back to
+        //    the active session on disk — debounced so a streamed assistant
+        //    reply collapses into one disk write.
+        $chatMessagesByAgent
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [weak self] dict in
+                self?.persistChangedSessions(from: dict)
+            }
+            .store(in: &cancellables)
     }
 
     deinit {
@@ -805,6 +823,112 @@ class DashboardViewModel: ObservableObject {
     var chatMessages: [ChatMessage] {
         get { chatMessagesByAgent[selectedAgentId] ?? [] }
         set { chatMessagesByAgent[selectedAgentId] = newValue }
+    }
+
+    // MARK: - Chat Session Persistence
+    //
+    // M1 of the chat-history feature: persist every per-agent conversation to
+    // disk so it survives app restart, and surface session metadata to the
+    // sidebar (M2 will render it). The "active" session is always the most
+    // recent one per agent — multi-session UX comes in later milestones.
+    //
+    // chatMessagesByAgent stays the live source of truth for the chat view;
+    // we mirror its changes (debounced) into the active ChatSession on disk.
+    let chatSessionStore = ChatSessionStore()
+    /// Per-agent metadata of every session, sorted (pinned first, then newest).
+    /// Filtered to exclude archived sessions; archived ones live in the store.
+    @Published var sessionsByAgent: [String: [ChatSessionMetadata]] = [:]
+    /// The currently visible session for each agent. Switching this swaps
+    /// chatMessagesByAgent[agentId] to the loaded session's messages.
+    @Published var selectedSessionIdByAgent: [String: UUID] = [:]
+
+    /// Refresh `sessionsByAgent` from the store's index. Pinned-first then
+    /// newest-first within each agent. Archived sessions are excluded so the
+    /// sidebar list stays clean; the underlying file remains on disk.
+    func rebuildSessionsMirror() {
+        var grouped: [String: [ChatSessionMetadata]] = [:]
+        for meta in chatSessionStore.index where !meta.isArchived {
+            grouped[meta.agentId, default: []].append(meta)
+        }
+        for key in grouped.keys {
+            grouped[key]?.sort { lhs, rhs in
+                if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
+                return lhs.updatedAt > rhs.updatedAt
+            }
+        }
+        sessionsByAgent = grouped
+    }
+
+    /// On launch, for every agent with stored history, load the newest session
+    /// and seed chatMessagesByAgent with its messages. Without this, the chat
+    /// view would render empty until the user types something even though
+    /// their previous conversation is sitting on disk.
+    private func restoreActiveSessionsFromStore() {
+        for (agentId, metas) in sessionsByAgent {
+            guard let mostRecent = metas.first,
+                  let session = chatSessionStore.loadSession(id: mostRecent.id) else {
+                continue
+            }
+            selectedSessionIdByAgent[agentId] = session.id
+            chatMessagesByAgent[agentId] = session.messages
+        }
+    }
+
+    /// Mirror every agent's in-memory messages back to its active session on
+    /// disk. Called from a debounced sink, so token-by-token streaming
+    /// produces one write per ~500ms idle window. Lazily creates a session
+    /// the first time an agent gets a message.
+    private func persistChangedSessions(from dict: [String: [ChatMessage]]) {
+        for (agentId, messages) in dict where !messages.isEmpty {
+            let sessionId = ensureActiveSessionId(forAgent: agentId, seedMessages: messages)
+            // Build the session we want on disk — start from the loaded copy
+            // (preserves pin/archive state) and overwrite mutable fields.
+            var session = chatSessionStore.loadSession(id: sessionId)
+                ?? ChatSession(id: sessionId, agentId: agentId, messages: messages)
+
+            // Cheap equality check: same count + same trailing message id ⇒
+            // nothing new to persist (e.g. unrelated agent's dict mutation
+            // re-fired the publisher).
+            if session.messages.count == messages.count,
+               session.messages.last?.id == messages.last?.id,
+               !session.title.isEmpty {
+                continue
+            }
+
+            session.messages = messages
+            session.updatedAt = Date()
+            // Auto-derive title once, only while still on the placeholder.
+            if session.title == ChatSession.defaultTitle {
+                session.title = ChatSession.deriveTitle(from: messages)
+            }
+            chatSessionStore.saveSessionDebounced(session)
+        }
+        // Even if no messages changed, the index may have new metadata
+        // (titles, message counts) — rebuild the published mirror.
+        rebuildSessionsMirror()
+    }
+
+    /// Return the active session id for `agentId`, creating one if needed.
+    /// `seedMessages` is the current in-memory thread; used to derive a title
+    /// if we have to mint a fresh session.
+    @discardableResult
+    private func ensureActiveSessionId(forAgent agentId: String, seedMessages: [ChatMessage] = []) -> UUID {
+        if let existing = selectedSessionIdByAgent[agentId] {
+            return existing
+        }
+        // Reuse the newest non-archived session for this agent if one exists
+        // (e.g. the picker pointed at a known agent but selection wasn't seeded).
+        if let recent = chatSessionStore.sessions(forAgent: agentId).first {
+            selectedSessionIdByAgent[agentId] = recent.id
+            return recent.id
+        }
+        // Mint a new session and persist it immediately so subsequent
+        // lookups see it in the index.
+        let title = ChatSession.deriveTitle(from: seedMessages)
+        let new = ChatSession(agentId: agentId, title: title, messages: seedMessages)
+        chatSessionStore.saveSession(new)
+        selectedSessionIdByAgent[agentId] = new.id
+        return new.id
     }
     @Published var isSendingMessage = false  // true when any foreground task is active
     @Published var foregroundTaskIds: Set<UUID> = []  // message IDs of foreground (blocking) tasks
@@ -3243,7 +3367,7 @@ struct ModelInfo: Identifiable {
 
 // MARK: - Chat Message
 
-struct ChatMessage: Identifiable {
+struct ChatMessage: Identifiable, Codable {
     let id: UUID
     let role: ChatRole
     let content: String
@@ -3264,12 +3388,12 @@ struct ChatMessage: Identifiable {
         self.scrollTargetId = scrollTargetId
     }
 
-    enum ChatRole {
+    enum ChatRole: String, Codable {
         case user
         case assistant
     }
 
-    enum TaskStatus {
+    enum TaskStatus: String, Codable {
         case loading      // Foreground: waiting for result
         case background   // Moved to background, still running
         case completed    // Done

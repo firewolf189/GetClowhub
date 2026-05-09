@@ -66,6 +66,8 @@
 		WYQ78GRPE6YHXSKIQXOTVMP7 /* BillingTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */; };
 		BD01AA05B1C2D3E4F5A60005 /* BudgetTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */; };
 		GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */; };
+		CS01AA01D1E2F3A4B5C60001 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */; };
+		CS01AA03D1E2F3A4B5C60003 /* ChatSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */; };
 		MB01AC01D3E4F5A6B7C80001 /* MembershipManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */; };
 		MP01AD02E4F5A6B7C8D90002 /* MarketplaceAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */; };
 		MP01AD04E4F5A6B7C8D90004 /* MarketplaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */; };
@@ -134,6 +136,8 @@
 		IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingTabView.swift; sourceTree = "<group>"; };
 		BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTabView.swift; sourceTree = "<group>"; };
 		GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
+		CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
+		CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionStore.swift; sourceTree = "<group>"; };
 		MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipManager.swift; sourceTree = "<group>"; };
 		MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceAgent.swift; sourceTree = "<group>"; };
 		MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceDetailView.swift; sourceTree = "<group>"; };
@@ -195,6 +199,7 @@
 				MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */,
 				3564106E2F5802970045A6F7 /* ProviderPreset.swift */,
 				356410252F5802970045A6F7 /* SystemEnvironment.swift */,
+				CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -213,6 +218,7 @@
 				356410282F5802970045A6F7 /* CommandExecutor.swift */,
 				356410292F5802970045A6F7 /* DiagnosticService.swift */,
 				GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */,
+				CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */,
 				356410782F5802970045A6F7 /* LanguageManager.swift */,
 				3564102A2F5802970045A6F7 /* NodeInstaller.swift */,
 				3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */,
@@ -469,6 +475,8 @@
 				C011AB03A1B2C3D4E5F60003 /* CollabViewModel.swift in Sources */,
 				C011AB05A1B2C3D4E5F60005 /* CollabWindow.swift in Sources */,
 				GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */,
+				CS01AA01D1E2F3A4B5C60001 /* ChatSession.swift in Sources */,
+				CS01AA03D1E2F3A4B5C60003 /* ChatSessionStore.swift in Sources */,
 				MB01AC01D3E4F5A6B7C80001 /* MembershipManager.swift in Sources */,
 				MP01AD02E4F5A6B7C8D90002 /* MarketplaceAgent.swift in Sources */,
 				MP01AD04E4F5A6B7C8D90004 /* MarketplaceDetailView.swift in Sources */,
