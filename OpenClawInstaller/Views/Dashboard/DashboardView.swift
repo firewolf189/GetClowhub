@@ -1547,45 +1547,10 @@ struct ChatView: View {
                             }
                         }
 
-                    // Floating scroll buttons
-                    if !viewModel.chatMessages.isEmpty {
-                        VStack(spacing: 8) {
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    proxy.scrollTo("chatTop", anchor: .top)
-                                }
-                            } label: {
-                                Image(systemName: "chevron.up")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.secondary)
-                                    .frame(width: 28, height: 28)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(Circle())
-                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                            }
-                            .buttonStyle(.plain)
-                            .help(String(localized: "Scroll to top"))
-
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    proxy.scrollTo("chatBottom", anchor: .bottom)
-                                }
-                                shouldAutoScroll = true
-                            } label: {
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.secondary)
-                                    .frame(width: 28, height: 28)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(Circle())
-                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                            }
-                            .buttonStyle(.plain)
-                            .help(String(localized: "Scroll to bottom"))
-                        }
-                        .padding(.trailing, 12)
-                        .padding(.bottom, 12)
-                    }
+                    // Floating scroll-to-top/bottom buttons removed —
+                    // trackpad / scroll-wheel + standard Cmd+Up / Cmd+Down
+                    // are sufficient, and the floating chevrons added
+                    // visual noise without much gain.
                 }
             }
             .id("chatScrollView")
@@ -6870,49 +6835,38 @@ struct SessionDetailsPanel: View {
     }
 
     private var modelRow: some View {
-        // Use a Menu so the row is itself the picker — clicking anywhere on
-        // it surfaces the model list. Selecting writes back via
-        // updateAgentModel which patches openclaw.json and reloads agents.
-        Menu {
-            if viewModel.availableModelsForSettings.isEmpty {
-                Text("Loading models…")
-            } else {
-                ForEach(viewModel.availableModelsForSettings) { m in
-                    Button {
-                        viewModel.updateAgentModel(model: m.id)
-                    } label: {
-                        HStack {
-                            Text(m.name)
-                            if m.id == currentAgentModel {
-                                Image(systemName: "checkmark")
-                            }
-                        }
+        // Use a native Picker — gives a built-in popup-button affordance
+        // (chevron + bordered control) so users instantly recognize the row
+        // as selectable. Setter routes through updateAgentModel so the
+        // change is persisted to openclaw.json + agents reloaded.
+        HStack(spacing: 6) {
+            Image(systemName: "cube.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.accentColor)
+            Picker("", selection: Binding(
+                get: { currentAgentModel },
+                set: { newValue in
+                    if newValue != currentAgentModel {
+                        viewModel.updateAgentModel(model: newValue)
                     }
                 }
+            )) {
+                // Always include current selection so the Picker can render
+                // even when the active model isn't in the available list yet.
+                if !viewModel.availableModelsForSettings.contains(where: { $0.id == currentAgentModel }) {
+                    Text(currentAgentModel.isEmpty ? "—" : currentAgentModel)
+                        .tag(currentAgentModel)
+                }
+                ForEach(viewModel.availableModelsForSettings) { m in
+                    Text(m.name).tag(m.id)
+                }
             }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "cube.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(.accentColor)
-                Text(currentAgentModel.isEmpty ? "—" : currentAgentModel)
-                    .font(.system(size: 13))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer()
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-            }
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(NSColor.controlBackgroundColor))
-            )
+            .labelsHidden()
+            .controlSize(.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
     }
 
     /// Mock tool list. Until we wire to real skill / plugin enablement state,
