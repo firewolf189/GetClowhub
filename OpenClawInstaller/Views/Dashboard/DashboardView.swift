@@ -268,21 +268,8 @@ struct SidebarView: View {
                     .buttonStyle(.plain)
                     .foregroundColor(.orange)
                 }
-                // Inline 退出 button — moved here from the deleted
-                // language/logout row so the user row matches the design.
-                Button {
-                    authManager.logout()
-                } label: {
-                    HStack(spacing: 2) {
-                        Image(systemName: "arrow.right.square")
-                            .font(.system(size: 10))
-                        Text("Log Out")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Log Out")
+                // Logout moved to the bottom toolbar per latest design;
+                // user row stays compact with just name + badge + upgrade.
             } else {
                 Image(systemName: "person.crop.circle.badge.questionmark")
                     .font(.system(size: 16))
@@ -475,73 +462,100 @@ struct SidebarView: View {
     // MARK: - Sidebar Bottom Bar (version + theme toggle)
 
     private var sidebarBottomBar: some View {
-        HStack(spacing: 8) {
-            // Brand + version block on the left
-            VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 4) {
+            // Top line — brand + version side by side
+            HStack(spacing: 8) {
                 Text("GetClawHub")
                     .font(.system(size: 11, weight: .semibold))
                 Text("v\(sparkleUpdater.currentVersion)")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
+                Spacer()
             }
 
-            // Update badge — green pill when an update is available, plain
-            // refresh button otherwise. Click to check / install.
-            if sparkleUpdater.updateAvailable {
-                Button {
-                    sparkleUpdater.checkForUpdates()
-                } label: {
-                    HStack(spacing: 2) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 10))
-                        Text("v\(sparkleUpdater.latestVersion)")
-                            .font(.system(size: 9))
+            // Bottom line — action buttons: 更新 / 帮助 / 退出 / theme
+            HStack(spacing: 14) {
+                // Update — pill goes green when an update is available
+                if sparkleUpdater.updateAvailable {
+                    Button {
+                        sparkleUpdater.checkForUpdates()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 10))
+                            Text("v\(sparkleUpdater.latestVersion)")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(.green)
                     }
-                    .foregroundColor(.green)
+                    .buttonStyle(.plain)
+                    .help("Update to v\(sparkleUpdater.latestVersion)")
+                } else {
+                    Button {
+                        Task { await sparkleUpdater.checkLatestVersion() }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10))
+                            Text(sparkleUpdater.checkSucceeded ? "Latest" : "Update")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(sparkleUpdater.checkSucceeded ? .green : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Check for Updates")
+                }
+
+                // Help center
+                Button {
+                    HelpAssistantWindowController.shared.showWindow(dashboardViewModel: viewModel)
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 10))
+                        Text("Help")
+                            .font(.system(size: 10))
+                    }
+                    .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Update to v\(sparkleUpdater.latestVersion)")
-            } else {
-                Button {
-                    Task { await sparkleUpdater.checkLatestVersion() }
-                } label: {
-                    HStack(spacing: 2) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 10))
-                        Text(sparkleUpdater.checkSucceeded ? "Latest" : "Update")
-                            .font(.system(size: 9))
+                .help("Help Assistant")
+
+                // Logout (only when logged in)
+                #if REQUIRE_LOGIN
+                if case .loggedIn = authManager.state {
+                    Button {
+                        authManager.logout()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.right.square")
+                                .font(.system(size: 10))
+                            Text("Log Out")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(.secondary)
                     }
-                    .foregroundColor(sparkleUpdater.checkSucceeded ? .green : .secondary)
+                    .buttonStyle(.plain)
+                    .help("Log Out")
+                }
+                #endif
+
+                Spacer()
+
+                // Theme toggle on the trailing edge (Q2=c)
+                Button {
+                    appAppearance = isDark ? "light" : "dark"
+                } label: {
+                    Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Check for Updates")
+                .help(isDark ? "Switch to Light Mode" : "Switch to Dark Mode")
             }
-
-            Spacer()
-
-            // Help + theme buttons
-            Button {
-                HelpAssistantWindowController.shared.showWindow(dashboardViewModel: viewModel)
-            } label: {
-                Image(systemName: "questionmark.circle")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Help Assistant")
-
-            Button {
-                appAppearance = isDark ? "light" : "dark"
-            } label: {
-                Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help(isDark ? "Switch to Light Mode" : "Switch to Dark Mode")
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
     }
 
     // MARK: - (legacy — kept for compile only; no longer referenced) Management List

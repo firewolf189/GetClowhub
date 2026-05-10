@@ -61865,13 +61865,29 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "会员升级"
+            "value": "升级"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "會員升級"
+            "value": "升級"
+          }
+        }
+      }
+    },
+    "Help": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "帮助"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幫助"
           }
         }
       }
