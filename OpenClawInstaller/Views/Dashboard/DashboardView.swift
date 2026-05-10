@@ -370,14 +370,16 @@ struct SidebarView: View {
                 #endif
             }
 
-            // ─── Agent: persona / multi-agent ─── (per latest mockup;
-            // Tasks/Logs and Settings are reachable from the chat header
-            // ⋯ menu — they don't earn a sidebar row in this redesign).
+            // ─── Agent: persona / multi-agent / tasks-logs / settings ───
             Section("Agent") {
                 Label("Persona", systemImage: "person.text.rectangle")
                     .tag(DashboardViewModel.DashboardTab.persona)
                 Label("Multi-Agent", systemImage: "person.3.fill")
                     .tag(DashboardViewModel.DashboardTab.subAgents)
+                Label("Tasks/Logs", systemImage: "checklist")
+                    .tag(DashboardViewModel.DashboardTab.tasksLogs)
+                Label("Settings", systemImage: "gearshape")
+                    .tag(DashboardViewModel.DashboardTab.config)
             }
         }
         .listStyle(.sidebar)
@@ -7196,10 +7198,7 @@ struct ChatHeaderBar: View {
             .controlSize(.small)
             .disabled(currentSessionId == nil)
 
-            // More menu — session shortcuts + entry points to Settings /
-            // Tasks-Logs (which were removed from the sidebar in the
-            // latest redesign). These need a reachable path or users
-            // get stuck.
+            // More menu — clear / new session shortcuts
             Menu {
                 Button {
                     viewModel.createNewSession()
@@ -7212,19 +7211,6 @@ struct ChatHeaderBar: View {
                     } label: {
                         Label("Export…", systemImage: "square.and.arrow.up")
                     }
-                }
-                Divider()
-                Button {
-                    viewModel.selectedTab = .tasksLogs
-                } label: {
-                    Label("Tasks/Logs", systemImage: "checklist")
-                }
-                Button {
-                    viewModel.selectedTab = .config
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
-                }
-                if currentSessionId != nil {
                     Divider()
                     Button(role: .destructive) {
                         viewModel.chatMessagesByAgent[viewModel.selectedAgentId] = []
