@@ -209,6 +209,7 @@ struct SidebarView: View {
                     .foregroundColor(.secondary)
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)  // suppress the auto chevron — we draw our own
             .fixedSize()
         }
         .padding(.horizontal, 16)
@@ -312,26 +313,20 @@ struct SidebarView: View {
             }
 
             // ─── Recent Sessions ───
-            Section {
-                sessionsSectionContent
-            } header: {
-                HStack {
-                    Text("Recent Sessions")
-                    Spacer()
-                    Button {
-                        viewModel.createNewSession()
-                        selectedTab = .chat
-                    } label: {
-                        HStack(spacing: 2) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 9))
-                            Text("New Session")
-                        }
-                        .font(.system(size: 11))
+            Section("Recent Sessions") {
+                // "+ New Session" is the first row of the section so it
+                // shares the standard list-row inset with everything below
+                // — keeps icons, titles, and timestamps perfectly aligned.
+                Button {
+                    viewModel.createNewSession()
+                    selectedTab = .chat
+                } label: {
+                    Label("New Session", systemImage: "plus.circle")
                         .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
+
+                sessionsSectionContent
             }
 
             // ─── System ───
