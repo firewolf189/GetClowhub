@@ -6712,10 +6712,10 @@ struct SessionDetailsPanel: View {
         .frame(width: 300)
         .background(Color(NSColor.windowBackgroundColor))
         .overlay(alignment: .leading) { Divider() }
-        // Pre-load the model list and overview once when the panel first
-        // appears. loadModelsForSettings populates the picker; loadModels
-        // populates modelOverview.defaultModel so the row renders the
-        // global default when the active agent has no per-agent override.
+        // Pre-load the model list, overview, and skills once when the panel
+        // first appears. loadModelsForSettings populates the picker;
+        // loadModels populates modelOverview.defaultModel; loadSkills
+        // populates the Tool Status list.
         .task {
             if viewModel.availableModelsForSettings.isEmpty {
                 await viewModel.loadModelsForSettings()
@@ -6723,6 +6723,9 @@ struct SessionDetailsPanel: View {
             if viewModel.modelOverview.defaultModel.isEmpty
                 || viewModel.modelOverview.defaultModel == "-" {
                 await viewModel.loadModels()
+            }
+            if viewModel.skills.isEmpty {
+                await viewModel.loadSkills()
             }
         }
     }
@@ -6883,18 +6886,14 @@ struct SessionDetailsPanel: View {
         .padding(.vertical, 6)
     }
 
-    /// Mock tool list. Until we wire to real skill / plugin enablement state,
-    /// these are illustrative — the design called for "X / Y enabled" so we
-    /// do show a count, but the items themselves are placeholders.
+    /// Tool Status — sourced from real `openclaw skills list` data via
+    /// viewModel.skills. Top 5 skills shown (sorted by status: ready first),
+    /// with a "view all" link below if the user has more than 5 — clicking
+    /// jumps to the Skills tab where the full list lives.
     private var toolStatusList: some View {
-        let mock = [
-            ("Web Search", true),
-            ("Code Interpreter", true),
-            ("File Analysis", true),
-            ("Image Generation", false),
-            ("Browser", false),
-        ]
-        let enabled = mock.filter { $0.1 }.count
+        let skills = viewModel.skills
+        let summary = viewModel.skillsSummary
+        let visible = Array(skills.prefix(5))
         return VStack(alignment: .leading, spacing: 6) {
             // Combined section header + count, matching the mockup's
             // single-line "Tool Status     X / Y enabled" presentation.
@@ -6902,32 +6901,63 @@ struct SessionDetailsPanel: View {
                 Text("Tool Status")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("\(enabled) / \(mock.count) enabled")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 4)
-            ForEach(mock, id: \.0) { name, on in
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(on ? Color.green : Color.secondary.opacity(0.4))
-                        .frame(width: 7, height: 7)
-                    // LocalizedStringKey(name) so the literal English keys
-                    // get translated via Localizable.xcstrings (Text(name)
-                    // alone treats `name` as a plain String and skips lookup).
-                    Text(LocalizedStringKey(name))
-                        .font(.system(size: 12))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9))
+                if summary.total > 0 {
+                    Text("\(summary.ready) / \(summary.total) enabled")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Loading…")
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
+            }
+            .padding(.top, 4)
+
+            if visible.isEmpty {
+                Text("No skills detected")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(visible) { skill in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(skill.status == .ready ? Color.green : Color.secondary.opacity(0.4))
+                            .frame(width: 7, height: 7)
+                        Text(skill.name)
+                            .font(.system(size: 12))
+                            .lineLimit(1)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
+                    .help(skill.description.isEmpty ? skill.name : skill.description)
+                }
+            }
+
+            if skills.count > visible.count {
+                Button {
+                    viewModel.selectedTab = .skills
+                } label: {
+                    HStack {
+                        Text("View all (\(skills.count))")
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 10))
+                            .foregroundColor(.accentColor)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
