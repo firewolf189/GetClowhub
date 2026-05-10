@@ -3199,20 +3199,24 @@ class DashboardViewModel: ObservableObject {
         let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
         let baseDir = NSString("~/.openclaw").expandingTildeInPath
 
-        guard let data = FileManager.default.contents(atPath: configPath),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let agentsSection = json["agents"] as? [String: Any],
-              let agentList = agentsSection["list"] as? [[String: Any]] else {
-            NSLog("[AgentSettings] loadSelectedAgentDetail: failed to read config")
-            return
-        }
-
-        guard let entry = agentList.first(where: { $0["id"] as? String == selectedAgentId }) else {
-            NSLog("[AgentSettings] loadSelectedAgentDetail: agent %@ not found", selectedAgentId)
-            return
-        }
+        let agentList: [[String: Any]] = {
+            guard let data = FileManager.default.contents(atPath: configPath),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let agents = json["agents"] as? [String: Any],
+                  let list = agents["list"] as? [[String: Any]] else { return [] }
+            return list
+        }()
 
         let agentId = selectedAgentId
+        // Sub-agents must exist in agents.list. The "main" agent is special:
+        // openclaw doesn't always register it there (the workspace alone
+        // defines it), so we treat a missing entry as an empty dict and let
+        // the workspace files supply name/emoji/persona content.
+        let entry: [String: Any] = agentList.first { $0["id"] as? String == agentId } ?? [:]
+        guard !entry.isEmpty || agentId == "main" else {
+            NSLog("[AgentSettings] loadSelectedAgentDetail: agent %@ not found in agents.list", agentId)
+            return
+        }
 
         // Determine workspace
         let workspace: String
@@ -3226,7 +3230,7 @@ class DashboardViewModel: ObservableObject {
 
         let agentDir = entry["agentDir"] as? String ?? ""
         let model = entry["model"] as? String ?? ""
-        let isDefault = entry["isDefault"] as? Bool ?? false
+        let isDefault = entry["isDefault"] as? Bool ?? (agentId == "main")
 
         // Bindings
         var bindingDetails: [String] = []

@@ -4476,42 +4476,35 @@ private struct AgentSettingsPanel: View {
     @State private var selectedModel: String = ""
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Left edge shadow divider
-            Rectangle()
-                .fill(Color.clear)
-                .frame(width: 1)
-                .shadow(color: .black.opacity(0.15), radius: 6, x: -3, y: 0)
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 10) {
+                Text(agent.emoji)
+                    .font(.title2)
 
-            VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack(spacing: 10) {
-                    Text(agent.emoji)
-                        .font(.title2)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(agent.name)
-                            .font(.headline)
-                        Text(agent.id)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 24, height: 24)
-                            .background(Color(NSColor.controlBackgroundColor))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(agent.name)
+                        .font(.headline)
+                    Text(agent.id)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .padding(16)
 
-                Divider()
+                Spacer()
+
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 24, height: 24)
+                        .background(Color(NSColor.windowBackgroundColor))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(16)
+
+            Divider()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -4678,10 +4671,20 @@ private struct AgentSettingsPanel: View {
                         .padding(16)
                     }
                 }
-            }
-            .frame(width: 380)
-            .background(Color(NSColor.windowBackgroundColor))
         }
+        .frame(width: 380)
+        // Contrast against the chat area's windowBackgroundColor so the
+        // drawer reads as a clearly separate panel — without this, the
+        // drawer and chat were the same surface and felt borderless.
+        .background(Color(NSColor.controlBackgroundColor))
+        .overlay(alignment: .leading) {
+            // Crisp 1px divider on the leading edge so the boundary is
+            // unambiguous even when shadow is muted in light mode.
+            Rectangle()
+                .fill(Color.primary.opacity(0.12))
+                .frame(width: 1)
+        }
+        .shadow(color: .black.opacity(0.18), radius: 6, x: -2, y: 0)
         .onAppear {
             selectedModel = agent.model
         }

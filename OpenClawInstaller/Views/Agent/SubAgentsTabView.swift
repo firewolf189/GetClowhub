@@ -902,12 +902,133 @@ class SubAgentsViewModel: ObservableObject {
             }
         }
 
+        // Always synthesize a "main" entry from openclaw.json so the user sees
+        // their primary agent (often customized — e.g. 蛋蛋) alongside any
+        // sub-agents. The CLI's `openclaw agents list` typically only returns
+        // sub-agents, which leaves users wondering where their main agent is.
+        if !parsed.contains(where: { $0.id == "main" }),
+           let mainInfo = Self.readMainAgentFromConfig() {
+            parsed.insert(mainInfo, at: 0)
+        }
+
         NSLog("[SubAgents] loadAgents: loaded %d agents, updating UI", parsed.count)
         await MainActor.run {
-            // Filter out internal agents (commander, help-assistant) from user-facing list
+            // Filter out internal agents (help-assistant) from user-facing list
             agents = parsed.filter { !DashboardViewModel.internalAgentIds.contains($0.id) }
             isLoading = false
         }
+    }
+
+    /// Read the "main" agent stub from ~/.openclaw/openclaw.json and build a
+    /// SubAgentInfo from it. Returns nil if the config is missing or the
+    /// main entry can't be parsed. Mirrors DashboardViewModel.loadSelectedAgentDetail
+    /// so the resulting card has the same persona files / display name as
+    /// the sidebar agent picker.
+    static func readMainAgentFromConfig() -> SubAgentInfo? {
+        let baseDir = NSString("~/.openclaw").expandingTildeInPath
+        let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
+
+        // The main agent is allowed to NOT exist in agents.list — openclaw
+        // typically defines it solely via the workspace. Treat a missing
+        // entry as an empty dict, and require only the workspace to exist.
+        let entry: [String: Any] = {
+            guard let data = FileManager.default.contents(atPath: configPath),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let agents = json["agents"] as? [String: Any],
+                  let list = agents["list"] as? [[String: Any]] else { return [:] }
+            return list.first(where: { $0["id"] as? String == "main" }) ?? [:]
+        }()
+
+        let defaultWorkspace = (baseDir as NSString).appendingPathComponent("workspace")
+        let workspace: String = {
+            if let ws = entry["workspace"] as? String {
+                return (ws as NSString).expandingTildeInPath
+            }
+            return defaultWorkspace
+        }()
+        // Bail only if the workspace truly doesn't exist — without it we
+        // can't even read the agent's name from IDENTITY.md.
+        guard FileManager.default.fileExists(atPath: workspace) else {
+            NSLog("[SubAgents] readMainAgentFromConfig: no workspace at %@", workspace)
+            return nil
+        }
+        let model = entry["model"] as? String ?? ""
+        let isDefault = entry["isDefault"] as? Bool ?? true
+        let agentDir = entry["agentDir"] as? String ?? ""
+        let identitySource = entry["identitySource"] as? String ?? ""
+
+        // Bindings
+        var bindingDetails: [String] = []
+        if let bindings = entry["bindings"] as? [[String: Any]] {
+            for b in bindings {
+                if let from = b["from"] as? String, let to = b["to"] as? String {
+                    bindingDetails.append("\(from) → \(to)")
+                }
+            }
+        } else if let bindings = entry["bindingDetails"] as? [String] {
+            bindingDetails = bindings
+        }
+
+        // Read persona files from the workspace
+        let fm = FileManager.default
+        func read(_ relPath: String) -> String {
+            let p = (workspace as NSString).appendingPathComponent(relPath)
+            return (try? String(contentsOfFile: p, encoding: .utf8)) ?? ""
+        }
+        let identityContent = read("IDENTITY.md")
+        let soulContent = read("SOUL.md")
+        let memoryContent = read("MEMORY.md")
+        let userContent = read("USER.md")
+        let agentsContent = read("AGENTS.md")
+        let bootstrapContent = read("BOOTSTRAP.md")
+        let heartbeatContent = read("HEARTBEAT.md")
+        let toolsContent = read("TOOLS.md")
+
+        // Resolve display name + emoji: prefer parsed IDENTITY.md, else
+        // fall back to identity dict, else config name
+        let parsedIdentity = PersonaViewModel.parseIdentity(identityContent)
+        let identity = entry["identity"] as? [String: Any]
+        let name: String = {
+            if !parsedIdentity.name.isEmpty { return parsedIdentity.name }
+            if let n = identity?["name"] as? String, !n.isEmpty { return n }
+            return entry["name"] as? String ?? "main"
+        }()
+        let emoji: String = {
+            if !parsedIdentity.emoji.isEmpty { return parsedIdentity.emoji }
+            return identity?["emoji"] as? String ?? "🤖"
+        }()
+        let creature = parsedIdentity.creature
+
+        var info = SubAgentInfo(
+            id: "main",
+            name: name,
+            emoji: emoji,
+            creature: creature,
+            model: model,
+            isDefault: isDefault,
+            bindingsCount: bindingDetails.count,
+            bindingDetails: bindingDetails,
+            identitySource: identitySource,
+            workspace: fm.fileExists(atPath: workspace) ? workspace : "",
+            agentDir: agentDir
+        )
+        info.identityContent = identityContent
+        info.soulContent = soulContent
+        info.memoryContent = memoryContent
+        info.userContent = userContent
+        info.agentsContent = agentsContent
+        info.bootstrapContent = bootstrapContent
+        info.heartbeatContent = heartbeatContent
+        info.toolsContent = toolsContent
+        info.identityOriginal = identityContent
+        info.soulOriginal = soulContent
+        info.memoryOriginal = memoryContent
+        info.userOriginal = userContent
+        info.agentsOriginal = agentsContent
+        info.bootstrapOriginal = bootstrapContent
+        info.heartbeatOriginal = heartbeatContent
+        info.toolsOriginal = toolsContent
+        return info
     }
 
     static func parseAgentList(output: String?) -> [SubAgentInfo] {
