@@ -362,6 +362,13 @@ struct SidebarView: View {
 
             // ─── Chat: search + recent sessions + "+ new" ───
             Section("Chat") {
+                // Explicit "Chat" tag so users can return to the chat
+                // view from any other tab (without needing to click a
+                // specific session row). The right details panel is
+                // chat-only, so this is the canonical way back.
+                Label("Chat", systemImage: "message.fill")
+                    .tag(DashboardViewModel.DashboardTab.chat)
+
                 Button {
                     viewModel.createNewSession()
                     selectedTab = .chat
@@ -6955,24 +6962,35 @@ struct SessionDetailsPanel: View {
                     .foregroundColor(.secondary)
             } else {
                 ForEach(visible) { skill in
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(skill.status == .ready ? Color.green : Color.secondary.opacity(0.4))
-                            .frame(width: 7, height: 7)
-                        Text(skill.name)
-                            .font(.system(size: 12))
-                            .lineLimit(1)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9))
-                            .foregroundColor(.secondary)
+                    // Each row is a Button that jumps to the Skills tab
+                    // — chevron and full row are clickable. Hover gives
+                    // the standard pointer feedback so it's obviously
+                    // interactive (was a static decoration before).
+                    Button {
+                        viewModel.selectedTab = .skills
+                    } label: {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(skill.status == .ready ? Color.green : Color.secondary.opacity(0.4))
+                                .frame(width: 7, height: 7)
+                            Text(skill.name)
+                                .font(.system(size: 12))
+                                .lineLimit(1)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(NSColor.controlBackgroundColor))
+                        )
+                        .contentShape(Rectangle())  // make the entire row hit-testable
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
+                    .buttonStyle(.plain)
                     .help(skill.description.isEmpty ? skill.name : skill.description)
                 }
             }
