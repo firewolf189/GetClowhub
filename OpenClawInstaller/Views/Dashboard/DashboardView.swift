@@ -177,10 +177,9 @@ struct SidebarView: View {
 
     // MARK: - Sidebar Top Header (Logo + dropdown menu)
 
-    /// Top of the sidebar — just the brand. Language / update / help all
-    /// have their own dedicated rows or live in the bottom toolbar, so
-    /// the top is intentionally bare. The trailing icon mirrors macOS
-    /// NavigationSplitView convention for the sidebar toggle.
+    /// Top of the sidebar — just the brand. NavigationSplitView already
+    /// provides the real sidebar toggle in the window's toolbar chrome,
+    /// so we don't draw our own here (would just be a duplicate icon).
     private var sidebarTopHeader: some View {
         HStack(spacing: 8) {
             Image("Logo1")
@@ -190,14 +189,6 @@ struct SidebarView: View {
             Text("GetClawHub")
                 .font(.system(size: 14, weight: .semibold))
             Spacer()
-            // System sidebar toggle (chevron). NavigationSplitView wires
-            // the actual toggle behavior automatically when this icon is
-            // present in a Toolbar; here it's purely visual to match the
-            // mockup since SwiftUI handles the real toggle in the window
-            // chrome.
-            Image(systemName: "sidebar.left")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
