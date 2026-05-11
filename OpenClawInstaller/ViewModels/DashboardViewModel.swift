@@ -197,6 +197,17 @@ class DashboardViewModel: ObservableObject {
                 self?.persistChangedSessions(from: dict)
             }
             .store(in: &cancellables)
+        // 4. Mirror updates from the store back into the published sidebar
+        //    list. The store's debounced writes (assistant streaming, lazy
+        //    save of newly-created sessions) land asynchronously; without
+        //    this sink the sidebar would lag behind disk until the next
+        //    explicit rebuild.
+        chatSessionStore.$index
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.rebuildSessionsMirror()
+            }
+            .store(in: &cancellables)
     }
 
     deinit {
@@ -1005,12 +1016,11 @@ class DashboardViewModel: ObservableObject {
                 chatMessagesByAgent[agentId] = loaded.messages
             }
         } else {
-            // No surviving sessions — mint a fresh empty one. Inline the
-            // create logic rather than calling createNewSession() because
-            // the latter would call flushActiveSession on the just-deleted
-            // session id and create a stray file.
+            // No surviving sessions — mint a fresh empty session in memory
+            // only. Match createNewSession() in deferring the disk write
+            // until the user actually types, so an immediately-discarded
+            // empty session leaves no trace in the sidebar.
             let new = ChatSession(agentId: agentId)
-            chatSessionStore.saveSession(new)
             selectedSessionIdByAgent[agentId] = new.id
             chatMessagesByAgent[agentId] = []
         }
@@ -1031,26 +1041,62 @@ class DashboardViewModel: ObservableObject {
 
     /// Mint a fresh empty session for the current agent and switch to it.
     /// Used by the "+ New Session" sidebar button.
+    ///
+    /// The session is created in memory only — the disk write is deferred
+    /// until the user actually adds a message (handled by
+    /// `persistChangedSessions`). This way a "+ New Session" click followed
+    /// by an immediate switch to another row leaves no orphan empty session
+    /// in the sidebar.
     @discardableResult
     func createNewSession() -> UUID {
         let agentId = selectedAgentId
         flushActiveSession(forAgent: agentId)
         let new = ChatSession(agentId: agentId)
-        chatSessionStore.saveSession(new)
         selectedSessionIdByAgent[agentId] = new.id
         chatMessagesByAgent[agentId] = []
-        rebuildSessionsMirror()
         return new.id
     }
 
     /// Cancel any pending debounced write for the agent's current session and
     /// commit its in-memory messages to disk synchronously. Safe to call
     /// when there is no active session — it's a no-op.
+    ///
+    /// Two short-circuits:
+    /// - **Pending unsaved session with no content** (created by
+    ///   `createNewSession` but never typed in): drop without persisting,
+    ///   so the sidebar never sees an empty row.
+    /// - **No actual change** vs what's on disk: cancel any pending
+    ///   debounced write and bail, so a plain session switch doesn't bump
+    ///   `updatedAt` and reorder the sidebar list.
     private func flushActiveSession(forAgent agentId: String) {
         guard let sid = selectedSessionIdByAgent[agentId] else { return }
         let messages = chatMessagesByAgent[agentId] ?? []
-        var current = chatSessionStore.loadSession(id: sid)
-            ?? ChatSession(id: sid, agentId: agentId, messages: messages)
+        let loaded = chatSessionStore.loadSession(id: sid)
+
+        // Pending session that was minted in memory but never received any
+        // input — discard.
+        if loaded == nil && messages.isEmpty {
+            return
+        }
+
+        // Compare against the on-disk copy. If nothing changed, don't
+        // rewrite the file (would bump updatedAt and reorder the list).
+        let messagesChanged: Bool
+        if let loaded = loaded {
+            messagesChanged = loaded.messages.count != messages.count
+                || loaded.messages.last?.id != messages.last?.id
+        } else {
+            messagesChanged = !messages.isEmpty
+        }
+
+        guard messagesChanged else {
+            // Cancel any in-flight debounced write for this id but emit no
+            // fresh write of our own.
+            chatSessionStore.flush(id: sid, current: nil)
+            return
+        }
+
+        var current = loaded ?? ChatSession(id: sid, agentId: agentId, messages: messages)
         current.messages = messages
         current.updatedAt = Date()
         if current.title == ChatSession.defaultTitle {
