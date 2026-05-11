@@ -405,11 +405,13 @@ class DashboardViewModel: ObservableObject {
                 let baseUrl = presetManager.findProvider(byKey: "getclawhub")?.baseUrl ?? "https://ai.getclawhub.com/v1"
                 let allPresetModels = presetManager.findProvider(byKey: "getclawhub")?.models ?? []
                 #if REQUIRE_LOGIN
-                // Filter by membership allowed models if available
+                // Filter by membership allowed models if available. Case-insensitive
+                // to absorb backend ↔ preset casing drift (e.g. `MiniMax-M2.7-highspeed`
+                // vs `minimax-m2.7-highspeed`); see MembershipManager.applyKeyToConfig.
                 let models: [PresetModel]
                 if let allowedModels = membershipManager?.membership?.models, !allowedModels.isEmpty {
-                    let allowedSet = Set(allowedModels)
-                    models = allPresetModels.filter { allowedSet.contains($0.id) }
+                    let allowedLowercased = Set(allowedModels.map { $0.lowercased() })
+                    models = allPresetModels.filter { allowedLowercased.contains($0.id.lowercased()) }
                 } else {
                     models = allPresetModels
                 }

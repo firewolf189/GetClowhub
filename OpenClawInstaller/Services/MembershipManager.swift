@@ -423,18 +423,21 @@ class MembershipManager: ObservableObject {
     // MARK: - Apply Key to Config
 
     func applyKeyToConfig(_ key: ApiKeyInfo) {
-        // Look up full PresetModel objects from preset, filtered by key's allowed model IDs
-        let allowedSet = Set(key.models)
+        // Match preset models against the key's allow-list case-insensitively. The
+        // backend has historically shipped `MiniMax-*` in mixed case while the
+        // preset (and LiteLLM model registry) use lowercase; an exact-case Set
+        // contains() silently dropped those models from the UI.
+        let allowedLowercased = Set(key.models.map { $0.lowercased() })
 
         // IMPORTANT: If API key has no allowed models, don't overwrite existing config
         // This prevents clearing the model list when API returns empty models array
-        guard !allowedSet.isEmpty else {
+        guard !allowedLowercased.isEmpty else {
             os_log("[MembershipManager] API key %@ has no allowed models, skipping config update to preserve existing configuration", log: OSLog.default, type: .info, key.keyId)
             return
         }
 
         let allPresetModels = presetManager.findProvider(byKey: "getclawhub")?.models ?? []
-        let models = allPresetModels.filter { allowedSet.contains($0.id) }
+        let models = allPresetModels.filter { allowedLowercased.contains($0.id.lowercased()) }
         let baseUrl = presetManager.findProvider(byKey: "getclawhub")?.baseUrl ?? "https://ai.getclawhub.com/v1"
         AppSettingsManager.writeGetClawHubProvider(apiKey: key.fullKey, models: models, baseUrl: baseUrl)
     }
