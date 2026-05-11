@@ -899,17 +899,21 @@ class DashboardViewModel: ObservableObject {
     private func persistChangedSessions(from dict: [String: [ChatMessage]]) {
         for (agentId, messages) in dict where !messages.isEmpty {
             let sessionId = ensureActiveSessionId(forAgent: agentId, seedMessages: messages)
-            // Build the session we want on disk — start from the loaded copy
-            // (preserves pin/archive state) and overwrite mutable fields.
-            var session = chatSessionStore.loadSession(id: sessionId)
-                ?? ChatSession(id: sessionId, agentId: agentId, messages: messages)
+            // Start from the on-disk copy when one exists (preserves
+            // pin/archive state) or mint a fresh in-memory shell otherwise.
+            let loaded = chatSessionStore.loadSession(id: sessionId)
+            var session = loaded ?? ChatSession(id: sessionId, agentId: agentId, messages: messages)
 
-            // Cheap equality check: same count + same trailing message id ⇒
-            // nothing new to persist (e.g. unrelated agent's dict mutation
-            // re-fired the publisher).
-            if session.messages.count == messages.count,
-               session.messages.last?.id == messages.last?.id,
-               !session.title.isEmpty {
+            // Skip the write only when disk already holds the same trailing
+            // message. The check is gated on `loaded != nil` because a
+            // freshly-minted pending session (from createNewSession) loads
+            // to nil — the fallback constructor pre-populates `messages`,
+            // which would make the equality check trivially pass and the
+            // first message would never persist.
+            if let loaded = loaded,
+               loaded.messages.count == messages.count,
+               loaded.messages.last?.id == messages.last?.id,
+               !loaded.title.isEmpty {
                 continue
             }
 
