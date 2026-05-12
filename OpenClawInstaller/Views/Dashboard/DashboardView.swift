@@ -3070,34 +3070,40 @@ struct ChatBubble: View {
                 }
 
                 if !message.content.isEmpty {
-                    ZStack(alignment: .topTrailing) {
+                    // Bubble body — always use SwiftUI-native MarkdownUI,
+                    // including for streaming. Previously we routed
+                    // streaming to SelectableMarkdownView (WKWebView) on
+                    // the assumption that re-parsing markdown on every
+                    // token would saturate the main thread, BUT the
+                    // WKWebView path has its own problems:
+                    //   - Each token arrival triggers throttled HTML
+                    //     rebuild → async load → JS height callback
+                    //     pipeline. The bubble's reserved height is
+                    //     based on an estimate, so for long content
+                    //     (tables especially) you see a big empty dark
+                    //     area while the HTML is in-flight, then it
+                    //     suddenly "drops in" once didFinish + JS
+                    //     measurement resolve.
+                    //   - SwiftUI's body re-evaluates on every @Published
+                    //     content change. With WKWebView re-loading
+                    //     constantly during streaming, the visual flow
+                    //     is "blank → loaded → blank → loaded".
+                    // MarkdownUI parses synchronously inside body and
+                    // renders SwiftUI views directly. The full content
+                    // appears immediately on every update, no async
+                    // round trip.
+                    //
+                    // Performance: stream deltas already arrive at ~100ms
+                    // throttle (DashboardViewModel.sendChatMessage's
+                    // throttle). At that cadence MarkdownUI re-parsing
+                    // is fine on the main thread.
+                    Group {
                         if message.role == .assistant {
-                            // Terminal-state messages (the bulk of a session
-                            // on first render) use the SwiftUI-native
-                            // MarkdownUI renderer — synchronous, no WKWebView
-                            // spin-up, no per-bubble JS round-trip for height
-                            // measurement. Historical content is the common
-                            // case so this is what dominates session-open
-                            // latency.
-                            //
-                            // Still-streaming messages (.loading / .background)
-                            // stick with SelectableMarkdownView (WKWebView)
-                            // because its internal 500ms throttle keeps CPU
-                            // sane during rapid delta updates — re-parsing
-                            // markdown on every token via MarkdownUI would
-                            // saturate the main thread.
-                            if message.taskStatus == .loading || message.taskStatus == .background {
-                                SelectableMarkdownView(content: message.content)
-                                    .padding(10)
-                                    .background(backgroundColor)
-                                    .cornerRadius(12)
-                            } else {
-                                Markdown(message.content)
-                                    .textSelection(.enabled)
-                                    .padding(10)
-                                    .background(backgroundColor)
-                                    .cornerRadius(12)
-                            }
+                            Markdown(message.content)
+                                .textSelection(.enabled)
+                                .padding(10)
+                                .background(backgroundColor)
+                                .cornerRadius(12)
                         } else {
                             Text(message.content)
                                 .padding(10)
@@ -3106,23 +3112,10 @@ struct ChatBubble: View {
                                 .cornerRadius(12)
                                 .textSelection(.enabled)
                         }
-
-                        // Hover copy button
-                        if isHovering && !message.content.isEmpty {
-                            Button(action: { copyToClipboard(message.content) }) {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
-                                    .padding(5)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(Color(NSColor.windowBackgroundColor))
-                                            .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            .padding(6)
-                            .transition(.opacity)
+                    }
+                    .contextMenu {
+                        Button(action: { copyToClipboard(message.content) }) {
+                            Label("Copy", systemImage: "doc.on.doc")
                         }
                     }
                     .onHover { hovering in
@@ -3130,20 +3123,66 @@ struct ChatBubble: View {
                             isHovering = hovering
                         }
                     }
-                    .contextMenu {
-                        Button(action: { copyToClipboard(message.content) }) {
-                            Label("Copy", systemImage: "doc.on.doc")
+
+                    // Hover toolbar — only on TERMINAL-state messages
+                    // (.completed / .cancelled / .timedOut / .error).
+                    // While streaming we don't show it:
+                    //   1. Reserving a 22pt frame between the bubble and
+                    //      the streaming spinner inserted a visible gap
+                    //      → "字 [gap] spinner [gap] 字" felt jagged.
+                    //   2. Copy mid-stream copies partial content; better
+                    //      to wait until the message is final.
+                    //
+                    // Toolbar aligned with the bubble side (user → right,
+                    // assistant → left) so it always sits opposite the
+                    // avatar, never over the message.
+                    if !isStreamingState {
+                        HStack(spacing: 6) {
+                            if isHovering && !message.content.isEmpty {
+                                Button(action: { copyToClipboard(message.content) }) {
+                                    Image(systemName: "doc.on.doc")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 5)
+                                                .fill(Color(NSColor.controlBackgroundColor))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .help("Copy")
+                                .transition(.opacity)
+                            }
+                        }
+                        .frame(height: 22, alignment: message.role == .user ? .trailing : .leading)
+                        .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
+                        .onHover { hovering in
+                            // Keep toolbar visible while hovering over
+                            // the toolbar itself (not just the bubble)
+                            // so the user can move bubble → button
+                            // without the button vanishing.
+                            if hovering {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    isHovering = true
+                                }
+                            }
                         }
                     }
                 }
 
-                // Loading indicator for AI output
+                // Streaming indicator — sub-bubble row showing the AI is
+                // still writing. Sits directly under the bubble with a
+                // small gap (no hover toolbar between them in streaming
+                // state, so this looks like a continuation of the bubble
+                // rather than a disconnected third widget).
                 if message.role == .assistant && message.taskStatus == .loading && !message.content.isEmpty {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         ProgressView()
-                            .scaleEffect(0.6)
+                            .scaleEffect(0.5)
+                            .controlSize(.small)
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 2)
                 }
 
                 // Detected media files from assistant response
@@ -3208,6 +3247,15 @@ struct ChatBubble: View {
 
     private var backgroundColor: SwiftUI.Color {
         message.role == .user ? .accentColor : Color(NSColor.controlBackgroundColor)
+    }
+
+    /// True while the message is still being generated — covers both the
+    /// foreground `.loading` and `.background` (running detached) statuses.
+    /// Used to gate the hover toolbar; we don't want a stale "Copy
+    /// half-streamed text" affordance.
+    private var isStreamingState: Bool {
+        message.role == .assistant
+            && (message.taskStatus == .loading || message.taskStatus == .background)
     }
 
     private func copyToClipboard(_ text: String) {
