@@ -209,6 +209,39 @@ fi
 
 set -e
 
+# ===== 8. 同步到阿里云 OSS（大陆镜像，失败不阻塞） =====
+# 大陆用户从 GitHub 下载 264MB DMG 经常 100 KB/s 起步，必须用国内镜像。
+# bucket: fp-getclawhub (杭州), object key: v<version>/GetClawHub.dmg + latest/GetClawHub.dmg
+echo ""
+echo "📤 [8/8] 同步到阿里云 OSS (大陆镜像)..."
+set +e
+if command -v ossutil >/dev/null 2>&1; then
+    OSS_BUCKET="oss://fp-getclawhub"
+    OSS_VERSION_PATH="$OSS_BUCKET/v$NEW_VERSION/GetClawHub.dmg"
+    OSS_LATEST_PATH="$OSS_BUCKET/latest/GetClawHub.dmg"
+
+    # 上传到版本号路径（不可变，留底）
+    if ossutil cp -f "$DMG_PATH" "$OSS_VERSION_PATH"; then
+        echo "✅ 已上传: $OSS_VERSION_PATH"
+        # 同时覆盖 latest，给"始终最新版"的下载链接用
+        if ossutil cp -f "$DMG_PATH" "$OSS_LATEST_PATH"; then
+            echo "✅ 已更新: $OSS_LATEST_PATH"
+        else
+            echo "⚠️  latest 覆盖失败（不影响版本号路径）"
+        fi
+        echo ""
+        echo "  大陆下载地址（开放读 bucket）："
+        echo "    https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v$NEW_VERSION/GetClawHub.dmg"
+        echo "    https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/latest/GetClawHub.dmg"
+    else
+        echo "⚠️  OSS 上传失败（不阻塞发版，GitHub Release 仍可用）"
+        echo "   手动重传: ossutil cp -f \"$DMG_PATH\" \"$OSS_VERSION_PATH\""
+    fi
+else
+    echo "⚠️  未安装 ossutil，跳过 OSS 同步。安装见 doc/release.md"
+fi
+set -e
+
 # ===== 清理构建产物，避免 LaunchServices 把 build/ 里的 .app 注册进 Spotlight =====
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
 if [ -x "$LSREGISTER" ] && [ -d "$BUILD_DIR" ]; then
@@ -224,4 +257,5 @@ echo "  🎉 v$NEW_VERSION 发版完成!"
 echo ""
 echo "  Release: https://github.com/firewolf189/GetClowhub/releases/tag/v$NEW_VERSION"
 echo "  appcast: https://firewolf189.github.io/GetClowhub/appcast.xml"
+echo "  CN mirror: https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v$NEW_VERSION/GetClawHub.dmg"
 echo "====================================="
