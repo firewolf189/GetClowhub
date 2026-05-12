@@ -220,22 +220,42 @@ if command -v ossutil >/dev/null 2>&1; then
     OSS_VERSION_PATH="$OSS_BUCKET/v$NEW_VERSION/GetClawHub.dmg"
     OSS_LATEST_PATH="$OSS_BUCKET/latest/GetClawHub.dmg"
 
+    # 上传 + 设置 public-read ACL。
+    #
+    # bucket 本身被 Aliyun Block Public Access 挡住，没法走 bucket 级
+    # public-read，只能 object 级。ossutil cp 默认不设 ACL — 上传后
+    # 是私有，外网 GET 会 403。必须显式 set-acl public-read。
+    # （早期手动上传时漏了这步，v1.1.47 用户访问 OSS 返回 AccessDenied，
+    # 见 https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com 的 bucket
+    # ACL 配置。）
+    upload_with_acl() {
+        local src="$1"
+        local dst="$2"
+        ossutil cp -f "$src" "$dst" || return 1
+        ossutil set-acl "$dst" public-read >/dev/null || {
+            echo "⚠️  set-acl public-read 失败：$dst （外网访问可能 403）"
+            return 1
+        }
+        return 0
+    }
+
     # 上传到版本号路径（不可变，留底）
-    if ossutil cp -f "$DMG_PATH" "$OSS_VERSION_PATH"; then
-        echo "✅ 已上传: $OSS_VERSION_PATH"
+    if upload_with_acl "$DMG_PATH" "$OSS_VERSION_PATH"; then
+        echo "✅ 已上传 + 公开读: $OSS_VERSION_PATH"
         # 同时覆盖 latest，给"始终最新版"的下载链接用
-        if ossutil cp -f "$DMG_PATH" "$OSS_LATEST_PATH"; then
-            echo "✅ 已更新: $OSS_LATEST_PATH"
+        if upload_with_acl "$DMG_PATH" "$OSS_LATEST_PATH"; then
+            echo "✅ 已更新 + 公开读: $OSS_LATEST_PATH"
         else
             echo "⚠️  latest 覆盖失败（不影响版本号路径）"
         fi
         echo ""
-        echo "  大陆下载地址（开放读 bucket）："
+        echo "  大陆下载地址："
         echo "    https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v$NEW_VERSION/GetClawHub.dmg"
         echo "    https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/latest/GetClawHub.dmg"
     else
         echo "⚠️  OSS 上传失败（不阻塞发版，GitHub Release 仍可用）"
-        echo "   手动重传: ossutil cp -f \"$DMG_PATH\" \"$OSS_VERSION_PATH\""
+        echo "   手动重传: ossutil cp -f \"$DMG_PATH\" \"$OSS_VERSION_PATH\" && \\"
+        echo "             ossutil set-acl \"$OSS_VERSION_PATH\" public-read"
     fi
 else
     echo "⚠️  未安装 ossutil，跳过 OSS 同步。安装见 doc/release.md"
