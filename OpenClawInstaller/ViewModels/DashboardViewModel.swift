@@ -208,6 +208,18 @@ class DashboardViewModel: ObservableObject {
                 self?.rebuildSessionsMirror()
             }
             .store(in: &cancellables)
+        // 5. Recompute `isSendingMessage` whenever the user switches agent
+        //    or the foreground task set changes. Switching session is
+        //    handled inline in `switchSession` / `createNewSession` /
+        //    `promoteNextSession` (since those mutate
+        //    `selectedSessionIdByAgent` dict in-place — SwiftUI doesn't
+        //    publish per-key dict mutations reliably).
+        Publishers.CombineLatest($selectedAgentId, $foregroundTaskIds)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _, _ in
+                self?.recomputeIsSendingMessage()
+            }
+            .store(in: &cancellables)
     }
 
     deinit {
@@ -965,11 +977,22 @@ class DashboardViewModel: ObservableObject {
     /// state isn't lost when the user clicks back.
     func switchSession(to sessionId: UUID) {
         let agentId = selectedAgentId
+        // If a task was streaming in the session we're leaving, cancel it
+        // *before* the flush + swap. Otherwise:
+        //   - the placeholder gets saved to disk in .loading state
+        //   - chatMessagesByAgent[agentId] is overwritten by the new session
+        //   - subsequent stream events for the old msgId find no message
+        //     to update → output silently lost AND the spinner is frozen
+        //     on disk until next save
+        if let currentSid = selectedSessionIdByAgent[agentId] {
+            cancelTasks(inSession: currentSid)
+        }
         flushActiveSession(forAgent: agentId)
         guard let target = chatSessionStore.loadSession(id: sessionId) else { return }
         selectedSessionIdByAgent[agentId] = sessionId
         chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(target.messages)
         rebuildSessionsMirror()
+        recomputeIsSendingMessage()
     }
 
     /// Update the title of a stored session. Empty / whitespace-only strings
@@ -990,11 +1013,17 @@ class DashboardViewModel: ObservableObject {
     func deleteSession(_ sessionId: UUID) {
         let agentId = selectedAgentId
         let wasActive = selectedSessionIdByAgent[agentId] == sessionId
+        // Cancel any in-flight task tied to this session BEFORE we drop the
+        // file — without this, the run keeps streaming on the gateway with
+        // nowhere to land (foregroundTaskIds / taskSessionMap entries
+        // become orphans, isSendingMessage stays true forever).
+        cancelTasks(inSession: sessionId)
         chatSessionStore.deleteSession(id: sessionId)
         if wasActive {
             promoteNextSession(forAgent: agentId)
         }
         rebuildSessionsMirror()
+        recomputeIsSendingMessage()
     }
 
     /// Toggle pinned state. Pinned sessions float to the top of the sidebar
@@ -1045,7 +1074,7 @@ class DashboardViewModel: ObservableObject {
         if let next = chatSessionStore.sessions(forAgent: agentId).first {
             selectedSessionIdByAgent[agentId] = next.id
             if let loaded = chatSessionStore.loadSession(id: next.id) {
-                chatMessagesByAgent[agentId] = loaded.messages
+                chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(loaded.messages)
             }
         } else {
             // No surviving sessions — mint a fresh empty session in memory
@@ -1056,6 +1085,7 @@ class DashboardViewModel: ObservableObject {
             selectedSessionIdByAgent[agentId] = new.id
             chatMessagesByAgent[agentId] = []
         }
+        recomputeIsSendingMessage()
     }
 
     private static func sessionMarkdown(_ s: ChatSession) -> String {
@@ -1082,10 +1112,17 @@ class DashboardViewModel: ObservableObject {
     @discardableResult
     func createNewSession() -> UUID {
         let agentId = selectedAgentId
+        // Symmetric with switchSession: kill in-flight work in the old
+        // session before swapping. Same reason — stream events would
+        // otherwise be routed to a session that's no longer visible.
+        if let currentSid = selectedSessionIdByAgent[agentId] {
+            cancelTasks(inSession: currentSid)
+        }
         flushActiveSession(forAgent: agentId)
         let new = ChatSession(agentId: agentId)
         selectedSessionIdByAgent[agentId] = new.id
         chatMessagesByAgent[agentId] = []
+        recomputeIsSendingMessage()
         return new.id
     }
 
@@ -1170,19 +1207,65 @@ class DashboardViewModel: ObservableObject {
         selectedSessionIdByAgent[agentId] = new.id
         return new.id
     }
-    @Published var isSendingMessage = false  // true when any foreground task is active
+    /// True only when the *currently visible* (agent + active session) has
+    /// a foreground task in flight. Recomputed via `recomputeIsSendingMessage()`
+    /// every time a task is added/removed, or when the user switches agent/
+    /// session. Was previously "true if ANY foreground task exists across
+    /// agents/sessions", which locked the input in a session that didn't
+    /// actually have a task running.
+    @Published var isSendingMessage = false
     @Published var foregroundTaskIds: Set<UUID> = []  // message IDs of foreground (blocking) tasks
     @Published var backgroundTaskIds: Set<UUID> = []  // message IDs of background tasks
-    var taskAgentMap: [UUID: String] = [:]  // msgId → agentId for per-agent tracking
+    var taskAgentMap: [UUID: String] = [:]  // msgId → agentId
+    /// msgId → the sessionId the task was started under. Used to (a) route
+    /// gateway sessionKey on cancel and (b) decide which UI session "owns"
+    /// the spinner / cancel affordance. Both populated together with
+    /// `taskAgentMap` in `sendChatMessage`; both cleaned together on any
+    /// terminal event (completed / cancelled / timed-out / error).
+    var taskSessionMap: [UUID: UUID] = [:]
 
-    /// Whether the currently selected agent has a foreground task running.
+    /// Whether the currently selected agent has any foreground task running
+    /// — across all its sessions. Used by the agent picker to badge agents
+    /// that are working in the background.
     var isCurrentAgentSending: Bool {
         foregroundTaskIds.contains(where: { taskAgentMap[$0] == selectedAgentId })
     }
 
-    /// Check if a specific agent has a foreground task running.
+    /// Check if a specific agent has a foreground task running (any session).
     func isAgentExecuting(_ agentId: String) -> Bool {
         foregroundTaskIds.contains(where: { taskAgentMap[$0] == agentId })
+    }
+
+    /// Check if a specific session has a foreground task running. Used by
+    /// the sidebar to badge specific session rows and by the input bar to
+    /// decide whether to disable typing.
+    func hasForegroundTask(inSession sessionId: UUID) -> Bool {
+        foregroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
+    }
+
+    /// Recompute `isSendingMessage` based on whether the currently visible
+    /// session has any foreground task in flight. Must be called whenever
+    /// `foregroundTaskIds`, `selectedAgentId`, `selectedSessionIdByAgent[agentId]`,
+    /// or `taskSessionMap` changes — otherwise the input lock won't track
+    /// the visible session correctly.
+    private func recomputeIsSendingMessage() {
+        guard let sid = selectedSessionIdByAgent[selectedAgentId] else {
+            isSendingMessage = false
+            return
+        }
+        isSendingMessage = hasForegroundTask(inSession: sid)
+    }
+
+    /// Cancel every foreground task currently bound to `sessionId`. Used by
+    /// `switchSession` / `deleteSession` / `createNewSession` so we don't
+    /// leave runs going in the background when the user navigates away —
+    /// previously these stayed alive on the gateway, burning tokens, and
+    /// their stream events landed in the wrong session's message list.
+    private func cancelTasks(inSession sessionId: UUID) {
+        let toCancel = foregroundTaskIds.filter { taskSessionMap[$0] == sessionId }
+        for msgId in toCancel {
+            cancelChat(msgId)
+        }
     }
     @Published var selectedAgentId: String = "main"
     @Published var availableAgents: [AgentOption] = [AgentOption(id: "main", name: "main", emoji: "🤖", description: "", model: "", division: "")]
@@ -1421,8 +1504,16 @@ class DashboardViewModel: ObservableObject {
 
     // MARK: - Chat Helpers
 
-    private func sessionKeyForAgent(_ agentId: String) -> String {
-        return "agent:\(agentId):main"
+    /// Compose the gateway sessionKey for a given (agent, sessionId) pair.
+    ///
+    /// Previously this was hardcoded `"agent:<id>:main"` for every session —
+    /// so multiple UI "sessions" for the same agent all shared one server
+    /// conversation context, leaking memory between them (you'd ask about
+    /// X in session A, switch to session B, and the assistant would still
+    /// "remember" X). Including the sessionId in the key isolates each UI
+    /// session into its own gateway thread.
+    private func sessionKeyForAgent(_ agentId: String, sessionId: UUID) -> String {
+        return "agent:\(agentId):\(sessionId.uuidString)"
     }
 
     /// Extensions that the gateway accepts as image attachments (via base64 in `content` field).
@@ -1523,7 +1614,12 @@ class DashboardViewModel: ObservableObject {
         logChat("USER_MSG: agent=\(currentAgentId), totalMsgs=\(chatMessagesByAgent[currentAgentId]?.count ?? 0)")
 
         let currentAgentEmoji = availableAgents.first(where: { $0.id == currentAgentId })?.emoji
-        let sessionKey = sessionKeyForAgent(currentAgentId)
+        // Bind the run to the agent's currently-active session. `ensureActiveSessionId`
+        // mints one lazily if the agent has never had a session before, so this is
+        // always non-nil after the call.
+        let currentSessionId = ensureActiveSessionId(forAgent: currentAgentId,
+                                                     seedMessages: chatMessagesByAgent[currentAgentId] ?? [])
+        let sessionKey = sessionKeyForAgent(currentAgentId, sessionId: currentSessionId)
 
         // Insert a placeholder assistant message for streaming updates
         let msgId = UUID()
@@ -1531,10 +1627,13 @@ class DashboardViewModel: ObservableObject {
         chatMessagesByAgent[currentAgentId, default: []].append(placeholderMsg)
         logChat("PLACEHOLDER: agent=\(currentAgentId), msgId=\(msgId.uuidString.prefix(8)), totalMsgs=\(chatMessagesByAgent[currentAgentId]?.count ?? 0)")
 
-        // Track as foreground task
+        // Track as foreground task — bound to BOTH agent and session so we can
+        // (a) route the cancel/abort to the right gateway sessionKey and
+        // (b) decide which UI session owns this spinner.
         foregroundTaskIds.insert(msgId)
         taskAgentMap[msgId] = currentAgentId
-        isSendingMessage = true
+        taskSessionMap[msgId] = currentSessionId
+        recomputeIsSendingMessage()
 
         // Check gateway connection
         guard gatewayClient.isConnected else {
@@ -1542,7 +1641,8 @@ class DashboardViewModel: ObservableObject {
             updateMessage(msgId: msgId, content: errorMsg, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
             foregroundTaskIds.remove(msgId)
             taskAgentMap.removeValue(forKey: msgId)
-            isSendingMessage = !foregroundTaskIds.isEmpty
+            taskSessionMap.removeValue(forKey: msgId)
+            recomputeIsSendingMessage()
             return
         }
 
@@ -1567,7 +1667,8 @@ class DashboardViewModel: ObservableObject {
             gatewayClient.unsubscribe(subscriberId: subscriberId)
             foregroundTaskIds.remove(msgId)
             taskAgentMap.removeValue(forKey: msgId)
-            isSendingMessage = !foregroundTaskIds.isEmpty
+            taskSessionMap.removeValue(forKey: msgId)
+            recomputeIsSendingMessage()
             return
         }
 
@@ -1603,7 +1704,8 @@ class DashboardViewModel: ObservableObject {
                             self.foregroundTaskIds.remove(msgId)
                             self.backgroundTaskIds.remove(msgId)
                             self.taskAgentMap.removeValue(forKey: msgId)
-                            self.isSendingMessage = !self.foregroundTaskIds.isEmpty
+                            self.taskSessionMap.removeValue(forKey: msgId)
+                            self.recomputeIsSendingMessage()
                         }
                     }
                     return
@@ -1621,7 +1723,8 @@ class DashboardViewModel: ObservableObject {
                 self.foregroundTaskIds.remove(msgId)
                 self.backgroundTaskIds.remove(msgId)
                 self.taskAgentMap.removeValue(forKey: msgId)
-                self.isSendingMessage = !self.foregroundTaskIds.isEmpty
+                self.taskSessionMap.removeValue(forKey: msgId)
+                self.recomputeIsSendingMessage()
             }
         }
 
@@ -1740,7 +1843,7 @@ class DashboardViewModel: ObservableObject {
         guard foregroundTaskIds.contains(msgId) else { return }
         foregroundTaskIds.remove(msgId)
         backgroundTaskIds.insert(msgId)
-        isSendingMessage = !foregroundTaskIds.isEmpty
+        recomputeIsSendingMessage()
 
         // Update message status to background (search all agents)
         for agentId in chatMessagesByAgent.keys {
@@ -1763,11 +1866,20 @@ class DashboardViewModel: ObservableObject {
     /// Cancel an in-progress chat task.
     /// Sends chat.abort via WebSocket and terminates the event stream.
     func cancelChat(_ msgId: UUID) {
-        // 1. Look up runId and send abort via gateway WebSocket
+        // 1. Look up runId and send abort via gateway WebSocket.
+        //    Build sessionKey from the TASK's bound (agent, session), not
+        //    the currently-active one — callers like cancelTasks(inSession:)
+        //    pass msgIds from sessions that may no longer be selected.
         let runId = activeChatRuns[msgId]
-        let sessionKey = sessionKeyForAgent(selectedAgentId)
-        Task {
-            _ = await gatewayClient.abortChat(sessionKey: sessionKey, runId: runId)
+        let taskAgent = taskAgentMap[msgId] ?? selectedAgentId
+        let taskSid = taskSessionMap[msgId] ?? selectedSessionIdByAgent[taskAgent]
+        if let taskSid = taskSid {
+            let sessionKey = sessionKeyForAgent(taskAgent, sessionId: taskSid)
+            Task {
+                _ = await gatewayClient.abortChat(sessionKey: sessionKey, runId: runId)
+            }
+        } else {
+            chatLog.warning("cancelChat: no session bound to msgId \(msgId.uuidString.prefix(8)) — abort skipped")
         }
 
         // 2. Terminate the event stream for this message
@@ -1797,7 +1909,8 @@ class DashboardViewModel: ObservableObject {
         foregroundTaskIds.remove(msgId)
         backgroundTaskIds.remove(msgId)
         taskAgentMap.removeValue(forKey: msgId)
-        isSendingMessage = !foregroundTaskIds.isEmpty
+        taskSessionMap.removeValue(forKey: msgId)
+        recomputeIsSendingMessage()
     }
 
     /// Filter out system prompt lines from openclaw agent output
@@ -1834,19 +1947,26 @@ class DashboardViewModel: ObservableObject {
 
     func clearChat() {
         chatMessages.removeAll()
-        // Reset the backend session for the current agent to avoid token overflow
-        resetAgentSession(agentId: selectedAgentId)
+        // Reset the backend session for the current (agent, session) so the
+        // next message starts with a clean gateway context. Falls back to
+        // doing nothing if we somehow don't have an active session — better
+        // than wiping the wrong session.
+        guard let sid = selectedSessionIdByAgent[selectedAgentId] else { return }
+        resetAgentSession(agentId: selectedAgentId, sessionId: sid)
     }
 
-    /// Reset the backend session files for an agent so the next message starts fresh.
-    private func resetAgentSession(agentId: String) {
+    /// Reset the backend session files for a specific (agent, session) so
+    /// the next message starts fresh — without nuking other UI sessions
+    /// the user has for the same agent.
+    private func resetAgentSession(agentId: String, sessionId: UUID) {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let sessionsDir = "\(homeDir)/.openclaw/agents/\(agentId)/sessions"
         let sessionsJsonPath = "\(sessionsDir)/sessions.json"
         let fm = FileManager.default
 
-        // Read sessions.json to find the active session ID for the main channel
-        let sessionKey = "agent:\(agentId):main"
+        // Look up the gateway session-id mapped to *this* UI session's
+        // sessionKey, not the legacy "agent:X:main" catch-all.
+        let sessionKey = sessionKeyForAgent(agentId, sessionId: sessionId)
         guard let data = fm.contents(atPath: sessionsJsonPath),
               var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let entry = root[sessionKey] as? [String: Any],
