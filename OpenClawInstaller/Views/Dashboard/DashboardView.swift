@@ -1813,17 +1813,40 @@ struct ChatView: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
 
-                // Input card — Claude-style layout:
+                // Wrapper VStack — the parent is a ZStack(alignment: .bottom),
+                // so without this wrapper the attach button and the input
+                // card would both bottom-align inside the ZStack and visually
+                // overlap. Wrapping them in a VStack puts the attach button
+                // above the input card as a single bottom-aligned unit.
+                VStack(spacing: 0) {
+
+                // Attach button — lives OUTSIDE the input card, just above
+                // it. Triggers the file picker; resulting file chips still
+                // render INSIDE the input card. Clear/Reset button was
+                // removed entirely — users can wipe a thread via /reset or
+                // the sidebar's session menu.
+                HStack(spacing: 0) {
+                    Button(action: { openFilePicker() }) {
+                        Image(systemName: "paperclip")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Attach File", bundle: LanguageManager.shared.localizedBundle))
+                    .disabled(isInputLocked)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 2)
+
+                // Input card — Claude-style: just the editor + a small inline
+                // send button at the bottom-right. No bottom toolbar row.
                 //   ┌────────────────────────────────┐
-                //   │ [attachment chips, if any]    │
-                //   │ TextEditor (full width)       │
-                //   ├────────────────────────────────┤
-                //   │ 📎 attach  🗑 Clear     ↑ send │
+                //   │ [attachment chips, if any]     │
+                //   │ TextEditor              ↑      │
                 //   └────────────────────────────────┘
-                // The Clear button used to be labelled "Reset" in the
-                // top-right toolbar; renamed to "Clear" + tinted red and
-                // moved to the bottom toolbar so the input feels less
-                // cluttered and matches Claude's input affordance pattern.
                 VStack(spacing: 0) {
                     // Attachment preview bar (top)
                     if !attachedFiles.isEmpty {
@@ -1840,87 +1863,65 @@ struct ChatView: View {
                         }
                     }
 
-                    // TextEditor — primary input, takes full width.
+                    // TextEditor — primary input. Send button is overlaid in
+                    // the bottom-right corner; text gets enough trailing
+                    // padding to never run under it (button ~26pt + 12pt
+                    // breathing room = 38pt clearance).
                     ZStack(alignment: .topLeading) {
                         // Placeholder — hidden when focused
                         if inputText.isEmpty && !isInputFocused {
                             Text("Ask anything...")
                                 .font(.subheadline)
                                 .foregroundColor(Color(NSColor.placeholderTextColor).opacity(0.6))
-                                .padding(.horizontal, 12)
+                                .padding(.leading, 12)
+                                .padding(.trailing, 44)
                                 .padding(.vertical, 10)
                                 .allowsHitTesting(false)
                                 .transition(.opacity)
                         }
 
-                        // Hidden text for height calculation
+                        // Hidden text for height calculation — matches the
+                        // visible TextEditor padding so the ZStack sizes
+                        // to the rendered text.
                         Text(inputText.isEmpty ? " " : inputText)
                             .font(.body)
-                            .padding(.horizontal, 12)
+                            .padding(.leading, 12)
+                            .padding(.trailing, 44)
                             .padding(.vertical, 8)
                             .opacity(0)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         TextEditor(text: $inputText)
                             .font(.body)
-                            .padding(.horizontal, 6)
+                            .padding(.leading, 6)
+                            .padding(.trailing, 38)
                             .padding(.vertical, 2)
                             .scrollContentBackground(.hidden)
                             .disabled(isInputLocked)
                     }
                     .frame(minHeight: 44, maxHeight: 200)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 6)
-                    .padding(.top, 10)
-                    .padding(.bottom, 4)
-
-                    // Bottom toolbar: attach + clear on the left, send on the right.
-                    HStack(spacing: 8) {
-                        // Attach
-                        Button(action: { openFilePicker() }) {
-                            Image(systemName: "paperclip")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                                .padding(6)
-                        }
-                        .buttonStyle(.plain)
-                        .help(String(localized: "Attach File", bundle: LanguageManager.shared.localizedBundle))
-                        .disabled(isInputLocked)
-
-                        // Clear — destructive action, red tint to telegraph that.
-                        // clearChat() wipes the in-memory thread + resets the
-                        // Agent's backend session context. NOT the same as
-                        // deleting a sidebar session.
-                        Button(action: { viewModel.clearChat() }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 12))
-                                Text("Clear")
-                                    .font(.system(size: 12, weight: .medium))
-                            }
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                        }
-                        .buttonStyle(.plain)
-                        .help(String(localized: "Clear messages and reset agent context", bundle: LanguageManager.shared.localizedBundle))
-                        .disabled(isInputLocked)
-
-                        Spacer()
-
-                        // Send
+                    .overlay(alignment: .bottomTrailing) {
                         Button(action: { sendMessage() }) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundColor(canSend ? .accentColor : Color(NSColor.separatorColor))
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(canSend ? .white : Color(NSColor.tertiaryLabelColor))
+                                .frame(width: 26, height: 26)
+                                .background(
+                                    Circle()
+                                        .fill(canSend
+                                              ? Color.accentColor
+                                              : Color(NSColor.quaternaryLabelColor))
+                                )
                         }
                         .buttonStyle(.plain)
                         .disabled(!canSend)
                         .animation(.easeInOut(duration: 0.15), value: canSend)
+                        .padding(.trailing, 8)
+                        .padding(.bottom, 8)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 4)
-                    .padding(.bottom, 10)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
                 }
                 .background(Color(NSColor.windowBackgroundColor))
                 .cornerRadius(16)
@@ -1945,6 +1946,7 @@ struct ChatView: View {
                     }
                     return true
                 }
+                }   // end wrapper VStack (attach button + input card)
             }
             .animation(.easeInOut(duration: 0.15), value: showSlashPanel)
             .animation(.easeInOut(duration: 0.15), value: showSkillsPanel)

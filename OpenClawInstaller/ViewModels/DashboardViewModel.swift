@@ -877,6 +877,17 @@ class DashboardViewModel: ObservableObject {
         sessionsByAgent = grouped
     }
 
+    /// Strip transient `.loading` placeholders with no content. These are
+    /// only meaningful while a chat reply is actively streaming — if one
+    /// survives onto disk (e.g. the user force-quit the app, or the
+    /// `cancel` path's status-flip got coalesced into a "no-op" persist
+    /// by a stale equality check), reopening the session would otherwise
+    /// resurrect the spinner and look like the assistant is thinking
+    /// about a message that no longer exists.
+    private static func stripStaleLoadingPlaceholders(_ messages: [ChatMessage]) -> [ChatMessage] {
+        return messages.filter { !($0.taskStatus == .loading && $0.content.isEmpty) }
+    }
+
     /// On launch, for every agent with stored history, load the newest session
     /// and seed chatMessagesByAgent with its messages. Without this, the chat
     /// view would render empty until the user types something even though
@@ -888,7 +899,7 @@ class DashboardViewModel: ObservableObject {
                 continue
             }
             selectedSessionIdByAgent[agentId] = session.id
-            chatMessagesByAgent[agentId] = session.messages
+            chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(session.messages)
         }
     }
 
@@ -904,24 +915,41 @@ class DashboardViewModel: ObservableObject {
             let loaded = chatSessionStore.loadSession(id: sessionId)
             var session = loaded ?? ChatSession(id: sessionId, agentId: agentId, messages: messages)
 
+            // Strip stale .loading + empty placeholders before comparing
+            // to disk. We never want to persist a placeholder — and the
+            // disk side might already have one from a previous app launch
+            // that crashed before the placeholder got updated.
+            let memMessages = Self.stripStaleLoadingPlaceholders(messages)
+            let diskMessages = loaded.map { Self.stripStaleLoadingPlaceholders($0.messages) } ?? []
+
             // Skip the write only when disk already holds the same trailing
-            // message. The check is gated on `loaded != nil` because a
+            // state. The check is gated on `loaded != nil` because a
             // freshly-minted pending session (from createNewSession) loads
             // to nil — the fallback constructor pre-populates `messages`,
             // which would make the equality check trivially pass and the
             // first message would never persist.
+            //
+            // Compare task status + content length in addition to id, so
+            // that an in-place status flip (.loading → .cancelled, or a
+            // streaming delta appending text) is not coalesced into a
+            // no-op write — that was the source of the "session always
+            // looks like it's thinking" bug (the spinner placeholder got
+            // saved at .loading, then the cancel update was skipped, and
+            // disk kept the .loading state forever).
             if let loaded = loaded,
-               loaded.messages.count == messages.count,
-               loaded.messages.last?.id == messages.last?.id,
+               diskMessages.count == memMessages.count,
+               diskMessages.last?.id == memMessages.last?.id,
+               diskMessages.last?.taskStatus == memMessages.last?.taskStatus,
+               diskMessages.last?.content.count == memMessages.last?.content.count,
                !loaded.title.isEmpty {
                 continue
             }
 
-            session.messages = messages
+            session.messages = memMessages
             session.updatedAt = Date()
             // Auto-derive title once, only while still on the placeholder.
             if session.title == ChatSession.defaultTitle {
-                session.title = ChatSession.deriveTitle(from: messages)
+                session.title = ChatSession.deriveTitle(from: memMessages)
             }
             chatSessionStore.saveSessionDebounced(session)
         }
@@ -940,7 +968,7 @@ class DashboardViewModel: ObservableObject {
         flushActiveSession(forAgent: agentId)
         guard let target = chatSessionStore.loadSession(id: sessionId) else { return }
         selectedSessionIdByAgent[agentId] = sessionId
-        chatMessagesByAgent[agentId] = target.messages
+        chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(target.messages)
         rebuildSessionsMirror()
     }
 
@@ -1083,14 +1111,25 @@ class DashboardViewModel: ObservableObject {
             return
         }
 
+        // Strip .loading + empty placeholders — same rationale as in
+        // persistChangedSessions: transient spinners must never hit disk.
+        let memMessages = Self.stripStaleLoadingPlaceholders(messages)
+        let diskMessages = loaded.map { Self.stripStaleLoadingPlaceholders($0.messages) } ?? []
+
         // Compare against the on-disk copy. If nothing changed, don't
         // rewrite the file (would bump updatedAt and reorder the list).
+        // Include status + content length so an in-place message update
+        // (.loading → .cancelled, streaming delta) is not coalesced into
+        // a no-op. Was previously only count + last id, which let the
+        // cancel-flip be silently dropped.
         let messagesChanged: Bool
-        if let loaded = loaded {
-            messagesChanged = loaded.messages.count != messages.count
-                || loaded.messages.last?.id != messages.last?.id
+        if loaded != nil {
+            messagesChanged = diskMessages.count != memMessages.count
+                || diskMessages.last?.id != memMessages.last?.id
+                || diskMessages.last?.taskStatus != memMessages.last?.taskStatus
+                || diskMessages.last?.content.count != memMessages.last?.content.count
         } else {
-            messagesChanged = !messages.isEmpty
+            messagesChanged = !memMessages.isEmpty
         }
 
         guard messagesChanged else {
@@ -1100,11 +1139,11 @@ class DashboardViewModel: ObservableObject {
             return
         }
 
-        var current = loaded ?? ChatSession(id: sid, agentId: agentId, messages: messages)
-        current.messages = messages
+        var current = loaded ?? ChatSession(id: sid, agentId: agentId, messages: memMessages)
+        current.messages = memMessages
         current.updatedAt = Date()
         if current.title == ChatSession.defaultTitle {
-            current.title = ChatSession.deriveTitle(from: messages)
+            current.title = ChatSession.deriveTitle(from: memMessages)
         }
         chatSessionStore.flush(id: sid, current: current)
     }
