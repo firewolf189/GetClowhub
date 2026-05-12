@@ -53,8 +53,20 @@ xcodebuild -project "$PROJECT_DIR/$PROJECT_NAME.xcodeproj" \
     -destination "generic/platform=macOS" \
     ARCHS="arm64 x86_64" \
     ONLY_ACTIVE_ARCH=NO \
+    EXCLUDED_SOURCE_FILE_NAMES="Shaders.metal" \
     $EXTRA_FLAGS \
     clean build
+
+# Note on EXCLUDED_SOURCE_FILE_NAMES=Shaders.metal:
+# Xcode 26 split the Metal toolchain into a separately-downloadable
+# component (`xcodebuild -downloadComponent MetalToolchain`, ~688 MB).
+# SwiftTerm ships an optional Metal-renderer shader in its resource
+# bundle that we never actually use at runtime — we instantiate
+# LocalProcessTerminalView (AppKit/Core Graphics path), not Metal. So
+# skipping the shader compile lets builds work on developer machines
+# that haven't downloaded the Metal toolchain, with zero runtime impact.
+# If we ever switch to SwiftTerm's Metal renderer, drop this flag and
+# install the toolchain.
 
 # 查找生成的 .app 文件
 APP_PATH=$(find "$BUILD_DIR" -name "$APP_NAME" -type d | head -1)
