@@ -1603,10 +1603,22 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             // New top header bar — always visible in chat. Replaces the old
-            // hideAgentPicker-only AgentHeaderBar (the legacy header is kept
-            // around as dead code in case we need to revive any of its
-            // file-browser / terminal entry points later).
-            ChatHeaderBar(viewModel: viewModel)
+            // hideAgentPicker-only AgentHeaderBar; the file-browser /
+            // terminal entry points from the legacy header are wired
+            // here as callbacks.
+            ChatHeaderBar(
+                viewModel: viewModel,
+                onFileBrowser: {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        fileBrowserOpen.toggle()
+                    }
+                },
+                onTerminal: {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        terminalOpen.toggle()
+                    }
+                }
+            )
 
             ScrollViewReader { proxy in
                 ZStack(alignment: .bottomTrailing) {
@@ -7370,6 +7382,10 @@ struct SessionDetailsPanel: View {
 /// (ChatView) doesn't need to thread bindings through.
 struct ChatHeaderBar: View {
     @ObservedObject var viewModel: DashboardViewModel
+    /// Toggle the workspace file browser side panel.
+    var onFileBrowser: (() -> Void)? = nil
+    /// Toggle the inline terminal panel.
+    var onTerminal: (() -> Void)? = nil
     @State private var renameOpen = false
     @State private var renameDraft = ""
 
@@ -7463,7 +7479,7 @@ struct ChatHeaderBar: View {
                 Circle()
                     .fill(viewModel.openclawService.status == .running ? Color.green : Color.secondary)
                     .frame(width: 7, height: 7)
-                Text(viewModel.openclawService.status == .running ? "Running" : "Stopped")
+                Text(viewModel.openclawService.status == .running ? "运行中" : "已停止")
                     .font(.caption)
                     .foregroundColor(viewModel.openclawService.status == .running ? .green : .secondary)
             }
@@ -7474,20 +7490,38 @@ struct ChatHeaderBar: View {
                     .fill(Color(NSColor.controlBackgroundColor))
             )
 
-            // Share — exports current session as Markdown via NSSavePanel
-            Button {
-                if let sid = currentSessionId {
-                    viewModel.exportSession(sid)
+            // Workspace files — opens the side panel rooted at the
+            // current agent's workspace directory. Migrated from the
+            // legacy AgentHeaderBar; users lost this entry when we
+            // collapsed to the redesigned header in v1.1.46. Label
+            // ("工作区") is shown next to the icon so the affordance is
+            // discoverable without a hover tooltip.
+            if let onFileBrowser = onFileBrowser {
+                Button(action: onFileBrowser) {
+                    Label("工作区", systemImage: "folder")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-            } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
-                    .font(.caption)
+                .buttonStyle(.plain)
+                .help("Workspace Files")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(currentSessionId == nil)
 
-            // More menu — clear / new session shortcuts
+            // Inline terminal — opens TerminalPanelView pinned to the
+            // current agent's workspace directory.
+            if let onTerminal = onTerminal {
+                Button(action: onTerminal) {
+                    Label("终端", systemImage: "terminal")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Terminal")
+            }
+
+            // More menu — consolidated overflow for session actions.
+            // Share (Markdown export) was previously a separate bordered
+            // button alongside; folded into this menu to declutter the
+            // top bar (per redesign mockup).
             Menu {
                 Button {
                     viewModel.createNewSession()
@@ -7498,7 +7532,7 @@ struct ChatHeaderBar: View {
                     Button {
                         viewModel.exportSession(sid)
                     } label: {
-                        Label("Export…", systemImage: "square.and.arrow.up")
+                        Label("Share / Export…", systemImage: "square.and.arrow.up")
                     }
                     Divider()
                     Button(role: .destructive) {
@@ -7508,8 +7542,8 @@ struct ChatHeaderBar: View {
                     }
                 }
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 14))
+                Label("更多", systemImage: "ellipsis")
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
             .menuStyle(.borderlessButton)
