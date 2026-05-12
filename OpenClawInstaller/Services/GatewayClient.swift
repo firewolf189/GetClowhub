@@ -34,6 +34,22 @@ class GatewayClient: ObservableObject {
     private var eventContinuations: [String: AsyncStream<GatewayChatEvent>.Continuation] = [:]
     private let eventLock = NSLock()
 
+    /// Serializes all mutations of `webSocketTask` / `urlSession` / `reconnectAttempt` /
+    /// `isIntentionalDisconnect` / `reconnectPending`.
+    ///
+    /// Without this, failure callbacks from `URLSessionWebSocketTask.receive`, send-callback
+    /// errors, and the auth-failure handler can fire concurrently on different queues and
+    /// each call `scheduleReconnect()`, racing to teardown/rebuild the URLSession. That race
+    /// produces a double-release on the previous CF-backed URLSession and crashes the app
+    /// with `malloc_zone_error` → `abort()` inside `_CFRelease`. See crash report
+    /// 2026-05-12 (v1.1.46) Thread 9: `GatewayClient.establishConnection() + 330`.
+    private let stateQueue = DispatchQueue(label: "com.openclaw.gateway.state")
+
+    /// True between the moment a reconnect is scheduled and the moment a new connection
+    /// has been established. Prevents concurrent failure callbacks from each kicking off
+    /// their own reconnect timer.
+    private var reconnectPending = false
+
     /// Timestamp of the last WebSocket message received (any type: tick, chat, etc.).
     /// Used by the ViewModel to distinguish "gateway is alive but agent is busy with tools"
     /// from "gateway connection is dead".
@@ -48,18 +64,22 @@ class GatewayClient: ObservableObject {
     // MARK: - Public API
 
     func connect() {
-        isIntentionalDisconnect = false
-        reconnectAttempt = 0
-        establishConnection()
+        stateQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.isIntentionalDisconnect = false
+            self.reconnectAttempt = 0
+            self.reconnectPending = false
+            self.establishConnection()
+        }
     }
 
     func disconnect() {
-        isIntentionalDisconnect = true
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
-        webSocketTask = nil
-        urlSession?.invalidateAndCancel()
-        urlSession = nil
-        DispatchQueue.main.async { self.isConnected = false }
+        stateQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.isIntentionalDisconnect = true
+            self.teardownSession()
+            DispatchQueue.main.async { self.isConnected = false }
+        }
     }
 
     /// Send `chat.abort` to the gateway. Returns `true` if the abort was acknowledged.
@@ -270,8 +290,26 @@ class GatewayClient: ObservableObject {
 
     // MARK: - Connection Management
 
+    /// Tear down the current session/task. **Caller must be on `stateQueue`.**
+    private func teardownSession() {
+        dispatchPrecondition(condition: .onQueue(stateQueue))
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
+    }
+
+    /// Build a fresh URLSession + WebSocket task. **Caller must be on `stateQueue`.**
+    ///
+    /// Defensively tears down any stale session first so the property write below cannot
+    /// stomp on a still-live URLSession owned by another in-flight reconnect.
     private func establishConnection() {
+        dispatchPrecondition(condition: .onQueue(stateQueue))
         guard !isIntentionalDisconnect else { return }
+
+        // Defensive: any prior session must be torn down before we overwrite the property,
+        // otherwise the old strong reference is dropped without `invalidateAndCancel`.
+        teardownSession()
 
         // Refresh credentials from config file before each connection attempt
         if let provider = credentialsProvider {
@@ -409,18 +447,23 @@ class GatewayClient: ObservableObject {
             let isError = json["error"] != nil
             if !isError {
                 gwLog.info("Gateway connected successfully")
-                DispatchQueue.main.async {
-                    self.isConnected = true
-                    self.reconnectAttempt = 0
+                // reconnectAttempt is part of the state-machine and must only be mutated
+                // on stateQueue (it races with scheduleReconnect()'s `+= 1` otherwise).
+                stateQueue.async { [weak self] in
+                    self?.reconnectAttempt = 0
+                    self?.reconnectPending = false
                 }
+                DispatchQueue.main.async { self.isConnected = true }
             } else {
                 // Connect auth failed (e.g. stale token after gateway restart).
-                // Close this dead socket and reconnect with fresh credentials.
+                // Close this dead socket and reconnect with fresh credentials. The teardown
+                // touches `webSocketTask` / `urlSession` so it must run on stateQueue,
+                // otherwise it can race with scheduleReconnect()'s reconnect timer and
+                // double-free the URLSession (crash on `_CFRelease` inside establishConnection).
                 gwLog.error("Gateway connect auth failed: \(String(describing: json["error"])). Will reconnect with fresh credentials.")
-                self.webSocketTask?.cancel(with: .goingAway, reason: nil)
-                self.webSocketTask = nil
-                self.urlSession?.invalidateAndCancel()
-                self.urlSession = nil
+                stateQueue.async { [weak self] in
+                    self?.teardownSession()
+                }
                 DispatchQueue.main.async { self.isConnected = false }
                 self.scheduleReconnect()
             }
@@ -468,29 +511,45 @@ class GatewayClient: ObservableObject {
         }
     }
 
+    /// Schedule a reconnect after exponential backoff.
+    ///
+    /// Can be invoked from any queue (URLSession delegate queue, send-callback queue,
+    /// main, etc.). Coalesces concurrent invocations via `reconnectPending` — only the
+    /// first call within a reconnect cycle actually arms a timer; subsequent calls are
+    /// no-ops until the new connection is established (or torn down by `disconnect()`).
+    ///
+    /// Was: dispatched the reconnect body to `DispatchQueue.global()`, which let multiple
+    /// failure callbacks each rebuild the URLSession in parallel and race on releasing
+    /// the previous one — root cause of the v1.1.46 `_CFRelease` crash.
     private func scheduleReconnect() {
-        guard !isIntentionalDisconnect else { return }
+        stateQueue.async { [weak self] in
+            guard let self = self,
+                  !self.isIntentionalDisconnect,
+                  !self.reconnectPending else { return }
+            self.reconnectPending = true
 
-        // Finish all active event streams so consumers don't hang forever
-        eventLock.lock()
-        let activeContinuations = eventContinuations
-        eventContinuations.removeAll()
-        eventLock.unlock()
-        for (_, continuation) in activeContinuations {
-            continuation.finish()
-        }
+            // Finish all active event streams so consumers don't hang forever
+            self.eventLock.lock()
+            let activeContinuations = self.eventContinuations
+            self.eventContinuations.removeAll()
+            self.eventLock.unlock()
+            for (_, continuation) in activeContinuations {
+                continuation.finish()
+            }
 
-        reconnectAttempt += 1
-        // Exponential backoff: 1s, 2s, 4s, 8s, capped at maxReconnectDelay
-        let delay = min(pow(2.0, Double(reconnectAttempt - 1)), maxReconnectDelay)
+            self.reconnectAttempt += 1
+            // Exponential backoff: 1s, 2s, 4s, 8s, capped at maxReconnectDelay
+            let delay = min(pow(2.0, Double(self.reconnectAttempt - 1)),
+                            self.maxReconnectDelay)
 
-        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
-            guard let self = self, !self.isIntentionalDisconnect else { return }
-            self.webSocketTask?.cancel(with: .goingAway, reason: nil)
-            self.webSocketTask = nil
-            self.urlSession?.invalidateAndCancel()
-            self.urlSession = nil
-            self.establishConnection()
+            self.stateQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self, !self.isIntentionalDisconnect else { return }
+                // Stays inside stateQueue: teardown + rebuild are both serial.
+                // reconnectPending flips false at the moment we begin establishing —
+                // a fresh failure from the new socket is allowed to re-arm the timer.
+                self.reconnectPending = false
+                self.establishConnection()
+            }
         }
     }
 
