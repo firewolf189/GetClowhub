@@ -50,10 +50,30 @@ class GatewayClient: ObservableObject {
     /// their own reconnect timer.
     private var reconnectPending = false
 
-    /// Timestamp of the last WebSocket message received (any type: tick, chat, etc.).
-    /// Used by the ViewModel to distinguish "gateway is alive but agent is busy with tools"
-    /// from "gateway connection is dead".
+    /// Timestamp of the last WebSocket message received (any chat event, response, etc.).
+    /// Used by the ViewModel as a coarse "WebSocket is alive" signal — note the gateway
+    /// itself does NOT emit periodic tick/heartbeat broadcasts today (the older comment
+    /// claiming it did was aspirational), so for a real liveness probe we run a separate
+    /// client heartbeat below.
     private(set) var lastMessageReceivedAt = Date()
+
+    /// Repeating `DispatchSourceTimer` that fires `sendPing` while the WS is up.
+    /// Created on `stateQueue` after a successful connect ack, cancelled in
+    /// `teardownSession()`. nil while disconnected.
+    ///
+    /// Why: macOS TCP keepalive defaults to ~2 hours of idle before the kernel sends
+    /// its first probe, which means a silently half-open WS (Wi-Fi router flake / VPN
+    /// reconnect / cell handoff) goes undetected for hours until the user next tries
+    /// to `chat.send`. A 30s WS-protocol ping closes that gap — the server stack
+    /// (per RFC 6455) auto-responds with a pong, so no gateway change is required.
+    private var heartbeatTimer: DispatchSourceTimer?
+
+    /// Set when a ping is in flight (we asked URLSession to send one, the pong hasn't
+    /// arrived yet). nil otherwise. Read/written only on `stateQueue`.
+    private var outstandingPingSentAt: Date?
+
+    private let pingInterval: TimeInterval = 30
+    private let pingTimeout: TimeInterval = 30  // pong must arrive within this window
 
     init(port: Int, authToken: String, credentialsProvider: (() -> (port: Int, authToken: String))? = nil) {
         self.port = port
@@ -293,6 +313,7 @@ class GatewayClient: ObservableObject {
     /// Tear down the current session/task. **Caller must be on `stateQueue`.**
     private func teardownSession() {
         dispatchPrecondition(condition: .onQueue(stateQueue))
+        stopHeartbeat()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         urlSession?.invalidateAndCancel()
@@ -368,7 +389,9 @@ class GatewayClient: ObservableObject {
             return
         }
 
-        // Track that the WebSocket is alive (tick, chat, heartbeat — any message counts)
+        // Track that the WebSocket is alive (any inbound message counts: chat events,
+        // response acks, etc. — gateway does not emit periodic ticks today; client-side
+        // ping/pong is what actively probes the link).
         lastMessageReceivedAt = Date()
 
         let type = json["type"] as? String
@@ -449,9 +472,12 @@ class GatewayClient: ObservableObject {
                 gwLog.info("Gateway connected successfully")
                 // reconnectAttempt is part of the state-machine and must only be mutated
                 // on stateQueue (it races with scheduleReconnect()'s `+= 1` otherwise).
+                // Start heartbeat on the same queue so a stale prior timer is replaced
+                // atomically with the fresh connection.
                 stateQueue.async { [weak self] in
                     self?.reconnectAttempt = 0
                     self?.reconnectPending = false
+                    self?.startHeartbeat()
                 }
                 DispatchQueue.main.async { self.isConnected = true }
             } else {
@@ -549,6 +575,80 @@ class GatewayClient: ObservableObject {
                 // a fresh failure from the new socket is allowed to re-arm the timer.
                 self.reconnectPending = false
                 self.establishConnection()
+            }
+        }
+    }
+
+    // MARK: - Heartbeat (client → gateway WS-protocol ping)
+
+    /// Start the heartbeat timer. **Caller must be on `stateQueue`.**
+    ///
+    /// Idempotent — any prior timer is cancelled and the outstanding-ping marker
+    /// is reset before the new timer arms. Safe to call after each successful
+    /// connect even if a previous heartbeat was still in some half-state.
+    private func startHeartbeat() {
+        dispatchPrecondition(condition: .onQueue(stateQueue))
+        stopHeartbeat()
+
+        let timer = DispatchSource.makeTimerSource(queue: stateQueue)
+        timer.schedule(deadline: .now() + pingInterval, repeating: pingInterval)
+        timer.setEventHandler { [weak self] in
+            self?.heartbeatTick()
+        }
+        timer.resume()
+        heartbeatTimer = timer
+    }
+
+    /// Cancel the heartbeat timer and clear the outstanding-ping marker.
+    /// Safe to call from any queue (DispatchSourceTimer.cancel is thread-safe).
+    private func stopHeartbeat() {
+        heartbeatTimer?.cancel()
+        heartbeatTimer = nil
+        outstandingPingSentAt = nil
+    }
+
+    /// Fires every `pingInterval` seconds while connected.
+    ///
+    /// Two cases per tick:
+    ///   1. A previous ping is still outstanding AND it was sent more than
+    ///      `pingTimeout` ago — the gateway never pong'd, presume dead and
+    ///      force a reconnect. Without this branch we'd happily keep firing
+    ///      pings into the void forever.
+    ///   2. No outstanding ping — send a fresh one and record the timestamp.
+    ///      The pong handler clears the marker. If the handler is invoked
+    ///      with an error, the WS is provably bad and we reconnect immediately
+    ///      rather than waiting for the next tick.
+    private func heartbeatTick() {
+        dispatchPrecondition(condition: .onQueue(stateQueue))
+        guard let ws = webSocketTask, !isIntentionalDisconnect else { return }
+
+        if let sentAt = outstandingPingSentAt {
+            let elapsed = Date().timeIntervalSince(sentAt)
+            if elapsed >= pingTimeout {
+                gwLog.warning("Heartbeat: pong overdue by \(Int(elapsed))s, forcing reconnect")
+                stopHeartbeat()
+                scheduleReconnect()
+            }
+            // Else: still within the timeout window — wait, don't pile on extra pings.
+            return
+        }
+
+        outstandingPingSentAt = Date()
+        ws.sendPing { [weak self] error in
+            // Pong handler runs on URLSession's internal queue; bounce back to
+            // stateQueue so we mutate `outstandingPingSentAt` under the same
+            // serialization that everything else uses.
+            self?.stateQueue.async {
+                guard let self = self else { return }
+                if let error = error {
+                    gwLog.warning("Heartbeat ping send/pong error: \(error.localizedDescription) — reconnecting")
+                    self.stopHeartbeat()
+                    self.scheduleReconnect()
+                } else {
+                    // Pong received cleanly. Clear the marker so the next tick
+                    // fires a fresh ping.
+                    self.outstandingPingSentAt = nil
+                }
             }
         }
     }

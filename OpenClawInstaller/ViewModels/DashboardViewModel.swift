@@ -2395,16 +2395,19 @@ class DashboardViewModel: ObservableObject {
         )
 
         // Inactivity timeout: only triggers when the WebSocket connection itself goes silent.
-        // Gateway broadcasts tick/heartbeat events regularly, so as long as the connection
-        // is alive, lastMessageReceivedAt keeps updating — even when the agent is busy
-        // running tools with no chat output.
+        // The gateway does NOT currently emit periodic tick/heartbeat events — `lastMessageReceivedAt`
+        // is updated by any inbound message (chat deltas, responses, etc.), so during a long
+        // tool-execution phase with no chat output the timer effectively measures "any traffic at all
+        // since send". Liveness of the socket itself is now guarded by `GatewayClient.startHeartbeat()`
+        // (30s WS-protocol ping with pong-timeout reconnect); this timer is the higher-level safety
+        // net for "client never heard back about this run after N minutes".
         let inactivityLimit: TimeInterval = inactivityTimeoutSeconds  // user-tunable, default 60 min
         let timeoutTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 10_000_000_000) // check every 10s
                 guard let self = self, !Task.isCancelled else { return }
-                // Use the gateway-level timestamp: ANY WebSocket message (tick, chat, heartbeat…)
-                // proves the connection is alive, so only timeout if *nothing* arrived.
+                // Use the gateway-level timestamp: any inbound message resets it; nothing for
+                // `inactivityLimit` means we're not getting anything (including ack/delta) from gateway.
                 let elapsed = Date().timeIntervalSince(self.gatewayClient.lastMessageReceivedAt)
                 if elapsed >= inactivityLimit {
                     // No WebSocket messages at all for inactivityLimit — connection is dead
