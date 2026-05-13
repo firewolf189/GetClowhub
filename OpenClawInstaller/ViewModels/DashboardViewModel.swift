@@ -337,6 +337,13 @@ class DashboardViewModel: ObservableObject {
     /// exposed as a stable computed property so views can observe via
     /// `$foregroundTaskIds` without reading the underlying set directly.
     var concurrentForegroundCount: Int { foregroundTaskIds.count }
+
+    /// Total tasks (foreground + background) currently in flight. Used by
+    /// the chat header's concurrency badge — gateway's Main lane cap
+    /// applies to both kinds (a `.background` task still occupies a slot
+    /// on the LLM proxy), so the badge needs to count both to give the
+    /// user an accurate "how close to the queueing cutoff am I" picture.
+    var concurrentTaskCount: Int { foregroundTaskIds.count + backgroundTaskIds.count }
     @Published var fallbackModels: [String] = []
     @Published var imageFallbackModels: [String] = []
     @Published var isLoadingModels = false
@@ -966,15 +973,25 @@ class DashboardViewModel: ObservableObject {
         sessionsByAgent = grouped
     }
 
-    /// Strip transient `.loading` placeholders with no content. These are
+    /// Strip transient in-flight placeholders with no content. These are
     /// only meaningful while a chat reply is actively streaming — if one
     /// survives onto disk (e.g. the user force-quit the app, or the
     /// `cancel` path's status-flip got coalesced into a "no-op" persist
     /// by a stale equality check), reopening the session would otherwise
-    /// resurrect the spinner and look like the assistant is thinking
-    /// about a message that no longer exists.
+    /// resurrect the spinner ("Thinking…" for `.loading`, "Running in
+    /// background…" for `.background`) and look like the assistant is
+    /// working on a message that no longer exists.
+    ///
+    /// Covers both statuses; before, only `.loading + empty` was stripped,
+    /// so a `.background + empty` placeholder (left behind when a
+    /// session was deleted / switched away from with bg in flight, and
+    /// the in-memory stash later got lost) would persist forever and
+    /// render as "Running in background…" with no actual task behind it.
     private static func stripStaleLoadingPlaceholders(_ messages: [ChatMessage]) -> [ChatMessage] {
-        return messages.filter { !($0.taskStatus == .loading && $0.content.isEmpty) }
+        return messages.filter {
+            !(($0.taskStatus == .loading || $0.taskStatus == .background)
+              && $0.content.isEmpty)
+        }
     }
 
     /// Load `agentId`'s active session messages into `chatMessagesByAgent`
@@ -1111,17 +1128,20 @@ class DashboardViewModel: ObservableObject {
         let agentId = selectedAgentId
         let oldSid = selectedSessionIdByAgent[agentId]
 
-        // If the session we're LEAVING has an in-flight task, we can't
-        // just overwrite `chatMessagesByAgent[agentId]` — subsequent
-        // stream events would find no msgId to update and silently
-        // discard output. Instead, stash the current messages into the
-        // inactive map keyed by the old sessionId. Stream handlers know
-        // to look there too. When the user returns to that session, we
-        // unstash.
+        // If the session we're LEAVING has an in-flight task (foreground
+        // OR background), we can't just overwrite `chatMessagesByAgent[agentId]`
+        // — subsequent stream events would find no msgId to update and
+        // silently discard output. Instead, stash the current messages
+        // into the inactive map keyed by the old sessionId. Stream
+        // handlers know to look there too. When the user returns to
+        // that session, we unstash.
         //
-        // If there's no in-flight task, no stash needed — just drop the
-        // in-memory copy (it's already on disk).
-        if let oldSid = oldSid, hasForegroundTask(inSession: oldSid) {
+        // `hasInflightTask` covers both kinds: a task moved to bg via
+        // moveTaskToBackground is still running on the gateway and
+        // still needs its placeholder preserved so stream events can
+        // land. (Earlier this was `hasForegroundTask` only — bg tasks
+        // got silently dropped on session switch.)
+        if let oldSid = oldSid, hasInflightTask(inSession: oldSid) {
             chatMessagesByInactiveSession[oldSid] = chatMessagesByAgent[agentId]
         }
 
@@ -1297,9 +1317,10 @@ class DashboardViewModel: ObservableObject {
         let agentId = selectedAgentId
         let oldSid = selectedSessionIdByAgent[agentId]
         // Symmetric with switchSession: if a task is streaming in the old
-        // session, preserve its message list in the inactive stash so
-        // stream events can still find their target. We do NOT cancel.
-        if let oldSid = oldSid, hasForegroundTask(inSession: oldSid) {
+        // session (foreground OR background), preserve its message list
+        // in the inactive stash so stream events can still find their
+        // target. We do NOT cancel.
+        if let oldSid = oldSid, hasInflightTask(inSession: oldSid) {
             chatMessagesByInactiveSession[oldSid] = chatMessagesByAgent[agentId]
         }
         flushActiveSession(forAgent: agentId)
@@ -1442,10 +1463,27 @@ class DashboardViewModel: ObservableObject {
     }
 
     /// Check if a specific session has a foreground task running. Used by
-    /// the sidebar to badge specific session rows and by the input bar to
-    /// decide whether to disable typing.
+    /// the input bar to decide whether to disable typing (background
+    /// tasks INTENTIONALLY unlock the input — moving to bg is the user
+    /// saying "don't block me on this").
     func hasForegroundTask(inSession sessionId: UUID) -> Bool {
         foregroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
+    }
+
+    /// Check if a specific session has ANY in-flight task — foreground OR
+    /// background. Used wherever we care about "is the gateway still
+    /// running work on behalf of this session" regardless of whether the
+    /// spinner is locking the UI:
+    ///   - sidebar activity dot (orange) — shows even for bg tasks so the
+    ///     user remembers they have something cooking over there
+    ///   - `switchSession` / `createNewSession` stash decision — bg
+    ///     tasks need the same in-memory preservation as fg ones, or
+    ///     their stream events have nowhere to land after navigation
+    ///   - `deleteSession` cancel sweep — both kinds become orphans on
+    ///     the gateway if we don't cancel them
+    func hasInflightTask(inSession sessionId: UUID) -> Bool {
+        foregroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
+            || backgroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
     }
 
     /// Recompute `isSendingMessage` based on whether the currently visible
@@ -1461,16 +1499,21 @@ class DashboardViewModel: ObservableObject {
         isSendingMessage = hasForegroundTask(inSession: sid)
     }
 
-    /// Cancel every foreground task currently bound to `sessionId`. Only
-    /// used by `deleteSession` now — deleting a session while a task is
+    /// Cancel every task (fg + bg) currently bound to `sessionId`. Only
+    /// used by `deleteSession` — deleting a session while tasks are
     /// running on it makes no sense (the destination for the output is
     /// disappearing). For switchSession / createNewSession we instead
     /// stash the session's state into `chatMessagesByInactiveSession` so
-    /// the task can keep running and route its output to the right place
-    /// when the user comes back.
+    /// tasks can keep running and route output to the right place when
+    /// the user comes back.
+    ///
+    /// Includes `.background` tasks: they're also bound to a sessionId
+    /// via `taskSessionMap`, and if the session is deleted they'd become
+    /// gateway-side orphans the same as foreground ones.
     private func cancelTasks(inSession sessionId: UUID) {
-        let toCancel = foregroundTaskIds.filter { taskSessionMap[$0] == sessionId }
-        for msgId in toCancel {
+        let fg = foregroundTaskIds.filter { taskSessionMap[$0] == sessionId }
+        let bg = backgroundTaskIds.filter { taskSessionMap[$0] == sessionId }
+        for msgId in fg.union(bg) {
             cancelChat(msgId)
         }
     }

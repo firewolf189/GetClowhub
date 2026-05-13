@@ -430,7 +430,7 @@ struct SidebarView: View {
                 } label: {
                     ChatSessionRow(meta: meta,
                                    isActive: activeId == meta.id,
-                                   isExecuting: viewModel.hasForegroundTask(inSession: meta.id))
+                                   isExecuting: viewModel.hasInflightTask(inSession: meta.id))
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
@@ -635,7 +635,7 @@ struct SidebarView: View {
                         } label: {
                             ChatSessionRow(meta: meta,
                                            isActive: activeId == meta.id,
-                                           isExecuting: viewModel.hasForegroundTask(inSession: meta.id))
+                                           isExecuting: viewModel.hasInflightTask(inSession: meta.id))
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -908,10 +908,27 @@ struct SidebarView: View {
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
-            // Agent list - tree view or flat search results
+            // Agent list - tree view or flat search results.
+            //
+            // Selecting an agent has to do TWO things:
+            //   1. Set `selectedMarketplaceAgent` — the .market tab's
+            //      branch keys off this to swap from MarketplaceOverview
+            //      to MarketplaceDetailView for the chosen agent.
+            //   2. Set `selectedTab = .market` — without this, the user
+            //      might be on the .chat tab (or any other), and the
+            //      main content area keeps showing chat while only the
+            //      sidebar reflects the marketplace selection. The
+            //      previous binding only did (1), so clicking an agent
+            //      in the sidebar visibly highlighted it but the right
+            //      side stayed on the previous tab.
             List(selection: Binding<MarketplaceAgent?>(
                 get: { viewModel.selectedMarketplaceAgent },
-                set: { viewModel.selectedMarketplaceAgent = $0 }
+                set: { newAgent in
+                    viewModel.selectedMarketplaceAgent = newAgent
+                    if newAgent != nil {
+                        viewModel.selectedTab = .market
+                    }
+                }
             )) {
                 if marketplaceSearchText.isEmpty {
                     // Tree view grouped by division
@@ -1476,7 +1493,30 @@ struct ChatView: View {
                     }
 
                     ForEach(viewModel.chatMessages, id: \.id) { message in
-                        if !(message.role == .assistant && message.content.isEmpty && message.attachments.isEmpty) {
+                        // Hide bubbles that are "transient placeholders"
+                        // — empty assistant messages still in the
+                        // `.loading` state. Those get a dedicated
+                        // ThinkingIndicator below.
+                        //
+                        // EXCEPTION: `.background` placeholders pass
+                        // through. Was a real bug — ThinkingIndicator's
+                        // 120s timer auto-flips `.loading` → `.background`
+                        // for long-running tasks; the old filter (which
+                        // skipped ALL empty assistant messages regardless
+                        // of status) then dropped these from the ChatBubble
+                        // loop, AND the ThinkingIndicator filter no longer
+                        // matched them (status is .background now), so the
+                        // message vanished from UI while the gateway-side
+                        // task was still running. Letting it through here
+                        // is correct: ChatBubble has a "Running in
+                        // background..." sub-row that renders even with
+                        // empty content, which is exactly the affordance
+                        // the user needs to see.
+                        let isLoadingPlaceholder = message.role == .assistant
+                            && message.content.isEmpty
+                            && message.attachments.isEmpty
+                            && message.taskStatus == .loading
+                        if !isLoadingPlaceholder {
                             if message.scrollTargetId != nil {
                                 BackgroundTaskNotification(message: message, scrollProxy: proxy)
                                     .id(message.id)
@@ -6890,15 +6930,190 @@ struct SessionDetailsPanel: View {
     @ObservedObject var viewModel: DashboardViewModel
     @State private var tab: PanelTab = .details
 
+    /// Collapsed by default per redesign — the full 300pt panel takes
+    /// a lot of width and most of the time users only need to glance at
+    /// the agent / counts. Stored in UserDefaults so the user's
+    /// preference persists across launches.
+    @AppStorage("dashboard.sessionPanelExpanded") private var expanded: Bool = false
+
     enum PanelTab: String, CaseIterable {
         case details
         case logs
     }
 
     var body: some View {
+        Group {
+            if expanded {
+                expandedBody
+            } else {
+                collapsedBody
+            }
+        }
+        // Pre-load the model list, overview, and skills once when the panel
+        // first appears. Applied here (outer group) instead of only on the
+        // expanded variant so the collapsed view's tool count badge also
+        // populates without waiting for the user to expand. Each viewModel
+        // function guards against double-load itself.
+        .task {
+            if viewModel.availableModelsForSettings.isEmpty {
+                await viewModel.loadModelsForSettings()
+            }
+            if viewModel.modelOverview.defaultModel.isEmpty
+                || viewModel.modelOverview.defaultModel == "-" {
+                await viewModel.loadModels()
+            }
+            if viewModel.skills.isEmpty {
+                await viewModel.loadSkills()
+            }
+        }
+    }
+
+    // MARK: - Collapsed (default)
+
+    /// Slim vertical strip — mirrors the same content as the expanded
+    /// panel but stripped to icons + counts. Clicking the chevron
+    /// expands; clicking a tab label switches the tab and expands.
+    private var collapsedBody: some View {
+        VStack(spacing: 14) {
+            // Expand chevron — placed at the top so it's the first thing
+            // the eye finds. Previously sat mid-column between tabs and
+            // agent block, which felt arbitrary.
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    expanded = true
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 28, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Expand session details")
+            .padding(.top, 12)
+
+            // Tab labels (clickable — switch tab AND expand)
+            VStack(spacing: 8) {
+                ForEach(PanelTab.allCases, id: \.self) { t in
+                    Button {
+                        tab = t
+                        expanded = true
+                    } label: {
+                        Text(t == .details ? "详情" : "记录")
+                            .font(.system(size: 12, weight: tab == t ? .semibold : .regular))
+                            .foregroundColor(tab == t ? .accentColor : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Divider().padding(.horizontal, 12)
+
+            // Agent avatar + name (no picker in collapsed view to save space;
+            // user can expand to switch).
+            VStack(spacing: 4) {
+                if let agent = viewModel.availableAgents.first(where: { $0.id == viewModel.selectedAgentId }) {
+                    Text(agent.emoji)
+                        .font(.system(size: 24))
+                    Text(agent.name)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            // Stats — same data as expanded view, vertical compact form.
+            // Each block: label (tiny secondary) + value (small primary).
+            // Uptime uses a compact formatter — full HH:MM:SS doesn't
+            // fit in 52pt width and gets truncated to "00:00:" mid-string.
+            VStack(spacing: 10) {
+                statBlock(label: "工具",
+                          value: viewModel.skillsSummary.total > 0
+                                 ? "\(viewModel.skillsSummary.ready)/\(viewModel.skillsSummary.total)"
+                                 : "—")
+                statBlock(label: "消息",
+                          value: "\(viewModel.chatMessages.count)")
+                statBlock(label: "时长",
+                          value: Self.formatUptimeCompact(viewModel.openclawService.uptime))
+            }
+
+            Spacer()
+
+            // Clear conversation — bottom, destructive red icon-only.
+            Button {
+                viewModel.chatMessagesByAgent[viewModel.selectedAgentId] = []
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 14))
+                    .foregroundColor(.red)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.red.opacity(0.45), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Clear Conversation")
+            .padding(.bottom, 16)
+        }
+        .frame(width: 52)
+        .background(Color(NSColor.windowBackgroundColor))
+        .overlay(alignment: .leading) { Divider() }
+    }
+
+    /// Short uptime label for the collapsed column. Falls back to a few
+    /// distinct formats sized to fit ≤ 5 chars:
+    ///   - < 1 min: `<1m`
+    ///   - < 1 hr:  `Xm` (e.g. 7m, 42m)
+    ///   - < 1 day: `Xh` (e.g. 2h, 23h)
+    ///   - 1+ day:  `Xd`
+    /// Long-form HH:MM:SS lives on the expanded view's "Uptime" row.
+    static func formatUptimeCompact(_ seconds: TimeInterval) -> String {
+        guard seconds > 0 else { return "—" }
+        let s = Int(seconds)
+        if s < 60 { return "<1m" }
+        if s < 3600 { return "\(s / 60)m" }
+        if s < 86400 { return "\(s / 3600)h" }
+        return "\(s / 86400)d"
+    }
+
+    /// Small label/value block used in the collapsed stats column.
+    private func statBlock(label: LocalizedStringKey, value: String) -> some View {
+        VStack(spacing: 1) {
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+        }
+    }
+
+    // MARK: - Expanded (existing layout)
+
+    private var expandedBody: some View {
         VStack(spacing: 0) {
-            // Top tab strip
+            // Top tab strip + collapse chevron
             HStack(spacing: 0) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        expanded = false
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+                .help("Collapse session details")
+
                 ForEach(PanelTab.allCases, id: \.self) { t in
                     Button {
                         tab = t
@@ -6962,22 +7177,6 @@ struct SessionDetailsPanel: View {
         .frame(width: 300)
         .background(Color(NSColor.windowBackgroundColor))
         .overlay(alignment: .leading) { Divider() }
-        // Pre-load the model list, overview, and skills once when the panel
-        // first appears. loadModelsForSettings populates the picker;
-        // loadModels populates modelOverview.defaultModel; loadSkills
-        // populates the Tool Status list.
-        .task {
-            if viewModel.availableModelsForSettings.isEmpty {
-                await viewModel.loadModelsForSettings()
-            }
-            if viewModel.modelOverview.defaultModel.isEmpty
-                || viewModel.modelOverview.defaultModel == "-" {
-                await viewModel.loadModels()
-            }
-            if viewModel.skills.isEmpty {
-                await viewModel.loadSkills()
-            }
-        }
     }
 
     // MARK: - Details tab
@@ -7447,19 +7646,22 @@ struct ChatHeaderBar: View {
             }
 
             // Concurrent-task counter — informational only. Visible when
-            // anything is in flight so the user can gauge how close they
-            // are to the gateway's `Main` lane concurrency cap (default 4).
+            // anything is in flight (foreground OR background) so the
+            // user can gauge how close they are to the gateway's `Main`
+            // lane concurrency cap (default 4). Counts BOTH kinds
+            // because gateway's lane is occupied either way; counting
+            // only fg under-reported and let the badge claim
+            // "still 1/4 free" while gateway was already at cap.
             //
-            // At cap: the badge turns orange and the help tooltip
-            // explains that new sends will queue gateway-side until a
-            // running task completes. We don't block sends client-side —
-            // the gateway already handles queueing correctly.
-            if viewModel.concurrentForegroundCount > 0 {
-                let atCap = viewModel.concurrentForegroundCount >= viewModel.maxConcurrentTasks
+            // At cap: orange + tooltip explains new sends will queue.
+            // We don't block sends client-side — the gateway already
+            // handles queueing correctly.
+            if viewModel.concurrentTaskCount > 0 {
+                let atCap = viewModel.concurrentTaskCount >= viewModel.maxConcurrentTasks
                 HStack(spacing: 4) {
                     Image(systemName: atCap ? "exclamationmark.circle.fill" : "circle.dotted")
                         .font(.system(size: 10))
-                    Text("\(viewModel.concurrentForegroundCount)/\(viewModel.maxConcurrentTasks)")
+                    Text("\(viewModel.concurrentTaskCount)/\(viewModel.maxConcurrentTasks)")
                         .font(.caption.monospacedDigit())
                 }
                 .foregroundColor(atCap ? .orange : .accentColor)
@@ -7471,7 +7673,7 @@ struct ChatHeaderBar: View {
                 )
                 .help(atCap
                       ? "Concurrent task limit reached — new sends will queue at the gateway until a running task finishes."
-                      : "\(viewModel.concurrentForegroundCount) of \(viewModel.maxConcurrentTasks) concurrent tasks running.")
+                      : "\(viewModel.concurrentTaskCount) of \(viewModel.maxConcurrentTasks) concurrent tasks running.")
             }
 
             // Service status pill
@@ -7542,11 +7744,21 @@ struct ChatHeaderBar: View {
                     }
                 }
             } label: {
-                Label("更多", systemImage: "ellipsis")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Text + chevron-down — standard dropdown affordance,
+                // visually consistent with the agent / model dropdowns
+                // elsewhere in the app. Earlier attempts (`ellipsis`,
+                // `square.grid.3x2.fill` icons) either looked busy or
+                // disagreed with Menu's font sizing.
+                HStack(spacing: 3) {
+                    Text("更多")
+                        .font(.caption)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9))
+                }
+                .foregroundColor(.secondary)
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
         }
         .padding(.horizontal, 16)
