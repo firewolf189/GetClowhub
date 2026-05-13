@@ -2949,8 +2949,13 @@ struct ThinkingIndicator: View {
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak viewModel] _ in
             DispatchQueue.main.async { [weak viewModel] in
                 recomputeElapsed()
-                // Auto-move to background at 120 seconds
-                if elapsedSeconds >= 120, let vm = viewModel, vm.foregroundTaskIds.contains(message.id) {
+                // Auto-move to background after `autoBackgroundAfterSeconds`
+                // (UserDefaults-backed, default 120). Returns nil if the
+                // user disabled auto-background entirely.
+                if let limit = viewModel?.autoBackgroundAfterSeconds,
+                   elapsedSeconds >= limit,
+                   let vm = viewModel,
+                   vm.foregroundTaskIds.contains(message.id) {
                     vm.moveTaskToBackground(message.id)
                 }
             }
