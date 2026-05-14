@@ -2537,7 +2537,19 @@ class DashboardViewModel: ObservableObject {
                 let wasBackground = backgroundTaskIds.contains(msgId)
                 updateMessage(msgId: msgId, content: finalText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
                 if wasBackground {
-                    appendBackgroundNotification(agentId: currentAgentId, agentEmoji: currentAgentEmoji, completed: true, msgId: msgId)
+                    // Only emit the "background task completed" inline card when the
+                    // user is still looking at the SAME session the task ran in.
+                    // Otherwise we'd append it into whatever session is currently
+                    // active for this agent — and `persistChangedSessions` would
+                    // later save that orphan line into the wrong session's JSON
+                    // (the v1.1.49 / v1.1.50 cross-session "answer in another
+                    // conversation" bug). The real reply was already routed to
+                    // the right place via `updateMessage` above, so navigating
+                    // back to the original session shows the completed turn
+                    // naturally — no notification needed there either.
+                    if selectedSessionIdByAgent[currentAgentId] == taskSessionMap[msgId] {
+                        appendBackgroundNotification(agentId: currentAgentId, agentEmoji: currentAgentEmoji, completed: true, msgId: msgId)
+                    }
                 }
                 break streamLoop
 
