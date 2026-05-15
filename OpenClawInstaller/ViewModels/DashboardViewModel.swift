@@ -3715,7 +3715,10 @@ class DashboardViewModel: ObservableObject {
             cmd += " --agent '\(agentId)'"
         }
         if !sessionTarget.isEmpty {
-            cmd += " --session-target '\(sessionTarget)'"
+            // openclaw CLI 实际接受的是 `--session <target>` (target ∈ main|isolated|current|session:<id>),
+            // 不是 `--session-target` — 后者从 v1.1.15 起就拼错了,但定时任务功能用户少,40+ 版本一直没人撞到。
+            // 2026.3.2 / 2026.5.10 都不认 --session-target,本地脚手架就是 --session。
+            cmd += " --session '\(sessionTarget)'"
         }
         if !message.isEmpty {
             let escapedMessage = message.replacingOccurrences(of: "'", with: "'\\''")
