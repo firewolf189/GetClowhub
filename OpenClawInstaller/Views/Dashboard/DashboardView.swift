@@ -3727,8 +3727,18 @@ struct AttachmentPreview: View {
     let onRemove: () -> Void
 
     private var isImage: Bool {
+        // Directories never read as images, even if the path happens to end in .png.
+        if isDirectory { return false }
         let ext = url.pathExtension.lowercased()
         return ["jpg", "jpeg", "png", "gif", "bmp", "webp", "heic", "tiff", "svg"].contains(ext)
+    }
+
+    /// True iff the URL points at an existing directory. Stat'd once per render —
+    /// fine for the small N of attached items shown in the chip strip.
+    private var isDirectory: Bool {
+        var isDir: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+        return exists && isDir.boolValue
     }
 
     var body: some View {
@@ -3744,7 +3754,7 @@ struct AttachmentPreview: View {
                 VStack(spacing: 4) {
                     Image(systemName: fileIconName)
                         .font(.system(size: 20))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(isDirectory ? .accentColor : .secondary)
                     Text(url.lastPathComponent)
                         .font(.system(size: 9))
                         .lineLimit(1)
@@ -3769,6 +3779,9 @@ struct AttachmentPreview: View {
     }
 
     private var fileIconName: String {
+        // Folder takes precedence over extension — `~/Projects/foo.bar` is still
+        // a folder; rendering it as a generic doc icon would be misleading.
+        if isDirectory { return "folder.fill" }
         let ext = url.pathExtension.lowercased()
         switch ext {
         case "pdf": return "doc.fill"
