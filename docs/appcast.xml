@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.54</title>
-      <sparkle:version>61</sparkle:version>
-      <sparkle:shortVersionString>1.1.54</sparkle:shortVersionString>
+      <title>Version 1.1.55</title>
+      <sparkle:version>62</sparkle:version>
+      <sparkle:shortVersionString>1.1.55</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.54</h2>
+        <h2>OpenClaw Helper 1.1.55</h2>
         <ul>
-          <li>附件选择器支持文件夹; 附件 chip 区分文件夹图标</li>
+          <li>修复消息可跨段拖选; 复制按钮加 "已复制" 反馈; 修复流式输出结束瞬间空白闪烁</li>
         </ul>
       ]]></description>
-      <pubDate>Mon, 18 May 2026 21:59:10 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.54/GetClawHub.dmg"
-                 length="277248200"
+      <pubDate>Tue, 19 May 2026 23:51:32 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.55/GetClawHub.dmg"
+                 length="277306077"
                  type="application/octet-stream"
-                 sparkle:edSignature="tYDeneWCnrNA95gy0NDUTLggCoPwoHFE5t3Ny9ruad4kYXgzOrMiJsnNKiFgzNoA0EuQGv2vd0P763zCcEcNCg==" />
+                 sparkle:edSignature="t0VamPuVUzfCJyMuxyDuGEagdo3VGLWMIr7TeHx2QyUMtPAsPwiVxZeBRVCfFBbz+CtdBk8ZO8u5ZnI5C1sTBg==" />
     </item>
   </channel>
 </rss>
