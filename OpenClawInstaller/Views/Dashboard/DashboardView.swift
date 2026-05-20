@@ -4303,11 +4303,6 @@ enum MarkdownHTML {
         try? NSRegularExpression(pattern: "\\$\\$([\\s\\S]*?)\\$\\$")
     }()
 
-    /// Cached regex for inline math patterns ($...$)
-    private static let inlineMathRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "(?<!\\$)\\$(?!\\$)([^$]+)\\$(?!\\$)")
-    }()
-
     /// Cached regex for image markdown ![alt](url)
     private static let imageRegex: NSRegularExpression? = {
         try? NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)")
@@ -4364,8 +4359,16 @@ enum MarkdownHTML {
         <script>
         window.MathJax = {
             tex: {
-                inlineMath: [['$', '$']],
-                displayMath: [['$$', '$$']],
+                // Inline math uses LaTeX-style \\( ... \\) ONLY — never single
+                // '$'. Customer-support content is full of currency ("$5",
+                // "$5 ... $10 discount"), and treating '$' as an inline-math
+                // delimiter made MathJax parse the text between two dollar
+                // signs as a formula — e.g. it hit a literal '#' and rendered
+                // the red error "You can't use 'macro parameter character #'
+                // in math mode" right in the chat bubble. \\( ... \\) never
+                // collides with natural text.
+                inlineMath: [['\\\\(', '\\\\)']],
+                displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
                 processEscapes: true
             },
             svg: {
@@ -4419,7 +4422,14 @@ enum MarkdownHTML {
     // MARK: - Markdown → HTML conversion
 
     static func convertMarkdown(_ markdown: String) -> String {
-        // First, extract and preserve math formulas (both inline $...$ and display $$...$$)
+        // Extract & preserve display-math blocks ($$...$$) so markdown
+        // inline processing doesn't mangle their contents (e.g. `a_b`
+        // becoming italic). We deliberately DO NOT extract single-'$'
+        // inline math — '$' is currency in customer-support content, and
+        // protecting/round-tripping "$5 ... $10" as a formula is exactly
+        // what produced the MathJax "macro parameter character #" error.
+        // Real inline math is delimited \\( ... \\) (see the MathJax
+        // config in buildHTML) and needs no markdown protection.
         var processedMarkdown = markdown
         var mathPlaceholders: [String: String] = [:]
         var mathCounter = 0
@@ -4431,21 +4441,6 @@ enum MarkdownHTML {
             for match in matches.reversed() {
                 if let mathRange = Range(match.range, in: processedMarkdown) {
                     let placeholder = ":MATHDISPLAY\(mathCounter):"
-                    let formula = String(processedMarkdown[mathRange])
-                    mathPlaceholders[placeholder] = formula
-                    processedMarkdown.replaceSubrange(mathRange, with: placeholder)
-                    mathCounter += 1
-                }
-            }
-        }
-
-        // Extract inline math ($...$) - must come after display math
-        if let regex = inlineMathRegex {
-            let nsString = processedMarkdown as NSString
-            let matches = regex.matches(in: processedMarkdown, range: NSRange(location: 0, length: nsString.length))
-            for match in matches.reversed() {
-                if let mathRange = Range(match.range, in: processedMarkdown) {
-                    let placeholder = ":MATHINLINE\(mathCounter):"
                     let formula = String(processedMarkdown[mathRange])
                     mathPlaceholders[placeholder] = formula
                     processedMarkdown.replaceSubrange(mathRange, with: placeholder)
