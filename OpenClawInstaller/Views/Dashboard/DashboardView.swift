@@ -1534,7 +1534,7 @@ struct ChatView: View {
                                 BackgroundTaskNotification(message: message, scrollProxy: proxy)
                                     .id(message.id)
                             } else {
-                                ChatBubble(message: message)
+                                ChatBubble(message: message, onRewind: { viewModel.rewindToMessage($0) }, onCancel: { viewModel.cancelChat($0.id) })
                                     .id(message.id)
                             }
                         }
@@ -3057,8 +3057,44 @@ private struct ModelPickerRow: View {
 
 // MARK: - Chat Bubble
 
+/// Borderless message-action icon (copy / rewind) with a subtle per-icon hover
+/// highlight — matches the macOS / Claude action-bar look. Row-level show/hide
+/// (fade in on message hover) is handled by the parent via opacity.
+/// Shared by the main chat bubbles and the Help assistant window.
+struct MessageActionIcon: View {
+    let systemName: String
+    var tint: SwiftUI.Color = .secondary
+    let help: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 12))
+                .foregroundColor(tint)
+                .frame(width: 26, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(hovering ? SwiftUI.Color.primary.opacity(0.08) : SwiftUI.Color.clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .onHover { hovering = $0 }
+        .animation(.easeInOut(duration: 0.12), value: hovering)
+    }
+}
+
 struct ChatBubble: View {
     let message: ChatMessage
+    /// Rewind the session to (and including) this message. When set, a rewind
+    /// button appears in the bubble toolbar.
+    var onRewind: ((ChatMessage) -> Void)? = nil
+    /// Cancel the in-flight run for this message. When set, a cancel button
+    /// appears next to the streaming spinner so a run can be stopped mid-stream.
+    var onCancel: ((ChatMessage) -> Void)? = nil
     @State private var isHovering = false
     @State private var cachedMediaURLs: [URL] = []
     @State private var lastMediaScanContent: String = ""
@@ -3255,39 +3291,34 @@ struct ChatBubble: View {
                     // assistant → left) so it always sits opposite the
                     // avatar, never over the message.
                     if !isStreamingState && !message.content.isEmpty {
-                        HStack(spacing: 6) {
-                            Button(action: { performCopy(message.content) }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(copied ? .green : .secondary)
-                                    if copied {
-                                        Text("已复制")
-                                            .font(.caption2)
-                                            .foregroundColor(.green)
-                                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                                    }
-                                }
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .fill(Color(NSColor.controlBackgroundColor))
+                        HStack(spacing: 2) {
+                            MessageActionIcon(
+                                systemName: copied ? "checkmark" : "doc.on.doc",
+                                tint: copied ? .green : .secondary,
+                                help: copied ? "已复制" : "复制消息",
+                                action: { performCopy(message.content) }
+                            )
+                            if onRewind != nil {
+                                MessageActionIcon(
+                                    systemName: "arrow.uturn.backward",
+                                    tint: .secondary,
+                                    help: "回滚到此条（丢弃其后的对话）",
+                                    action: { onRewind?(message) }
                                 )
                             }
-                            .buttonStyle(.plain)
-                            .help(copied ? "已复制" : "复制消息")
-                            .opacity(isHovering || copied ? 1.0 : 0.55)
-                            .animation(.easeInOut(duration: 0.15), value: isHovering)
-                            .animation(.easeInOut(duration: 0.18), value: copied)
                         }
-                        .frame(height: 22, alignment: message.role == .user ? .trailing : .leading)
+                        .padding(.top, 1)
                         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
+                        // Claude-style: the whole action row stays hidden until the
+                        // message is hovered, then fades in (frame stays reserved so
+                        // nothing jumps). `copied` keeps the ✓ visible briefly after
+                        // the cursor leaves.
+                        .opacity(isHovering || copied ? 1.0 : 0.0)
+                        .animation(.easeInOut(duration: 0.15), value: isHovering)
+                        .animation(.easeInOut(duration: 0.18), value: copied)
                         .onHover { hovering in
-                            // Keep toolbar at full opacity while hovering
-                            // over the toolbar itself (not just the
-                            // bubble) so the user can move bubble →
-                            // button without the button vanishing.
+                            // Keep the row visible while the cursor moves from the
+                            // bubble onto the icons themselves.
                             if hovering {
                                 withAnimation(.easeInOut(duration: 0.15)) {
                                     isHovering = true
@@ -3303,10 +3334,32 @@ struct ChatBubble: View {
                 // state, so this looks like a continuation of the bubble
                 // rather than a disconnected third widget).
                 if message.role == .assistant && message.taskStatus == .loading && !message.content.isEmpty {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         ProgressView()
                             .scaleEffect(0.5)
                             .controlSize(.small)
+                        // Cancel during ACTIVE streaming. The ThinkingIndicator's
+                        // cancel only shows while waiting for the first token
+                        // (content empty); once text starts flowing the message
+                        // renders here, so without this the user couldn't stop a
+                        // long run mid-stream. Aborting keeps the partial output.
+                        if onCancel != nil {
+                            Button(action: { onCancel?(message) }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "xmark.circle")
+                                        .font(.system(size: 11))
+                                    Text("取消")
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.red.opacity(0.12))
+                                .foregroundColor(.red)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .help("取消当前执行（保留已生成的部分）")
+                        }
                     }
                     .padding(.top, 2)
                 }

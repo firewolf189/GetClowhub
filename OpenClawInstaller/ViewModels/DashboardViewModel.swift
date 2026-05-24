@@ -1613,6 +1613,62 @@ class DashboardViewModel: ObservableObject {
 
     /// Update the title of a stored session. Empty / whitespace-only strings
     /// are ignored so we never end up with an unreadable row.
+    /// Set when a rewind attempt fails, so the chat view can surface it.
+    @Published var rewindError: String?
+
+    /// Rewind the active session to (and including) `message`. Aborts any
+    /// in-flight run, asks the gateway to branch its transcript DAG to the
+    /// matching entry (everything after drops out of context — non-destructive
+    /// on the gateway side), then truncates the local mirror. The user
+    /// continues by typing a new message from that point.
+    ///
+    /// The clicked client-side message has no gateway entry id, so we fetch the
+    /// authoritative transcript (each message now carries `__openclawEntryId`)
+    /// and map by position among real conversation turns, guarding on role so a
+    /// drift between the two lists aborts rather than rewinds to the wrong spot.
+    func rewindToMessage(_ message: ChatMessage) {
+        let agentId = selectedAgentId
+        guard let sessionId = selectedSessionIdByAgent[agentId] else { return }
+        let sessionKey = sessionKeyForAgent(agentId, sessionId: sessionId)
+        let clientMessages = chatMessagesByAgent[agentId] ?? []
+        guard let clickedIdx = clientMessages.firstIndex(where: { $0.id == message.id }) else { return }
+        let convo = clientMessages.filter { $0.role == .user || $0.role == .assistant }
+        guard let convoIdx = convo.firstIndex(where: { $0.id == message.id }) else { return }
+
+        Task { @MainActor in
+            // 1. Stop any run still streaming into this session.
+            _ = await gatewayClient.abortChat(sessionKey: sessionKey)
+            // 2. Pull the authoritative transcript with entry ids.
+            guard let history = await gatewayClient.fetchHistoryMessages(sessionKey: sessionKey) else {
+                self.rewindError = "无法获取会话历史，回滚已取消"
+                return
+            }
+            let gwConvo = history.filter {
+                let r = $0["role"] as? String
+                return r == "user" || r == "assistant"
+            }
+            let expectedRole = message.role == .user ? "user" : "assistant"
+            guard convoIdx < gwConvo.count,
+                  (gwConvo[convoIdx]["role"] as? String) == expectedRole,
+                  let entryId = gwConvo[convoIdx]["__openclawEntryId"] as? String else {
+                self.rewindError = "无法定位回滚锚点（本地与服务端不一致），已取消"
+                return
+            }
+            // 3. Branch the gateway transcript to this entry.
+            let ok = await gatewayClient.chatRewind(sessionKey: sessionKey, messageId: entryId)
+            guard ok else {
+                self.rewindError = "服务端回滚失败"
+                return
+            }
+            // 4. Truncate the local mirror to (and including) the clicked
+            //    message — the $chatMessagesByAgent watcher persists this.
+            if let msgs = self.chatMessagesByAgent[agentId], clickedIdx < msgs.count {
+                self.chatMessagesByAgent[agentId] = Array(msgs.prefix(clickedIdx + 1))
+            }
+            self.rewindError = nil
+        }
+    }
+
     func renameSession(_ sessionId: UUID, to newTitle: String) {
         let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
