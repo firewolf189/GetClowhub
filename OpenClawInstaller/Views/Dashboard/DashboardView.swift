@@ -1555,6 +1555,20 @@ struct ChatView: View {
                 .padding(20)
             }
         }
+        // Surface rewind failures — previously `rewindError` was set in the
+        // view model but never shown, so a failed 回滚 looked like a dead
+        // button ("点击无法回退"). Now the reason is visible.
+        .alert(
+            "回滚失败",
+            isPresented: Binding(
+                get: { viewModel.rewindError != nil },
+                set: { if !$0 { viewModel.rewindError = nil } }
+            )
+        ) {
+            Button("好", role: .cancel) { viewModel.rewindError = nil }
+        } message: {
+            Text(viewModel.rewindError ?? "")
+        }
 
         if #available(macOS 14.0, *) {
             scrollView
@@ -1957,6 +1971,15 @@ struct ChatView: View {
                             .padding(.vertical, 2)
                             .scrollContentBackground(.hidden)
                             .disabled(isInputLocked)
+                            .onChange(of: viewModel.composerPrefill) { newVal in
+                                // "回滚 = 编辑重发": the view model dropped the
+                                // clicked message (and everything after) and
+                                // stashed its text here. Load it into the
+                                // composer for editing, then clear the one-shot.
+                                guard let prefill = newVal else { return }
+                                inputText = prefill
+                                viewModel.composerPrefill = nil
+                            }
                     }
                     .frame(minHeight: 44, maxHeight: 200)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2852,7 +2875,13 @@ struct ThinkingIndicator: View {
     @State private var timer: Timer?
 
     private var showBackgroundButton: Bool {
-        elapsedSeconds >= 60
+        // Manual "Move to Background" is disabled along with auto-background:
+        // this build keeps tasks foreground until they finish or are cancelled
+        // (synchronous review-then-send workflow). A long run is stopped with
+        // Cancel, not parked in the background. Reattached background runs
+        // (from a prior app session) still render + cancel via the bubble's
+        // .background row.
+        false
     }
 
     var body: some View {
@@ -3073,7 +3102,7 @@ struct MessageActionIcon: View {
             Image(systemName: systemName)
                 .font(.system(size: 12))
                 .foregroundColor(tint)
-                .frame(width: 26, height: 22)
+                .frame(width: 22, height: 16)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(hovering ? SwiftUI.Color.primary.opacity(0.08) : SwiftUI.Color.clear)
@@ -3109,6 +3138,12 @@ struct ChatBubble: View {
     /// previous ack is still showing should restart the 1.5s window rather
     /// than have both timers fight each other.
     @State private var copyResetTask: DispatchWorkItem?
+
+    /// Pending "hide the action icons" task. The icons don't vanish the instant
+    /// the cursor leaves the bubble — that made them impossible to reach
+    /// ("悬停时间太短"). Instead we wait out a short grace period; moving the
+    /// cursor back in (or onto the icons) cancels the hide so they stay put.
+    @State private var hoverHideTask: DispatchWorkItem?
 
     /// Cached regex for media URL detection (compiled once, reused)
     private static let mediaFileRegex: NSRegularExpression? = {
@@ -3228,102 +3263,114 @@ struct ChatBubble: View {
                     // throttle (DashboardViewModel.sendChatMessage's
                     // throttle). At that cadence MarkdownUI re-parsing
                     // is fine on the main thread.
-                    Group {
-                        if message.role == .assistant {
-                            // Single rendering path for the full message
-                            // lifecycle. WKWebView is mounted on first
-                            // render with the full HTML envelope already
-                            // baked in (CSS + MathJax), then every
-                            // streaming delta and the final terminal-
-                            // state content land via JS DOM mutation —
-                            // `document.body.innerHTML = ...` — so we
-                            // never reload the page, never tear down the
-                            // SwiftUI subtree, and never see the blank
-                            // transition the hybrid Markdown↔WebView
-                            // attempt produced. WebKit's selection model
-                            // gives us cross-paragraph / list / table
-                            // drag-select for free via the body's
-                            // `-webkit-user-select: text`.
-                            SelectableMarkdownView(content: message.content)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding(10)
-                                .background(backgroundColor)
-                                .cornerRadius(12)
-                        } else {
-                            Text(message.content)
-                                .padding(10)
-                                .background(backgroundColor)
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
-                                .textSelection(.enabled)
+                    // Bubble + action row share ONE hover zone (the inner
+                    // VStack's `.onHover`). A single source of truth for
+                    // `isHovering` means moving the cursor from the bubble
+                    // down onto the icons never crosses a "dead gap" that
+                    // would flip hover off and hide the row mid-reach — the
+                    // old two-`onHover` setup (bubble toggled true/false,
+                    // row only set true) raced and dropped clicks.
+                    //
+                    // spacing:3 tucks the icons right under the bubble.
+                    // NO negative padding: `.padding(.top, -6)` shifted the
+                    // row's *visual* position up but left its hit-test
+                    // region at the layout slot, so clicks landed in dead
+                    // space ("点击没有反应"). Positive spacing keeps both
+                    // aligned and keeps the row clear of the WKWebView's
+                    // click-capturing frame above it.
+                    VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 5) {
+                        Group {
+                            if message.role == .assistant {
+                                // Single rendering path for the full message
+                                // lifecycle. WKWebView is mounted on first
+                                // render with the full HTML envelope already
+                                // baked in (CSS + MathJax), then every
+                                // streaming delta and the final terminal-
+                                // state content land via JS DOM mutation —
+                                // `document.body.innerHTML = ...` — so we
+                                // never reload the page, never tear down the
+                                // SwiftUI subtree, and never see the blank
+                                // transition the hybrid Markdown↔WebView
+                                // attempt produced. WebKit's selection model
+                                // gives us cross-paragraph / list / table
+                                // drag-select for free via the body's
+                                // `-webkit-user-select: text`.
+                                SelectableMarkdownView(content: message.content)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(10)
+                                    .background(backgroundColor)
+                                    .cornerRadius(12)
+                            } else {
+                                Text(message.content)
+                                    .padding(10)
+                                    .background(backgroundColor)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
+                                    .textSelection(.enabled)
+                            }
                         }
-                    }
-                    .contextMenu {
-                        Button(action: { performCopy(message.content) }) {
-                            Label("Copy", systemImage: "doc.on.doc")
+                        .contextMenu {
+                            Button(action: { performCopy(message.content) }) {
+                                Label("Copy", systemImage: "doc.on.doc")
+                            }
+                        }
+
+                        // Action row: copy + (assistant) rewind. Shown only
+                        // for TERMINAL-state messages (streaming bubbles get
+                        // the cancel row below instead). Hidden until the
+                        // wrapper is hovered, then fades in; `copied` keeps
+                        // the ✓ up briefly after the cursor leaves.
+                        // `allowsHitTesting` is gated on visibility so the
+                        // transparent row never silently eats clicks.
+                        if !isStreamingState && !message.content.isEmpty {
+                            HStack(spacing: 2) {
+                                MessageActionIcon(
+                                    systemName: copied ? "checkmark" : "doc.on.doc",
+                                    tint: copied ? .green : .secondary,
+                                    help: copied ? "已复制" : "复制消息",
+                                    action: { performCopy(message.content) }
+                                )
+                                // Edit & resend only makes sense for the user's
+                                // own messages (you edit your prompt, not the
+                                // assistant's output), so the rewind icon is
+                                // gated to .user bubbles.
+                                if onRewind != nil && message.role == .user {
+                                    MessageActionIcon(
+                                        systemName: "arrow.uturn.backward",
+                                        tint: .secondary,
+                                        help: "编辑重发：把这条放回输入框，并丢弃此条及其后的对话",
+                                        action: { onRewind?(message) }
+                                    )
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
+                            .opacity(isHovering || copied ? 1.0 : 0.0)
+                            .allowsHitTesting(isHovering || copied)
+                            .animation(.easeInOut(duration: 0.15), value: isHovering)
+                            .animation(.easeInOut(duration: 0.18), value: copied)
                         }
                     }
                     .onHover { hovering in
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            isHovering = hovering
-                        }
-                    }
-
-                    // Bubble action toolbar — sits below TERMINAL-state
-                    // messages (.completed / .cancelled / .timedOut /
-                    // .error). Streaming bubbles don't show it:
-                    //   1. Reserving a 22pt frame between the bubble and
-                    //      the streaming spinner inserted a visible gap
-                    //      → "字 [gap] spinner [gap] 字" felt jagged.
-                    //   2. Copy mid-stream copies partial content; better
-                    //      to wait until the message is final.
-                    //
-                    // The button is now ALWAYS visible (dimmed slightly
-                    // when the bubble isn't hovered) — Markdown content
-                    // is rendered as multiple SwiftUI Text views, and
-                    // SwiftUI's `textSelection(.enabled)` can't drag-
-                    // select across separate Text views. Users were
-                    // hitting that wall and reporting "选中只能选一行".
-                    // A persistently visible copy affordance side-steps
-                    // the limitation instead of fighting it.
-                    //
-                    // Toolbar aligned with the bubble side (user → right,
-                    // assistant → left) so it always sits opposite the
-                    // avatar, never over the message.
-                    if !isStreamingState && !message.content.isEmpty {
-                        HStack(spacing: 2) {
-                            MessageActionIcon(
-                                systemName: copied ? "checkmark" : "doc.on.doc",
-                                tint: copied ? .green : .secondary,
-                                help: copied ? "已复制" : "复制消息",
-                                action: { performCopy(message.content) }
-                            )
-                            if onRewind != nil {
-                                MessageActionIcon(
-                                    systemName: "arrow.uturn.backward",
-                                    tint: .secondary,
-                                    help: "回滚到此条（丢弃其后的对话）",
-                                    action: { onRewind?(message) }
-                                )
+                        if hovering {
+                            // Entered the bubble/toolbar zone — cancel any pending
+                            // hide and reveal the icons right away.
+                            hoverHideTask?.cancel()
+                            hoverHideTask = nil
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                isHovering = true
                             }
-                        }
-                        .padding(.top, 1)
-                        .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
-                        // Claude-style: the whole action row stays hidden until the
-                        // message is hovered, then fades in (frame stays reserved so
-                        // nothing jumps). `copied` keeps the ✓ visible briefly after
-                        // the cursor leaves.
-                        .opacity(isHovering || copied ? 1.0 : 0.0)
-                        .animation(.easeInOut(duration: 0.15), value: isHovering)
-                        .animation(.easeInOut(duration: 0.18), value: copied)
-                        .onHover { hovering in
-                            // Keep the row visible while the cursor moves from the
-                            // bubble onto the icons themselves.
-                            if hovering {
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    isHovering = true
+                        } else {
+                            // Left the zone — keep the icons up for a grace period
+                            // so the cursor has time to travel to them and click.
+                            // Re-entering cancels this (see the `hovering` branch).
+                            hoverHideTask?.cancel()
+                            let task = DispatchWorkItem {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isHovering = false
                                 }
                             }
+                            hoverHideTask = task
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: task)
                         }
                     }
                 }
@@ -3375,12 +3422,37 @@ struct ChatBubble: View {
 
                 // Background task indicator
                 if message.taskStatus == .background {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         ProgressView()
                             .scaleEffect(0.6)
                         Text("Running in background...")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                        // Background runs are cancellable too. `cancelChat`
+                        // already clears BOTH foreground and background tracking
+                        // and aborts by the run's own id, but the .background
+                        // state had no cancel affordance — so a task that the
+                        // 120s timer auto-flipped to background (or any long run
+                        // the user navigated away from and back to) couldn't be
+                        // stopped from the UI. Same abort path as the streaming
+                        // 取消 button; partial output is kept.
+                        if onCancel != nil {
+                            Button(action: { onCancel?(message) }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "xmark.circle")
+                                        .font(.system(size: 11))
+                                    Text("取消")
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.red.opacity(0.12))
+                                .foregroundColor(.red)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .help("取消后台执行（保留已生成的部分）")
+                        }
                     }
                     .padding(.top, 2)
                 }
@@ -4060,8 +4132,15 @@ struct SelectableMarkdownView: View {
             let lineCount = max(1, content.split(separator: "\n").count)
             let estimatedLines = max(Double(lineCount),
                                      ceil(Double(content.count) / 60.0))
-            let estimatedHeight = min(600.0, estimatedLines * 18.0 + 20.0)
-            _height = State(initialValue: CGFloat(max(22.0, estimatedHeight)))
+            // Line-height only (≈13px × 1.6 ≈ 21pt). The bubble's 10pt padding
+            // is applied OUTSIDE this view (in ChatBubble), so DON'T add it
+            // here — the old `+ 20` double-counted the padding, and when the
+            // async JS height measurement is delayed (LazyVStack rows mount at
+            // width 0), that too-tall estimate stuck and left ~16pt of phantom
+            // space below the text, pushing the action icons far away. A small
+            // +4 guards single-line wraps from a 1px clip before measurement.
+            let estimatedHeight = min(600.0, estimatedLines * 21.0 + 4.0)
+            _height = State(initialValue: CGFloat(max(21.0, estimatedHeight)))
         }
     }
 
@@ -4289,26 +4368,33 @@ private struct _MarkdownWebView: NSViewRepresentable {
         /// Measure content height, retrying if the WKWebView hasn't received
         /// its layout width yet (which would produce an inflated height).
         private func measureHeight(webView: WKWebView, attempt: Int) {
-            let delay: TimeInterval = attempt == 0 ? 0.1 : 1.0
+            // Retry until the WebView reports a real layout width. LazyVStack
+            // rows can mount at width 0, and WebKit's body.clientWidth lags the
+            // native frame by a few runloop ticks. The old code gave up after
+            // 2 tries — if width was still 0 then, the (too-tall) estimate
+            // stuck forever, leaving phantom space below the text and pushing
+            // the action icons far from the message. Retry ~12× over ~2.4s so a
+            // freshly-scrolled-in bubble always converges to its true height.
+            let maxAttempts = 12
+            guard attempt < maxAttempts else { return }
+            let delay: TimeInterval = attempt == 0 ? 0.05 : 0.2
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self = self else { return }
                 self.evaluateHeight(webView: webView) { newHeight, width in
                     if width > 10 {
                         self.applyHeight(newHeight)
-                    } else if attempt < 1 {
-                        // Width still ~0, layout not ready — retry only once more
+                    } else {
+                        // Width still ~0, layout not ready — keep retrying.
                         self.measureHeight(webView: webView, attempt: attempt + 1)
                     }
                 }
             }
         }
 
-        /// Re-measure height immediately (called on window resize).
+        /// Re-measure height (called on width change / scroll-in). Delegates to
+        /// the retrying measureHeight so a width-0 mount still converges.
         func remeasureHeight(webView: WKWebView) {
-            evaluateHeight(webView: webView) { [weak self] newHeight, width in
-                guard width > 10 else { return }
-                self?.applyHeight(newHeight)
-            }
+            measureHeight(webView: webView, attempt: 0)
         }
 
         private func evaluateHeight(webView: WKWebView, completion: @escaping (CGFloat, CGFloat) -> Void) {
@@ -4320,7 +4406,9 @@ private struct _MarkdownWebView: NSViewRepresentable {
                       let h = json["h"] as? CGFloat,
                       let w = json["w"] as? CGFloat, h > 0 else { return }
                 DispatchQueue.main.async {
-                    completion(h + 4, w)
+                    // +1 guards against sub-pixel scrollHeight under-report
+                    // without leaving a visible gap below the text (was +4).
+                    completion(h + 1, w)
                 }
             }
         }
@@ -4438,8 +4526,13 @@ enum MarkdownHTML {
             -webkit-user-select: text; cursor: text;
             word-wrap: break-word; overflow-wrap: break-word;
             overflow: hidden;
-            padding-bottom: 4px;
         }
+        /* Hug the content: strip the first/last block's outer margins so the
+           measured WebView height matches the text exactly. Without this the
+           leading/trailing <p> margins (+ body padding) left phantom whitespace
+           inside the bubble, pushing the action icons far below the message. */
+        body > :first-child { margin-top: 0 !important; }
+        body > :last-child { margin-bottom: 0 !important; }
         h1 { font-size: 20px; font-weight: 700; margin: 12px 0 6px; }
         h2 { font-size: 17px; font-weight: 700; margin: 10px 0 5px; }
         h3 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }

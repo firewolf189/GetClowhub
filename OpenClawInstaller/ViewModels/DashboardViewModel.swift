@@ -609,14 +609,16 @@ class DashboardViewModel: ObservableObject {
     }
 
     /// Seconds an in-flight foreground task spins before the
-    /// ThinkingIndicator auto-flips it to background (unlocking the
-    /// input). Default 120. Returns nil to disable auto-background
-    /// entirely (set the UserDefaults value to 0 or negative).
+    /// ThinkingIndicator auto-flips it to background (unlocking the input).
+    /// Auto-background is OFF by default in this build: the product is a
+    /// synchronous human-in-the-loop flow (generate → review → send), so a
+    /// task stays foreground until it finishes or is cancelled — no
+    /// auto-background, fewer multi-task edge cases. A POSITIVE UserDefaults
+    /// value under `chat.autoBackgroundAfterSeconds` opts back in; 0/negative
+    /// (or unset) keeps it off.
     var autoBackgroundAfterSeconds: Int? {
         let key = "chat.autoBackgroundAfterSeconds"
-        // Differentiate "not set" (use default) from "explicitly 0 =
-        // disabled". UserDefaults.integer returns 0 for missing key.
-        guard UserDefaults.standard.object(forKey: key) != nil else { return 120 }
+        guard UserDefaults.standard.object(forKey: key) != nil else { return nil }
         let val = UserDefaults.standard.integer(forKey: key)
         return val > 0 ? val : nil
     }
@@ -1616,6 +1618,13 @@ class DashboardViewModel: ObservableObject {
     /// Set when a rewind attempt fails, so the chat view can surface it.
     @Published var rewindError: String?
 
+    /// One-shot channel to push text back into the composer. On a successful
+    /// "rewind = edit & resend", we drop the clicked message (and everything
+    /// after) and stash its text here; the chat view observes this, copies it
+    /// into its `inputText` field, and clears it. Lets the view model drive the
+    /// view-owned composer without holding a reference to it.
+    @Published var composerPrefill: String?
+
     /// Rewind the active session to (and including) `message`. Aborts any
     /// in-flight run, asks the gateway to branch its transcript DAG to the
     /// matching entry (everything after drops out of context — non-destructive
@@ -1628,15 +1637,36 @@ class DashboardViewModel: ObservableObject {
     /// drift between the two lists aborts rather than rewinds to the wrong spot.
     func rewindToMessage(_ message: ChatMessage) {
         let agentId = selectedAgentId
-        guard let sessionId = selectedSessionIdByAgent[agentId] else { return }
+        guard let sessionId = selectedSessionIdByAgent[agentId] else {
+            self.rewindError = "没有活动会话，无法回滚"
+            return
+        }
         let sessionKey = sessionKeyForAgent(agentId, sessionId: sessionId)
         let clientMessages = chatMessagesByAgent[agentId] ?? []
-        guard let clickedIdx = clientMessages.firstIndex(where: { $0.id == message.id }) else { return }
+        guard clientMessages.contains(where: { $0.id == message.id }) else {
+            self.rewindError = "找不到该消息，无法回滚"
+            return
+        }
         let convo = clientMessages.filter { $0.role == .user || $0.role == .assistant }
-        guard let convoIdx = convo.firstIndex(where: { $0.id == message.id }) else { return }
+        guard let convoIdx = convo.firstIndex(where: { $0.id == message.id }) else {
+            self.rewindError = "找不到该消息位置，无法回滚"
+            return
+        }
 
         Task { @MainActor in
-            // 1. Stop any run still streaming into this session.
+            // 1. Fully tear down any in-flight run(s) in THIS session before
+            //    branching. cancelTasks(inSession:) aborts each run by its own
+            //    runId AND clears the client-side tracking (foregroundTaskIds /
+            //    backgroundTaskIds / taskSessionMap / activeChatRuns / event
+            //    subscription). Without this, rewinding a session that still
+            //    has a running task would truncate the task's message away but
+            //    leave its id in the tracking sets — orphaning `isSendingMessage`
+            //    (stuck spinner / disabled input). It is scoped strictly to this
+            //    `sessionId`, so tasks in OTHER sessions or agents keep running
+            //    untouched — no multi-task conflict. The extra sessionKey abort
+            //    is a catch-all for reattached background runs not in our local
+            //    maps, and orders the abort before the branch on the gateway.
+            self.cancelTasks(inSession: sessionId)
             _ = await gatewayClient.abortChat(sessionKey: sessionKey)
             // 2. Pull the authoritative transcript with entry ids.
             guard let history = await gatewayClient.fetchHistoryMessages(sessionKey: sessionKey) else {
@@ -1648,25 +1678,83 @@ class DashboardViewModel: ObservableObject {
                 return r == "user" || r == "assistant"
             }
             let expectedRole = message.role == .user ? "user" : "assistant"
-            guard convoIdx < gwConvo.count,
-                  (gwConvo[convoIdx]["role"] as? String) == expectedRole,
-                  let entryId = gwConvo[convoIdx]["__openclawEntryId"] as? String else {
-                self.rewindError = "无法定位回滚锚点（本地与服务端不一致），已取消"
+            let clickedText = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // 3. Resolve which gateway transcript entry to branch from.
+            //    Index alignment between the client list and the gateway
+            //    transcript is NOT guaranteed — the transcript can carry tool /
+            //    system entries the client never renders — so prefer an exact
+            //    role+content match (disambiguating duplicates by proximity to
+            //    the positional index), and only fall back to positional when
+            //    the role at that slot lines up.
+            var anchorIdx: Int? = nil
+            let contentMatches = gwConvo.indices.filter { i in
+                (gwConvo[i]["role"] as? String) == expectedRole &&
+                    Self.gwMessageText(gwConvo[i]).trimmingCharacters(in: .whitespacesAndNewlines) == clickedText
+            }
+            if contentMatches.contains(convoIdx) {
+                anchorIdx = convoIdx
+            } else if let nearest = contentMatches.min(by: { abs($0 - convoIdx) < abs($1 - convoIdx) }) {
+                anchorIdx = nearest
+            } else if convoIdx < gwConvo.count,
+                      (gwConvo[convoIdx]["role"] as? String) == expectedRole {
+                anchorIdx = convoIdx
+            }
+
+            guard let idx = anchorIdx else {
+                let roleAt = (convoIdx < gwConvo.count) ? (gwConvo[convoIdx]["role"] as? String ?? "nil") : "越界"
+                let idAt = (convoIdx < gwConvo.count) ? ((gwConvo[convoIdx]["__openclawEntryId"] as? String) != nil) : false
+                self.rewindError = "无法定位回滚锚点：本地#\(convoIdx)/\(convo.count) 服务端\(gwConvo.count)条 该位role=\(roleAt) 有id=\(idAt)"
                 return
             }
-            // 3. Branch the gateway transcript to this entry.
-            let ok = await gatewayClient.chatRewind(sessionKey: sessionKey, messageId: entryId)
-            guard ok else {
-                self.rewindError = "服务端回滚失败"
-                return
+
+            // 4. Edit & resend: drop the clicked message AND everything after it,
+            //    move the gateway leaf so the next send REPLACES this turn (not
+            //    appends), and stash the clicked text for the composer.
+            if idx == 0 {
+                // Clicked the first message — there is no parent entry to branch
+                // to, so reset the whole session: clearChat() wipes the local
+                // mirror and resets the gateway context (resetAgentSession). A
+                // clean "start over" with the edited prompt.
+                self.clearChat()
+            } else {
+                // Branch the gateway leaf to the PREVIOUS conversation entry, so
+                // the clicked message (and everything after) falls off the active
+                // branch and the resend attaches to the parent.
+                guard let parentId = gwConvo[idx - 1]["__openclawEntryId"] as? String else {
+                    self.rewindError = "无法定位上一条消息的锚点，回滚已取消"
+                    return
+                }
+                let ok = await gatewayClient.chatRewind(sessionKey: sessionKey, messageId: parentId)
+                guard ok else {
+                    self.rewindError = "服务端回滚失败（chat.rewind 返回错误）"
+                    return
+                }
+                // Truncate the local mirror to BEFORE the clicked message (look
+                // it up live — cancelTasks above may have mutated the array).
+                if let msgs = self.chatMessagesByAgent[agentId],
+                   let curIdx = msgs.firstIndex(where: { $0.id == message.id }) {
+                    self.chatMessagesByAgent[agentId] = Array(msgs.prefix(curIdx))
+                }
             }
-            // 4. Truncate the local mirror to (and including) the clicked
-            //    message — the $chatMessagesByAgent watcher persists this.
-            if let msgs = self.chatMessagesByAgent[agentId], clickedIdx < msgs.count {
-                self.chatMessagesByAgent[agentId] = Array(msgs.prefix(clickedIdx + 1))
-            }
+
+            // 5. Push the clicked message's text into the composer to edit/resend.
+            self.composerPrefill = message.content
             self.rewindError = nil
         }
+    }
+
+    /// Extract display text from a gateway chat.history message dict. Handles
+    /// the three shapes the transcript can carry: a top-level `text`, a string
+    /// `content`, or a content-block array (`[{type:"text", text:...}]`).
+    private static func gwMessageText(_ m: [String: Any]) -> String {
+        if let t = m["text"] as? String { return t }
+        if let c = m["content"] as? String { return c }
+        if let blocks = m["content"] as? [[String: Any]] {
+            return blocks.compactMap { ($0["type"] as? String) == "text" ? ($0["text"] as? String) : nil }
+                .joined(separator: "\n")
+        }
+        return ""
     }
 
     func renameSession(_ sessionId: UUID, to newTitle: String) {
