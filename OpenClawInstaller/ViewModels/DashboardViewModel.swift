@@ -1625,16 +1625,19 @@ class DashboardViewModel: ObservableObject {
     /// view-owned composer without holding a reference to it.
     @Published var composerPrefill: String?
 
-    /// Rewind the active session to (and including) `message`. Aborts any
-    /// in-flight run, asks the gateway to branch its transcript DAG to the
-    /// matching entry (everything after drops out of context — non-destructive
-    /// on the gateway side), then truncates the local mirror. The user
-    /// continues by typing a new message from that point.
+    /// Rewind = "edit & resend": drop the clicked user message and everything
+    /// after it, put its text back in the composer, and move the session's
+    /// branch point so the next send REPLACES that turn.
     ///
-    /// The clicked client-side message has no gateway entry id, so we fetch the
-    /// authoritative transcript (each message now carries `__openclawEntryId`)
-    /// and map by position among real conversation turns, guarding on role so a
-    /// drift between the two lists aborts rather than rewinds to the wrong spot.
+    /// Implemented entirely CLIENT-SIDE — no gateway protocol method. The
+    /// gateway runs locally and re-reads the transcript on each run
+    /// (SessionManager.open → fresh file read; the leaf is the file's last
+    /// entry), so truncating the local `.jsonl` to before the clicked message
+    /// moves the branch point for free. Verified against the gateway's own
+    /// SessionManager on real multi-turn transcripts. Rewind is gated to user
+    /// bubbles (see ChatBubble); user turns are single transcript entries (no
+    /// tool sub-entries), so we anchor by user-message ordinal — robust against
+    /// the assistant/tool entry drift that indexing over mixed turns would hit.
     func rewindToMessage(_ message: ChatMessage) {
         let agentId = selectedAgentId
         guard let sessionId = selectedSessionIdByAgent[agentId] else {
@@ -1647,110 +1650,136 @@ class DashboardViewModel: ObservableObject {
             self.rewindError = "找不到该消息，无法回滚"
             return
         }
-        let convo = clientMessages.filter { $0.role == .user || $0.role == .assistant }
-        guard let convoIdx = convo.firstIndex(where: { $0.id == message.id }) else {
+        // Anchor by ordinal among USER messages (rewind only shows on user
+        // bubbles). User turns are single transcript entries, so this lines up
+        // 1:1 with the transcript's user entries — no drift from assistant/tool
+        // sub-entries.
+        let userMsgs = clientMessages.filter { $0.role == .user }
+        guard let userIdx = userMsgs.firstIndex(where: { $0.id == message.id }) else {
             self.rewindError = "找不到该消息位置，无法回滚"
             return
         }
 
         Task { @MainActor in
-            // 1. Fully tear down any in-flight run(s) in THIS session before
-            //    branching. cancelTasks(inSession:) aborts each run by its own
-            //    runId AND clears the client-side tracking (foregroundTaskIds /
-            //    backgroundTaskIds / taskSessionMap / activeChatRuns / event
-            //    subscription). Without this, rewinding a session that still
-            //    has a running task would truncate the task's message away but
-            //    leave its id in the tracking sets — orphaning `isSendingMessage`
-            //    (stuck spinner / disabled input). It is scoped strictly to this
-            //    `sessionId`, so tasks in OTHER sessions or agents keep running
-            //    untouched — no multi-task conflict. The extra sessionKey abort
-            //    is a catch-all for reattached background runs not in our local
-            //    maps, and orders the abort before the branch on the gateway.
+            // 1. Tear down any in-flight run in THIS session (abort each by its
+            //    runId + clear tracking) so we never truncate a transcript that's
+            //    mid-write and never orphan `isSendingMessage`. Scoped to this
+            //    session — other sessions/agents keep running untouched.
             self.cancelTasks(inSession: sessionId)
             _ = await gatewayClient.abortChat(sessionKey: sessionKey)
-            // 2. Pull the authoritative transcript with entry ids.
-            guard let history = await gatewayClient.fetchHistoryMessages(sessionKey: sessionKey) else {
-                self.rewindError = "无法获取会话历史，回滚已取消"
-                return
-            }
-            let gwConvo = history.filter {
-                let r = $0["role"] as? String
-                return r == "user" || r == "assistant"
-            }
-            let expectedRole = message.role == .user ? "user" : "assistant"
-            let clickedText = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Let the abort + any final transcript write flush before we touch
+            // the file.
+            try? await Task.sleep(nanoseconds: 250_000_000)
 
-            // 3. Resolve which gateway transcript entry to branch from.
-            //    Index alignment between the client list and the gateway
-            //    transcript is NOT guaranteed — the transcript can carry tool /
-            //    system entries the client never renders — so prefer an exact
-            //    role+content match (disambiguating duplicates by proximity to
-            //    the positional index), and only fall back to positional when
-            //    the role at that slot lines up.
-            var anchorIdx: Int? = nil
-            let contentMatches = gwConvo.indices.filter { i in
-                (gwConvo[i]["role"] as? String) == expectedRole &&
-                    Self.gwMessageText(gwConvo[i]).trimmingCharacters(in: .whitespacesAndNewlines) == clickedText
-            }
-            if contentMatches.contains(convoIdx) {
-                anchorIdx = convoIdx
-            } else if let nearest = contentMatches.min(by: { abs($0 - convoIdx) < abs($1 - convoIdx) }) {
-                anchorIdx = nearest
-            } else if convoIdx < gwConvo.count,
-                      (gwConvo[convoIdx]["role"] as? String) == expectedRole {
-                anchorIdx = convoIdx
-            }
-
-            guard let idx = anchorIdx else {
-                let roleAt = (convoIdx < gwConvo.count) ? (gwConvo[convoIdx]["role"] as? String ?? "nil") : "越界"
-                let idAt = (convoIdx < gwConvo.count) ? ((gwConvo[convoIdx]["__openclawEntryId"] as? String) != nil) : false
-                self.rewindError = "无法定位回滚锚点：本地#\(convoIdx)/\(convo.count) 服务端\(gwConvo.count)条 该位role=\(roleAt) 有id=\(idAt)"
+            // 2. Client-side branch: truncate the local transcript to before the
+            //    clicked user message (backs the file up first). No gateway call.
+            if let err = self.truncateTranscriptForRewind(
+                agentId: agentId,
+                sessionKey: sessionKey,
+                userOrdinal: userIdx,
+                clickedText: message.content
+            ) {
+                self.rewindError = err
                 return
             }
 
-            // 4. Edit & resend: drop the clicked message AND everything after it,
-            //    move the gateway leaf so the next send REPLACES this turn (not
-            //    appends), and stash the clicked text for the composer.
-            if idx == 0 {
-                // Clicked the first message — there is no parent entry to branch
-                // to, so reset the whole session: clearChat() wipes the local
-                // mirror and resets the gateway context (resetAgentSession). A
-                // clean "start over" with the edited prompt.
-                self.clearChat()
-            } else {
-                // Branch the gateway leaf to the PREVIOUS conversation entry, so
-                // the clicked message (and everything after) falls off the active
-                // branch and the resend attaches to the parent.
-                guard let parentId = gwConvo[idx - 1]["__openclawEntryId"] as? String else {
-                    self.rewindError = "无法定位上一条消息的锚点，回滚已取消"
-                    return
-                }
-                let ok = await gatewayClient.chatRewind(sessionKey: sessionKey, messageId: parentId)
-                guard ok else {
-                    self.rewindError = "服务端回滚失败（chat.rewind 返回错误）"
-                    return
-                }
-                // Truncate the local mirror to BEFORE the clicked message (look
-                // it up live — cancelTasks above may have mutated the array).
-                if let msgs = self.chatMessagesByAgent[agentId],
-                   let curIdx = msgs.firstIndex(where: { $0.id == message.id }) {
-                    self.chatMessagesByAgent[agentId] = Array(msgs.prefix(curIdx))
-                }
+            // 3. Mirror locally: drop the clicked message and everything after,
+            //    and push its text into the composer to edit/resend.
+            if let msgs = self.chatMessagesByAgent[agentId],
+               let curIdx = msgs.firstIndex(where: { $0.id == message.id }) {
+                self.chatMessagesByAgent[agentId] = Array(msgs.prefix(curIdx))
             }
-
-            // 5. Push the clicked message's text into the composer to edit/resend.
             self.composerPrefill = message.content
             self.rewindError = nil
         }
     }
 
-    /// Extract display text from a gateway chat.history message dict. Handles
-    /// the three shapes the transcript can carry: a top-level `text`, a string
-    /// `content`, or a content-block array (`[{type:"text", text:...}]`).
-    private static func gwMessageText(_ m: [String: Any]) -> String {
-        if let t = m["text"] as? String { return t }
-        if let c = m["content"] as? String { return c }
-        if let blocks = m["content"] as? [[String: Any]] {
+    /// Truncate the local session transcript (`<sid>.jsonl`) so the user message
+    /// at `userOrdinal` (and everything after) is dropped. Returns an error
+    /// string on failure, nil on success. Backs the file up first
+    /// (`.jsonl.rewind.<ts>`). This IS the rewind on the gateway side: the next
+    /// run re-reads the file and the new last entry becomes the leaf — no
+    /// gateway protocol method needed (the gateway is local).
+    private func truncateTranscriptForRewind(
+        agentId: String,
+        sessionKey: String,
+        userOrdinal: Int,
+        clickedText: String
+    ) -> String? {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let sessionsDir = "\(home)/.openclaw/agents/\(agentId)/sessions"
+        let sessionsJsonPath = "\(sessionsDir)/sessions.json"
+        // Map the UI sessionKey → the gateway transcript's session id.
+        guard let data = FileManager.default.contents(atPath: sessionsJsonPath),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return "无法读取 sessions.json"
+        }
+        // Case-insensitive key match: the client builds sessionKey with Swift's
+        // UPPERCASE `UUID.uuidString`, but the gateway stores keys with a
+        // LOWERCASE uuid (e.g. agent:main:c4b9d48d-…). An exact match misses.
+        let targetKey = sessionKey.lowercased()
+        guard let entryVal = root.first(where: { $0.key.lowercased() == targetKey })?.value,
+              let entry = entryVal as? [String: Any],
+              let gwSessionId = entry["sessionId"] as? String else {
+            return "找不到会话转录（sessions.json 无对应条目）"
+        }
+        let jsonlPath = "\(sessionsDir)/\(gwSessionId).jsonl"
+        guard let content = try? String(contentsOfFile: jsonlPath, encoding: .utf8) else {
+            return "无法读取会话转录文件"
+        }
+        let rawLines = content.components(separatedBy: "\n")
+
+        // Line indices of user-role message entries, in order.
+        var userLines: [(line: Int, text: String)] = []
+        for (i, line) in rawLines.enumerated() {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            if t.isEmpty { continue }
+            guard let ld = t.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
+                  (obj["type"] as? String) == "message",
+                  let msg = obj["message"] as? [String: Any],
+                  (msg["role"] as? String) == "user" else { continue }
+            userLines.append((i, Self.jsonlMessageText(msg)))
+        }
+
+        // Resolve the cut line: prefer the ordinal (1:1 with user bubbles),
+        // validate by content "contains" (the transcript can wrap user text in
+        // an envelope), and fall back to nearest content match on any drift.
+        let trimmed = clickedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cutLine: Int? = nil
+        if userOrdinal < userLines.count,
+           trimmed.isEmpty || userLines[userOrdinal].text.contains(trimmed) {
+            cutLine = userLines[userOrdinal].line
+        }
+        if cutLine == nil, !trimmed.isEmpty {
+            let matches = userLines.enumerated().filter { $0.element.text.contains(trimmed) }
+            if let nearest = matches.min(by: { abs($0.offset - userOrdinal) < abs($1.offset - userOrdinal) }) {
+                cutLine = nearest.element.line
+            }
+        }
+        guard let cut = cutLine else {
+            return "无法定位回滚锚点：本地用户消息#\(userOrdinal)/转录\(userLines.count)条"
+        }
+
+        // Back up, then keep everything BEFORE the cut line.
+        let ts = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        try? FileManager.default.copyItem(atPath: jsonlPath, toPath: "\(jsonlPath).rewind.\(ts)")
+        let kept = rawLines.prefix(cut).joined(separator: "\n")
+        let finalContent = kept.isEmpty ? "" : kept + "\n"
+        do {
+            try finalContent.write(toFile: jsonlPath, atomically: true, encoding: .utf8)
+        } catch {
+            return "写入截断后的转录失败：\(error.localizedDescription)"
+        }
+        return nil
+    }
+
+    /// Extract display text from a transcript message entry's `message` object
+    /// (`text`, string `content`, or content-block array).
+    private static func jsonlMessageText(_ msg: [String: Any]) -> String {
+        if let t = msg["text"] as? String { return t }
+        if let c = msg["content"] as? String { return c }
+        if let blocks = msg["content"] as? [[String: Any]] {
             return blocks.compactMap { ($0["type"] as? String) == "text" ? ($0["text"] as? String) : nil }
                 .joined(separator: "\n")
         }
@@ -2967,18 +2996,23 @@ class DashboardViewModel: ObservableObject {
         let fm = FileManager.default
 
         // Look up the gateway session-id mapped to *this* UI session's
-        // sessionKey, not the legacy "agent:X:main" catch-all.
-        let sessionKey = sessionKeyForAgent(agentId, sessionId: sessionId)
+        // sessionKey, not the legacy "agent:X:main" catch-all. Match the key
+        // CASE-INSENSITIVELY: the client builds sessionKey with Swift's
+        // UPPERCASE `UUID.uuidString`, but the gateway stores it LOWERCASE — an
+        // exact match silently missed, so this reset was a no-op on the gateway
+        // side (it only cleared the local mirror, never the gateway context).
+        let sessionKey = sessionKeyForAgent(agentId, sessionId: sessionId).lowercased()
         guard let data = fm.contents(atPath: sessionsJsonPath),
               var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let entry = root[sessionKey] as? [String: Any],
-              let sessionId = entry["sessionId"] as? String else {
+              let actualKey = root.keys.first(where: { $0.lowercased() == sessionKey }),
+              let entry = root[actualKey] as? [String: Any],
+              let gwSessionId = entry["sessionId"] as? String else {
             NSLog("[Chat] resetAgentSession: no active session found for %@", agentId)
             return
         }
 
         // Rename the .jsonl file to .jsonl.reset.<timestamp>
-        let jsonlPath = "\(sessionsDir)/\(sessionId).jsonl"
+        let jsonlPath = "\(sessionsDir)/\(gwSessionId).jsonl"
         let timestamp = ISO8601DateFormatter().string(from: Date())
             .replacingOccurrences(of: ":", with: "-")
         let backupPath = "\(jsonlPath).reset.\(timestamp)"
@@ -2988,10 +3022,10 @@ class DashboardViewModel: ObservableObject {
         }
 
         // Remove the session entry from sessions.json so backend creates a new one
-        root.removeValue(forKey: sessionKey)
+        root.removeValue(forKey: actualKey)
         if let updatedData = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
             try? updatedData.write(to: URL(fileURLWithPath: sessionsJsonPath))
-            NSLog("[Chat] resetAgentSession: removed session key %@ from sessions.json", sessionKey)
+            NSLog("[Chat] resetAgentSession: removed session key %@ from sessions.json", actualKey)
         }
     }
 

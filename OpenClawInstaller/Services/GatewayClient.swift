@@ -41,9 +41,6 @@ class GatewayClient: ObservableObject {
     private var pendingResponses: [String: CheckedContinuation<Bool, Never>] = [:]
     private var pendingChatSendResponses: [String: CheckedContinuation<String?, Never>] = [:]
     private var pendingChatHistoryResponses: [String: CheckedContinuation<String?, Never>] = [:]
-    /// Continuations for full chat.history fetches that return the whole messages
-    /// array (with `__openclawEntryId`) — used to anchor chat.rewind.
-    private var pendingHistoryMessagesResponses: [String: CheckedContinuation<[[String: Any]]?, Never>] = [:]
     private let responseLock = NSLock()
     private var eventContinuations: [String: AsyncStream<GatewayChatEvent>.Continuation] = [:]
     private let eventLock = NSLock()
@@ -202,62 +199,6 @@ class GatewayClient: ObservableObject {
         return result
     }
 
-    /// Rewind a session to an earlier transcript entry via `chat.rewind`. The
-    /// gateway moves the session leaf to `messageId` (a transcript entry id, as
-    /// surfaced by `__openclawEntryId` in chat.history), so the next turn
-    /// branches from it and everything after drops out of context.
-    /// Returns true on success.
-    func chatRewind(sessionKey: String, messageId: String) async -> Bool {
-        guard let ws = webSocketTask else { return false }
-
-        let requestId = UUID().uuidString
-        let payload: [String: Any] = [
-            "type": "req",
-            "id": requestId,
-            "method": "chat.rewind",
-            "params": [
-                "sessionKey": sessionKey,
-                "messageId": messageId,
-            ] as [String: Any],
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: payload),
-              let jsonString = String(data: data, encoding: .utf8) else {
-            return false
-        }
-
-        let result: Bool = await withCheckedContinuation { continuation in
-            responseLock.lock()
-            pendingResponses[requestId] = continuation
-            responseLock.unlock()
-
-            ws.send(.string(jsonString)) { [weak self] error in
-                if error != nil {
-                    self?.responseLock.lock()
-                    if let cont = self?.pendingResponses.removeValue(forKey: requestId) {
-                        self?.responseLock.unlock()
-                        cont.resume(returning: false)
-                    } else {
-                        self?.responseLock.unlock()
-                    }
-                }
-            }
-
-            // Timeout after 10 seconds
-            DispatchQueue.global().asyncAfter(deadline: .now() + 10) { [weak self] in
-                self?.responseLock.lock()
-                if let cont = self?.pendingResponses.removeValue(forKey: requestId) {
-                    self?.responseLock.unlock()
-                    cont.resume(returning: false)
-                } else {
-                    self?.responseLock.unlock()
-                }
-            }
-        }
-
-        return result
-    }
-
     /// Send a chat message via `chat.send`. Returns the runId on success, nil on failure.
     func chatSend(sessionKey: String, message: String, attachments: [[String: Any]]? = nil) async -> String? {
         guard let ws = webSocketTask else { return nil }
@@ -397,59 +338,6 @@ class GatewayClient: ObservableObject {
             DispatchQueue.global().asyncAfter(deadline: .now() + 10) { [weak self] in
                 self?.responseLock.lock()
                 if let cont = self?.pendingChatHistoryResponses.removeValue(forKey: requestId) {
-                    self?.responseLock.unlock()
-                    cont.resume(returning: nil)
-                } else {
-                    self?.responseLock.unlock()
-                }
-            }
-        }
-
-        return result
-    }
-
-    /// Fetch the full chat history (messages array) for a session. Each message
-    /// includes `__openclawEntryId` (the transcript entry id) so callers can
-    /// anchor `chatRewind` to a specific entry.
-    func fetchHistoryMessages(sessionKey: String, limit: Int = 200) async -> [[String: Any]]? {
-        guard let ws = webSocketTask else { return nil }
-
-        let requestId = UUID().uuidString
-        let payload: [String: Any] = [
-            "type": "req",
-            "id": requestId,
-            "method": "chat.history",
-            "params": [
-                "sessionKey": sessionKey,
-                "limit": limit,
-            ] as [String: Any],
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: payload),
-              let jsonString = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-
-        let result: [[String: Any]]? = await withCheckedContinuation { (continuation: CheckedContinuation<[[String: Any]]?, Never>) in
-            responseLock.lock()
-            pendingHistoryMessagesResponses[requestId] = continuation
-            responseLock.unlock()
-
-            ws.send(.string(jsonString)) { [weak self] error in
-                if error != nil {
-                    self?.responseLock.lock()
-                    if let cont = self?.pendingHistoryMessagesResponses.removeValue(forKey: requestId) {
-                        self?.responseLock.unlock()
-                        cont.resume(returning: nil)
-                    } else {
-                        self?.responseLock.unlock()
-                    }
-                }
-            }
-
-            DispatchQueue.global().asyncAfter(deadline: .now() + 10) { [weak self] in
-                self?.responseLock.lock()
-                if let cont = self?.pendingHistoryMessagesResponses.removeValue(forKey: requestId) {
                     self?.responseLock.unlock()
                     cont.resume(returning: nil)
                 } else {
@@ -625,23 +513,6 @@ class GatewayClient: ObservableObject {
                         }
                     } else {
                         chatHistoryCont.resume(returning: nil)
-                    }
-                    return
-                }
-
-                // Check if there is a pending full-history request (returns the
-                // whole messages array, each carrying __openclawEntryId).
-                responseLock.lock()
-                let historyMsgsCont = pendingHistoryMessagesResponses.removeValue(forKey: id)
-                responseLock.unlock()
-
-                if let historyMsgsCont = historyMsgsCont {
-                    let isError = json["error"] != nil
-                    if !isError, let payloadDict = json["payload"] as? [String: Any],
-                       let messages = payloadDict["messages"] as? [[String: Any]] {
-                        historyMsgsCont.resume(returning: messages)
-                    } else {
-                        historyMsgsCont.resume(returning: nil)
                     }
                     return
                 }
