@@ -1464,14 +1464,11 @@ struct ChatView: View {
         viewModel.availableAgents.first { $0.id == viewModel.selectedAgentId }
     }
 
-    /// Workspace path for the terminal, matching WorkspaceFilePanel logic.
+    /// Workspace path for the terminal. Uses the shared resolver so it stays
+    /// faithful to openclaw's resolveAgentWorkspaceDir (handles non-default
+    /// "main" → workspace-main, explicit per-agent workspace, etc.).
     private var terminalWorkspacePath: String {
-        let base = NSString("~/.openclaw").expandingTildeInPath
-        let id = viewModel.selectedAgentId
-        if id == "main" {
-            return (base as NSString).appendingPathComponent("workspace")
-        }
-        return (base as NSString).appendingPathComponent("workspace-\(id)")
+        DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
     }
 
     // MARK: - Chat Message List (extracted for compiler performance)
@@ -5334,11 +5331,7 @@ private struct WorkspaceFilePanel: View {
     @FocusState private var isNewItemFocused: Bool
 
     private var workspacePath: String {
-        let base = NSString("~/.openclaw").expandingTildeInPath
-        if agentId == "main" {
-            return (base as NSString).appendingPathComponent("workspace")
-        }
-        return (base as NSString).appendingPathComponent("workspace-\(agentId)")
+        DashboardViewModel.resolveAgentWorkspace(agentId)
     }
 
     var body: some View {

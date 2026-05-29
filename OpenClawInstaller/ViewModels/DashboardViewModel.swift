@@ -2178,6 +2178,60 @@ class DashboardViewModel: ObservableObject {
     /// Internal agents managed by the app, hidden from user-facing lists.
     static let internalAgentIds: Set<String> = ["help-assistant"]
 
+    /// Resolve an agent's on-disk workspace directory, faithfully replicating
+    /// openclaw's `resolveAgentWorkspaceDir(cfg, agentId)`:
+    ///   1. an explicit `agents.list[].workspace` always wins
+    ///   2. otherwise the *default agent* — the first entry with `default: true`,
+    ///      else the first entry in `agents.list`, else "main" — uses
+    ///      `agents.defaults.workspace` (or the bare `~/.openclaw/workspace`)
+    ///   3. every other agent uses `~/.openclaw/workspace-<id>`
+    ///
+    /// Why this exists: the old code hardcoded "main → ~/.openclaw/workspace",
+    /// which is only correct when "main" happens to be the default agent. When
+    /// another agent is listed first (e.g. `commander`), the runtime resolves
+    /// main to `~/.openclaw/workspace-main`, but the UI kept pointing at the
+    /// stale bare `workspace` dir — so the file browser, terminal, persona
+    /// editor and IDENTITY.md parsing all looked at the wrong folder.
+    static func resolveAgentWorkspace(_ agentId: String, config: [String: Any]) -> String {
+        let baseDir = NSString("~/.openclaw").expandingTildeInPath
+        let agentsSection = config["agents"] as? [String: Any]
+        let list = agentsSection?["list"] as? [[String: Any]] ?? []
+
+        // 1. explicit per-agent workspace
+        if let entry = list.first(where: { ($0["id"] as? String) == agentId }),
+           let ws = (entry["workspace"] as? String)?.trimmingCharacters(in: .whitespaces),
+           !ws.isEmpty {
+            return (ws as NSString).expandingTildeInPath
+        }
+
+        // 2. default agent id: first default:true, else first list entry, else "main"
+        let defaultAgentId: String =
+            (list.first(where: { ($0["default"] as? Bool) == true })?["id"] as? String)
+            ?? (list.first?["id"] as? String)
+            ?? "main"
+
+        if agentId == defaultAgentId {
+            if let defWs = ((agentsSection?["defaults"] as? [String: Any])?["workspace"] as? String)?
+                .trimmingCharacters(in: .whitespaces), !defWs.isEmpty {
+                return (defWs as NSString).expandingTildeInPath
+            }
+            return (baseDir as NSString).appendingPathComponent("workspace")
+        }
+
+        // 3. non-default agent
+        return (baseDir as NSString).appendingPathComponent("workspace-\(agentId)")
+    }
+
+    /// Disk-reading convenience: parses `~/.openclaw/openclaw.json` then defers
+    /// to `resolveAgentWorkspace(_:config:)`. Safe to call from view-layer
+    /// computed properties (openclaw.json is tiny).
+    static func resolveAgentWorkspace(_ agentId: String) -> String {
+        let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
+        let config = FileManager.default.contents(atPath: configPath)
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        return resolveAgentWorkspace(agentId, config: config)
+    }
+
     func loadAvailableAgents() {
         let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
         let baseDir = NSString("~/.openclaw").expandingTildeInPath
@@ -2212,15 +2266,9 @@ class DashboardViewModel: ObservableObject {
                 // Skip internal agents (commander, help-assistant) from user-facing lists
                 if Self.internalAgentIds.contains(agentId) { continue }
 
-                // Determine workspace path for this agent
-                let workspace: String
-                if let ws = entry["workspace"] as? String {
-                    workspace = (ws as NSString).expandingTildeInPath
-                } else if agentId == "main" {
-                    workspace = (baseDir as NSString).appendingPathComponent("workspace")
-                } else {
-                    workspace = (baseDir as NSString).appendingPathComponent("workspace-\(agentId)")
-                }
+                // Determine workspace path for this agent (faithful to openclaw's
+                // resolveAgentWorkspaceDir — NOT a hardcoded "main → workspace").
+                let workspace = Self.resolveAgentWorkspace(agentId, config: json)
 
                 // Read IDENTITY.md and parse emoji/name from file first, fall back to config
                 let identityPath = (workspace as NSString).appendingPathComponent("IDENTITY.md")
@@ -2262,7 +2310,7 @@ class DashboardViewModel: ObservableObject {
         // Ensure "main" is always present
         if !agents.contains(where: { $0.id == "main" }) {
             // Even for main fallback, try reading from IDENTITY.md
-            let mainWorkspace = (baseDir as NSString).appendingPathComponent("workspace")
+            let mainWorkspace = Self.resolveAgentWorkspace("main")
             let mainIdentityPath = (mainWorkspace as NSString).appendingPathComponent("IDENTITY.md")
             let mainContent = (try? String(contentsOfFile: mainIdentityPath, encoding: .utf8)) ?? ""
             let mainParsed = PersonaViewModel.parseIdentity(mainContent)
@@ -4486,7 +4534,6 @@ class DashboardViewModel: ObservableObject {
     /// Load full agent detail (SubAgentInfo) for the currently selected agent.
     func loadSelectedAgentDetail() {
         let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
-        let baseDir = NSString("~/.openclaw").expandingTildeInPath
 
         let agentList: [[String: Any]] = {
             guard let data = FileManager.default.contents(atPath: configPath),
@@ -4507,15 +4554,8 @@ class DashboardViewModel: ObservableObject {
             return
         }
 
-        // Determine workspace
-        let workspace: String
-        if let ws = entry["workspace"] as? String {
-            workspace = (ws as NSString).expandingTildeInPath
-        } else if agentId == "main" {
-            workspace = (baseDir as NSString).appendingPathComponent("workspace")
-        } else {
-            workspace = (baseDir as NSString).appendingPathComponent("workspace-\(agentId)")
-        }
+        // Determine workspace (faithful to openclaw's resolveAgentWorkspaceDir).
+        let workspace = Self.resolveAgentWorkspace(agentId)
 
         let agentDir = entry["agentDir"] as? String ?? ""
         let model = entry["model"] as? String ?? ""
