@@ -3169,6 +3169,29 @@ struct MessageActionIcon: View {
     }
 }
 
+/// Tiny self-ticking label that prints "已运行 N 分" once a run crosses the
+/// 1-minute mark. Used in the streaming-cancel row so users have a sense of
+/// progress on long autonomous runs (browser automation, multi-step research)
+/// instead of just a spinning indicator. Uses `TimelineView(.periodic)` so we
+/// don't need a `Timer`/`@State` per bubble — SwiftUI refreshes the closure
+/// every 30s and the rest of the bubble stays still.
+private struct ElapsedSinceView: View {
+    let start: Date?
+    var body: some View {
+        if let start = start {
+            TimelineView(.periodic(from: .now, by: 30)) { ctx in
+                let minutes = Int(ctx.date.timeIntervalSince(start) / 60)
+                if minutes >= 1 {
+                    Text("已运行 \(minutes) 分")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+            }
+        }
+    }
+}
+
 struct ChatBubble: View {
     let message: ChatMessage
     /// Rewind the session to (and including) this message. When set, a rewind
@@ -3438,6 +3461,12 @@ struct ChatBubble: View {
                         ProgressView()
                             .scaleEffect(0.5)
                             .controlSize(.small)
+                        // Long-run feedback: show elapsed minutes once the run
+                        // crosses 1 minute. Reduces "is it stuck?" anxiety,
+                        // gives the user signal before deciding to cancel.
+                        // TimelineView refreshes every 30s so the number
+                        // advances without any per-bubble state/timer.
+                        ElapsedSinceView(start: message.timestamp)
                         // Cancel during ACTIVE streaming. The ThinkingIndicator's
                         // cancel only shows while waiting for the first token
                         // (content empty); once text starts flowing the message

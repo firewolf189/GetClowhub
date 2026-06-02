@@ -2242,6 +2242,16 @@ class DashboardViewModel: ObservableObject {
         // Ensure commander exists in openclaw.json before loading
         Self.ensureCommanderInConfig(configPath: configPath, baseDir: baseDir)
 
+        // Seed a sane wall-clock timeout floor. openclaw's built-in default is
+        // 600s (10 min), which silently aborts long autonomous runs (browser
+        // checkout flows, multi-step research). We don't predict per-task
+        // length (the client can't see whether a turn will use tools) — instead
+        // we raise the single global cap to 1h as a *backstop* against
+        // forgotten/stuck runs, and rely on the visible cancel button + elapsed
+        // indicator + litellm cost limits for everything else. Only seeds when
+        // the user hasn't set their own value.
+        Self.ensureAgentDefaultsTimeout(configPath: configPath)
+
         if let data = FileManager.default.contents(atPath: configPath),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let agentsSection = json["agents"] as? [String: Any] {
@@ -2328,6 +2338,42 @@ class DashboardViewModel: ObservableObject {
         } else {
             // Restore the previous selection to preserve chat history
             selectedAgentId = previousSelectedAgentId
+        }
+    }
+
+    /// Default wall-clock cap (seconds) seeded into agents.defaults.timeoutSeconds
+    /// when the user hasn't configured one. 1h backstop, NOT a per-task estimate.
+    static let seededDefaultTimeoutSeconds = 3600
+
+    /// Seed `agents.defaults.timeoutSeconds` in openclaw.json if absent.
+    ///
+    /// openclaw ships a 600s (10 min) default that hard-aborts long autonomous
+    /// runs. We raise the floor to 1h so legitimate long tasks (browser
+    /// automation, deep research) aren't cut off mid-run. This is a single
+    /// global backstop — we deliberately do NOT vary it per agent (agent
+    /// identity is a poor predictor of task length; a `main` turn can be a 2s
+    /// Q&A or a 20-min checkout). Containment of stuck/forgotten runs is handled
+    /// by: the always-visible cancel button, the elapsed-time indicator, and
+    /// litellm-side cost limits (max_input_tokens / budgets). Idempotent and
+    /// non-destructive: only writes when the key is missing, so a user who set
+    /// their own value (including 0 = "no timeout") is never overridden.
+    private static func ensureAgentDefaultsTimeout(configPath: String) {
+        guard let data = FileManager.default.contents(atPath: configPath),
+              var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+
+        var agentsSection = json["agents"] as? [String: Any] ?? [:]
+        var defaults = agentsSection["defaults"] as? [String: Any] ?? [:]
+
+        // Respect any existing value (including an explicit 0). Only seed when
+        // the key is entirely absent.
+        if defaults["timeoutSeconds"] != nil { return }
+
+        defaults["timeoutSeconds"] = seededDefaultTimeoutSeconds
+        agentsSection["defaults"] = defaults
+        json["agents"] = agentsSection
+
+        if let updatedData = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys]) {
+            try? updatedData.write(to: URL(fileURLWithPath: configPath))
         }
     }
 
