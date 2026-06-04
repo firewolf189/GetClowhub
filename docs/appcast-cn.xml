@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.58</title>
-      <sparkle:version>66</sparkle:version>
-      <sparkle:shortVersionString>1.1.58</sparkle:shortVersionString>
+      <title>Version 1.1.59</title>
+      <sparkle:version>67</sparkle:version>
+      <sparkle:shortVersionString>1.1.59</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.58</h2>
+        <h2>OpenClaw Helper 1.1.59</h2>
         <ul>
-          <li>修复发送首条消息白屏; 首装 网关启动失败 误报修复(等待时长+后台二次确认); 会话详情侧栏 工具状态 改名为 技能 与数据源一致; 长任务超时兜底改 1h + 流式显示已运行时长</li>
+          <li>版本 1.1.59 更新</li>
         </ul>
       ]]></description>
-      <pubDate>Wed, 03 Jun 2026 15:46:53 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.58/GetClawHub.dmg"
-                 length="277218826"
+      <pubDate>Thu, 04 Jun 2026 15:01:28 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.59/GetClawHub.dmg"
+                 length="277271137"
                  type="application/octet-stream"
-                 sparkle:edSignature="BnxVkTHu0aW7xuHwhr8DHAqxJl96R99SixYopZMUSTl7Qho6eGmnvBg1e94Txc449yaOdCwD45LCZNOZLN3PDQ==" />
+                 sparkle:edSignature="ideR7Ea4dMfhNtXOPJK1DqFWKuO+TUDBDmBZZ8xrV0l6SLkwLYwIHiZmOc2IdsETyumkRw4KDHIcYgCalOQnCg==" />
     </item>
   </channel>
 </rss>
