@@ -1476,21 +1476,28 @@ struct ChatView: View {
     @ViewBuilder
     private func chatScrollContent(proxy: ScrollViewProxy) -> some View {
         let scrollView = ScrollView {
-            if viewModel.chatMessages.isEmpty {
-                ChatWelcomeView()
-            } else {
-                LazyVStack(spacing: 16) {
-                    Color.clear
-                        .frame(height: 1)
-                        .id("chatTop")
+            // Single LazyVStack is the scroll container for both the empty
+            // state and the message thread. Was an outer if-else that
+            // swapped ChatWelcomeView ↔ LazyVStack — on the FIRST sent
+            // message the whole subtree was torn down and remounted,
+            // which forced every fresh ChatBubble's WKWebView to run a
+            // cold `loadHTMLString` navigation. Until that async navigation
+            // painted, the entire chat panel went white. Keeping the
+            // LazyVStack permanent means the first message is just a
+            // diff-insert: the empty-state block disappears, the new
+            // ChatBubble appears, the container never re-mounts.
+            LazyVStack(spacing: 16) {
+                Color.clear
+                    .frame(height: 1)
+                    .id("chatTop")
 
-                    // Loading placeholder — shown while ChatSessionStore
-                    // is decoding the session JSON off the main thread.
-                    // The chatMessages array is empty during this window,
-                    // so without this the view would flash blank.
+                if viewModel.chatMessages.isEmpty {
                     if let sid = viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId],
-                       viewModel.loadingSessionIds.contains(sid),
-                       viewModel.chatMessages.isEmpty {
+                       viewModel.loadingSessionIds.contains(sid) {
+                        // Session JSON is decoding off the main thread.
+                        // Before the LazyVStack-merge, this branch was
+                        // unreachable (outer if matched empty first and
+                        // showed the welcome screen instead).
                         HStack(spacing: 10) {
                             ProgressView()
                                 .controlSize(.small)
@@ -1500,57 +1507,67 @@ struct ChatView: View {
                         }
                         .padding(.vertical, 24)
                         .frame(maxWidth: .infinity)
+                    } else {
+                        // Truly empty agent / brand-new session. minHeight
+                        // gives the welcome layout room to breathe inside
+                        // the LazyVStack (which would otherwise hug
+                        // content). The number is rough — Logo (200) +
+                        // brand + subtitle + 5 cards + spacing — and is
+                        // intentionally generous so the cards aren't
+                        // squashed up against the chat input.
+                        ChatWelcomeView()
+                            .frame(minHeight: 520)
                     }
+                }
 
-                    ForEach(viewModel.chatMessages, id: \.id) { message in
-                        // Hide bubbles that are "transient placeholders"
-                        // — empty assistant messages still in the
-                        // `.loading` state. Those get a dedicated
-                        // ThinkingIndicator below.
-                        //
-                        // EXCEPTION: `.background` placeholders pass
-                        // through. Was a real bug — ThinkingIndicator's
-                        // 120s timer auto-flips `.loading` → `.background`
-                        // for long-running tasks; the old filter (which
-                        // skipped ALL empty assistant messages regardless
-                        // of status) then dropped these from the ChatBubble
-                        // loop, AND the ThinkingIndicator filter no longer
-                        // matched them (status is .background now), so the
-                        // message vanished from UI while the gateway-side
-                        // task was still running. Letting it through here
-                        // is correct: ChatBubble has a "Running in
-                        // background..." sub-row that renders even with
-                        // empty content, which is exactly the affordance
-                        // the user needs to see.
-                        let isLoadingPlaceholder = message.role == .assistant
-                            && message.content.isEmpty
-                            && message.attachments.isEmpty
-                            && message.taskStatus == .loading
-                        if !isLoadingPlaceholder {
-                            if message.scrollTargetId != nil {
-                                BackgroundTaskNotification(message: message, scrollProxy: proxy)
-                                    .id(message.id)
-                            } else {
-                                ChatBubble(message: message, onRewind: { viewModel.rewindToMessage($0) }, onCancel: { viewModel.cancelChat($0.id) })
-                                    .id(message.id)
-                            }
+                ForEach(viewModel.chatMessages, id: \.id) { message in
+                    // Hide bubbles that are "transient placeholders"
+                    // — empty assistant messages still in the
+                    // `.loading` state. Those get a dedicated
+                    // ThinkingIndicator below.
+                    //
+                    // EXCEPTION: `.background` placeholders pass
+                    // through. Was a real bug — ThinkingIndicator's
+                    // 120s timer auto-flips `.loading` → `.background`
+                    // for long-running tasks; the old filter (which
+                    // skipped ALL empty assistant messages regardless
+                    // of status) then dropped these from the ChatBubble
+                    // loop, AND the ThinkingIndicator filter no longer
+                    // matched them (status is .background now), so the
+                    // message vanished from UI while the gateway-side
+                    // task was still running. Letting it through here
+                    // is correct: ChatBubble has a "Running in
+                    // background..." sub-row that renders even with
+                    // empty content, which is exactly the affordance
+                    // the user needs to see.
+                    let isLoadingPlaceholder = message.role == .assistant
+                        && message.content.isEmpty
+                        && message.attachments.isEmpty
+                        && message.taskStatus == .loading
+                    if !isLoadingPlaceholder {
+                        if message.scrollTargetId != nil {
+                            BackgroundTaskNotification(message: message, scrollProxy: proxy)
+                                .id(message.id)
+                        } else {
+                            ChatBubble(message: message, onRewind: { viewModel.rewindToMessage($0) }, onCancel: { viewModel.cancelChat($0.id) })
+                                .id(message.id)
                         }
                     }
-
-                    ForEach(viewModel.chatMessages.filter { $0.taskStatus == .loading && $0.content.isEmpty }, id: \.id) { loadingMsg in
-                        ThinkingIndicator(
-                            message: loadingMsg,
-                            viewModel: viewModel
-                        )
-                        .id("loading-\(loadingMsg.id)")
-                    }
-
-                    Color.clear
-                        .frame(height: 1)
-                        .id("chatBottom")
                 }
-                .padding(20)
+
+                ForEach(viewModel.chatMessages.filter { $0.taskStatus == .loading && $0.content.isEmpty }, id: \.id) { loadingMsg in
+                    ThinkingIndicator(
+                        message: loadingMsg,
+                        viewModel: viewModel
+                    )
+                    .id("loading-\(loadingMsg.id)")
+                }
+
+                Color.clear
+                    .frame(height: 1)
+                    .id("chatBottom")
             }
+            .padding(20)
         }
         // Surface rewind failures — previously `rewindError` was set in the
         // view model but never shown, so a failed 回滚 looked like a dead
@@ -3152,6 +3169,39 @@ struct MessageActionIcon: View {
     }
 }
 
+/// Tiny self-ticking label that prints "已运行 N 分" once a run crosses the
+/// 1-minute mark. Used in the streaming-cancel row so users have a sense of
+/// progress on long autonomous runs (browser automation, multi-step research)
+/// instead of just a spinning indicator. Uses `TimelineView(.periodic)` so we
+/// don't need a `Timer`/`@State` per bubble — SwiftUI refreshes the closure
+/// every 30s and the rest of the bubble stays still.
+///
+/// HOTFIX v1.1.59: `from` MUST be a stable anchor. Was `from: .now`, which
+/// is evaluated fresh on every body re-eval — SwiftUI then sees a new
+/// `PeriodicTimelineSchedule` and re-subscribes its schedule. On a chat
+/// with many active bubbles + high-frequency streaming deltas, that
+/// constant re-subscription compounds into a main-thread SwiftUI body
+/// avalanche (see Intel-Mac hang spindump, 17.7s, com.apple.WebKit.WebContent
+/// × 10 + AG::Subgraph::update reentry). Anchoring `from` to the run's
+/// `start` time (constant for this view's lifetime) keeps the schedule
+/// stable: same `from`, same `by` → SwiftUI reuses one subscription.
+private struct ElapsedSinceView: View {
+    let start: Date?
+    var body: some View {
+        if let start = start {
+            TimelineView(.periodic(from: start, by: 30)) { ctx in
+                let minutes = Int(ctx.date.timeIntervalSince(start) / 60)
+                if minutes >= 1 {
+                    Text("已运行 \(minutes) 分")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+            }
+        }
+    }
+}
+
 struct ChatBubble: View {
     let message: ChatMessage
     /// Rewind the session to (and including) this message. When set, a rewind
@@ -3421,6 +3471,12 @@ struct ChatBubble: View {
                         ProgressView()
                             .scaleEffect(0.5)
                             .controlSize(.small)
+                        // Long-run feedback: show elapsed minutes once the run
+                        // crosses 1 minute. Reduces "is it stuck?" anxiety,
+                        // gives the user signal before deciding to cancel.
+                        // TimelineView refreshes every 30s so the number
+                        // advances without any per-bubble state/timer.
+                        ElapsedSinceView(start: message.timestamp)
                         // Cancel during ACTIVE streaming. The ThinkingIndicator's
                         // cancel only shows while waiting for the first token
                         // (content empty); once text starts flowing the message
@@ -7711,19 +7767,26 @@ struct SessionDetailsPanel: View {
                        resolvedDefaultModel: resolvedDefaultModel)
     }
 
-    /// Tool Status — sourced from real `openclaw skills list` data via
+    /// Skills panel — sourced from real `openclaw skills list` data via
     /// viewModel.skills. Top 5 skills shown (sorted by status: ready first),
     /// with a "view all" link below if the user has more than 5 — clicking
     /// jumps to the Skills tab where the full list lives.
+    ///
+    /// Originally labeled "Tool Status" (→ "工具状态" in zh-Hans), which
+    /// was a UI/data-source mismatch: every other surface — the left-nav
+    /// label, the Skills tab header, the help FAQ ("技能状态含义？"),
+    /// and the openclaw CLI itself (`openclaw skills list`) — calls
+    /// these "skills". Renamed to keep terminology consistent across
+    /// the app.
     private var toolStatusList: some View {
         let skills = viewModel.skills
         let summary = viewModel.skillsSummary
         let visible = Array(skills.prefix(5))
         return VStack(alignment: .leading, spacing: 6) {
             // Combined section header + count, matching the mockup's
-            // single-line "Tool Status     X / Y enabled" presentation.
+            // single-line "Skills     X / Y enabled" presentation.
             HStack {
-                Text("Tool Status")
+                Text("Skills")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 if summary.total > 0 {
