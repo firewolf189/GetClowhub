@@ -155,6 +155,9 @@
     "-" : {
 
     },
+    "..." : {
+
+    },
     "·" : {
 
     },
@@ -176,16 +179,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "(%1$lld/%2$lld loaded)"
-          }
-        }
-      }
-    },
-    "(%lld/%lld ready)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "(%1$lld/%2$lld ready)"
           }
         }
       }
@@ -1230,6 +1223,9 @@
       }
     },
     "%lld files" : {
+
+    },
+    "%lld installed" : {
 
     },
     "%lld lines" : {
@@ -5676,6 +5672,9 @@
         }
       }
     },
+    "AgentsMarket" : {
+
+    },
     "All" : {
       "localizations" : {
         "ar" : {
@@ -6587,6 +6586,9 @@
 
     },
     "Ask a question..." : {
+
+    },
+    "Ask Anything" : {
 
     },
     "Ask anything..." : {
@@ -12405,7 +12407,11 @@
     "built-in" : {
 
     },
+    "Built-in skills cannot be removed" : {
+
+    },
     "Bundled" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12546,9 +12552,6 @@
           }
         }
       }
-    },
-    "Bundled skills cannot be removed" : {
-
     },
     "Cancel" : {
       "localizations" : {
@@ -12696,6 +12699,7 @@
 
     },
     "Cancelled" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16448,6 +16452,9 @@
         }
       }
     },
+    "Could not load skill catalog" : {
+
+    },
     "Create" : {
       "localizations" : {
         "ar" : {
@@ -19511,9 +19518,6 @@
     "Division" : {
 
     },
-    "Do Anything" : {
-
-    },
     "Doctor" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -21780,6 +21784,9 @@
     "Enable word wrap" : {
 
     },
+    "Enter a GitHub repository. The app will install it globally." : {
+
+    },
     "Enter a token for gateway access" : {
       "localizations" : {
         "ar" : {
@@ -23718,7 +23725,11 @@
         }
       }
     },
+    "Extend GetClowHub with task-specific skills" : {
+
+    },
     "Extra" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23861,6 +23872,7 @@
       }
     },
     "Failed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -25174,6 +25186,7 @@
       }
     },
     "Format: npx skills add <url> --skill <name>" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -27716,6 +27729,12 @@
         }
       }
     },
+    "Hide agents" : {
+
+    },
+    "Hide Outputs" : {
+
+    },
     "History" : {
 
     },
@@ -29055,6 +29074,9 @@
           }
         }
       }
+    },
+    "Install skill from GitHub repository" : {
+
     },
     "Installation Complete!" : {
       "localizations" : {
@@ -30492,6 +30514,7 @@
       }
     },
     "Invalid format. Command must start with \"npx skills add\"" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -32465,7 +32488,11 @@
         }
       }
     },
+    "Loading skill catalog..." : {
+
+    },
     "Loading skills..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -34292,6 +34319,7 @@
 
     },
     "Market" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -34434,6 +34462,7 @@
       }
     },
     "Marketplace" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -34941,6 +34970,9 @@
           }
         }
       }
+    },
+    "Missing requirements" : {
+
     },
     "Mobile Remote Work" : {
       "extractionState" : "stale",
@@ -41276,9 +41308,6 @@
         }
       }
     },
-    "npx skills add https://github.com/... --skill skill-name" : {
-
-    },
     "Offline" : {
 
     },
@@ -43323,6 +43352,7 @@
       }
     },
     "Output" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -43779,6 +43809,9 @@
         }
       }
     },
+    "owner/repo" : {
+
+    },
     "Package Name" : {
       "localizations" : {
         "ar" : {
@@ -43925,6 +43958,7 @@
 
     },
     "Paste the install command from Skills Market:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -48067,6 +48101,9 @@
         }
       }
     },
+    "Refresh skills" : {
+
+    },
     "Reinstall" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -49157,6 +49194,9 @@
           }
         }
       }
+    },
+    "Repository" : {
+
     },
     "Requirements" : {
       "localizations" : {
@@ -50369,6 +50409,7 @@
       }
     },
     "Running in background..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -51161,7 +51202,11 @@
         }
       }
     },
+    "Search skills" : {
+
+    },
     "Search skills..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -53317,6 +53362,9 @@
         }
       }
     },
+    "Show agents" : {
+
+    },
     "Show Main Window" : {
       "localizations" : {
         "ar" : {
@@ -53458,6 +53506,12 @@
           }
         }
       }
+    },
+    "Show Outputs" : {
+
+    },
+    "Skill details" : {
+
     },
     "Skills" : {
       "localizations" : {
@@ -56675,6 +56729,7 @@
       }
     },
     "Task cancelled by user." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -56815,9 +56870,6 @@
           }
         }
       }
-    },
-    "Task cancelled." : {
-
     },
     "Task completed." : {
 
@@ -57322,6 +57374,7 @@
       }
     },
     "Thinking..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -62114,7 +62167,11 @@
         }
       }
     },
+    "Working" : {
+
+    },
     "Workspace" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -62829,12 +62886,6 @@
     "取消" : {
 
     },
-    "取消后台执行（保留已生成的部分）" : {
-
-    },
-    "取消当前执行（保留已生成的部分）" : {
-
-    },
     "回滚失败" : {
 
     },
@@ -62847,13 +62898,16 @@
     "已复制" : {
 
     },
-    "已运行 %lld 分" : {
-
-    },
     "时长" : {
 
     },
+    "正在工作" : {
+
+    },
     "消息" : {
+
+    },
+    "确认并发送" : {
 
     },
     "记录" : {

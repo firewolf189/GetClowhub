@@ -317,7 +317,6 @@ class CollabViewModel: ObservableObject {
         - **Name:** Commander
         - **Creature:** AI Task Orchestrator
         - **Vibe:** Precise, structured, efficient
-        - **Emoji:** 🎯
         """
         let identityPath = (workspaceDir as NSString).appendingPathComponent("IDENTITY.md")
         try? identityContent.write(toFile: identityPath, atomically: true, encoding: .utf8)
@@ -373,8 +372,7 @@ class CollabViewModel: ObservableObject {
             "name": "commander",
             "default": false,
             "identity": [
-                "name": "Commander",
-                "emoji": "🎯"
+                "name": "Commander"
             ],
             "agentDir": agentDir,
             "workspace": workspaceDir
@@ -557,7 +555,7 @@ class CollabViewModel: ObservableObject {
             clarifyHistoryNextId += 1
             if let vm = dashboardViewModel {
                 vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
-                    role: .assistant, content: "Enough requirements gathered, starting task decomposition.", agentId: "commander", agentEmoji: "🎯"
+                    role: .assistant, content: "Enough requirements gathered, starting task decomposition.", agentId: "commander"
                 ))
             }
             await runResearchThenDecompose()
@@ -576,7 +574,7 @@ class CollabViewModel: ObservableObject {
                 isRunning = false
                 if let vm = dashboardViewModel {
                     vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
-                        role: .assistant, content: fallbackQ, agentId: "commander", agentEmoji: "🎯"
+                        role: .assistant, content: fallbackQ, agentId: "commander"
                     ))
                 }
                 return
@@ -596,7 +594,7 @@ class CollabViewModel: ObservableObject {
                 isRunning = false
                 if let vm = dashboardViewModel {
                     vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
-                        role: .assistant, content: forceQ, agentId: "commander", agentEmoji: "🎯"
+                        role: .assistant, content: forceQ, agentId: "commander"
                     ))
                 }
             } else {
@@ -617,8 +615,7 @@ class CollabViewModel: ObservableObject {
                 vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                     role: .assistant,
                     content: questions,
-                    agentId: "commander",
-                    agentEmoji: "🎯"
+                    agentId: "commander"
                 ))
             }
         } else {
@@ -631,7 +628,7 @@ class CollabViewModel: ObservableObject {
                 isRunning = false
                 if let vm = dashboardViewModel {
                     vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
-                        role: .assistant, content: fallbackQ, agentId: "commander", agentEmoji: "🎯"
+                        role: .assistant, content: fallbackQ, agentId: "commander"
                     ))
                 }
                 return
@@ -722,8 +719,7 @@ class CollabViewModel: ObservableObject {
         vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
             role: .assistant,
             content: "🔬 正在调研项目结构和代码库，以便更准确地拆分任务...",
-            agentId: "commander",
-            agentEmoji: "🎯"
+            agentId: "commander"
         ))
 
         // Start staged progress messages for the research phase
@@ -782,15 +778,13 @@ class CollabViewModel: ObservableObject {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: "🔬 调研完成，已获取项目架构信息。开始拆分任务...",
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
         } else {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: "调研阶段未获取到有效信息，直接开始拆分任务...",
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
         }
 
@@ -856,8 +850,7 @@ class CollabViewModel: ObservableObject {
         dashboardViewModel?.chatMessagesByAgent["commander", default: []].append(ChatMessage(
             role: .assistant,
             content: "Starting task decomposition...",
-            agentId: "commander",
-            agentEmoji: "🎯"
+            agentId: "commander"
         ))
 
         // Start staged status messages for the decompose phase
@@ -940,8 +933,7 @@ class CollabViewModel: ObservableObject {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: planMsg,
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
         }
     }
@@ -984,8 +976,7 @@ class CollabViewModel: ObservableObject {
                 vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                     role: .assistant,
                     content: "Recruiting \(recruitAgentIds.count) expert agents from market...",
-                    agentId: "commander",
-                    agentEmoji: "🎯"
+                    agentId: "commander"
                 ))
 
                 for agentId in recruitAgentIds {
@@ -1023,8 +1014,7 @@ class CollabViewModel: ObservableObject {
                 vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                     role: .assistant,
                     content: summaryText,
-                    agentId: "commander",
-                    agentEmoji: "🎯"
+                    agentId: "commander"
                 ))
             }
         }
@@ -1146,8 +1136,7 @@ class CollabViewModel: ObservableObject {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: "Task assignments:\n\(assignmentLines)\n\nStarting execution...",
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
         }
 
@@ -1220,8 +1209,7 @@ class CollabViewModel: ObservableObject {
                 vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                     role: .assistant,
                     content: "项目未产出交付文件。",
-                    agentId: "commander",
-                    agentEmoji: "🎯"
+                    agentId: "commander"
                 ))
             } else {
                 var lines: [String] = []
@@ -1235,8 +1223,7 @@ class CollabViewModel: ObservableObject {
                 vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                     role: .assistant,
                     content: "交付文件已汇总至：\n\(deliverablesDir)\n\n\(fileTree)",
-                    agentId: "commander",
-                    agentEmoji: "🎯"
+                    agentId: "commander"
                 ))
             }
         }
@@ -1246,8 +1233,7 @@ class CollabViewModel: ObservableObject {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: finalResult,
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
         }
 
@@ -1388,8 +1374,7 @@ class CollabViewModel: ObservableObject {
         SubAgentsViewModel.patchAgentIdentity(
             configPath: configPath,
             agentId: agentId,
-            name: agent.name,
-            emoji: agent.emoji
+            name: agent.name
         )
         if let model = bestModel {
             SubAgentsViewModel.patchAgentModel(
@@ -1686,8 +1671,7 @@ class CollabViewModel: ObservableObject {
                             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                                 role: .assistant,
                                 content: "✅ #\(task.id) \(task.title) (\(agentLabel)) \(result.statusMessage), \(Int(result.elapsed))s",
-                                agentId: "commander",
-                                agentEmoji: "🎯"
+                                agentId: "commander"
                             ))
                         case .incomplete:
                             currentSession.subtasks[idx].status = .failed(result.statusMessage)
@@ -1695,16 +1679,14 @@ class CollabViewModel: ObservableObject {
                             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                                 role: .assistant,
                                 content: "⚠️ #\(task.id) \(task.title) (\(agentLabel)) \(result.statusMessage), \(Int(result.elapsed))s. Click ✓ to mark as completed",
-                                agentId: "commander",
-                                agentEmoji: "🎯"
+                                agentId: "commander"
                             ))
                         case .failed:
                             currentSession.subtasks[idx].status = .failed(result.statusMessage)
                             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                                 role: .assistant,
                                 content: "❌ #\(task.id) \(task.title) (\(agentLabel)) failed: \(result.statusMessage)",
-                                agentId: "commander",
-                                agentEmoji: "🎯"
+                                agentId: "commander"
                             ))
                         }
                         currentSession.subtasks[idx].elapsedTime = result.elapsed
@@ -1953,8 +1935,7 @@ class CollabViewModel: ObservableObject {
         vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
             role: .assistant,
             content: "🔍 Starting auto-verification...",
-            agentId: "commander",
-            agentEmoji: "🎯"
+            agentId: "commander"
         ))
 
         let verifyPrompt = """
@@ -1994,8 +1975,7 @@ class CollabViewModel: ObservableObject {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: "🔍 验证结果：\n\(verifyResult)",
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
         }
     }
@@ -2276,16 +2256,14 @@ class CollabViewModel: ObservableObject {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: "🔄 正在从市场招募 \(newAgentId)...",
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
             let success = await Self.recruitMarketplaceAgent(agentId: newAgentId, openclawService: vm.openclawService)
             if !success {
                 vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                     role: .assistant,
                     content: "❌ 招募 \(newAgentId) 失败，无法重新分配任务 #\(taskId)",
-                    agentId: "commander",
-                    agentEmoji: "🎯"
+                    agentId: "commander"
                 ))
                 return
             }
@@ -2294,8 +2272,7 @@ class CollabViewModel: ObservableObject {
             vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                 role: .assistant,
                 content: "✅ \(newAgentId) 已招募成功",
-                agentId: "commander",
-                agentEmoji: "🎯"
+                agentId: "commander"
             ))
         }
 
@@ -2324,8 +2301,7 @@ class CollabViewModel: ObservableObject {
         vm.chatMessagesByAgent["commander", default: []].append(ChatMessage(
             role: .assistant,
             content: "🔄 任务 #\(taskId) \(old.title) 已重新分配给 \(newAgentId)，开始执行",
-            agentId: "commander",
-            agentEmoji: "🎯"
+            agentId: "commander"
         ))
 
         await resumeExecutionIfNeeded()
@@ -2736,8 +2712,7 @@ class CollabViewModel: ObservableObject {
                 self?.dashboardViewModel?.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                     role: .assistant,
                     content: entry.text,
-                    agentId: "commander",
-                    agentEmoji: "🎯"
+                    agentId: "commander"
                 ))
 
                 if updateDecomposeStages, let self = self {

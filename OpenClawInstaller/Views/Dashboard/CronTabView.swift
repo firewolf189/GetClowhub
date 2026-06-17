@@ -7,7 +7,7 @@ struct CronTabView: View {
     @State private var showAddSheet = false
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 16) {
                 // Header
                 HStack {
@@ -302,7 +302,7 @@ struct AddCronJobSheet: View {
 
                         Picker("", selection: $selectedAgentId) {
                             ForEach(viewModel.availableAgents) { agent in
-                                Text("\(agent.emoji) \(agent.name)")
+                                Text(agent.name)
                                     .tag(agent.id)
                             }
                         }

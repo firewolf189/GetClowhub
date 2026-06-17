@@ -5,7 +5,7 @@ struct BudgetTabView: View {
     @ObservedObject var viewModel: DashboardViewModel
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 16) {
                 // 1. Budget Overview Cards
                 BudgetOverviewSection(viewModel: viewModel)
@@ -621,7 +621,7 @@ struct AddBudgetRuleSheet: View {
                 if scope == .agent {
                     Picker(String(localized: "Agent", bundle: LanguageManager.shared.localizedBundle), selection: $agentId) {
                         ForEach(selectableAgents) { agent in
-                            Text("\(agent.emoji) \(agent.name)")
+                            Text(agent.name)
                                 .tag(agent.id)
                         }
                     }
@@ -777,4 +777,3 @@ private func formatTokenCount(_ n: Int) -> String {
     }
     return "\(n)"
 }
-

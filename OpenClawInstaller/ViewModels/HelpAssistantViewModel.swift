@@ -77,7 +77,6 @@ class HelpAssistantViewModel: ObservableObject {
         - **Name:** Help Assistant
         - **Creature:** GetClawHub Customer Support Bot
         - **Vibe:** Concise, practical, helpful
-        - **Emoji:** ❓
         """
         let identityPath = (workspaceDir as NSString).appendingPathComponent("IDENTITY.md")
         try? identityContent.write(toFile: identityPath, atomically: true, encoding: .utf8)

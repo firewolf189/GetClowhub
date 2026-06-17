@@ -75,7 +75,7 @@ struct MarketplaceOverviewView: View {
             .padding(.bottom, 12)
 
             // Content
-            ScrollView {
+            SmoothScrollView {
                 if groupedAgents.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
@@ -141,10 +141,9 @@ private struct AgentCard: View {
             onSelect(agent)
         } label: {
             VStack(alignment: .leading, spacing: 8) {
-                // Top: emoji + name + status
+                // Top: avatar + name + status
                 HStack(spacing: 8) {
-                    Text(agent.emoji)
-                        .font(.system(size: 28))
+                    AgentAvatarImage(size: 28)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(agent.name)

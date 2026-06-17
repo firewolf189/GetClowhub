@@ -38,6 +38,8 @@
 		356410612F5802970045A6F7 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410302F5802970045A6F7 /* DashboardViewModel.swift */; };
 		356410622F5802970045A6F7 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102D2F5802970045A6F7 /* PermissionManager.swift */; };
 		356410632F5802970045A6F7 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410412F5802970045A6F7 /* ErrorView.swift */; };
+		AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGAV0000000000000002 /* AgentAvatarImage.swift */; };
+		SCSV0000000000000001 /* SmoothScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SCSV0000000000000002 /* SmoothScrollView.swift */; };
 		356410642F5802970045A6F7 /* OpenClawService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102C2F5802970045A6F7 /* OpenClawService.swift */; };
 		FC838E8912A04DD484067D79 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */; };
 		A1B2C3D4E5F647A8B9C0D1E2 /* UninstallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A647389021A3B4 /* UninstallManager.swift */; };
@@ -47,6 +49,9 @@
 		D2E3F4A5B6C7489901D2E3F4 /* CronTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */; };
 		3564106B2F5802970045A6F7 /* ModelsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564106A2F5802970045A6F7 /* ModelsTabView.swift */; };
 		356410742F5802970045A6F7 /* SkillsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410732F5802970045A6F7 /* SkillsTabView.swift */; };
+		SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000002 /* SkillCatalogItem.swift */; };
+		SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000004 /* SkillCatalogService.swift */; };
+		SKSRC0000000000000001 /* SkillSourcePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKSRC0000000000000002 /* SkillSourcePresentation.swift */; };
 		3564106D2F5802970045A6F7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3564106C2F5802970045A6F7 /* Assets.xcassets */; };
 		356410702F5802970045A6F7 /* ProviderPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564106E2F5802970045A6F7 /* ProviderPreset.swift */; };
 		356410712F5802970045A6F7 /* providers_preset.json in Resources */ = {isa = PBXBuildFile; fileRef = 3564106F2F5802970045A6F7 /* providers_preset.json */; };
@@ -109,6 +114,8 @@
 		C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronTabView.swift; sourceTree = "<group>"; };
 		3564106A2F5802970045A6F7 /* ModelsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsTabView.swift; sourceTree = "<group>"; };
 		356410732F5802970045A6F7 /* SkillsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsTabView.swift; sourceTree = "<group>"; };
+		SKCAT0000000000000002 /* SkillCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogItem.swift; sourceTree = "<group>"; };
+		SKCAT0000000000000004 /* SkillCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogService.swift; sourceTree = "<group>"; };
 		3564106C2F5802970045A6F7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		356410382F5802970045A6F7 /* CompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionView.swift; sourceTree = "<group>"; };
 		356410392F5802970045A6F7 /* ConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationView.swift; sourceTree = "<group>"; };
@@ -118,6 +125,8 @@
 		3564103D2F5802970045A6F7 /* OpenClawInstallationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawInstallationView.swift; sourceTree = "<group>"; };
 		3564103E2F5802970045A6F7 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		356410412F5802970045A6F7 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
+		AGAV0000000000000002 /* AgentAvatarImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentAvatarImage.swift; sourceTree = "<group>"; };
+		SCSV0000000000000002 /* SmoothScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmoothScrollView.swift; sourceTree = "<group>"; };
 		356410432F5802970045A6F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		356410452F5802970045A6F7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		356410462F5802970045A6F7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -148,6 +157,7 @@
 		CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionStore.swift; sourceTree = "<group>"; };
 		MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipManager.swift; sourceTree = "<group>"; };
 		MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceAgent.swift; sourceTree = "<group>"; };
+		SKSRC0000000000000002 /* SkillSourcePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillSourcePresentation.swift; sourceTree = "<group>"; };
 		MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceDetailView.swift; sourceTree = "<group>"; };
 		35641B012F7A02970045A6F7 /* MarketplaceOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceOverviewView.swift; sourceTree = "<group>"; };
 		MP01AD05E4F5A6B7C8D90005 /* marketplace_agents.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = marketplace_agents.json; sourceTree = "<group>"; };
@@ -206,6 +216,8 @@
 				356410242F5802970045A6F7 /* InstallationState.swift */,
 				MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */,
 				3564106E2F5802970045A6F7 /* ProviderPreset.swift */,
+				SKCAT0000000000000002 /* SkillCatalogItem.swift */,
+				SKSRC0000000000000002 /* SkillSourcePresentation.swift */,
 				356410252F5802970045A6F7 /* SystemEnvironment.swift */,
 				CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */,
 				CS01AA06D1E2F3A4B5C60006 /* ChatSessionSearch.swift */,
@@ -235,6 +247,7 @@
 				3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */,
 				3564102C2F5802970045A6F7 /* OpenClawService.swift */,
 				3564102D2F5802970045A6F7 /* PermissionManager.swift */,
+				SKCAT0000000000000004 /* SkillCatalogService.swift */,
 				3564102E2F5802970045A6F7 /* SparkleUpdater.swift */,
 			
 				ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */,
@@ -302,7 +315,9 @@
 		356410422F5802970045A6F7 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				AGAV0000000000000002 /* AgentAvatarImage.swift */,
 				356410412F5802970045A6F7 /* ErrorView.swift */,
+				SCSV0000000000000002 /* SmoothScrollView.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -462,6 +477,8 @@
 				356410612F5802970045A6F7 /* DashboardViewModel.swift in Sources */,
 				356410622F5802970045A6F7 /* PermissionManager.swift in Sources */,
 				356410632F5802970045A6F7 /* ErrorView.swift in Sources */,
+				AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */,
+				SCSV0000000000000001 /* SmoothScrollView.swift in Sources */,
 				356410642F5802970045A6F7 /* OpenClawService.swift in Sources */,
 				356410652F5802970045A6F7 /* StatusTabView.swift in Sources */,
 				356410672F5802970045A6F7 /* PluginsTabView.swift in Sources */,
@@ -469,7 +486,10 @@
 				D2E3F4A5B6C7489901D2E3F4 /* CronTabView.swift in Sources */,
 				3564106B2F5802970045A6F7 /* ModelsTabView.swift in Sources */,
 				356410742F5802970045A6F7 /* SkillsTabView.swift in Sources */,
+				SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */,
+				SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */,
 				356410702F5802970045A6F7 /* ProviderPreset.swift in Sources */,
+				SKSRC0000000000000001 /* SkillSourcePresentation.swift in Sources */,
 				BD01AA01B1C2D3E4F5A60001 /* BudgetModels.swift in Sources */,
 				BD01AA03B1C2D3E4F5A60003 /* BudgetService.swift in Sources */,
 				WYQ78GRPE6YHXSKIQXOTVMP7 /* BillingTabView.swift in Sources */,

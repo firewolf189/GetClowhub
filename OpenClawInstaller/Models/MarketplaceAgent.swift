@@ -134,7 +134,6 @@ struct MarketplaceContentConverter {
         - **Name:** \(agent.name)
         - **Creature:** \(agent.division) Specialist
         - **Vibe:** \(agent.vibe)
-        - **Emoji:** \(agent.emoji)
         - **Division:** \(agent.division)
 
         ---

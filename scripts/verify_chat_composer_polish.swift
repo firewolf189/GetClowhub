@@ -66,8 +66,8 @@ assertContains(
 assertBefore(
     dashboard,
     #"navRow(.tasksLogs, title: String(localized: "Automation""#,
-    #"navRow(.market, title: String(localized: "Market""#,
-    "Market row must appear directly after Automation"
+    #"navRow(.market, title: String(localized: "AgentsMarket""#,
+    "AgentsMarket row must appear directly after Automation"
 )
 assertNotContains(
     dashboard,
@@ -97,13 +97,18 @@ assertContains(
 )
 assertContains(
     dashboard,
-    #"return Color.white.opacity(message.role == .user ? 0.12 : 0.095)"#,
-    "dark-mode chat bubbles must use visible gray fills"
+    #"private var bubbleBackgroundColor: SwiftUI.Color"#,
+    "chat bubbles must centralize visible gray fills"
 )
 assertContains(
     dashboard,
-    #"return Color.black.opacity(message.role == .user ? 0.075 : 0.055)"#,
-    "light-mode chat bubbles must use visible gray fills"
+    #"Color.gray.opacity(0.14)"#,
+    "user chat bubbles must use visible gray fills"
+)
+assertContains(
+    dashboard,
+    #"Color(NSColor.controlBackgroundColor)"#,
+    "assistant chat bubbles must use a system gray fill"
 )
 assertContains(
     dashboard,
@@ -118,8 +123,13 @@ assertContains(
 
 assertContains(
     dashboard,
-    #".overlay(alignment: .bottomTrailing) {"#,
+    #"overlayPreferenceValue(ComposerInputCardBoundsKey.self)"#,
     "composer selector panels must be an overlay"
+)
+assertContains(
+    dashboard,
+    #"overlayPreferenceValue(ComposerSelectorButtonBoundsKey.self)"#,
+    "composer selector button must anchor overlay placement"
 )
 assertContains(
     dashboard,
@@ -134,8 +144,18 @@ assertContains(
 
 assertContains(metrics, "collapsedWidth: CGFloat = 0", "closed Outputs sidebar must reserve zero width")
 assertContains(layoutScript, "narrow windows close Outputs without leaving a trailing strip", "Outputs layout verification must cover narrow-window closed strip behavior")
-assertContains(dashboard, "if sidebarWidth > 0", "Outputs sidebar column must render only when width is positive")
-assertContains(dashboard, ".animation(.spring(response: 0.36, dampingFraction: 0.88), value: outputsSidebarExpanded)", "Outputs sidebar expansion must animate")
+assertContains(dashboard, "private var workspaceSplitColumn: some View", "Outputs sidebar column must be owned by the root split shell")
+assertContains(dashboard, "} detail: {\n            workspaceSplitColumn", "Outputs sidebar must render as the trailing NavigationSplitView column")
+assertContains(dashboard, "ToolbarItem(placement: .navigation)", "conversation title must live in the window toolbar")
+assertNotContains(dashboard, "ToolbarItem(placement: .primaryAction)", "Outputs toggle must not use the global toolbar placement")
+assertContains(dashboard, "DashboardTitlebarAccessoryInstaller(", "Outputs controls must be installed into the existing titlebar header")
+assertContains(dashboard, "RightOutputsTitlebarAccessory(", "Outputs title and toggle must share the right-column titlebar accessory")
+assertContains(dashboard, ".animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)", "Outputs sidebar expansion must animate")
+assertNotContains(dashboard, "private var chatTopChrome", "ChatView must not own the conversation header")
+assertNotContains(dashboard, "private var conversationHeader: some View", "conversation header must not consume vertical space inside the chat content")
+assertContains(dashboard, "private struct RightOutputsTitlebarAccessory: View", "right sidebar title must live in the existing titlebar header")
+assertContains(dashboard, "private func shouldShowOutputItem", "right sidebar must filter the workspace to output artifacts")
+assertContains(dashboard, "\"USER.md\", \"BOOTSTRAP.md\", \"HEARTBEAT.md\", \"TOOLS.md\"", "Outputs filtering must exclude user/context documents")
 
 assertContains(config, "struct GatewaySettingsGroup", "Gateway settings group must exist")
 assertContains(config, "Text(\"Gateway\")", "Gateway heading must be shown")
@@ -143,6 +163,6 @@ assertContains(config, "GatewayConfigSection(viewModel: viewModel, showsTitle: f
 assertContains(config, "ModelConfigSection(viewModel: viewModel)", "custom API provider controls must remain in the Gateway group")
 
 assertContains(dashboard, "if isHovering {", "session rows must expose hover-only actions")
-assertContains(dashboard, "Button(action: onDelete)", "session-row delete action must be separate from row navigation")
+assertContains(dashboard, "Button(action: isDeleteConfirming ? onDeleteConfirm : onDeleteIntent)", "session-row delete action must be separate from row navigation")
 
 print("Chat composer polish source verification passed")

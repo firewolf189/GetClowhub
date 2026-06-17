@@ -297,9 +297,7 @@ private struct AgentSummaryCard: View {
                     }
                 }
 
-                // Emoji
-                Text(agent.emoji)
-                    .font(.system(size: 36))
+                AgentAvatarImage(size: 44)
 
                 // Name
                 Text(agent.name)
@@ -401,8 +399,7 @@ private struct AgentDetailPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack(spacing: 10) {
-                Text(agent.emoji)
-                    .font(.title2)
+                AgentAvatarImage(size: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(agent.name)
@@ -612,6 +609,11 @@ struct TagView: View {
 // MARK: - Create Agent Sheet
 
 struct CreateAgentSheet: View {
+    private enum CreateAgentFocusedField: Hashable {
+        case agentId
+        case displayName
+    }
+
     @ObservedObject var viewModel: SubAgentsViewModel
     @Binding var isPresented: Bool
     var onCreated: ((String) -> Void)?
@@ -621,6 +623,7 @@ struct CreateAgentSheet: View {
     @State private var displayName = ""
     @State private var selectedModel = ""
     @State private var selectedDivision = "Custom"
+    @FocusState private var focusedField: CreateAgentFocusedField?
 
     private static let divisionOptions = [
         "Custom", "Academic", "Design", "Engineering", "Game Development",
@@ -670,6 +673,8 @@ struct CreateAgentSheet: View {
 
                     TextField("e.g. news-helper", text: $agentId)
                         .textFieldStyle(.roundedBorder)
+                        .tint(Color(NSColor.labelColor))
+                        .focused($focusedField, equals: .agentId)
                         .onChange(of: agentId) { newValue in
                             // Auto-filter: only allow a-z, 0-9, hyphen
                             let filtered = String(newValue.lowercased().unicodeScalars.filter {
@@ -695,6 +700,8 @@ struct CreateAgentSheet: View {
 
                     TextField("e.g. News Helper", text: $displayName)
                         .textFieldStyle(.roundedBorder)
+                        .tint(Color(NSColor.labelColor))
+                        .focused($focusedField, equals: .displayName)
 
                     Text("Optional. Written to IDENTITY.md as the agent's name")
                         .font(.caption)
@@ -779,6 +786,12 @@ struct CreateAgentSheet: View {
             .padding(16)
         }
         .frame(width: 420)
+        .contentShape(Rectangle())
+        .onAppear {
+            DispatchQueue.main.async {
+                focusedField = .agentId
+            }
+        }
         .task {
             await viewModel.loadModels()
         }
@@ -847,6 +860,7 @@ class SubAgentsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isPerformingAction = false
     @Published var actionMessage = ""
+    @Published var lastActionError: String?
 
     init(openclawService: OpenClawService) {
         self.openclawService = openclawService
@@ -980,8 +994,7 @@ class SubAgentsViewModel: ObservableObject {
         let heartbeatContent = read("HEARTBEAT.md")
         let toolsContent = read("TOOLS.md")
 
-        // Resolve display name + emoji: prefer parsed IDENTITY.md, else
-        // fall back to identity dict, else config name
+        // Resolve display name from IDENTITY.md first, then config.
         let parsedIdentity = PersonaViewModel.parseIdentity(identityContent)
         let identity = entry["identity"] as? [String: Any]
         let name: String = {
@@ -989,16 +1002,12 @@ class SubAgentsViewModel: ObservableObject {
             if let n = identity?["name"] as? String, !n.isEmpty { return n }
             return entry["name"] as? String ?? "main"
         }()
-        let emoji: String = {
-            if !parsedIdentity.emoji.isEmpty { return parsedIdentity.emoji }
-            return identity?["emoji"] as? String ?? "🤖"
-        }()
         let creature = parsedIdentity.creature
 
         var info = SubAgentInfo(
             id: "main",
             name: name,
-            emoji: emoji,
+            emoji: "",
             creature: creature,
             model: model,
             isDefault: isDefault,
@@ -1084,7 +1093,6 @@ class SubAgentsViewModel: ObservableObject {
             guard let id = dict["id"] as? String else { return nil }
 
             let identityName = dict["identityName"] as? String ?? dict["name"] as? String ?? id
-            let emoji = dict["identityEmoji"] as? String ?? "🤖"
             let model = dict["model"] as? String ?? ""
             let isDefault = dict["isDefault"] as? Bool ?? false
             let bindings = dict["bindings"] as? Int ?? 0
@@ -1096,7 +1104,7 @@ class SubAgentsViewModel: ObservableObject {
             return SubAgentInfo(
                 id: id,
                 name: identityName,
-                emoji: emoji,
+                emoji: "",
                 creature: "",
                 model: model,
                 isDefault: isDefault,
@@ -1179,23 +1187,21 @@ class SubAgentsViewModel: ObservableObject {
 
         // Write identity into openclaw.json config (agents.list[].identity)
         let nameForIdentity = displayName.isEmpty ? agentId : displayName
-        let emoji = Self.emojiForName(nameForIdentity)
         let configPath = "\(homeDir)/.openclaw/openclaw.json"
-        Self.patchAgentIdentity(configPath: configPath, agentId: agentId, name: nameForIdentity, emoji: emoji)
+        Self.patchAgentIdentity(configPath: configPath, agentId: agentId, name: nameForIdentity)
 
         // Write persona files to workspace
         let workspace = "\(homeDir)/.openclaw/workspace-\(agentId)"
         let fm = FileManager.default
         try? fm.createDirectory(atPath: workspace, withIntermediateDirectories: true)
 
-        // Always write IDENTITY.md with the correct name and emoji
+        // Always write IDENTITY.md with the correct name.
         let identityTemplate = """
         # IDENTITY.md - Who Am I?
 
         - **Name:** \(nameForIdentity)
         - **Creature:**\u{20}
         - **Vibe:**\u{20}
-        - **Emoji:** \(emoji)
         - **Division:** \(division)
 
         ---
@@ -1231,8 +1237,8 @@ class SubAgentsViewModel: ObservableObject {
         }
     }
 
-    /// Patch openclaw.json to add identity { name, emoji } to a specific agent in agents.list
-    static func patchAgentIdentity(configPath: String, agentId: String, name: String, emoji: String) {
+    /// Patch openclaw.json to add identity { name } to a specific agent in agents.list.
+    static func patchAgentIdentity(configPath: String, agentId: String, name: String) {
         guard let data = FileManager.default.contents(atPath: configPath),
               var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               var agents = root["agents"] as? [String: Any],
@@ -1246,7 +1252,7 @@ class SubAgentsViewModel: ObservableObject {
             return
         }
 
-        list[idx]["identity"] = ["name": name, "emoji": emoji]
+        list[idx]["identity"] = ["name": name]
         agents["list"] = list
         root["agents"] = agents
 
@@ -1262,46 +1268,16 @@ class SubAgentsViewModel: ObservableObject {
         NSLog("[SubAgents] patchAgentIdentity: wrote identity for %@ -> %@", agentId, name)
     }
 
-    /// Match an emoji based on keywords in the agent name
-    static func emojiForName(_ name: String) -> String {
-        let lower = name.lowercased()
-        let mapping: [(keywords: [String], emoji: String)] = [
-            (["新闻", "news"],                    "📰"),
-            (["代码", "code", "coder", "编程"],     "💻"),
-            (["数据", "data"],                     "📊"),
-            (["文档", "doc", "文章"],               "📚"),
-            (["娱乐", "八卦", "gossip"],            "🗣️"),
-            (["翻译", "translate"],                "🌐"),
-            (["设计", "design", "美术"],            "🎨"),
-            (["音乐", "music"],                    "🎵"),
-            (["财经", "金融", "finance"],            "💰"),
-            (["客服", "support", "客户"],           "💁"),
-            (["视频", "video"],                    "🎬"),
-            (["写作", "writer", "文案"],            "✍️"),
-            (["搜索", "search"],                   "🔍"),
-            (["学习", "教育", "study"],             "📖"),
-            (["运维", "devops", "部署"],            "⚙️"),
-            (["测试", "test", "qa"],               "🧪"),
-            (["安全", "security"],                 "🔒"),
-        ]
-        for entry in mapping {
-            for keyword in entry.keywords {
-                if lower.contains(keyword) {
-                    return entry.emoji
-                }
-            }
-        }
-        return "🤖"
-    }
-
     // MARK: - Delete Agent via CLI
 
-    func deleteAgent(agentId: String) async {
+    @discardableResult
+    func deleteAgent(agentId: String) async -> Bool {
         await MainActor.run {
             isPerformingAction = true
             actionMessage = "Deleting agent..."
+            lastActionError = nil
         }
-        _ = await openclawService.runCommand(
+        let output = await openclawService.runCommand(
             "openclaw agents delete '\(agentId)' --force --json 2>&1",
             timeout: 30
         )
@@ -1310,7 +1286,21 @@ class SubAgentsViewModel: ObservableObject {
             if expandedAgent == agentId { expandedAgent = nil }
         }
         await loadAgents()
-        await MainActor.run { isPerformingAction = false }
+        let deleted = await MainActor.run {
+            !agents.contains { $0.id == agentId }
+        }
+        await MainActor.run {
+            if !deleted {
+                let trimmedOutput = output?.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let trimmedOutput, !trimmedOutput.isEmpty {
+                    lastActionError = "Failed to remove agent \(agentId): \(trimmedOutput)"
+                } else {
+                    lastActionError = "Failed to remove agent \(agentId): agent still exists after reload"
+                }
+            }
+            isPerformingAction = false
+        }
+        return deleted
     }
 
     // MARK: - Update Model

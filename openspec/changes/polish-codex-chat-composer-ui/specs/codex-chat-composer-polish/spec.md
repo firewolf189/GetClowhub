@@ -67,22 +67,22 @@ The system SHALL expose agent and model selection from the composer as a combine
 - **AND** the selector panels float above or beside the composer without contributing to composer layout height
 - **AND** the chat timeline, empty-state title, and bottom composer do not jump because of selector state
 
-### Requirement: Fixed top-right panel control
-The system SHALL provide a fixed top-right panel control for Outputs/workspace-style panel access.
+### Requirement: Conversation header panel control
+The system SHALL provide an Outputs panel control from the existing-conversation shell header.
 
-#### Scenario: Panel control is always visible in chat
-- **WHEN** the chat view is visible
-- **THEN** the panel control appears in the top-right of the main chat panel
-- **AND** the control remains visible whether the chat is empty or contains messages
-- **AND** the control position does not depend on scroll-anchor state
+#### Scenario: Panel control appears only with conversation header
+- **WHEN** the user opens an existing conversation with a non-empty title
+- **THEN** the Outputs control appears on the right side of the center shell header
+- **AND** the control is not rendered inside the chat message panel
+- **AND** empty new chats do not show this header control or a header separator line
 
 #### Scenario: Panel expands and collapses smoothly
-- **WHEN** the user clicks the fixed top-right panel control
+- **WHEN** the user clicks the header Outputs control
 - **THEN** the related panel expands or collapses with a smooth animated resize or scale transition
 - **AND** the panel does not snap open or closed abruptly
 
 #### Scenario: Panel grows from the control
-- **WHEN** the user opens the Outputs/workspace panel from the top-right control
+- **WHEN** the user opens the Outputs panel from the header control
 - **THEN** the right sidebar column expands from a hidden zero-width closed state into the workspace panel width
 - **AND** closing the panel collapses it back toward the same control
 - **AND** the closed state leaves no trailing right-side strip, toolbar, icon stack, or divider
@@ -92,11 +92,11 @@ The system SHALL provide a fixed top-right panel control for Outputs/workspace-s
 - **WHEN** the Outputs/workspace surface is collapsed
 - **THEN** no slim right-sidebar strip remains docked on the chat view's trailing edge
 - **AND** the far-right edge does not show a folder icon, sidebar icon, icon stack, narrow toolbar, or standalone divider
-- **AND** the fixed top-right panel control remains the only visible Outputs entry point while closed
+- **AND** the existing-conversation header control remains the only visible Outputs entry point while closed
 - **AND** the expanded Outputs content still opens in a right-sidebar layout column rather than appearing as an unrelated floating sheet
 
 #### Scenario: Click toggles Outputs
-- **WHEN** the user clicks the top-right Outputs control
+- **WHEN** the user clicks the header Outputs control
 - **THEN** the right sidebar toggles between a hidden zero-width closed state and the expanded workspace width
 - **AND** the width change is animated smoothly
 - **AND** hovering the control does not expand or reveal the Outputs sidebar
@@ -110,7 +110,7 @@ The system SHALL provide a fixed top-right panel control for Outputs/workspace-s
 #### Scenario: Left sidebar Outputs route is absent
 - **WHEN** the left sidebar navigation is visible
 - **THEN** there is no `Outputs` navigation row in the sidebar
-- **AND** Outputs/workspace access remains available through the fixed top-right control
+- **AND** Outputs access remains available through the existing-conversation shell header control
 
 ### Requirement: Chat content width stays stable while sidebars change
 The system SHALL keep conversation content on a stable centered column as sidebars expand or collapse.
@@ -292,3 +292,49 @@ The system SHALL keep only the session-search entry point in the chat sidebar an
 - **THEN** focus moves to the session search input
 - **AND** typing filters chat sessions globally across all available history
 - **AND** this behavior does not affect workspace-file search in the right sidebar
+
+### Requirement: Conversation header is shell-owned
+The system SHALL render the active conversation title in the center app-shell header rather than inside the chat message panel.
+
+#### Scenario: Named conversation shows shell header
+- **WHEN** the user opens an existing conversation with a non-empty title
+- **THEN** the center shell header appears above the chat content
+- **AND** the title is rendered at 16pt
+- **AND** the title is not rendered as part of the chat message timeline or chat panel content
+
+#### Scenario: New chat has no shell header
+- **WHEN** the selected chat session is empty or has no conversation title
+- **THEN** the center shell header is not shown
+- **AND** no header separator line is shown above the empty composer surface
+
+### Requirement: Right Outputs sidebar uses click-only shell layout
+The system SHALL render the right Outputs sidebar as a shell-level sibling column controlled by explicit clicks.
+
+#### Scenario: Click toggles right sidebar
+- **WHEN** the user clicks the right-sidebar toggle control
+- **THEN** the right Outputs sidebar opens or closes
+- **AND** hovering the toggle or the right edge does not open, reveal, or resize the sidebar
+
+#### Scenario: Sidebar resize affects chat width
+- **WHEN** the left sidebar, right sidebar, or window width changes the center area's available space
+- **THEN** the chat content area becomes wider or narrower accordingly
+- **AND** the message/composer column keeps a readable max width but shrinks when the center area is narrower than that target width
+
+#### Scenario: Right sidebar is not an overlay
+- **WHEN** the Outputs sidebar is open
+- **THEN** it occupies a real right-side layout column
+- **AND** it does not float over or cover chat messages or the composer
+- **AND** it is not implemented as a child region inside the chat content panel
+
+### Requirement: Outputs shows model output artifacts only
+The system SHALL present the right sidebar as an Outputs browser rather than a full workspace browser.
+
+#### Scenario: Outputs header appears
+- **WHEN** the right sidebar is expanded
+- **THEN** the sidebar header title is `Outputs`
+- **AND** workspace terminology is not used as the primary title for this sidebar
+
+#### Scenario: Context files are excluded
+- **WHEN** the Outputs tree or Outputs search results are rendered
+- **THEN** context/config files such as `USER.md`, `AGENTS.md`, `TOOLS.md`, `BOOTSTRAP.md`, `IDENTITY.md`, `SOUL.md`, and `MEMORY.md` are excluded
+- **AND** the visible list focuses on model-generated reports, files, images, patches, logs, and similar artifacts

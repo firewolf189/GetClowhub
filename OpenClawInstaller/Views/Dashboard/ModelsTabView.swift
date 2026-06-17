@@ -4,7 +4,7 @@ struct ModelsTabView: View {
     @ObservedObject var viewModel: DashboardViewModel
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 16) {
                 // Header
                 HStack {

@@ -4,7 +4,7 @@ struct StatusTabView: View {
     @ObservedObject var viewModel: DashboardViewModel
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 16) {
                 // 1. Service Status (compact) + Control Buttons
                 ServiceStatusCard(viewModel: viewModel)

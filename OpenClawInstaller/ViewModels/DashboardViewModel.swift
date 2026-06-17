@@ -677,7 +677,8 @@ class DashboardViewModel: ObservableObject {
             if session.messages.count == memMessages.count,
                session.messages.last?.id == memMessages.last?.id,
                session.messages.last?.taskStatus == memMessages.last?.taskStatus,
-               session.messages.last?.content.count == memMessages.last?.content.count {
+               session.messages.last?.content.count == memMessages.last?.content.count,
+               Self.messagesHaveSameActivityEvents(session.messages.last, memMessages.last) {
                 continue
             }
             session.messages = memMessages
@@ -791,7 +792,7 @@ class DashboardViewModel: ObservableObject {
         case billing = "Billing"
         case persona = "Persona"
         case subAgents = "Multi-Agent"
-        case market = "Marketplace"     // skill / agent marketplace (was sidebarMode)
+        case market = "AgentsMarket"    // agent marketplace (was sidebarMode)
         case tasksLogs = "Automation"
         case config = "Configuration"
         case skills = "Skills"
@@ -1149,6 +1150,52 @@ class DashboardViewModel: ObservableObject {
     @Published var selectedSkillDetail: SkillDetailInfo?
     @Published var isLoadingSkillDetail = false
     @Published var removingSkillName: String?
+    @Published var skillCatalog: [SkillCatalogItem] = []
+    @Published var isLoadingSkillCatalog = false
+    @Published var installingCatalogSkillName: String?
+    @Published var isInstallingManualSkill = false
+    @Published var skillCatalogError: String?
+
+    private var hasLoadedSkillCatalog = false
+
+    private static var trustedSkillsMarkerPath: String {
+        NSString("~/.openclaw/getclawhub-trusted-skills.json").expandingTildeInPath
+    }
+
+    static func loadTrustedSkillNames() -> Set<String> {
+        guard let data = FileManager.default.contents(atPath: trustedSkillsMarkerPath),
+              let names = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return Set(names)
+    }
+
+    static func markTrustedSkill(_ skillName: String) {
+        let trimmed = skillName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        var names = loadTrustedSkillNames()
+        names.insert(trimmed)
+        writeTrustedSkillNames(names)
+    }
+
+    static func unmarkTrustedSkill(_ skillName: String) {
+        var names = loadTrustedSkillNames()
+        names.remove(skillName)
+        writeTrustedSkillNames(names)
+    }
+
+    private static func writeTrustedSkillNames(_ names: Set<String>) {
+        let url = URL(fileURLWithPath: trustedSkillsMarkerPath)
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        if let data = try? JSONEncoder().encode(sorted) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
 
     /// Load skills list by running `openclaw skills list`
     func loadSkills() async {
@@ -1157,7 +1204,20 @@ class DashboardViewModel: ObservableObject {
             "openclaw skills list 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'"
         )
         let (parsed, summary) = Self.parseSkillsList(output: output)
-        skills = parsed.sorted { a, b in
+        let trustedNames = Self.loadTrustedSkillNames()
+        let decorated = parsed.map { skill in
+            guard trustedNames.contains(skill.name),
+                  SkillSourcePresentation(source: skill.source).kind != .builtIn else {
+                return skill
+            }
+            return SkillInfo(
+                name: skill.name,
+                status: skill.status,
+                description: skill.description,
+                source: "getclawhub-trusted"
+            )
+        }
+        skills = decorated.sorted { a, b in
             if a.status != b.status {
                 return a.status == .ready
             }
@@ -1165,6 +1225,92 @@ class DashboardViewModel: ObservableObject {
         }
         skillsSummary = summary
         isLoadingSkills = false
+    }
+
+    /// Load the GetClowHub skill catalog and overlay local install status separately.
+    func loadSkillMarket(forceSync: Bool = false) async {
+        if hasLoadedSkillCatalog && !forceSync {
+            await loadSkills()
+            return
+        }
+
+        guard !isLoadingSkillCatalog else { return }
+
+        isLoadingSkillCatalog = true
+        skillCatalogError = nil
+
+        let cacheGitURL = SkillCatalogService.defaultCacheURL.appendingPathComponent(".git")
+        let shouldSync = forceSync || !FileManager.default.fileExists(atPath: cacheGitURL.path)
+        let syncOutput: String?
+        if shouldSync {
+            syncOutput = await openclawService.runCommand(
+                "\(SkillCatalogService.syncCommand()) 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'",
+                timeout: 120
+            )
+        } else {
+            syncOutput = nil
+        }
+
+        do {
+            skillCatalog = try SkillCatalogService.parseCatalog(rootURL: SkillCatalogService.defaultCacheURL)
+            hasLoadedSkillCatalog = true
+        } catch {
+            let detail = syncOutput?.trimmingCharacters(in: .whitespacesAndNewlines)
+            skillCatalogError = detail?.isEmpty == false ? detail : error.localizedDescription
+            skillCatalog = []
+            hasLoadedSkillCatalog = false
+        }
+
+        await loadSkills()
+        isLoadingSkillCatalog = false
+    }
+
+    func installCatalogSkill(_ item: SkillCatalogItem) async {
+        guard installingCatalogSkillName == nil else { return }
+
+        installingCatalogSkillName = item.name
+        let command = SkillCatalogService.installCommand(for: item)
+        let output = await openclawService.runCommand(
+            "(\(command) 2>&1 && echo __OPENCLAW_SKILL_INSTALL_OK__) | sed 's/\\x1b\\[[0-9;]*m//g'",
+            timeout: 180
+        )
+        installingCatalogSkillName = nil
+
+        if output?.contains("__OPENCLAW_SKILL_INSTALL_OK__") == true {
+            Self.markTrustedSkill(item.name)
+            await loadSkills()
+            showSuccessMessage("Installed skill \(item.name)")
+        } else {
+            let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
+            showErrorMessage("Failed to install \(item.name): \(trimmed?.isEmpty == false ? trimmed! : "unknown error")")
+        }
+    }
+
+    @discardableResult
+    func installManualSkill(repositoryInput: String) async -> Bool {
+        guard !isInstallingManualSkill else { return false }
+        guard let command = SkillCatalogService.manualInstallCommand(repositoryInput: repositoryInput),
+              let normalizedRepository = SkillCatalogService.normalizedRepositoryURL(from: repositoryInput) else {
+            showErrorMessage("Enter a GitHub repository as owner/repo or https://github.com/owner/repo")
+            return false
+        }
+
+        isInstallingManualSkill = true
+        let output = await openclawService.runCommand(
+            "(\(command) 2>&1 && echo __OPENCLAW_SKILL_INSTALL_OK__) | sed 's/\\x1b\\[[0-9;]*m//g'",
+            timeout: 180
+        )
+        isInstallingManualSkill = false
+
+        if output?.contains("__OPENCLAW_SKILL_INSTALL_OK__") == true {
+            await loadSkills()
+            showSuccessMessage("Installed skills from \(normalizedRepository)")
+            return true
+        } else {
+            let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
+            showErrorMessage("Failed to install from \(normalizedRepository): \(trimmed?.isEmpty == false ? trimmed! : "unknown error")")
+            return false
+        }
     }
 
     /// Parse `openclaw skills list` table output.
@@ -1269,12 +1415,12 @@ class DashboardViewModel: ObservableObject {
     }
 
     static func canRemoveSkill(_ skill: SkillInfo) -> Bool {
-        skill.source != "openclaw-bundled"
+        SkillSourcePresentation(source: skill.source).isRemovable
     }
 
     func removeSkill(_ skill: SkillInfo) async {
         guard Self.canRemoveSkill(skill) else {
-            showErrorMessage("Bundled skills cannot be removed")
+            showErrorMessage("Built-in skills cannot be removed")
             return
         }
 
@@ -1288,6 +1434,7 @@ class DashboardViewModel: ObservableObject {
         removingSkillName = nil
 
         if output?.contains("__OPENCLAW_SKILL_REMOVE_OK__") == true {
+            Self.unmarkTrustedSkill(skill.name)
             await loadSkills()
             showSuccessMessage("Removed skill \(skill.name)")
         } else {
@@ -1429,6 +1576,38 @@ class DashboardViewModel: ObservableObject {
         sessionsByAgent = grouped
     }
 
+    /// Remove in-memory UI state that belonged to an agent after the CLI has
+    /// deleted it from config/workspace. This keeps the sidebar and chat view
+    /// from holding onto sessions or task placeholders for an agent that is no
+    /// longer selectable.
+    func removeDeletedAgentState(agentId: String) {
+        let mirroredSessionIds = sessionsByAgent[agentId]?.map(\.id) ?? []
+        let storeSessionIds = chatSessionStore.index
+            .filter { $0.agentId == agentId }
+            .map(\.id)
+        let sessionIds = Set(mirroredSessionIds + storeSessionIds)
+
+        for sessionId in sessionIds {
+            cancelTasks(inSession: sessionId)
+            chatMessagesByInactiveSession.removeValue(forKey: sessionId)
+            loadingSessionIds.remove(sessionId)
+        }
+
+        chatMessagesByAgent.removeValue(forKey: agentId)
+        selectedSessionIdByAgent.removeValue(forKey: agentId)
+        sessionsByAgent.removeValue(forKey: agentId)
+
+        if selectedAgentId == agentId {
+            selectedAgentId = "main"
+            selectedTab = .chat
+        }
+
+        chatSessionStore.loadIndex()
+        rebuildSessionsMirror()
+        sessionsByAgent.removeValue(forKey: agentId)
+        recomputeIsSendingMessage()
+    }
+
     /// Strip transient in-flight placeholders with no content. These are
     /// only meaningful while a chat reply is actively streaming — if one
     /// survives onto disk (e.g. the user force-quit the app, or the
@@ -1558,6 +1737,7 @@ class DashboardViewModel: ObservableObject {
                diskMessages.last?.id == memMessages.last?.id,
                diskMessages.last?.taskStatus == memMessages.last?.taskStatus,
                diskMessages.last?.content.count == memMessages.last?.content.count,
+               Self.messagesHaveSameActivityEvents(diskMessages.last, memMessages.last),
                !loaded.title.isEmpty {
                 continue
             }
@@ -1573,6 +1753,10 @@ class DashboardViewModel: ObservableObject {
         // Even if no messages changed, the index may have new metadata
         // (titles, message counts) — rebuild the published mirror.
         rebuildSessionsMirror()
+    }
+
+    private static func messagesHaveSameActivityEvents(_ lhs: ChatMessage?, _ rhs: ChatMessage?) -> Bool {
+        (lhs?.activityEvents ?? []) == (rhs?.activityEvents ?? [])
     }
 
     // MARK: - Session UI Actions
@@ -1690,7 +1874,7 @@ class DashboardViewModel: ObservableObject {
     /// bubbles (see ChatBubble); user turns are single transcript entries (no
     /// tool sub-entries), so we anchor by user-message ordinal — robust against
     /// the assistant/tool entry drift that indexing over mixed turns would hit.
-    func rewindToMessage(_ message: ChatMessage) {
+    func rewindToMessage(_ message: ChatMessage, replacementText: String? = nil) {
         let agentId = selectedAgentId
         guard let sessionId = selectedSessionIdByAgent[agentId] else {
             self.rewindError = "没有活动会话，无法回滚"
@@ -1735,14 +1919,21 @@ class DashboardViewModel: ObservableObject {
                 return
             }
 
-            // 3. Mirror locally: drop the clicked message and everything after,
-            //    and push its text into the composer to edit/resend.
+            // 3. Mirror locally: drop the clicked message and everything after.
+            //    If the caller provided confirmed replacement text, immediately
+            //    send it on the new branch. Otherwise preserve the legacy
+            //    composer-prefill behavior.
             if let msgs = self.chatMessagesByAgent[agentId],
                let curIdx = msgs.firstIndex(where: { $0.id == message.id }) {
                 self.chatMessagesByAgent[agentId] = Array(msgs.prefix(curIdx))
             }
-            self.composerPrefill = message.content
             self.rewindError = nil
+            if let editedText = replacementText?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !editedText.isEmpty {
+                await self.sendChatMessage(editedText, attachments: message.attachments)
+            } else {
+                self.composerPrefill = message.content
+            }
         }
     }
 
@@ -2192,7 +2383,7 @@ class DashboardViewModel: ObservableObject {
         return nil
     }
     @Published var selectedAgentId: String = "main"
-    @Published var availableAgents: [AgentOption] = [AgentOption(id: "main", name: "main", emoji: "🤖", description: "", model: "", division: "")]
+    @Published var availableAgents: [AgentOption] = [AgentOption(id: "main", name: "main", emoji: "", description: "", model: "", division: "")]
 
     // Agent Settings Panel state
     @Published var agentSettingsOpen: Bool = false
@@ -2304,7 +2495,7 @@ class DashboardViewModel: ObservableObject {
                 // resolveAgentWorkspaceDir — NOT a hardcoded "main → workspace").
                 let workspace = Self.resolveAgentWorkspace(agentId, config: json)
 
-                // Read IDENTITY.md and parse emoji/name from file first, fall back to config
+                // Read IDENTITY.md and parse name from file first, fall back to config.
                 let identityPath = (workspace as NSString).appendingPathComponent("IDENTITY.md")
                 let identityContent = (try? String(contentsOfFile: identityPath, encoding: .utf8)) ?? ""
                 let parsed = PersonaViewModel.parseIdentity(identityContent)
@@ -2315,11 +2506,6 @@ class DashboardViewModel: ObservableObject {
                     if !parsed.name.isEmpty { return parsed.name }
                     if let n = identity?["name"] as? String, !n.isEmpty { return n }
                     return entry["name"] as? String ?? agentId
-                }()
-
-                let emoji: String = {
-                    if !parsed.emoji.isEmpty { return parsed.emoji }
-                    return identity?["emoji"] as? String ?? "🤖"
                 }()
 
                 // Extract agent description from IDENTITY.md (text after ---) and SOUL.md
@@ -2337,7 +2523,7 @@ class DashboardViewModel: ObservableObject {
                     return "Custom"
                 }()
 
-                agents.append(AgentOption(id: agentId, name: name, emoji: emoji, description: agentDescription, model: model, division: division))
+                agents.append(AgentOption(id: agentId, name: name, emoji: "", description: agentDescription, model: model, division: division))
             }
         }
 
@@ -2349,9 +2535,8 @@ class DashboardViewModel: ObservableObject {
             let mainContent = (try? String(contentsOfFile: mainIdentityPath, encoding: .utf8)) ?? ""
             let mainParsed = PersonaViewModel.parseIdentity(mainContent)
             let mainName = mainParsed.name.isEmpty ? "main" : mainParsed.name
-            let mainEmoji = mainParsed.emoji.isEmpty ? "🤖" : mainParsed.emoji
             let mainDesc = Self.extractAgentDescription(workspace: mainWorkspace, identityContent: mainContent)
-            agents.insert(AgentOption(id: "main", name: mainName, emoji: mainEmoji, description: mainDesc, model: "", division: ""), at: 0)
+            agents.insert(AgentOption(id: "main", name: mainName, emoji: "", description: mainDesc, model: "", division: ""), at: 0)
         }
 
         availableAgents = agents
@@ -2427,7 +2612,6 @@ class DashboardViewModel: ObservableObject {
         - **Name:** Commander
         - **Creature:** AI Task Orchestrator
         - **Vibe:** Precise, structured, efficient
-        - **Emoji:** 🎯
         """
         let identityPath = (workspaceDir as NSString).appendingPathComponent("IDENTITY.md")
         try? identityContent.write(toFile: identityPath, atomically: true, encoding: .utf8)
@@ -2615,11 +2799,24 @@ class DashboardViewModel: ObservableObject {
         return (imageAttachments, inlineText)
     }
 
-    private func updateMessage(msgId: UUID, content: String, status: ChatMessage.TaskStatus, agentId: String, agentEmoji: String?) {
+    private func updateMessage(
+        msgId: UUID,
+        content: String,
+        status: ChatMessage.TaskStatus,
+        agentId: String,
+        agentEmoji: String?,
+        activityEvents: [ChatActivityEvent] = []
+    ) {
+        let existing = findMessage(byId: msgId)
+        let resolvedActivityEvents = activityEvents.isEmpty ? (existing?.activityEvents ?? []) : activityEvents
+        let resolvedCompletedAt = status.isTerminal ? (existing?.completedAt ?? Date()) : nil
         let newMsg = ChatMessage(
             role: .assistant, content: content,
             agentId: agentId, agentEmoji: agentEmoji,
-            taskStatus: status, id: msgId
+            taskStatus: status, id: msgId,
+            timestamp: existing?.timestamp,
+            completedAt: resolvedCompletedAt,
+            activityEvents: resolvedActivityEvents
         )
         // Route to wherever this msgId currently lives. The task may have
         // started in the (then-visible) active session and migrated to
@@ -2641,6 +2838,26 @@ class DashboardViewModel: ObservableObject {
             return
         }
         logChat("UPDATE_FAILED: agent=\(agentId), msgId=\(msgId.uuidString.prefix(8)) NOT FOUND in active or inactive!")
+    }
+
+    private func mergeActivityEvent(_ event: GatewayActivityEvent, into events: inout [ChatActivityEvent]) {
+        let kind = ChatActivityEvent.Kind(gatewayKind: event.kind)
+        if let idx = events.firstIndex(where: { $0.kind == kind }) {
+            let existing = events[idx]
+            events[idx] = ChatActivityEvent(
+                kind: existing.kind,
+                count: existing.count + 1,
+                details: event.detail.map { existing.details + [$0] } ?? existing.details,
+                ordinal: idx
+            )
+        } else {
+            events.append(ChatActivityEvent(
+                kind: kind,
+                count: 1,
+                details: event.detail.map { [$0] } ?? [],
+                ordinal: events.count
+            ))
+        }
     }
 
     private func appendBackgroundNotification(agentId: String, agentEmoji: String?, completed: Bool, msgId: UUID) {
@@ -2667,7 +2884,7 @@ class DashboardViewModel: ObservableObject {
             isSendingMessage = true
             let reply = await collabVM.handleUserMessage(text)
             let noReply = String(localized: "No response from AI.", bundle: LanguageManager.shared.localizedBundle)
-            chatMessagesByAgent[currentAgent, default: []].append(ChatMessage(role: .assistant, content: reply ?? noReply, agentId: "commander", agentEmoji: "🎯"))
+            chatMessagesByAgent[currentAgent, default: []].append(ChatMessage(role: .assistant, content: reply ?? noReply, agentId: "commander"))
             isSendingMessage = false
             return
         }
@@ -2677,7 +2894,7 @@ class DashboardViewModel: ObservableObject {
         chatMessagesByAgent[currentAgentId, default: []].append(userMessage)
         logChat("USER_MSG: agent=\(currentAgentId), totalMsgs=\(chatMessagesByAgent[currentAgentId]?.count ?? 0)")
 
-        let currentAgentEmoji = availableAgents.first(where: { $0.id == currentAgentId })?.emoji
+        let currentAgentEmoji: String? = nil
         // Bind the run to the agent's currently-active session. `ensureActiveSessionId`
         // mints one lazily if the agent has never had a session before, so this is
         // always non-nil after the call.
@@ -2838,6 +3055,8 @@ class DashboardViewModel: ObservableObject {
 
         // Stream events
         var accumulatedText = ""
+        var accumulatedActivityEvents: [ChatActivityEvent] = []
+        var seenActivityEventKeys = Set<String>()
         var receivedTerminalEvent = false
         var emptyFinalCount = 0
         // Throttle message updates to prevent CPU 100% during fast streaming
@@ -2846,6 +3065,15 @@ class DashboardViewModel: ObservableObject {
         streamLoop: for await event in eventStream {
 
             switch event {
+            case .activity(let eventRunId, _, let event):
+                guard eventRunId == runId else { continue }
+                guard seenActivityEventKeys.insert(event.dedupeKey).inserted else { continue }
+                mergeActivityEvent(event, into: &accumulatedActivityEvents)
+                if let current = findMessage(byId: msgId),
+                   current.taskStatus != .cancelled {
+                    updateMessage(msgId: msgId, content: accumulatedText, status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                }
+
             case .delta(let eventRunId, _, let text):
                 guard eventRunId == runId else { continue }
                 // Skip empty deltas (e.g. tool_use blocks with no text content)
@@ -2870,7 +3098,7 @@ class DashboardViewModel: ObservableObject {
                     // findMessage handles both.
                     if let current = findMessage(byId: msgId),
                        current.taskStatus != .cancelled {
-                        updateMessage(msgId: msgId, content: accumulatedText, status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+                        updateMessage(msgId: msgId, content: accumulatedText, status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                     }
                 }
 
@@ -2903,7 +3131,7 @@ class DashboardViewModel: ObservableObject {
                 }
                 receivedTerminalEvent = true
                 let wasBackground = backgroundTaskIds.contains(msgId)
-                updateMessage(msgId: msgId, content: finalText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+                updateMessage(msgId: msgId, content: finalText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 if wasBackground {
                     // Only emit the "background task completed" inline card when the
                     // user is still looking at the SAME session the task ran in.
@@ -2926,11 +3154,7 @@ class DashboardViewModel: ObservableObject {
                 receivedTerminalEvent = true
                 if let current = findMessage(byId: msgId),
                    current.taskStatus != .cancelled {
-                    let cancelledLabel = String(localized: "Task cancelled.", bundle: LanguageManager.shared.localizedBundle)
-                    let content = accumulatedText.isEmpty
-                        ? cancelledLabel
-                        : accumulatedText + "\n\n---\n> " + cancelledLabel
-                    updateMessage(msgId: msgId, content: content, status: .cancelled, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+                    updateMessage(msgId: msgId, content: accumulatedText, status: .cancelled, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 }
                 break streamLoop
 
@@ -2940,7 +3164,7 @@ class DashboardViewModel: ObservableObject {
                 let errorContent = "⚠️ " + message
                 // Ensure UI update happens on MainActor
                 await MainActor.run {
-                    self.updateMessage(msgId: msgId, content: errorContent, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+                    self.updateMessage(msgId: msgId, content: errorContent, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 }
                 chatLog.warning("chat error: runId=\(runId), message=\(message)")
                 break streamLoop
@@ -2996,14 +3220,14 @@ class DashboardViewModel: ObservableObject {
                 // covers the "system slept while LLM finished" case.
                 if let recoveredText = recovered, recoveredText.count > accumulatedText.count {
                     chatLog.info("chat.history recovered \(recoveredText.count) chars (streamed only \(accumulatedText.count))")
-                    updateMessage(msgId: msgId, content: recoveredText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+                    updateMessage(msgId: msgId, content: recoveredText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 } else {
                     chatLog.warning("chat.history recovery failed or shorter than stream — marking interrupted")
                     let disconnectNote = String(localized: "Connection was interrupted. The response may be incomplete.", bundle: LanguageManager.shared.localizedBundle)
                     let content = accumulatedText.isEmpty
                         ? disconnectNote
                         : accumulatedText + "\n\n---\n> ⚠️ " + disconnectNote
-                    updateMessage(msgId: msgId, content: content, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+                    updateMessage(msgId: msgId, content: content, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 }
             }
         }
@@ -3083,11 +3307,7 @@ class DashboardViewModel: ObservableObject {
         // chatMessagesByAgent (visible session) or chatMessagesByInactiveSession
         // (background-streaming session). updateMessage handles both.
         if let msg = findMessage(byId: msgId) {
-            let cancelledLabel = String(localized: "Task cancelled by user.", bundle: LanguageManager.shared.localizedBundle)
-            let content = msg.content.isEmpty
-                ? cancelledLabel
-                : msg.content + "\n\n---\n> " + cancelledLabel
-            updateMessage(msgId: msgId, content: content,
+            updateMessage(msgId: msgId, content: msg.content,
                           status: .cancelled,
                           agentId: msg.agentId ?? taskAgentMap[msgId] ?? selectedAgentId,
                           agentEmoji: msg.agentEmoji)
@@ -4662,17 +4882,12 @@ class DashboardViewModel: ObservableObject {
             return entry["name"] as? String ?? agentId
         }()
 
-        let emoji: String = {
-            if !parsed.emoji.isEmpty { return parsed.emoji }
-            return identity?["emoji"] as? String ?? "🤖"
-        }()
-
         let identitySource = entry["identitySource"] as? String ?? ""
 
         var info = SubAgentInfo(
             id: agentId,
             name: name,
-            emoji: emoji,
+            emoji: "",
             creature: parsed.creature,
             model: model,
             isDefault: isDefault,
@@ -4932,8 +5147,22 @@ struct ChatMessage: Identifiable, Codable {
     /// this field existed still decode cleanly — pre-existing messages
     /// show no timestamp instead of an inaccurate "now".
     let timestamp: Date?
+    let completedAt: Date?
+    let activityEvents: [ChatActivityEvent]
 
-    init(role: ChatRole, content: String, agentId: String? = nil, agentEmoji: String? = nil, attachments: [URL] = [], taskStatus: TaskStatus = .completed, id: UUID = UUID(), scrollTargetId: UUID? = nil, timestamp: Date? = Date()) {
+    init(
+        role: ChatRole,
+        content: String,
+        agentId: String? = nil,
+        agentEmoji: String? = nil,
+        attachments: [URL] = [],
+        taskStatus: TaskStatus = .completed,
+        id: UUID = UUID(),
+        scrollTargetId: UUID? = nil,
+        timestamp: Date? = Date(),
+        completedAt: Date? = nil,
+        activityEvents: [ChatActivityEvent] = []
+    ) {
         self.id = id
         self.role = role
         self.content = content
@@ -4943,6 +5172,37 @@ struct ChatMessage: Identifiable, Codable {
         self.taskStatus = taskStatus
         self.scrollTargetId = scrollTargetId
         self.timestamp = timestamp
+        self.completedAt = completedAt
+        self.activityEvents = activityEvents
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case role
+        case content
+        case agentId
+        case agentEmoji
+        case attachments
+        case taskStatus
+        case scrollTargetId
+        case timestamp
+        case completedAt
+        case activityEvents
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        role = try container.decode(ChatRole.self, forKey: .role)
+        content = try container.decode(String.self, forKey: .content)
+        agentId = try container.decodeIfPresent(String.self, forKey: .agentId)
+        agentEmoji = try container.decodeIfPresent(String.self, forKey: .agentEmoji)
+        attachments = try container.decodeIfPresent([URL].self, forKey: .attachments) ?? []
+        taskStatus = try container.decodeIfPresent(TaskStatus.self, forKey: .taskStatus) ?? .completed
+        scrollTargetId = try container.decodeIfPresent(UUID.self, forKey: .scrollTargetId)
+        timestamp = try container.decodeIfPresent(Date.self, forKey: .timestamp)
+        completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
+        activityEvents = try container.decodeIfPresent([ChatActivityEvent].self, forKey: .activityEvents) ?? []
     }
 
     enum ChatRole: String, Codable {
@@ -4956,6 +5216,134 @@ struct ChatMessage: Identifiable, Codable {
         case completed    // Done
         case timedOut     // Timed out, process terminated
         case cancelled    // Cancelled by user
+
+        var isTerminal: Bool {
+            switch self {
+            case .completed, .timedOut, .cancelled:
+                return true
+            case .loading, .background:
+                return false
+            }
+        }
+    }
+}
+
+struct ChatActivityEvent: Identifiable, Codable, Equatable {
+    let id: String
+    let kind: Kind
+    let count: Int
+    let detail: String?
+    let details: [String]
+
+    init(kind: Kind, count: Int, detail: String?, ordinal: Int) {
+        self.init(kind: kind, count: count, details: detail.map { [$0] } ?? [], ordinal: ordinal)
+    }
+
+    init(kind: Kind, count: Int, details: [String], ordinal: Int) {
+        self.kind = kind
+        self.count = max(1, count)
+        self.details = details
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        self.detail = self.details.first
+        self.id = "\(kind.rawValue)-\(self.count)-\(self.details.joined(separator: "|"))-\(ordinal)"
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case kind
+        case count
+        case detail
+        case details
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try container.decode(Kind.self, forKey: .kind)
+        count = max(1, try container.decodeIfPresent(Int.self, forKey: .count) ?? 1)
+        let decodedDetail = try container.decodeIfPresent(String.self, forKey: .detail)
+        let decodedDetails = try container.decodeIfPresent([String].self, forKey: .details)
+        details = (decodedDetails ?? decodedDetail.map { [$0] } ?? [])
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        detail = details.first ?? decodedDetail
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+            ?? "\(kind.rawValue)-\(count)-\(details.joined(separator: "|"))"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(count, forKey: .count)
+        try container.encodeIfPresent(detail, forKey: .detail)
+        try container.encode(details, forKey: .details)
+    }
+
+    enum Kind: String, Codable {
+        case loadedTools
+        case searchedCode
+        case readFiles
+        case ranCommands
+        case editedFiles
+        case createdFiles
+        case selectedModel
+        case toolFailed
+
+        init(gatewayKind: GatewayActivityEvent.Kind) {
+            switch gatewayKind {
+            case .loadedTools:
+                self = .loadedTools
+            case .searchedCode:
+                self = .searchedCode
+            case .readFiles:
+                self = .readFiles
+            case .ranCommands:
+                self = .ranCommands
+            case .editedFiles:
+                self = .editedFiles
+            case .createdFiles:
+                self = .createdFiles
+            case .selectedModel:
+                self = .selectedModel
+            case .toolFailed:
+                self = .toolFailed
+            }
+        }
+
+        func title(count: Int) -> String {
+            switch self {
+            case .loadedTools:
+                return "Loaded \(count) \(count == 1 ? "tool" : "tools")"
+            case .searchedCode:
+                return "Searched code"
+            case .readFiles:
+                return "Read \(count) \(count == 1 ? "file" : "files")"
+            case .ranCommands:
+                return "Ran \(count) \(count == 1 ? "command" : "commands")"
+            case .editedFiles:
+                return count == 1 ? "Edited a file" : "Edited \(count) files"
+            case .createdFiles:
+                return "Created \(count) \(count == 1 ? "file" : "files")"
+            case .selectedModel:
+                return "Selected model"
+            case .toolFailed:
+                return count == 1 ? "Tool failed" : "\(count) tools failed"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .loadedTools: return "wrench.and.screwdriver"
+            case .searchedCode: return "magnifyingglass"
+            case .readFiles: return "doc.text"
+            case .ranCommands: return "terminal"
+            case .editedFiles: return "pencil"
+            case .createdFiles: return "doc.badge.plus"
+            case .selectedModel: return "cpu"
+            case .toolFailed: return "exclamationmark.triangle"
+            }
+        }
     }
 }
 

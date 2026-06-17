@@ -5,9 +5,37 @@ import AVKit
 import Combine
 import Quartz
 import MarkdownUI
+import AppKit
+
+private enum DashboardTypography {
+    static let sidebarRow = Font.system(size: 14, weight: .regular)
+    static let sidebarSectionTitle = Font.system(size: 14, weight: .regular)
+    static let sidebarAgentName = Font.system(size: 14, weight: .regular)
+    static let sidebarAgentNameActive = Font.system(size: 14, weight: .regular)
+    static let sidebarSessionTitle = Font.system(size: 13.5, weight: .regular)
+    static let composer = Font.system(size: 14, weight: .regular)
+    static let composerPlaceholder = Font.system(size: 14, weight: .regular)
+    static let message = Font.system(size: 14, weight: .regular)
+    static let userMessage = Font.system(size: 14, weight: .regular)
+    static let messageMeta = Font.system(size: 11, weight: .regular)
+
+    static func sidebarAgent(active: Bool) -> Font {
+        active ? sidebarAgentNameActive : sidebarAgentName
+    }
+}
+
+private enum DashboardSidebarMetrics {
+    static let agentAvatarSize: CGFloat = 22
+    static let agentTitleSpacing: CGFloat = 10
+    static let sessionTitleLeadingSpacer: CGFloat = agentAvatarSize + agentTitleSpacing
+    static let sessionRowContentHeight: CGFloat = 20
+    static let sessionRowActionSize: CGFloat = 20
+    static let sessionRowVerticalPadding: CGFloat = 4
+}
 
 struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @StateObject private var createAgentVM: SubAgentsViewModel
     #if REQUIRE_LOGIN
     @EnvironmentObject var authManager: AuthManager
     #endif
@@ -16,21 +44,74 @@ struct DashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isGlobalSessionSearchPresented = false
     @State private var globalSessionSearchText: String = ""
+    @State private var isCreateAgentOverlayPresented = false
+    @State private var expandedAgentIds: Set<String> = []
+    @State private var workspaceSidebarExpanded = false
+    @State private var workspaceEditingFilePath: String?
+    @State private var workspaceEditingFileDirty = false
+    @State private var workspaceEditorFullscreen = false
+    @State private var workspaceBrowserWidth: CGFloat = 280
+    @State private var workspaceSearchActive = false
+    @State private var workspaceSearchText = ""
     @FocusState private var isGlobalSessionSearchFocused: Bool
+
+    private let workspaceSidebarMinWidth: CGFloat = 240
+    private let workspaceSidebarMaxWidth: CGFloat = 420
+    private static let workspaceLayoutMetrics = OutputsSidebarLayoutMetrics()
+
+    init(viewModel: DashboardViewModel) {
+        self.viewModel = viewModel
+        _createAgentVM = StateObject(wrappedValue: SubAgentsViewModel(openclawService: viewModel.openclawService))
+    }
 
     var body: some View {
         NavigationSplitView {
             SidebarView(
                 selectedTab: $viewModel.selectedTab,
                 viewModel: viewModel,
-                onOpenGlobalSessionSearch: openGlobalSessionSearch
+                createAgentVM: createAgentVM,
+                expandedAgentIds: $expandedAgentIds,
+                onOpenGlobalSessionSearch: openGlobalSessionSearch,
+                onRequestCreateAgent: presentCreateAgentOverlay
+            )
+        } content: {
+            DetailContentView(
+                viewModel: viewModel,
+                workspaceSidebarController: workspaceSidebarController
             )
         } detail: {
-            DetailContentView(viewModel: viewModel)
+            workspaceSplitColumn
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(colorSchemeForAppearance)
         .background(TitlebarSeparatorSuppressor())
+        .background(
+            DashboardTitlebarAccessoryInstaller(
+                isVisible: isChatTabActive,
+                width: rightTitlebarAccessoryWidth
+            ) {
+                RightOutputsTitlebarAccessory(
+                    isExpanded: isWorkspaceSidebarExpanded,
+                    isSearching: workspaceSearchActive,
+                    toggle: toggleWorkspaceSidebar,
+                    toggleSearch: toggleWorkspaceSearch,
+                    openFolder: openSelectedWorkspaceFolder,
+                    close: { hideWorkspaceSidebar(resetEditor: true) }
+                )
+            }
+        )
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                if let title = currentSessionTitle {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 320, alignment: .leading)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -48,8 +129,16 @@ struct DashboardView: View {
                 globalSessionSearchOverlay
             }
         }
+        .overlay {
+            if isCreateAgentOverlayPresented {
+                createAgentOverlay
+            }
+        }
         .animation(.easeInOut, value: viewModel.showSuccess)
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
+        .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
+        .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)
+        .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceEditingFilePath)
         .onAppear {
             viewModel.openclawService.startMonitoring()
             Task {
@@ -62,6 +151,156 @@ struct DashboardView: View {
         .sheet(isPresented: $viewModel.showDiagnostics) {
             DiagnosticsSheet(report: viewModel.diagnosticReport, isPresented: $viewModel.showDiagnostics)
         }
+    }
+
+    private var activeTab: DashboardViewModel.DashboardTab {
+        viewModel.selectedTab == .outputs ? .chat : viewModel.selectedTab
+    }
+
+    private var isChatTabActive: Bool {
+        activeTab == .chat
+    }
+
+    private var currentSessionMetadata: ChatSessionMetadata? {
+        guard let sessionId = viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId] else {
+            return nil
+        }
+        return (viewModel.sessionsByAgent[viewModel.selectedAgentId] ?? []).first { $0.id == sessionId }
+    }
+
+    private var currentSessionTitle: String? {
+        guard isChatTabActive, !viewModel.chatMessages.isEmpty else { return nil }
+        let title = currentSessionMetadata?.title
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty ? nil : title
+    }
+
+    private var isWorkspaceSidebarExpanded: Bool {
+        isChatTabActive && (workspaceSidebarExpanded || workspaceEditingFilePath != nil)
+    }
+
+    private var workspaceColumnIdealWidth: CGFloat {
+        guard isWorkspaceSidebarExpanded else { return 0 }
+        return workspaceBrowserWidth + (workspaceEditingFilePath != nil ? Self.workspaceLayoutMetrics.editorWidth : 0)
+    }
+
+    private var workspaceColumnMaxWidth: CGFloat {
+        workspaceSidebarMaxWidth + Self.workspaceLayoutMetrics.editorWidth
+    }
+
+    private var rightTitlebarAccessoryWidth: CGFloat {
+        guard isChatTabActive else { return 0 }
+        let expandedWidth = workspaceColumnIdealWidth + Self.workspaceLayoutMetrics.titlebarAccessoryWidthAdjustment
+        return max(isWorkspaceSidebarExpanded ? expandedWidth : 44, 44)
+    }
+
+    private var selectedWorkspacePath: String {
+        DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
+    }
+
+    private var workspaceSidebarController: WorkspaceSidebarController {
+        WorkspaceSidebarController(
+            isExpanded: Binding(
+                get: { isWorkspaceSidebarExpanded },
+                set: { expanded in
+                    if expanded {
+                        revealWorkspaceSidebar()
+                    } else {
+                        hideWorkspaceSidebar(resetEditor: true)
+                    }
+                }
+            ),
+            hasEditor: workspaceEditingFilePath != nil,
+            toggle: { toggleWorkspaceSidebar() }
+        )
+    }
+
+    @ViewBuilder
+    private var workspaceSplitColumn: some View {
+        if isWorkspaceSidebarExpanded {
+            workspaceExpandedSidebar(width: workspaceColumnIdealWidth)
+                .navigationSplitViewColumnWidth(
+                    min: workspaceSidebarMinWidth,
+                    ideal: workspaceColumnIdealWidth,
+                    max: workspaceColumnMaxWidth
+                )
+        } else {
+            Color.clear
+                .navigationSplitViewColumnWidth(min: 0, ideal: 0, max: 0)
+        }
+    }
+
+    private func workspaceExpandedSidebar(width: CGFloat) -> some View {
+        HStack(spacing: 0) {
+            WorkspaceFilePanel(
+                agentId: viewModel.selectedAgentId,
+                editingFilePath: $workspaceEditingFilePath,
+                isSearching: $workspaceSearchActive,
+                searchText: $workspaceSearchText,
+                editingFileDirty: workspaceEditingFileDirty,
+                width: min(workspaceBrowserWidth, width)
+            )
+
+            if let path = workspaceEditingFilePath {
+                FileEditorPanel(
+                    filePath: path,
+                    onClose: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            workspaceEditingFilePath = nil
+                            workspaceEditingFileDirty = false
+                        }
+                    },
+                    onDirtyChanged: { dirty in
+                        workspaceEditingFileDirty = dirty
+                    },
+                    isFullscreen: $workspaceEditorFullscreen
+                )
+                .id(path)
+                .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+    }
+
+    private func toggleWorkspaceSidebar() {
+        if isWorkspaceSidebarExpanded {
+            hideWorkspaceSidebar(resetEditor: true)
+        } else {
+            revealWorkspaceSidebar()
+        }
+    }
+
+    private func revealWorkspaceSidebar() {
+        guard isChatTabActive else { return }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            workspaceSidebarExpanded = true
+        }
+    }
+
+    private func hideWorkspaceSidebar(resetEditor: Bool) {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            workspaceSidebarExpanded = false
+            if resetEditor {
+                workspaceEditingFilePath = nil
+                workspaceEditingFileDirty = false
+                workspaceSearchActive = false
+                workspaceSearchText = ""
+            }
+        }
+    }
+
+    private func toggleWorkspaceSearch() {
+        guard isWorkspaceSidebarExpanded else { return }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            workspaceSearchActive.toggle()
+            if !workspaceSearchActive {
+                workspaceSearchText = ""
+            }
+        }
+    }
+
+    private func openSelectedWorkspaceFolder() {
+        NSWorkspace.shared.open(URL(fileURLWithPath: selectedWorkspacePath))
     }
 
     private var isDark: Bool {
@@ -86,10 +325,71 @@ struct DashboardView: View {
         }
     }
 
+    private func presentCreateAgentOverlay() {
+        isCreateAgentOverlayPresented = true
+    }
+
+    private func dismissCreateAgentOverlay() {
+        isCreateAgentOverlayPresented = false
+    }
+
+    private func handleCreatedAgent(_ agentId: String) {
+        viewModel.loadAvailableAgents()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                viewModel.selectedAgentId = agentId
+                viewModel.selectedTab = .chat
+                expandedAgentIds.insert(agentId)
+            }
+        }
+    }
+
     private var globalSearchResults: [ChatSessionMetadata] {
         Array(viewModel.chatSessionStore
             .searchSessions(query: globalSessionSearchText)
             .prefix(12))
+    }
+
+    private var createAgentOverlay: some View {
+        GeometryReader { proxy in
+            let panelWidth = min(460, max(360, proxy.size.width - 64))
+
+            ZStack {
+                Color.black.opacity(isDark ? 0.24 : 0.12)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        dismissCreateAgentOverlay()
+                    }
+
+                CreateAgentSheet(
+                    viewModel: createAgentVM,
+                    isPresented: Binding(
+                        get: { isCreateAgentOverlayPresented },
+                        set: { newValue in
+                            if newValue {
+                                isCreateAgentOverlayPresented = true
+                            } else {
+                                dismissCreateAgentOverlay()
+                            }
+                        }
+                    ),
+                    onCreatedWithId: { agentId in
+                        handleCreatedAgent(agentId)
+                    }
+                )
+                .frame(width: panelWidth)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.primary.opacity(isDark ? 0.10 : 0.06), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(isDark ? 0.34 : 0.16), radius: 32, x: 0, y: 20)
+                .onTapGesture {}
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .center)))
     }
 
     private var globalSessionSearchOverlay: some View {
@@ -112,6 +412,7 @@ struct DashboardView: View {
                         TextField(String(localized: "Search chats", bundle: languageManager.localizedBundle), text: $globalSessionSearchText)
                             .textFieldStyle(.plain)
                             .font(.system(size: 20, weight: .regular))
+                            .tint(Color(NSColor.labelColor))
                             .focused($isGlobalSessionSearchFocused)
                         if !globalSessionSearchText.isEmpty {
                             Button {
@@ -233,12 +534,219 @@ private struct TitlebarSeparatorSuppressor: NSViewRepresentable {
     }
 }
 
+private let rightOutputsTitlebarAccessoryID = NSUserInterfaceItemIdentifier("GetClowHub.RightOutputsTitlebarAccessory")
+
+private struct DashboardTitlebarAccessoryInstaller<Accessory: View>: NSViewRepresentable {
+    let isVisible: Bool
+    let width: CGFloat
+    let height: CGFloat
+    let accessory: Accessory
+
+    init(
+        isVisible: Bool,
+        width: CGFloat,
+        height: CGFloat = 38,
+        @ViewBuilder accessory: () -> Accessory
+    ) {
+        self.isVisible = isVisible
+        self.width = width
+        self.height = height
+        self.accessory = accessory()
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            context.coordinator.update(
+                window: view.window,
+                isVisible: isVisible,
+                width: width,
+                height: height,
+                rootView: accessory
+            )
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            context.coordinator.update(
+                window: nsView.window,
+                isVisible: isVisible,
+                width: width,
+                height: height,
+                rootView: accessory
+            )
+        }
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.remove()
+    }
+
+    final class Coordinator {
+        private weak var window: NSWindow?
+        private var hostingController: NSHostingController<Accessory>?
+        private var accessoryController: NSTitlebarAccessoryViewController?
+        private var widthConstraint: NSLayoutConstraint?
+        private var heightConstraint: NSLayoutConstraint?
+
+        func update(
+            window targetWindow: NSWindow?,
+            isVisible: Bool,
+            width: CGFloat,
+            height: CGFloat,
+            rootView: Accessory
+        ) {
+            guard isVisible, let targetWindow else {
+                remove()
+                return
+            }
+
+            if window !== targetWindow {
+                remove()
+                window = targetWindow
+            }
+
+            removeStaleAccessories(from: targetWindow)
+
+            let hostingController = hostingController ?? NSHostingController(rootView: rootView)
+            hostingController.rootView = rootView
+            hostingController.view.identifier = rightOutputsTitlebarAccessoryID
+            hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+            self.hostingController = hostingController
+
+            let accessoryController = accessoryController ?? NSTitlebarAccessoryViewController()
+            if self.accessoryController == nil {
+                accessoryController.layoutAttribute = .right
+                accessoryController.view = hostingController.view
+                targetWindow.addTitlebarAccessoryViewController(accessoryController)
+                self.accessoryController = accessoryController
+                widthConstraint = hostingController.view.widthAnchor.constraint(equalToConstant: max(width, 44))
+                heightConstraint = hostingController.view.heightAnchor.constraint(equalToConstant: height)
+                NSLayoutConstraint.activate([widthConstraint, heightConstraint].compactMap { $0 })
+            }
+
+            widthConstraint?.constant = max(width, 44)
+            heightConstraint?.constant = height
+        }
+
+        func remove() {
+            guard let accessoryController else {
+                hostingController = nil
+                widthConstraint = nil
+                heightConstraint = nil
+                window = nil
+                return
+            }
+
+            if let window,
+               let index = window.titlebarAccessoryViewControllers.firstIndex(where: { $0 === accessoryController }) {
+                window.removeTitlebarAccessoryViewController(at: index)
+            }
+
+            self.accessoryController = nil
+            hostingController = nil
+            widthConstraint = nil
+            heightConstraint = nil
+            window = nil
+        }
+
+        private func removeStaleAccessories(from window: NSWindow) {
+            let indexedControllers = window.titlebarAccessoryViewControllers.enumerated()
+            for (index, controller) in indexedControllers.reversed() {
+                guard controller !== accessoryController,
+                      controller.view.identifier == rightOutputsTitlebarAccessoryID else {
+                    continue
+                }
+                window.removeTitlebarAccessoryViewController(at: index)
+            }
+        }
+    }
+}
+
+private struct RightOutputsTitlebarAccessory: View {
+    let isExpanded: Bool
+    let isSearching: Bool
+    let toggle: () -> Void
+    let toggleSearch: () -> Void
+    let openFolder: () -> Void
+    let close: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if isExpanded {
+                Divider()
+                    .frame(maxHeight: .infinity)
+            }
+
+            HStack(spacing: 8) {
+                Button(action: toggle) {
+                    Image(systemName: "sidebar.right")
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .help(isExpanded ? "Hide Outputs" : "Show Outputs")
+
+                if isExpanded {
+                    Image(systemName: "tray.full.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.accentColor)
+
+                    Text("Outputs")
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+
+                    Spacer(minLength: 8)
+
+                    Button(action: toggleSearch) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 12))
+                            .foregroundColor(isSearching ? .accentColor : .secondary)
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Search Files")
+
+                    Button(action: openFolder) {
+                        Image(systemName: "arrow.up.forward.square")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open in Finder")
+
+                    Button(action: close) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Hide Outputs")
+                }
+            }
+            .padding(.horizontal, isExpanded ? 10 : 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isExpanded ? .leading : .trailing)
+        }
+    }
+}
+
 // MARK: - Sidebar
 
 struct SidebarView: View {
     @Binding var selectedTab: DashboardViewModel.DashboardTab
+    @Binding var expandedAgentIds: Set<String>
     @ObservedObject var viewModel: DashboardViewModel
+    @ObservedObject var createAgentVM: SubAgentsViewModel
     let onOpenGlobalSessionSearch: () -> Void
+    let onRequestCreateAgent: () -> Void
     @EnvironmentObject var sparkleUpdater: SparkleUpdater
     @EnvironmentObject var languageManager: LanguageManager
     #if REQUIRE_LOGIN
@@ -248,9 +756,12 @@ struct SidebarView: View {
     @AppStorage("appAppearance") private var appAppearance: String = "system"
     @Environment(\.colorScheme) private var colorScheme
 
+    private enum SidebarChromeAction: Hashable {
+        case newChat
+        case searchChats
+    }
+
     // Agent context menu state
-    @State private var showCreateAgentSheet = false
-    @StateObject private var createAgentVM: SubAgentsViewModel
     @State private var deleteAgentConfirmId: String?
 
     // Chat session management state
@@ -262,18 +773,27 @@ struct SidebarView: View {
     @State private var marketplaceSearchText = ""
     @State private var expandedDivisions: Set<String> = []
     @State private var expandedAgentDivisions: Set<String> = []
-    @State private var expandedAgentIds: Set<String> = []
     @State private var hoveredAgentId: String?
+    @State private var hoveredSessionId: UUID?
+    @State private var hoveredSidebarTab: DashboardViewModel.DashboardTab?
+    @State private var hoveredSidebarAction: SidebarChromeAction?
+    @State private var areAgentsCollapsed = false
+    @State private var isAgentSectionHeaderHovering = false
 
     init(
         selectedTab: Binding<DashboardViewModel.DashboardTab>,
         viewModel: DashboardViewModel,
-        onOpenGlobalSessionSearch: @escaping () -> Void
+        createAgentVM: SubAgentsViewModel,
+        expandedAgentIds: Binding<Set<String>>,
+        onOpenGlobalSessionSearch: @escaping () -> Void,
+        onRequestCreateAgent: @escaping () -> Void
     ) {
         self._selectedTab = selectedTab
+        self._expandedAgentIds = expandedAgentIds
         self.viewModel = viewModel
+        self.createAgentVM = createAgentVM
         self.onOpenGlobalSessionSearch = onOpenGlobalSessionSearch
-        self._createAgentVM = StateObject(wrappedValue: SubAgentsViewModel(openclawService: viewModel.openclawService))
+        self.onRequestCreateAgent = onRequestCreateAgent
     }
 
     private var isDark: Bool {
@@ -308,6 +828,37 @@ struct SidebarView: View {
                        sessionRenameId = nil
                    }
                })
+        .alert("Remove Agent", isPresented: Binding<Bool>(
+            get: { deleteAgentConfirmId != nil },
+            set: { if !$0 { deleteAgentConfirmId = nil } }
+        )) {
+            Button("Remove", role: .destructive) {
+                if let agentId = deleteAgentConfirmId {
+                    Task {
+                        let deleted = await createAgentVM.deleteAgent(agentId: agentId)
+                        await MainActor.run {
+                            if deleted {
+                                viewModel.loadAvailableAgents()
+                                expandedAgentIds.remove(agentId)
+                                viewModel.removeDeletedAgentState(agentId: agentId)
+                            } else {
+                                viewModel.errorMessage = createAgentVM.lastActionError ?? "Failed to remove agent \(agentId)"
+                                viewModel.showError = true
+                            }
+                        }
+                    }
+                }
+                deleteAgentConfirmId = nil
+            }
+            Button("Cancel", role: .cancel) {
+                deleteAgentConfirmId = nil
+            }
+        } message: {
+            if let agentId = deleteAgentConfirmId,
+               let agent = viewModel.availableAgents.first(where: { $0.id == agentId }) {
+                Text("Are you sure you want to remove \"\(agent.name)\"? This will delete the agent and its workspace.")
+            }
+        }
     }
 
     // MARK: - Sidebar Top Header
@@ -330,42 +881,58 @@ struct SidebarView: View {
     /// Primary app sidebar. Rows use custom buttons so selected state can
     /// stay quiet gray instead of macOS' blue list selection.
     private var sidebarMainList: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(alignment: .leading, spacing: 4) {
                 ServiceStatusBadge(viewModel: viewModel)
                     .padding(.bottom, 8)
 
                 Button {
+                    cancelSessionDeleteConfirmation()
                     viewModel.createNewSession()
                     selectedTab = .chat
                 } label: {
+                    let isNewChatActive = selectedTab == .chat
+                        && viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId] == nil
+
                     sidebarRowContent(title: String(localized: "New chat", bundle: languageManager.localizedBundle), systemImage: "plus.circle")
                         .foregroundColor(.primary)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(
-                                    selectedTab == .chat
-                                    && viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId] == nil
-                                    ? Color(NSColor.controlBackgroundColor)
-                                    : Color.clear
-                                )
+                                .fill(sidebarItemHighlightColor(
+                                    isActive: isNewChatActive,
+                                    isHovering: hoveredSidebarAction == .newChat
+                                ))
                         )
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    updateSidebarActionHover(.newChat, hovering: hovering)
+                }
 
                 Button {
+                    cancelSessionDeleteConfirmation()
                     onOpenGlobalSessionSearch()
                 } label: {
                     sidebarRowContent(title: String(localized: "Search chats", bundle: languageManager.localizedBundle), systemImage: "magnifyingglass")
                         .foregroundColor(.primary)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(sidebarItemHighlightColor(
+                                    isActive: false,
+                                    isHovering: hoveredSidebarAction == .searchChats
+                                ))
+                        )
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    updateSidebarActionHover(.searchChats, hovering: hovering)
+                }
                 .help(String(localized: "Search chats", bundle: languageManager.localizedBundle))
 
                 navRow(.skills, title: String(localized: "Skills", bundle: languageManager.localizedBundle), systemImage: "bolt.fill")
                 navRow(.plugins, title: String(localized: "Plugins", bundle: languageManager.localizedBundle), systemImage: "puzzlepiece.fill")
-                navRow(.tasksLogs, title: String(localized: "Automation", bundle: languageManager.localizedBundle), systemImage: "checklist")
-                navRow(.market, title: String(localized: "Market", bundle: languageManager.localizedBundle), systemImage: "storefront")
+                navRow(.tasksLogs, title: String(localized: "Automation", bundle: languageManager.localizedBundle), systemImage: "checklist", assetImage: "AutomationIcon")
+                navRow(.market, title: String(localized: "AgentsMarket", bundle: languageManager.localizedBundle), systemImage: "storefront")
 
                 agentSectionContent
 
@@ -383,40 +950,60 @@ struct SidebarView: View {
         }
     }
 
-    private func navRow(_ tab: DashboardViewModel.DashboardTab, title: String, systemImage: String) -> some View {
+    private func navRow(_ tab: DashboardViewModel.DashboardTab, title: String, systemImage: String, assetImage: String? = nil) -> some View {
         Button {
+            cancelSessionDeleteConfirmation()
             selectedTab = tab
         } label: {
-            sidebarRowContent(title: title, systemImage: systemImage)
+            sidebarRowContent(title: title, systemImage: systemImage, assetImage: assetImage)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(selectedTab == tab ? Color(NSColor.controlBackgroundColor) : Color.clear)
+                        .fill(sidebarItemHighlightColor(
+                            isActive: selectedTab == tab,
+                            isHovering: hoveredSidebarTab == tab
+                        ))
                 )
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            updateSidebarTabHover(tab, hovering: hovering)
+        }
     }
 
-    private func sidebarRowContent(title: String, systemImage: String) -> some View {
+    private func sidebarRowContent(title: String, systemImage: String, assetImage: String? = nil) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .frame(width: 18)
+            sidebarIcon(systemImage: systemImage, assetImage: assetImage)
+                .frame(width: 18, height: 18)
             Text(title)
                 .lineLimit(1)
             Spacer()
         }
-        .font(.system(size: 14, weight: .regular))
+        .font(DashboardTypography.sidebarRow)
         .foregroundColor(.primary)
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func sidebarIcon(systemImage: String, assetImage: String?) -> some View {
+        if let assetImage {
+            Image(assetImage)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: systemImage)
+        }
     }
 
     // MARK: - Sessions Section Content (extracted so it stays readable)
 
     @ViewBuilder
-    private var sessionsSectionContent: some View {
-        let agentSessions = viewModel.sessionsByAgent[viewModel.selectedAgentId] ?? []
-        let activeId = viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId]
+    private func sessionsSectionContent(for agent: AgentOption) -> some View {
+        let agentSessions = viewModel.sessionsByAgent[agent.id] ?? []
+        let activeId = viewModel.selectedSessionIdByAgent[agent.id]
+        let isVisibleAgent = viewModel.selectedAgentId == agent.id && selectedTab == .chat
 
         if agentSessions.isEmpty {
             Text(String(localized: "No sessions yet", bundle: languageManager.localizedBundle))
@@ -426,10 +1013,14 @@ struct SidebarView: View {
                 .padding(.top, 8)
         } else {
             ForEach(agentSessions) { meta in
+                let isSessionActive = isVisibleAgent && activeId == meta.id
+                let isSessionHovering = hoveredSessionId == meta.id
+
                 ChatSessionRow(
                     meta: meta,
-                    isActive: activeId == meta.id,
+                    isActive: isSessionActive,
                     isExecuting: viewModel.hasInflightTask(inSession: meta.id),
+                    isHovering: isSessionHovering,
                     isDeleteConfirming: confirmingDeleteSessionId == meta.id,
                     onDeleteIntent: {
                         confirmingDeleteSessionId = meta.id
@@ -440,16 +1031,26 @@ struct SidebarView: View {
                     }
                 )
                 .padding(.horizontal, 8)
-                .padding(.vertical, 7)
+                .padding(.vertical, DashboardSidebarMetrics.sessionRowVerticalPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(activeId == meta.id && selectedTab == .chat ? Color(NSColor.controlBackgroundColor) : Color.clear)
+                        .fill(sessionRowHighlightColor(isActive: isVisibleAgent && activeId == meta.id, isHovering: isSessionHovering))
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    confirmingDeleteSessionId = nil
+                    cancelSessionDeleteConfirmation()
                     viewModel.switchSession(to: meta.id)
                     selectedTab = .chat
+                }
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        if hovering {
+                            hoveredSessionId = meta.id
+                        } else if hoveredSessionId == meta.id {
+                            hoveredSessionId = nil
+                        }
+                    }
                 }
                 .contextMenu {
                     Button {
@@ -494,12 +1095,33 @@ struct SidebarView: View {
         }
 
         HStack(spacing: 6) {
-            Text(String(localized: "Agent", bundle: languageManager.localizedBundle))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
-            Spacer()
+            HStack(spacing: 6) {
+                Text(String(localized: "Agent", bundle: languageManager.localizedBundle))
+                    .font(DashboardTypography.sidebarSectionTitle)
+                    .foregroundColor(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 12, height: 20)
+                    .rotationEffect(.degrees(areAgentsCollapsed ? 0 : 90))
+                    .opacity(isAgentSectionHeaderHovering ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.16), value: areAgentsCollapsed)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                toggleAgentSectionCollapse()
+            }
+            .help(areAgentsCollapsed
+                  ? String(localized: "Show agents", bundle: languageManager.localizedBundle)
+                    : String(localized: "Hide agents", bundle: languageManager.localizedBundle))
+
+        }
+        .frame(height: 20)
+        .overlay(alignment: .trailing) {
             Button {
-                showCreateAgentSheet = true
+                cancelSessionDeleteConfirmation()
+                onRequestCreateAgent()
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 11, weight: .semibold))
@@ -507,33 +1129,46 @@ struct SidebarView: View {
                     .frame(width: 20, height: 20)
             }
             .buttonStyle(.plain)
+            .opacity(isAgentSectionHeaderHovering ? 1 : 0)
+            .disabled(!isAgentSectionHeaderHovering)
             .help(String(localized: "New Agent", bundle: languageManager.localizedBundle))
         }
         .padding(.horizontal, 8)
         .padding(.top, 10)
         .padding(.bottom, 2)
-
-        if visibleAgents.isEmpty {
-            Text(String(localized: "No agents yet", bundle: languageManager.localizedBundle))
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 8)
-        } else {
-            ForEach(visibleAgents) { agent in
-                agentSidebarRow(agent)
-                if expandedAgentIds.contains(agent.id)
-                    && viewModel.selectedAgentId == agent.id
-                    && selectedTab == .chat {
-                    VStack(alignment: .leading, spacing: 0) {
-                        sessionsSectionContent
-                    }
-                        .padding(.leading, 10)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .clipped()
-                }
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isAgentSectionHeaderHovering = hovering
             }
-            .animation(.spring(response: 0.28, dampingFraction: 0.86), value: expandedAgentIds)
         }
+        .animation(.easeInOut(duration: 0.12), value: isAgentSectionHeaderHovering)
+
+        Group {
+            if !areAgentsCollapsed {
+                Group {
+                    if visibleAgents.isEmpty {
+                        Text(String(localized: "No agents yet", bundle: languageManager.localizedBundle))
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                    } else {
+                        ForEach(visibleAgents) { agent in
+                            agentSidebarRow(agent)
+                            if expandedAgentIds.contains(agent.id) {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    sessionsSectionContent(for: agent)
+                                }
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                    .clipped()
+                            }
+                        }
+                        .animation(.spring(response: 0.28, dampingFraction: 0.86), value: expandedAgentIds)
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.86), value: areAgentsCollapsed)
     }
 
     // MARK: - Sidebar Bottom Bar (version + theme toggle)
@@ -556,6 +1191,7 @@ struct SidebarView: View {
                 // Update — pill goes green when an update is available
                 if sparkleUpdater.updateAvailable {
                     Button {
+                        cancelSessionDeleteConfirmation()
                         sparkleUpdater.checkForUpdates()
                     } label: {
                         HStack(spacing: 3) {
@@ -570,6 +1206,7 @@ struct SidebarView: View {
                     .help("Update to v\(sparkleUpdater.latestVersion)")
                 } else {
                     Button {
+                        cancelSessionDeleteConfirmation()
                         Task { await sparkleUpdater.checkLatestVersion() }
                     } label: {
                         HStack(spacing: 3) {
@@ -588,6 +1225,7 @@ struct SidebarView: View {
 
                 // Theme toggle on the trailing edge (Q2=c)
                 Button {
+                    cancelSessionDeleteConfirmation()
                     appAppearance = isDark ? "light" : "dark"
                 } label: {
                     Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
@@ -618,26 +1256,20 @@ struct SidebarView: View {
         }
     }
 
-    private func agentRowWithContextMenu(_ agent: AgentOption) -> some View {
-        let isExecuting = viewModel.isAgentExecuting(agent.id)
-        let isHovering = hoveredAgentId == agent.id
-        return AgentListRow(
-            agent: agent,
-            isActive: viewModel.selectedAgentId == agent.id,
-            isExecuting: isExecuting,
-            isHovering: isHovering,
-            onCreateSession: { createSession(for: agent) }
-        )
+	    private func agentRowWithContextMenu(_ agent: AgentOption) -> some View {
+	        let isExecuting = viewModel.isAgentExecuting(agent.id)
+	        let isHovering = hoveredAgentId == agent.id
+	        return AgentListRow(
+	            agent: agent,
+	            isActive: viewModel.selectedAgentId == agent.id,
+	            isExpanded: expandedAgentIds.contains(agent.id),
+	            isExecuting: isExecuting,
+	            isHovering: isHovering,
+	            onCreateSession: { createSession(for: agent) }
+	        )
             .tag(agent.id)
             .contextMenu {
-                Button {
-                    showCreateAgentSheet = true
-                } label: {
-                    Label("New Agent", systemImage: "plus.bubble")
-                }
-
                 if agent.id != "main" && agent.id != "commander" {
-                    Divider()
                     Button(role: .destructive) {
                         deleteAgentConfirmId = agent.id
                     } label: {
@@ -653,12 +1285,10 @@ struct SidebarView: View {
 
         return agentRowWithContextMenu(agent)
             .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isActive || isHovering
-                          ? Color(NSColor.controlBackgroundColor)
-                          : Color.clear)
+                    .fill(sidebarItemHighlightColor(isActive: isActive, isHovering: isHovering))
             )
             .contentShape(Rectangle())
             .onTapGesture {
@@ -673,28 +1303,78 @@ struct SidebarView: View {
                     }
                 }
             }
+            .padding(.vertical, 3)
+    }
+
+    private func sidebarItemHighlightColor(isActive: Bool, isHovering: Bool) -> SwiftUI.Color {
+        if isActive {
+            return SwiftUI.Color.primary.opacity(isDark ? 0.15 : 0.085)
+        }
+        if isHovering {
+            return SwiftUI.Color.primary.opacity(isDark ? 0.10 : 0.058)
+        }
+        return SwiftUI.Color.clear
+    }
+
+    private func updateSidebarTabHover(_ tab: DashboardViewModel.DashboardTab, hovering: Bool) {
+        withAnimation(.easeInOut(duration: 0.12)) {
+            if hovering {
+                hoveredSidebarTab = tab
+            } else if hoveredSidebarTab == tab {
+                hoveredSidebarTab = nil
+            }
+        }
+    }
+
+    private func updateSidebarActionHover(_ action: SidebarChromeAction, hovering: Bool) {
+        withAnimation(.easeInOut(duration: 0.12)) {
+            if hovering {
+                hoveredSidebarAction = action
+            } else if hoveredSidebarAction == action {
+                hoveredSidebarAction = nil
+            }
+        }
+    }
+
+    private func sessionRowHighlightColor(isActive: Bool, isHovering: Bool) -> SwiftUI.Color {
+        if isActive {
+            return SwiftUI.Color.primary.opacity(isDark ? 0.13 : 0.074)
+        }
+        if isHovering {
+            return SwiftUI.Color.primary.opacity(isDark ? 0.085 : 0.048)
+        }
+        return SwiftUI.Color.clear
+    }
+
+    private func cancelSessionDeleteConfirmation() {
+        confirmingDeleteSessionId = nil
+    }
+
+    private func toggleAgentSectionCollapse() {
+        cancelSessionDeleteConfirmation()
+
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+            areAgentsCollapsed.toggle()
+            if areAgentsCollapsed {
+                hoveredAgentId = nil
+            }
+        }
     }
 
     private func toggleAgentSelection(_ agent: AgentOption) {
-        confirmingDeleteSessionId = nil
-        let repeatsCurrentAgent = viewModel.selectedAgentId == agent.id && selectedTab == .chat
+        cancelSessionDeleteConfirmation()
 
         withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-            if repeatsCurrentAgent {
-                if expandedAgentIds.contains(agent.id) {
-                    expandedAgentIds.remove(agent.id)
-                } else {
-                    expandedAgentIds.insert(agent.id)
-                }
+            if expandedAgentIds.contains(agent.id) {
+                expandedAgentIds.remove(agent.id)
+            } else {
+                expandedAgentIds.insert(agent.id)
             }
-
-            viewModel.selectedAgentId = agent.id
-            selectedTab = .chat
         }
     }
 
     private func createSession(for agent: AgentOption) {
-        confirmingDeleteSessionId = nil
+        cancelSessionDeleteConfirmation()
         viewModel.createNewSession(forAgent: agent.id)
         selectedTab = .chat
     }
@@ -754,46 +1434,6 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .onAppear {
             viewModel.loadAvailableAgents()
-        }
-        .alert("Remove Agent", isPresented: Binding<Bool>(
-            get: { deleteAgentConfirmId != nil },
-            set: { if !$0 { deleteAgentConfirmId = nil } }
-        )) {
-            Button("Remove", role: .destructive) {
-                if let agentId = deleteAgentConfirmId {
-                    let wasSelected = viewModel.selectedAgentId == agentId
-                    Task {
-                        await createAgentVM.deleteAgent(agentId: agentId)
-                        await MainActor.run {
-                            viewModel.loadAvailableAgents()
-                            if wasSelected {
-                                viewModel.selectedAgentId = "main"
-                            }
-                        }
-                    }
-                }
-                deleteAgentConfirmId = nil
-            }
-            Button("Cancel", role: .cancel) {
-                deleteAgentConfirmId = nil
-            }
-        } message: {
-            if let agentId = deleteAgentConfirmId,
-               let agent = viewModel.availableAgents.first(where: { $0.id == agentId }) {
-                Text("Are you sure you want to remove \"\(agent.name)\"? This will delete the agent and its workspace.")
-            }
-        }
-        .sheet(isPresented: $showCreateAgentSheet) {
-            CreateAgentSheet(
-                viewModel: createAgentVM,
-                isPresented: $showCreateAgentSheet,
-                onCreatedWithId: { agentId in
-                    viewModel.loadAvailableAgents()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        viewModel.selectedAgentId = agentId
-                    }
-                }
-            )
         }
     }
 
@@ -916,60 +1556,48 @@ struct SidebarView: View {
 private struct AgentListRow: View {
     let agent: AgentOption
     let isActive: Bool
+    let isExpanded: Bool
     let isExecuting: Bool
     let isHovering: Bool
     let onCreateSession: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            AgentAvatarImage(size: 24)
+        HStack(spacing: DashboardSidebarMetrics.agentTitleSpacing) {
+            AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize)
 
             Text(agent.name)
-                .font(.system(size: 13, weight: isActive ? .semibold : .medium))
+                .font(DashboardTypography.sidebarAgent(active: isActive))
                 .lineLimit(1)
 
-            if isHovering {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.secondary)
-            }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.secondary)
+                .frame(width: 12, height: 20)
+                .opacity(isHovering || isExpanded ? 1 : 0)
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                .animation(.easeInOut(duration: 0.16), value: isExpanded)
 
             Spacer(minLength: 8)
 
-            if isHovering {
-                Button(action: onCreateSession) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 20, height: 20)
-                        .background {
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(Color(NSColor.controlBackgroundColor))
-                        }
-                }
-                .buttonStyle(.plain)
-                .help(String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle))
+        }
+        .frame(height: 24)
+        .overlay(alignment: .trailing) {
+            Button(action: onCreateSession) {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 20, height: 20)
             }
+            .buttonStyle(.plain)
+            .opacity(isHovering ? 1 : 0)
+            .disabled(!isHovering)
+            .help(String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle))
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .help(isExecuting
               ? String(localized: "Task running", bundle: LanguageManager.shared.localizedBundle)
               : agent.name)
-    }
-}
-
-private struct AgentAvatarImage: View {
-    let size: CGFloat
-
-    var body: some View {
-        Image("AgentAvatar")
-            .resizable()
-            .interpolation(.high)
-            .antialiased(true)
-            .scaledToFit()
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
     }
 }
 
@@ -982,8 +1610,7 @@ private struct MarketplaceAgentRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(agent.emoji)
-                .font(.system(size: 22))
+            AgentAvatarImage(size: 26)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(agent.name)
@@ -1084,58 +1711,38 @@ private extension EnvironmentValues {
     }
 }
 
-struct DetailContentView: View {
+private struct DetailContentView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    let workspaceSidebarController: WorkspaceSidebarController
     @State private var collabPanelWidth: CGFloat = 320
     @State private var dragStartWidth: CGFloat = 320
-    @State private var workspaceSidebarExpanded = false
-    @State private var workspaceEditingFilePath: String?
-    @State private var workspaceEditingFileDirty = false
-    @State private var workspaceEditorFullscreen = false
 
     private let collabPanelMinWidth: CGFloat = 220
     private let collabPanelMaxWidth: CGFloat = 500
     private let collabCollapsedWidth: CGFloat = 24
-    private static let workspaceLayoutMetrics = OutputsSidebarLayoutMetrics()
 
-    private var isWorkspaceSidebarExpanded: Bool {
-        workspaceSidebarExpanded || workspaceEditingFilePath != nil
+    private var activeTab: DashboardViewModel.DashboardTab {
+        viewModel.selectedTab == .outputs ? .chat : viewModel.selectedTab
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            let workspaceWidth = Self.workspaceLayoutMetrics.sidebarWidth(
-                isExpanded: isWorkspaceSidebarExpanded,
-                hasEditor: workspaceEditingFilePath != nil,
-                availableWidth: geometry.size.width
-            )
-
-            HStack(spacing: 0) {
-                // Collab panel (left column)
-                if viewModel.showCollabPanel {
-                    if viewModel.collabPanelCollapsed {
-                        // Collapsed strip
-                        collabCollapsedStrip
-                    } else {
-                        // Panel + drag handle
-                        collabPanelContent
-                            .frame(width: collabPanelWidth)
-                        collabDragHandle
-                    }
-                }
-
-                // Main detail content
-                mainContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if workspaceWidth > 0 {
-                    workspaceSidebarColumn(width: workspaceWidth)
+        HStack(spacing: 0) {
+            // Collab panel (left column)
+            if viewModel.showCollabPanel {
+                if viewModel.collabPanelCollapsed {
+                    // Collapsed strip
+                    collabCollapsedStrip
+                } else {
+                    // Panel + drag handle
+                    collabPanelContent
+                        .frame(width: collabPanelWidth)
+                    collabDragHandle
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+
+            mainContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)
-        .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceEditingFilePath)
         .onChange(of: viewModel.selectedTab) { newTab in
             // Only reload agents when entering chat tab, but preserve current agent selection
             if newTab == .chat {
@@ -1158,23 +1765,9 @@ struct DetailContentView: View {
         ZStack {
             // ChatView stays alive — hidden when not active to preserve WKWebView instances.
             // sidebarMode is being phased out; selectedTab == .chat is the canonical signal now.
-            let activeTab = viewModel.selectedTab == .outputs ? DashboardViewModel.DashboardTab.chat : viewModel.selectedTab
             let showChat = activeTab == .chat
             ChatView(viewModel: viewModel, hideAgentPicker: false)
-                .environment(\.workspaceSidebarController, WorkspaceSidebarController(
-                    isExpanded: Binding(
-                        get: { isWorkspaceSidebarExpanded },
-                        set: { expanded in
-                            if expanded {
-                                revealWorkspaceSidebar()
-                            } else {
-                                hideWorkspaceSidebar(resetEditor: true)
-                            }
-                        }
-                    ),
-                    hasEditor: workspaceEditingFilePath != nil,
-                    toggle: { toggleWorkspaceSidebar() }
-                ))
+                .environment(\.workspaceSidebarController, workspaceSidebarController)
                 .opacity(showChat ? 1 : 0)
                 .allowsHitTesting(showChat)
 
@@ -1252,73 +1845,6 @@ struct DetailContentView: View {
                 }
             }
         }
-    }
-
-    private func toggleWorkspaceSidebar() {
-        if isWorkspaceSidebarExpanded {
-            hideWorkspaceSidebar(resetEditor: true)
-        } else {
-            revealWorkspaceSidebar()
-        }
-    }
-
-    private func revealWorkspaceSidebar() {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-            workspaceSidebarExpanded = true
-        }
-    }
-
-    private func hideWorkspaceSidebar(resetEditor: Bool) {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-            workspaceSidebarExpanded = false
-            if resetEditor {
-                workspaceEditingFilePath = nil
-                workspaceEditingFileDirty = false
-            }
-        }
-    }
-
-    private func workspaceSidebarColumn(width: CGFloat) -> some View {
-        workspaceExpandedSidebar
-            .frame(width: width)
-            .frame(maxHeight: .infinity, alignment: .topTrailing)
-            .background(Color(NSColor.windowBackgroundColor))
-            .overlay(alignment: .leading) {
-                Divider()
-            }
-            .clipped()
-    }
-
-    private var workspaceExpandedSidebar: some View {
-        HStack(spacing: 0) {
-            WorkspaceFilePanel(
-                agentId: viewModel.selectedAgentId,
-                editingFilePath: $workspaceEditingFilePath,
-                editingFileDirty: workspaceEditingFileDirty,
-                onClose: {
-                    hideWorkspaceSidebar(resetEditor: true)
-                }
-            )
-
-            if let path = workspaceEditingFilePath {
-                FileEditorPanel(
-                    filePath: path,
-                    onClose: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            workspaceEditingFilePath = nil
-                            workspaceEditingFileDirty = false
-                        }
-                    },
-                    onDirtyChanged: { dirty in
-                        workspaceEditingFileDirty = dirty
-                    },
-                    isFullscreen: $workspaceEditorFullscreen
-                )
-                .id(path)
-                .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
     }
 
     // MARK: - Collab Panel
@@ -1474,12 +2000,135 @@ private let slashCommands: [SlashCommand] = [
     SlashCommand(id: "/collab",     name: "/collab",     description: "Multi-agent collab task",   hasParam: true),
 ]
 
+struct PendingComposerMessage: Identifiable, Equatable {
+    let id: UUID
+    var text: String
+    var attachments: [URL]
+
+    init(id: UUID = UUID(), text: String, attachments: [URL] = []) {
+        self.id = id
+        self.text = text
+        self.attachments = attachments
+    }
+}
+
+private struct ChatScrollContentMetrics: Equatable {
+    var offsetY: CGFloat = 0
+    var contentHeight: CGFloat = 1
+}
+
+private struct ChatScrollContentMetricsKey: PreferenceKey {
+    static var defaultValue = ChatScrollContentMetrics()
+
+    static func reduce(value: inout ChatScrollContentMetrics, nextValue: () -> ChatScrollContentMetrics) {
+        value = nextValue()
+    }
+}
+
+private struct ChatScrollViewportHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 1
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct WorkStatusHeaderHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct ChatScrollCompensationApplier: NSViewRepresentable {
+    let delta: CGFloat
+    let revision: Int
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard revision != context.coordinator.appliedRevision,
+              abs(delta) > 0.5 else {
+            return
+        }
+        context.coordinator.appliedRevision = revision
+
+        DispatchQueue.main.async {
+            guard let scrollView = Self.nearestScrollView(from: nsView) else { return }
+            Self.applyCompensation(delta, in: scrollView, remainingRetries: 3)
+        }
+    }
+
+    private static func nearestScrollView(from view: NSView) -> NSScrollView? {
+        var current: NSView? = view
+        while let candidate = current {
+            if let scrollView = candidate as? NSScrollView {
+                return scrollView
+            }
+            if let scrollView = candidate.enclosingScrollView {
+                return scrollView
+            }
+            current = candidate.superview
+        }
+        return nil
+    }
+
+    private static func applyCompensation(
+        _ delta: CGFloat,
+        in scrollView: NSScrollView,
+        remainingRetries: Int,
+        desiredOffset: CGFloat? = nil
+    ) {
+        guard let documentView = scrollView.documentView else { return }
+
+        scrollView.layoutSubtreeIfNeeded()
+        documentView.layoutSubtreeIfNeeded()
+
+        let clipView = scrollView.contentView
+        var bounds = clipView.bounds
+        let targetOffset = desiredOffset ?? (bounds.origin.y + delta)
+        let maxOffset = max(0, documentView.bounds.height - clipView.bounds.height)
+        let nextOffset = min(max(targetOffset, 0), maxOffset)
+
+        if abs(nextOffset - bounds.origin.y) > 0.5 {
+            bounds.origin.y = nextOffset
+            clipView.setBoundsOrigin(bounds.origin)
+            scrollView.reflectScrolledClipView(clipView)
+        }
+
+        guard remainingRetries > 0,
+              abs(nextOffset - targetOffset) > 0.5 else {
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) {
+            Self.applyCompensation(
+                delta,
+                in: scrollView,
+                remainingRetries: remainingRetries - 1,
+                desiredOffset: targetOffset
+            )
+        }
+    }
+
+    final class Coordinator {
+        var appliedRevision = 0
+    }
+}
+
 // MARK: - Chat View
 
 struct ChatView: View {
     @ObservedObject var viewModel: DashboardViewModel
     var hideAgentPicker: Bool = false
-    @Environment(\.workspaceSidebarController) private var workspaceSidebarController
+    @Environment(\.colorScheme) private var colorScheme
     @State private var inputText = ""
     // The `ChatInputMode` picker (聊天/执行任务/代码模式) used to live here
     // but was hidden in v1.1.46 — see the toolbar row below and the
@@ -1489,7 +2138,7 @@ struct ChatView: View {
     @State private var historyIndex: Int = -1
     // Slash command autocomplete
     @State private var slashSelectedIndex: Int = 0
-    @State private var isInputFocused: Bool = false
+    @FocusState private var isInputFocused: Bool
     @State private var focusMonitor: Any?
     // Skills panel
     @State private var skillsSelectedIndex: Int = 0
@@ -1507,15 +2156,25 @@ struct ChatView: View {
     // Smart scroll: only auto-scroll if user is at bottom
     @State private var shouldAutoScroll: Bool = true
     @State private var autoScrollDisableTimer: Timer?
+    @State private var scrollEventMonitor: Any?
+    @State private var showChatScrollIndicator = false
+    @State private var chatScrollIndicatorHideTask: DispatchWorkItem?
+    @State private var chatScrollOffset: CGFloat = 0
+    @State private var chatScrollViewportHeight: CGFloat = 1
+    @State private var chatScrollContentHeight: CGFloat = 1
     // Store ScrollViewProxy so sendMessage() can scroll to bottom
     @State private var chatScrollProxy: ScrollViewProxy?
+    @State private var pendingWorkStatusScrollCompensation: CGFloat = 0
+    @State private var workStatusExpansionCompensationRevision = 0
     // Create agent sheet
     @State private var showCreateAgentSheet = false
     @StateObject private var createAgentVM: SubAgentsViewModel
+    @State private var pendingComposerMessagesBySession: [UUID: [PendingComposerMessage]] = [:]
     // Built-in terminal
     @State private var terminalOpen = false
     @State private var terminalHeight: CGFloat = 120
     private static let layoutMetrics = OutputsSidebarLayoutMetrics()
+    private let composerSuggestionPanelMaxHeight: CGFloat = 184
 
     init(viewModel: DashboardViewModel, hideAgentPicker: Bool = false) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
@@ -1535,25 +2194,33 @@ struct ChatView: View {
         DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
     }
 
-    private var currentSessionMetadata: ChatSessionMetadata? {
-        guard let sessionId = viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId] else {
-            return nil
-        }
-        return (viewModel.sessionsByAgent[viewModel.selectedAgentId] ?? []).first { $0.id == sessionId }
+    private var currentActiveSessionId: UUID? {
+        viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId]
     }
 
-    private var currentSessionTitle: String? {
-        guard !viewModel.chatMessages.isEmpty else { return nil }
-        let title = currentSessionMetadata?.title
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return title.isEmpty ? nil : title
+    private var currentPendingComposerMessages: [PendingComposerMessage] {
+        guard let sessionId = currentActiveSessionId else { return [] }
+        return pendingComposerMessagesBySession[sessionId] ?? []
+    }
+
+    private var currentForegroundTaskMessageId: UUID? {
+        guard let sessionId = currentActiveSessionId else { return nil }
+        return viewModel.foregroundTaskIds.first { viewModel.taskSessionMap[$0] == sessionId }
+    }
+
+    private var shouldShowStopButton: Bool {
+        viewModel.isSendingMessage
+            && inputText.trimmingCharacters(in: .whitespaces).isEmpty
+            && attachedFiles.isEmpty
+            && currentForegroundTaskMessageId != nil
     }
 
     // MARK: - Chat Message List (extracted for compiler performance)
 
     @ViewBuilder
     private func chatScrollContent(proxy: ScrollViewProxy) -> some View {
-        let scrollView = ScrollView {
+        let richMarkdownMessageIds = MarkdownRenderPolicy.recentRichMessageIds(in: viewModel.chatMessages)
+        let scrollView = ScrollView(showsIndicators: false) {
             HStack(alignment: .top, spacing: 0) {
                 Spacer(minLength: 0)
 
@@ -1578,8 +2245,12 @@ struct ChatView: View {
                             } else {
                                 ChatBubble(
                                     message: message,
-                                    onRewind: { viewModel.rewindToMessage($0) },
-                                    onCancel: { viewModel.cancelChat($0.id) }
+                                    allowsRichMarkdown: richMarkdownMessageIds.contains(message.id),
+                                    onConfirmEditResend: { original, editedText in
+                                        viewModel.rewindToMessage(original, replacementText: editedText)
+                                    },
+                                    onCancel: { viewModel.cancelChat($0.id) },
+                                    onWorkStatusExpansionHeightChange: compensateWorkStatusExpansion
                                 )
                                     .id(message.id)
                             }
@@ -1589,7 +2260,8 @@ struct ChatView: View {
                     ForEach(viewModel.chatMessages.filter { $0.taskStatus == .loading && $0.content.isEmpty }, id: \.id) { loadingMsg in
                         ThinkingIndicator(
                             message: loadingMsg,
-                            viewModel: viewModel
+                            viewModel: viewModel,
+                            onWorkStatusExpansionHeightChange: compensateWorkStatusExpansion
                         )
                         .id("loading-\(loadingMsg.id)")
                     }
@@ -1605,6 +2277,42 @@ struct ChatView: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 20)
+            .background(
+                GeometryReader { contentProxy in
+                    let rawOffset = -contentProxy.frame(in: .named("chatScrollSpace")).minY
+                    Color.clear.preference(
+                        key: ChatScrollContentMetricsKey.self,
+                        value: ChatScrollContentMetrics(
+                            offsetY: max(0, rawOffset),
+                            contentHeight: max(1, contentProxy.size.height)
+                        )
+                    )
+                }
+            )
+            .background(
+                ChatScrollCompensationApplier(
+                    delta: pendingWorkStatusScrollCompensation,
+                    revision: workStatusExpansionCompensationRevision
+                )
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+            )
+        }
+        .coordinateSpace(name: "chatScrollSpace")
+        .background(
+            GeometryReader { viewportProxy in
+                Color.clear.preference(
+                    key: ChatScrollViewportHeightKey.self,
+                    value: max(1, viewportProxy.size.height)
+                )
+            }
+        )
+        .onPreferenceChange(ChatScrollContentMetricsKey.self) { metrics in
+            chatScrollOffset = metrics.offsetY
+            chatScrollContentHeight = metrics.contentHeight
+        }
+        .onPreferenceChange(ChatScrollViewportHeightKey.self) { height in
+            chatScrollViewportHeight = height
         }
         .alert(
             "回滚失败",
@@ -1715,6 +2423,14 @@ struct ChatView: View {
         return true
     }
 
+    private var showComposerSuggestions: Bool {
+        showSlashPanel || showSkillsPanel || showAgentPanel
+    }
+
+    private var composerSuggestionSelectedBackground: SwiftUI.Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.08)
+    }
+
     private var emptyChatSurface: some View {
         VStack(spacing: 22) {
             Spacer(minLength: 0)
@@ -1734,30 +2450,10 @@ struct ChatView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var chatTopChrome: some View {
-        HStack(spacing: 12) {
-            if let title = currentSessionTitle {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-
-            Spacer(minLength: 0)
-
-            chatPanelToggleButton
-        }
-        .frame(minHeight: 30)
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
-        .padding(.bottom, viewModel.chatMessages.isEmpty ? 4 : 2)
-    }
-
     private var timelineChatSurface: some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
-                ZStack(alignment: .bottomTrailing) {
+                ZStack(alignment: .topTrailing) {
                     chatScrollContent(proxy: proxy)
                         .onAppear {
                             chatScrollProxy = proxy
@@ -1770,6 +2466,7 @@ struct ChatView: View {
                                 }
                             }
                         }
+                    chatScrollIndicator
                 }
             }
             .id("chatScrollView")
@@ -1782,11 +2479,57 @@ struct ChatView: View {
         }
     }
 
-    private func composerArea(maxWidth: CGFloat, horizontalPadding: CGFloat, bottomPadding: CGFloat) -> some View {
-        composerInputCard
-            .overlay(alignment: .bottomTrailing) {
-                composerFloatingPanels
+    private var chatScrollIndicator: some View {
+        GeometryReader { proxy in
+            let indicatorHeight: CGFloat = 38
+            let verticalInset: CGFloat = 12
+            let maxScrollableOffset = max(1, chatScrollContentHeight - chatScrollViewportHeight)
+            let progress = min(max(chatScrollOffset / maxScrollableOffset, 0), 1)
+            let availableTravel = max(0, proxy.size.height - indicatorHeight - verticalInset * 2)
+            let y = verticalInset + indicatorHeight / 2 + availableTravel * progress
+
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(colorScheme == .dark ? 0.30 : 0.22))
+                .frame(width: 3, height: indicatorHeight)
+                .position(x: proxy.size.width - 8, y: y)
+                .opacity(showChatScrollIndicator && chatScrollContentHeight > chatScrollViewportHeight + 8 ? 1 : 0)
+        }
+        .allowsHitTesting(false)
+        .animation(.easeInOut(duration: 0.16), value: showChatScrollIndicator)
+        .animation(.easeOut(duration: 0.08), value: chatScrollOffset)
+    }
+
+    private func showTransientChatScrollIndicator() {
+        guard chatScrollContentHeight > chatScrollViewportHeight + 8 else { return }
+
+        chatScrollIndicatorHideTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.12)) {
+            showChatScrollIndicator = true
+        }
+
+        let task = DispatchWorkItem {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                showChatScrollIndicator = false
             }
+        }
+        chatScrollIndicatorHideTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: task)
+    }
+
+    private func composerArea(maxWidth: CGFloat, horizontalPadding: CGFloat, bottomPadding: CGFloat) -> some View {
+        VStack(spacing: 8) {
+            if !currentPendingComposerMessages.isEmpty {
+                PendingComposerQueueView(
+                    messages: currentPendingComposerMessages,
+                    onSend: sendPendingComposerMessage,
+                    onEdit: editPendingComposerMessage,
+                    onDelete: deletePendingComposerMessage
+                )
+            }
+
+            composerInputCard
+                .anchorPreference(key: ComposerInputCardBoundsKey.self, value: .bounds) { $0 }
+        }
         .frame(maxWidth: maxWidth)
         .padding(.horizontal, horizontalPadding)
         .padding(.bottom, bottomPadding)
@@ -1826,15 +2569,15 @@ struct ChatView: View {
                             HStack(spacing: 8) {
                                 Text(cmd.name)
                                     .font(.system(size: 13, weight: .medium, design: .monospaced))
-                                    .foregroundColor(index == slashSelectedIndex ? .white : .primary)
+                                    .foregroundColor(.primary)
                                 Spacer()
                                 Text(cmd.description)
                                     .font(.system(size: 12))
-                                    .foregroundColor(index == slashSelectedIndex ? .white.opacity(0.8) : .secondary)
+                                    .foregroundColor(.secondary)
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(index == slashSelectedIndex ? Color.accentColor : Color.clear)
+                            .background(index == slashSelectedIndex ? composerSuggestionSelectedBackground : Color.clear)
                             .cornerRadius(6)
                             .contentShape(Rectangle())
                             .onTapGesture {
@@ -1853,9 +2596,9 @@ struct ChatView: View {
                     }
                 }
             }
-            .frame(maxHeight: 280)
+            .frame(maxHeight: composerSuggestionPanelMaxHeight)
         }
-        .autocompletePanelStyle(bottomOffset: 110)
+        .autocompletePanelStyle()
     }
 
     private var skillsPanel: some View {
@@ -1880,12 +2623,12 @@ struct ChatView: View {
                                         .frame(width: 8, height: 8)
                                     Text(skill.name)
                                         .font(.system(size: 13, weight: .medium, design: .monospaced))
-                                        .foregroundColor(index == skillsSelectedIndex ? .white : .primary)
+                                        .foregroundColor(.primary)
                                     Spacer()
                                     if !skill.description.isEmpty {
                                         Text(skill.description)
                                             .font(.system(size: 11))
-                                            .foregroundColor(index == skillsSelectedIndex ? .white.opacity(0.8) : .secondary)
+                                            .foregroundColor(.secondary)
                                             .lineLimit(1)
                                     }
                                     if !skill.source.isEmpty {
@@ -1893,14 +2636,14 @@ struct ChatView: View {
                                             .font(.system(size: 10))
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 2)
-                                            .background(index == skillsSelectedIndex ? Color.white.opacity(0.2) : Color.secondary.opacity(0.12))
+                                            .background(index == skillsSelectedIndex ? Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08) : Color.secondary.opacity(0.12))
                                             .cornerRadius(4)
-                                            .foregroundColor(index == skillsSelectedIndex ? .white.opacity(0.9) : .secondary)
+                                            .foregroundColor(.secondary)
                                     }
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(index == skillsSelectedIndex ? Color.accentColor : Color.clear)
+                                .background(index == skillsSelectedIndex ? composerSuggestionSelectedBackground : Color.clear)
                                 .cornerRadius(6)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -1919,10 +2662,10 @@ struct ChatView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 280)
+                .frame(maxHeight: composerSuggestionPanelMaxHeight)
             }
         }
-        .autocompletePanelStyle(bottomOffset: 110)
+        .autocompletePanelStyle()
     }
 
     private var agentMentionPanel: some View {
@@ -1946,22 +2689,22 @@ struct ChatView: View {
                                         .frame(width: 24)
                                     Text(agent.name)
                                         .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(index == agentSelectedIndex ? .white : .primary)
+                                        .foregroundColor(.primary)
                                     if agent.id != agent.name {
                                         Text(agent.id)
                                             .font(.system(size: 11))
-                                            .foregroundColor(index == agentSelectedIndex ? .white.opacity(0.7) : .secondary)
+                                            .foregroundColor(.secondary)
                                     }
                                     Spacer()
                                     if agent.id == viewModel.selectedAgentId {
                                         Image(systemName: "checkmark")
                                             .font(.system(size: 11, weight: .semibold))
-                                            .foregroundColor(index == agentSelectedIndex ? .white : .accentColor)
+                                            .foregroundColor(index == agentSelectedIndex ? .primary : .secondary)
                                     }
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(index == agentSelectedIndex ? Color.accentColor : Color.clear)
+                                .background(index == agentSelectedIndex ? composerSuggestionSelectedBackground : Color.clear)
                                 .cornerRadius(6)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -1980,10 +2723,10 @@ struct ChatView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 280)
+                .frame(maxHeight: composerSuggestionPanelMaxHeight)
             }
         }
-        .autocompletePanelStyle(bottomOffset: 110)
+        .autocompletePanelStyle()
     }
 
     private var composerInputCard: some View {
@@ -2003,29 +2746,31 @@ struct ChatView: View {
             }
 
             ZStack(alignment: .topLeading) {
-                if inputText.isEmpty && !isInputFocused {
-                    Text(String(localized: "Do Anything", bundle: LanguageManager.shared.localizedBundle))
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(Color(NSColor.placeholderTextColor).opacity(0.6))
+	                if inputText.isEmpty && !isInputFocused {
+	                    Text(String(localized: "Ask Anything", bundle: LanguageManager.shared.localizedBundle))
+	                        .font(DashboardTypography.composerPlaceholder)
+	                        .foregroundColor(Color(NSColor.placeholderTextColor).opacity(0.6))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
                         .allowsHitTesting(false)
                         .transition(.opacity)
                 }
 
-                Text(inputText.isEmpty ? " " : inputText)
-                    .font(.body)
-                    .padding(.horizontal, 12)
+	                Text(inputText.isEmpty ? " " : inputText)
+	                    .font(DashboardTypography.composer)
+	                    .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .opacity(0)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                TextEditor(text: $inputText)
-                    .font(.body)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .scrollContentBackground(.hidden)
-                    .disabled(isInputLocked)
+		                TextEditor(text: $inputText)
+		                    .font(DashboardTypography.composer)
+		                    .padding(.horizontal, 6)
+	                    .padding(.vertical, 2)
+	                    .scrollContentBackground(.hidden)
+	                    .tint(Color(NSColor.labelColor))
+	                    .disabled(isInputLocked)
+	                    .focused($isInputFocused)
             }
             .frame(minHeight: 44, maxHeight: 200)
             .fixedSize(horizontal: false, vertical: true)
@@ -2052,21 +2797,26 @@ struct ChatView: View {
                     showingModels: $composerSelectorShowsModels
                 )
 
-                Button(action: { sendMessage() }) {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(canSend ? .white : Color(NSColor.tertiaryLabelColor))
-                        .frame(width: 26, height: 26)
-                        .background(
-                            Circle()
-                                .fill(canSend
-                                      ? Color.accentColor
-                                      : Color(NSColor.quaternaryLabelColor))
-                        )
-                }
+	                Button(action: {
+                        if shouldShowStopButton, let messageId = currentForegroundTaskMessageId {
+                            viewModel.cancelChat(messageId)
+                        } else {
+                            sendMessage()
+                        }
+                    }) {
+		                    Image(systemName: shouldShowStopButton ? "square.fill" : "arrow.up")
+		                        .font(.system(size: shouldShowStopButton ? 9 : 13, weight: .semibold))
+		                        .foregroundColor(sendButtonIconColor)
+		                        .frame(width: 26, height: 26)
+	                        .background(
+	                            Circle()
+	                                .fill(sendButtonFillColor)
+	                        )
+	                }
                 .buttonStyle(.plain)
-                .disabled(!canSend)
+                .disabled(!canSend && !shouldShowStopButton)
                 .animation(.easeInOut(duration: 0.15), value: canSend)
+                .animation(.easeInOut(duration: 0.15), value: shouldShowStopButton)
             }
             .padding(.horizontal, 8)
             .padding(.top, 2)
@@ -2115,27 +2865,6 @@ struct ChatView: View {
         .padding(.bottom, 16)
     }
 
-    private var chatPanelToggleButton: some View {
-        Button {
-            workspaceSidebarController.toggle()
-        } label: {
-            Image(systemName: "sidebar.right")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(workspaceSidebarController.isExpanded.wrappedValue ? .primary : .secondary)
-                .frame(width: 28, height: 28)
-                .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(Color(NSColor.windowBackgroundColor).opacity(0.92))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7)
-                        .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help("Outputs")
-    }
-
     private func closeComposerSelector() {
         withAnimation(.easeInOut(duration: 0.16)) {
             showComposerSelector = false
@@ -2149,6 +2878,30 @@ struct ChatView: View {
             .onTapGesture {
                 closeComposerSelector()
             }
+    }
+
+    @ViewBuilder
+    private func composerSuggestionOverlay(anchor: Anchor<CGRect>?) -> some View {
+        GeometryReader { proxy in
+            if let anchor, showComposerSuggestions {
+                let inputFrame = proxy[anchor]
+                let panelTopOffset = max(12, inputFrame.minY - composerSuggestionPanelMaxHeight - 8)
+
+                ZStack(alignment: .topLeading) {
+                    composerFloatingPanels
+                        .frame(width: inputFrame.width)
+                        .frame(maxHeight: composerSuggestionPanelMaxHeight, alignment: .bottomLeading)
+                        .offset(x: inputFrame.minX, y: panelTopOffset)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .zIndex(1)
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                .allowsHitTesting(showComposerSuggestions)
+                .animation(.easeInOut(duration: 0.15), value: showSlashPanel)
+                .animation(.easeInOut(duration: 0.15), value: showSkillsPanel)
+                .animation(.easeInOut(duration: 0.15), value: showAgentPanel)
+            }
+        }
     }
 
     @ViewBuilder
@@ -2183,7 +2936,6 @@ struct ChatView: View {
 
     private var chatContent: some View {
         VStack(spacing: 0) {
-            chatTopChrome
             if viewModel.chatMessages.isEmpty {
                 emptyChatSurface
             } else {
@@ -2195,6 +2947,9 @@ struct ChatView: View {
     var body: some View {
         chatContent
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlayPreferenceValue(ComposerInputCardBoundsKey.self) { anchor in
+                composerSuggestionOverlay(anchor: anchor)
+            }
             .overlayPreferenceValue(ComposerSelectorButtonBoundsKey.self) { anchor in
                 composerSelectorOverlay(anchor: anchor)
             }
@@ -2206,9 +2961,14 @@ struct ChatView: View {
             }
 
             // Monitor scroll wheel events to detect user scrolling
-            NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            if let monitor = scrollEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                scrollEventMonitor = nil
+            }
+            scrollEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
                 // User scrolled, disable auto-scroll temporarily
                 shouldAutoScroll = false
+                showTransientChatScrollIndicator()
 
                 // Re-enable auto-scroll after user stops scrolling for 3 seconds
                 autoScrollDisableTimer?.invalidate()
@@ -2224,13 +2984,25 @@ struct ChatView: View {
                     return event
                 }
                 // Don't intercept keys when the code editor's NSTextView is focused
-                if let tv = responder as? NSTextView, tv.identifier?.rawValue == "codeEditorTextView" {
+	                if let tv = responder as? NSTextView, tv.identifier?.rawValue == "codeEditorTextView" {
+	                    return event
+	                }
+
+	                // macOS TextField editing uses a shared NSTextView field editor.
+	                // Those field editors belong to the active TextField, not to the
+	                // chat composer, so composer shortcuts/focus must ignore them.
+	                if let tv = responder as? NSTextView, tv.isFieldEditor {
+	                    return event
+	                }
+
+	                // Don't intercept keys when a CommitTextField (rename/new file) is focused
+	                if let tv = responder as? NSTextView,
+	                   tv.identifier?.rawValue == "commitTextField" {
                     return event
                 }
 
-                // Don't intercept keys when a CommitTextField (rename/new file) is focused
                 if let tv = responder as? NSTextView,
-                   tv.identifier?.rawValue == "commitTextField" {
+                   tv.identifier?.rawValue == "inlineMessageEditorTextView" {
                     return event
                 }
 
@@ -2418,13 +3190,15 @@ struct ChatView: View {
                 return event
             }
 
-            // Focus monitor: track whether the TextEditor has focus
-            focusMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) { event in
-                DispatchQueue.main.async {
-                    if let responder = NSApp.keyWindow?.firstResponder, responder is NSTextView {
-                        if !isInputFocused { withAnimation(.easeOut(duration: 0.15)) { isInputFocused = true } }
-                    } else {
-                        if isInputFocused { withAnimation(.easeIn(duration: 0.15)) { isInputFocused = false } }
+	            // Focus monitor: track whether the TextEditor has focus
+	            focusMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) { event in
+	                DispatchQueue.main.async {
+	                    if let responder = NSApp.keyWindow?.firstResponder,
+	                       let textView = responder as? NSTextView,
+	                       !textView.isFieldEditor {
+	                        if !isInputFocused { withAnimation(.easeOut(duration: 0.15)) { isInputFocused = true } }
+	                    } else {
+	                        if isInputFocused { withAnimation(.easeIn(duration: 0.15)) { isInputFocused = false } }
                     }
                 }
                 return event
@@ -2439,9 +3213,15 @@ struct ChatView: View {
                 NSEvent.removeMonitor(monitor)
                 focusMonitor = nil
             }
+            if let monitor = scrollEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                scrollEventMonitor = nil
+            }
             // Clean up timer
             autoScrollDisableTimer?.invalidate()
             autoScrollDisableTimer = nil
+            chatScrollIndicatorHideTask?.cancel()
+            chatScrollIndicatorHideTask = nil
         }
         .onChange(of: inputText) { _ in
             // Reset slash/skills/agent selection index when input changes
@@ -2462,6 +3242,24 @@ struct ChatView: View {
                     agentJustSelected = false
                 }
             }
+        }
+        .onChange(of: viewModel.composerPrefill) { newValue in
+            guard let prefill = newValue else { return }
+            inputText = prefill
+            attachedFiles = []
+            historyIndex = -1
+            withAnimation(.easeOut(duration: 0.15)) {
+                isInputFocused = true
+            }
+            viewModel.composerPrefill = nil
+        }
+        .onChange(of: viewModel.isSendingMessage) { isSending in
+            if !isSending {
+                drainPendingComposerQueueIfPossible()
+            }
+        }
+        .onChange(of: currentActiveSessionId) { _ in
+            drainPendingComposerQueueIfPossible()
         }
         .overlay(alignment: .trailing) {
             if viewModel.agentSettingsOpen, let detail = viewModel.selectedAgentDetail {
@@ -2500,13 +3298,19 @@ struct ChatView: View {
     private var canSend: Bool {
         let hasText = !inputText.trimmingCharacters(in: .whitespaces).isEmpty
         let hasFiles = !attachedFiles.isEmpty
-        // Lock send only when *this session* is in flight — not when
-        // another session of the same agent is running in the background.
-        // `viewModel.isSendingMessage` is the session-scoped predicate
-        // (recomputed by `recomputeIsSendingMessage` whenever session,
-        // agent, or task set changes); `isCurrentAgentSending` is
-        // agent-scoped and used by the sidebar to badge the agent row.
-        return (hasText || hasFiles) && !viewModel.isSendingMessage
+        return hasText || hasFiles
+    }
+
+    private var sendButtonFillColor: SwiftUI.Color {
+        canSend || shouldShowStopButton
+            ? Color.primary.opacity(0.62)
+            : Color(NSColor.quaternaryLabelColor)
+    }
+
+    private var sendButtonIconColor: SwiftUI.Color {
+        canSend || shouldShowStopButton
+            ? Color(NSColor.windowBackgroundColor)
+            : Color(NSColor.tertiaryLabelColor)
     }
 
     /// Whether the input area (text + attachment) should be locked.
@@ -2515,7 +3319,7 @@ struct ChatView: View {
     /// the previous session has a task still streaming in the
     /// inactive-sessions map.
     private var isInputLocked: Bool {
-        viewModel.isSendingMessage
+        false
     }
 
     private func sendMessage() {
@@ -2524,6 +3328,11 @@ struct ChatView: View {
         guard !text.isEmpty || !files.isEmpty else { return }
         inputText = ""
         attachedFiles = []
+
+        if viewModel.isSendingMessage {
+            enqueuePendingComposerMessage(text: text, attachments: files)
+            return
+        }
 
         // Handle @agent_name prefix: strip it and use the actual message
         if text.hasPrefix("@") {
@@ -2575,7 +3384,7 @@ struct ChatView: View {
             // Show placeholder
             let isChinese = LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
             let clarifyingText = isChinese ? "正在了解需求..." : "Understanding requirements..."
-            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander", agentEmoji: "🎯"))
+            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
 
             let collabVM = viewModel.getOrCreateCollabViewModel()
 
@@ -2616,8 +3425,7 @@ struct ChatView: View {
                         viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                             role: .assistant,
                             content: "开始执行任务...",
-                            agentId: "commander",
-                            agentEmoji: "🎯"
+                            agentId: "commander"
                         ))
                         Task {
                             await collabVM.confirmAndExecute()
@@ -2639,8 +3447,7 @@ struct ChatView: View {
                             viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                                 role: .assistant,
                                 content: reply,
-                                agentId: "commander",
-                                agentEmoji: "🎯"
+                                agentId: "commander"
                             ))
                         }
                     }
@@ -2659,7 +3466,7 @@ struct ChatView: View {
 
             // Show thinking placeholder
             let thinkingId = UUID()
-            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: "", agentId: "commander", agentEmoji: "🎯", taskStatus: .loading, id: thinkingId))
+            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: "", agentId: "commander", taskStatus: .loading, id: thinkingId))
             viewModel.isSendingMessage = true
 
             Task {
@@ -2678,8 +3485,7 @@ struct ChatView: View {
                         viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                             role: .assistant,
                             content: reply,
-                            agentId: "commander",
-                            agentEmoji: "🎯"
+                            agentId: "commander"
                         ))
                         viewModel.isSendingMessage = false
                     }
@@ -2688,7 +3494,7 @@ struct ChatView: View {
                     await MainActor.run {
                         let isChinese = LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
                         let clarifyingText = isChinese ? "正在了解需求..." : "Understanding requirements..."
-                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander", agentEmoji: "🎯"))
+                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
 
                         viewModel.showCollabPanel = true
                         viewModel.collabPanelCollapsed = false
@@ -2713,12 +3519,87 @@ struct ChatView: View {
         }
     }
 
+    private func enqueuePendingComposerMessage(text: String, attachments: [URL]) {
+        guard let sessionId = currentActiveSessionId else { return }
+        let pending = PendingComposerMessage(text: text, attachments: attachments)
+        pendingComposerMessagesBySession[sessionId, default: []].append(pending)
+    }
+
+    private func deletePendingComposerMessage(_ message: PendingComposerMessage) {
+        guard let sessionId = currentActiveSessionId else { return }
+        pendingComposerMessagesBySession[sessionId, default: []].removeAll { $0.id == message.id }
+        if pendingComposerMessagesBySession[sessionId]?.isEmpty == true {
+            pendingComposerMessagesBySession.removeValue(forKey: sessionId)
+        }
+    }
+
+    private func editPendingComposerMessage(_ message: PendingComposerMessage) {
+        deletePendingComposerMessage(message)
+        inputText = message.text
+        attachedFiles = message.attachments
+        historyIndex = -1
+        withAnimation(.easeOut(duration: 0.15)) {
+            isInputFocused = true
+        }
+    }
+
+    private func sendPendingComposerMessage(_ message: PendingComposerMessage) {
+        if viewModel.isSendingMessage {
+            promotePendingComposerMessage(message)
+            return
+        }
+
+        deletePendingComposerMessage(message)
+        inputText = message.text
+        attachedFiles = message.attachments
+        shouldAutoScroll = true
+        sendMessage()
+    }
+
+    private func promotePendingComposerMessage(_ message: PendingComposerMessage) {
+        guard let sessionId = currentActiveSessionId,
+              var queue = pendingComposerMessagesBySession[sessionId],
+              let index = queue.firstIndex(where: { $0.id == message.id }) else {
+            return
+        }
+        let promoted = queue.remove(at: index)
+        queue.insert(promoted, at: 0)
+        pendingComposerMessagesBySession[sessionId] = queue
+    }
+
+    private func drainPendingComposerQueueIfPossible() {
+        guard !viewModel.isSendingMessage,
+              let sessionId = currentActiveSessionId,
+              var queue = pendingComposerMessagesBySession[sessionId],
+              !queue.isEmpty else {
+            return
+        }
+
+        let next = queue.removeFirst()
+        if queue.isEmpty {
+            pendingComposerMessagesBySession.removeValue(forKey: sessionId)
+        } else {
+            pendingComposerMessagesBySession[sessionId] = queue
+        }
+
+        inputText = next.text
+        attachedFiles = next.attachments
+        shouldAutoScroll = true
+        sendMessage()
+    }
+
     /// Scroll chat to the latest message with animation.
     private func scrollToBottom() {
         guard let proxy = chatScrollProxy else { return }
         withAnimation(.easeOut(duration: 0.25)) {
             proxy.scrollTo("chatBottom", anchor: .bottom)
         }
+    }
+
+    private func compensateWorkStatusExpansion(by delta: CGFloat) {
+        guard abs(delta) > 0.5 else { return }
+        pendingWorkStatusScrollCompensation = delta
+        workStatusExpansionCompensationRevision += 1
     }
 
     private func selectSlashCommand(_ cmd: SlashCommand) {
@@ -2844,7 +3725,7 @@ struct ChatView: View {
 }
 
 private extension View {
-    func autocompletePanelStyle(bottomOffset: CGFloat) -> some View {
+    func autocompletePanelStyle() -> some View {
         self
             .background(Color(NSColor.windowBackgroundColor))
             .cornerRadius(12)
@@ -2853,9 +3734,15 @@ private extension View {
                     .stroke(Color.gray.opacity(0.2), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.12), radius: 12, y: -4)
-            .padding(.horizontal, 16)
-            .padding(.bottom, bottomOffset)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+}
+
+private struct ComposerInputCardBoundsKey: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>?
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
     }
 }
 
@@ -3175,19 +4062,6 @@ struct BackgroundTaskNotification: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            // Agent avatar
-            if let agentId = message.agentId, agentId != "main",
-               let emoji = message.agentEmoji {
-                Text(emoji)
-                    .font(.system(size: 22))
-                    .frame(width: 32, height: 32)
-            } else {
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 24))
-                    .foregroundColor(.orange)
-                    .frame(width: 32, height: 32)
-            }
-
             HStack(spacing: 6) {
                 Text(message.content)
                     .font(.callout)
@@ -3227,6 +4101,7 @@ struct BackgroundTaskNotification: View {
 struct ThinkingIndicator: View {
     let message: ChatMessage
     @ObservedObject var viewModel: DashboardViewModel
+    var onWorkStatusExpansionHeightChange: ((CGFloat) -> Void)? = nil
     @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
 
@@ -3241,55 +4116,13 @@ struct ThinkingIndicator: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Agent avatar
-            if let agentId = message.agentId, agentId != "main",
-               let emoji = viewModel.availableAgents.first(where: { $0.id == agentId })?.emoji {
-                Text(emoji)
-                    .font(.system(size: 22))
-                    .frame(width: 32, height: 32)
-            } else {
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 24))
-                    .foregroundColor(.orange)
-                    .frame(width: 32, height: 32)
-            }
-
-            HStack(spacing: 6) {
-                ProgressView()
-                    .scaleEffect(0.7)
-                Text("Thinking...")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                // Show elapsed time
-                Text(formatTime(elapsedSeconds))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .monospacedDigit()
-            }
-            .padding(10)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(12)
-
-            // Cancel button — always visible
-            Button(action: {
-                viewModel.cancelChat(message.id)
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "xmark.circle")
-                        .font(.system(size: 11))
-                    Text("Cancel")
-                        .font(.caption)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color.red.opacity(0.12))
-                .foregroundColor(.red)
-                .cornerRadius(8)
-            }
-            .buttonStyle(.plain)
-
+        VStack(alignment: .leading, spacing: 6) {
+            WorkStatusHeader(
+                start: message.timestamp,
+                end: nil,
+                activityEvents: message.activityEvents,
+                onExpansionHeightChange: onWorkStatusExpansionHeightChange
+            )
             // "Move to Background" button — only visible after 60 seconds
             if showBackgroundButton {
                 Button(action: {
@@ -3310,9 +4143,8 @@ struct ThinkingIndicator: View {
                 .buttonStyle(.plain)
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
-
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.3), value: showBackgroundButton)
         .onAppear {
             startTimer()
@@ -3361,11 +4193,6 @@ struct ThinkingIndicator: View {
         timer = nil
     }
 
-    private func formatTime(_ seconds: Int) -> String {
-        let m = seconds / 60
-        let s = seconds % 60
-        return m > 0 ? String(format: "%d:%02d", m, s) : "\(s)s"
-    }
 }
 
 // MARK: - Model Picker Row (right-sidebar SessionDetailsPanel)
@@ -3440,6 +4267,68 @@ private struct ModelPickerRow: View {
     }
 }
 
+private struct PendingComposerQueueView: View {
+    let messages: [PendingComposerMessage]
+    let onSend: (PendingComposerMessage) -> Void
+    let onEdit: (PendingComposerMessage) -> Void
+    let onDelete: (PendingComposerMessage) -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(messages) { message in
+                HStack(spacing: 8) {
+                    Text(message.text.isEmpty ? attachmentSummary(for: message) : message.text)
+                        .font(.system(size: 12.5, weight: .regular))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if !message.attachments.isEmpty {
+                        Text("\(message.attachments.count)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
+                    }
+
+                    MessageActionIcon(
+                        systemName: "paperplane",
+                        tint: .secondary,
+                        help: "发送这条",
+                        action: { onSend(message) }
+                    )
+
+                    MessageActionIcon(
+                        systemName: "pencil",
+                        tint: .secondary,
+                        help: "编辑待发送内容",
+                        action: { onEdit(message) }
+                    )
+
+                    MessageActionIcon(
+                        systemName: "xmark",
+                        tint: .secondary,
+                        help: "删除待发送内容",
+                        action: { onDelete(message) }
+                    )
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.045))
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 10)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func attachmentSummary(for message: PendingComposerMessage) -> String {
+        message.attachments.count == 1 ? "1 个附件" : "\(message.attachments.count) 个附件"
+    }
+}
+
 // MARK: - Chat Bubble
 
 /// Borderless message-action icon (copy / rewind) with a subtle per-icon hover
@@ -3511,33 +4400,209 @@ struct MessageActionIcon: View {
     }
 }
 
-/// Tiny self-ticking label that prints "已运行 N 分" once a run crosses the
-/// 1-minute mark. Used in the streaming-cancel row so users have a sense of
-/// progress on long autonomous runs (browser automation, multi-step research)
-/// instead of just a spinning indicator. Uses `TimelineView(.periodic)` so we
-/// don't need a `Timer`/`@State` per bubble — SwiftUI refreshes the closure
-/// every 30s and the rest of the bubble stays still.
-///
-/// HOTFIX v1.1.59: `from` MUST be a stable anchor. Was `from: .now`, which
-/// is evaluated fresh on every body re-eval — SwiftUI then sees a new
-/// `PeriodicTimelineSchedule` and re-subscribes its schedule. On a chat
-/// with many active bubbles + high-frequency streaming deltas, that
-/// constant re-subscription compounds into a main-thread SwiftUI body
-/// avalanche (see Intel-Mac hang spindump, 17.7s, com.apple.WebKit.WebContent
-/// × 10 + AG::Subgraph::update reentry). Anchoring `from` to the run's
-/// `start` time (constant for this view's lifetime) keeps the schedule
-/// stable: same `from`, same `by` → SwiftUI reuses one subscription.
-private struct ElapsedSinceView: View {
+/// Top-of-response working status. The schedule is anchored to the run start
+/// time so SwiftUI keeps one stable timeline subscription while streaming.
+private struct WorkStatusHeader: View {
+    private static let expansionAnimation = Animation.spring(response: 0.28, dampingFraction: 0.86)
+
     let start: Date?
+    let end: Date?
+    let activityEvents: [ChatActivityEvent]
+    let onExpansionHeightChange: ((CGFloat) -> Void)?
+    @State private var isExpanded = false
+    @State private var measuredHeight: CGFloat = 0
+    @State private var hasMeasuredHeight = false
+
     var body: some View {
-        if let start = start {
-            TimelineView(.periodic(from: start, by: 30)) { ctx in
-                let minutes = Int(ctx.date.timeIntervalSince(start) / 60)
-                if minutes >= 1 {
-                    Text("已运行 \(minutes) 分")
-                        .font(.caption2)
+        Group {
+            if let start = start {
+                if let end = end {
+                    statusBody(elapsedSeconds: max(0, Int(end.timeIntervalSince(start))), isFinished: true)
+                } else {
+                    TimelineView(.periodic(from: start, by: 1)) { ctx in
+                        statusBody(elapsedSeconds: max(0, Int(ctx.date.timeIntervalSince(start))), isFinished: false)
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    headerButton {
+                        Text(isChinese ? "正在工作" : "Working")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    if isExpanded {
+                        activityRows
+                    }
+                }
+            }
+        }
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: WorkStatusHeaderHeightKey.self, value: proxy.size.height)
+            }
+        )
+        .onPreferenceChange(WorkStatusHeaderHeightKey.self) { newHeight in
+            guard hasMeasuredHeight else {
+                measuredHeight = newHeight
+                hasMeasuredHeight = true
+                return
+            }
+
+            let delta = newHeight - measuredHeight
+            measuredHeight = newHeight
+            guard abs(delta) > 0.5 else { return }
+            onExpansionHeightChange?(delta)
+        }
+        .animation(Self.expansionAnimation, value: isExpanded)
+    }
+
+    private func statusBody(elapsedSeconds: Int, isFinished: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            headerButton {
+                if isFinished {
+                    Text(statusText(elapsedSeconds: elapsedSeconds, isFinished: isFinished))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
                         .monospacedDigit()
+                } else {
+                    ShimmeringWorkStatusText(text: statusText(elapsedSeconds: elapsedSeconds, isFinished: isFinished))
+                }
+            }
+            if isExpanded {
+                activityRows
+            }
+            Divider()
+        }
+    }
+
+    private var activityRows: some View {
+        ActivitySummaryRows(events: activityEvents)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .clipped()
+    }
+
+    private func headerButton<Label: View>(@ViewBuilder label: () -> Label) -> some View {
+        Button {
+            withAnimation(Self.expansionAnimation) {
+                isExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 4) {
+                label()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.secondary.opacity(0.75))
+                    .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                    .animation(Self.expansionAnimation, value: isExpanded)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var isChinese: Bool {
+        LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
+    }
+
+    private func statusText(elapsedSeconds: Int, isFinished: Bool) -> String {
+        if isChinese {
+            return "已运行 \(localizedDuration(elapsedSeconds))"
+        }
+        return isFinished
+            ? "Worked for \(englishDuration(elapsedSeconds))"
+            : "Working for \(englishDuration(elapsedSeconds))"
+    }
+
+    private func englishDuration(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let remainingSeconds = seconds % 60
+        if minutes > 0 {
+            return "\(minutes)m \(remainingSeconds)s"
+        }
+        return "\(remainingSeconds)s"
+    }
+
+    private func localizedDuration(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let remainingSeconds = seconds % 60
+        if minutes > 0 {
+            return "\(minutes)分\(remainingSeconds)秒"
+        }
+        return "\(remainingSeconds)秒"
+    }
+}
+
+private struct ShimmeringWorkStatusText: View {
+    let text: String
+    @State private var highlightIsTrailing = false
+
+    private var label: some View {
+        Text(text)
+            .font(.system(size: 13, weight: .medium))
+            .monospacedDigit()
+    }
+
+    var body: some View {
+        label
+            .foregroundColor(.secondary)
+            .overlay {
+                GeometryReader { proxy in
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: .primary.opacity(0.10), location: 0.35),
+                            .init(color: .primary.opacity(0.70), location: 0.50),
+                            .init(color: .primary.opacity(0.10), location: 0.65),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: max(proxy.size.width * 0.72, 36), height: proxy.size.height)
+                    .offset(x: highlightIsTrailing ? proxy.size.width : -max(proxy.size.width * 0.72, 36))
+                }
+                .mask(label)
+                .allowsHitTesting(false)
+            }
+            .onAppear {
+                highlightIsTrailing = false
+                withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) {
+                    highlightIsTrailing = true
+                }
+            }
+    }
+}
+
+private struct ActivitySummaryRows: View {
+    let events: [ChatActivityEvent]
+
+    var body: some View {
+        if !events.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(events) { event in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Image(systemName: event.kind.systemImage)
+                                .font(.system(size: 12, weight: .medium))
+                                .frame(width: 14)
+                            Text(event.kind.title(count: event.count))
+                                .font(.system(size: 13, weight: .regular))
+                                .lineLimit(1)
+                        }
+                        if !event.details.isEmpty {
+                            VStack(alignment: .leading, spacing: 3) {
+                                ForEach(Array(event.details.enumerated()), id: \.offset) { _, detail in
+                                    Text(detail)
+                                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                                        .lineLimit(nil)
+                                        .textSelection(.enabled)
+                                }
+                            }
+                            .padding(.leading, 22)
+                            .foregroundColor(.secondary.opacity(0.66))
+                        }
+                    }
+                    .foregroundColor(.secondary.opacity(0.72))
                 }
             }
         }
@@ -3546,15 +4611,20 @@ private struct ElapsedSinceView: View {
 
 struct ChatBubble: View {
     let message: ChatMessage
-    /// Rewind the session to (and including) this message. When set, a rewind
-    /// button appears in the bubble toolbar.
-    var onRewind: ((ChatMessage) -> Void)? = nil
+    let allowsRichMarkdown: Bool
+    /// Confirmed edit-resend for a user message. The destructive rewind happens
+    /// only after the inline editor's confirm action calls this callback.
+    var onConfirmEditResend: ((ChatMessage, String) -> Void)? = nil
     /// Cancel the in-flight run for this message. When set, a cancel button
     /// appears next to the streaming spinner so a run can be stopped mid-stream.
     var onCancel: ((ChatMessage) -> Void)? = nil
+    var onWorkStatusExpansionHeightChange: ((CGFloat) -> Void)? = nil
     @State private var isHovering = false
     @State private var cachedMediaURLs: [URL] = []
     @State private var lastMediaScanContent: String = ""
+    @State private var isEditingForResend = false
+    @State private var editDraft = ""
+    @State private var isRichMarkdownActivated = false
 
     /// Visual ack for the copy button — flips to `true` for ~1.5s after a
     /// successful clipboard write, swaps the icon to a green checkmark, and
@@ -3630,15 +4700,6 @@ struct ChatBubble: View {
             if message.role == .user { Spacer(minLength: 60) }
 
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 6) {
-                // Timestamp — small, secondary, sits above the message body.
-                // Hidden for legacy messages (nil timestamp) so we never
-                // synthesize a bogus "now" for pre-existing chats.
-                if let ts = message.timestamp {
-                    Text(Self.formatTimestamp(ts))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-
                 // Attachment thumbnails (user-attached files)
                 if !message.attachments.isEmpty {
                     HStack(spacing: 6) {
@@ -3648,34 +4709,22 @@ struct ChatBubble: View {
                     }
                 }
 
+                if showsTopWorkStatus {
+                    WorkStatusHeader(
+                        start: message.timestamp,
+                        end: message.completedAt,
+                        activityEvents: message.activityEvents,
+                        onExpansionHeightChange: onWorkStatusExpansionHeightChange
+                    )
+                }
+
                 if !message.content.isEmpty {
-                    // Bubble body — always use SwiftUI-native MarkdownUI,
-                    // including for streaming. Previously we routed
-                    // streaming to SelectableMarkdownView (WKWebView) on
-                    // the assumption that re-parsing markdown on every
-                    // token would saturate the main thread, BUT the
-                    // WKWebView path has its own problems:
-                    //   - Each token arrival triggers throttled HTML
-                    //     rebuild → async load → JS height callback
-                    //     pipeline. The bubble's reserved height is
-                    //     based on an estimate, so for long content
-                    //     (tables especially) you see a big empty dark
-                    //     area while the HTML is in-flight, then it
-                    //     suddenly "drops in" once didFinish + JS
-                    //     measurement resolve.
-                    //   - SwiftUI's body re-evaluates on every @Published
-                    //     content change. With WKWebView re-loading
-                    //     constantly during streaming, the visual flow
-                    //     is "blank → loaded → blank → loaded".
-                    // MarkdownUI parses synchronously inside body and
-                    // renders SwiftUI views directly. The full content
-                    // appears immediately on every update, no async
-                    // round trip.
-                    //
-                    // Performance: stream deltas already arrive at ~100ms
-                    // throttle (DashboardViewModel.sendChatMessage's
-                    // throttle). At that cadence MarkdownUI re-parsing
-                    // is fine on the main thread.
+	                    // Bubble body: prefer native MarkdownUI for ordinary
+	                    // assistant text so session switches and streaming do
+	                    // not cold-mount a WKWebView for every message. Fall
+	                    // back to WebKit only for complex content that native
+	                    // MarkdownUI cannot represent well here (tables, math,
+	                    // raw HTML).
                     // Bubble + action row share ONE hover zone (the inner
                     // VStack's `.onHover`). A single source of truth for
                     // `isHovering` means moving the cursor from the bubble
@@ -3692,32 +4741,33 @@ struct ChatBubble: View {
                     // aligned and keeps the row clear of the WKWebView's
                     // click-capturing frame above it.
                     VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 5) {
-                        Group {
-                            if message.role == .assistant {
-                                // Single rendering path for the full message
-                                // lifecycle. WKWebView is mounted on first
-                                // render with the full HTML envelope already
-                                // baked in (CSS + MathJax), then every
-                                // streaming delta and the final terminal-
-                                // state content land via JS DOM mutation —
-                                // `document.body.innerHTML = ...` — so we
-                                // never reload the page, never tear down the
-                                // SwiftUI subtree, and never see the blank
-                                // transition the hybrid Markdown↔WebView
-                                // attempt produced. WebKit's selection model
-                                // gives us cross-paragraph / list / table
-                                // drag-select for free via the body's
-                                // `-webkit-user-select: text`.
-                                SelectableMarkdownView(content: message.content)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(10)
+	                        Group {
+	                            if message.role == .assistant {
+	                                AssistantMessageContentView(
+                                        content: message.content,
+                                        isStreaming: isStreamingState,
+                                        allowsRichMarkdown: allowsRichMarkdown || isRichMarkdownActivated
+                                    )
+	                                    .fixedSize(horizontal: false, vertical: true)
+	                                    .padding(10)
                                     .background(bubbleBackgroundColor)
                                     .cornerRadius(12)
+                            } else if isEditingForResend {
+                                InlineUserMessageEditor(
+                                    text: $editDraft,
+                                    onCommit: confirmEditResend,
+                                    onCancel: cancelEditResend
+                                )
+                                .frame(minHeight: 76)
+                                .padding(8)
+                                .background(bubbleBackgroundColor)
+                                .cornerRadius(12)
                             } else {
-                                Text(message.content)
-                                    .padding(10)
-                                    .background(bubbleBackgroundColor)
-                                    .foregroundColor(.primary)
+		                                Text(message.content)
+		                                    .font(DashboardTypography.userMessage)
+		                                    .padding(10)
+		                                    .background(bubbleBackgroundColor)
+	                                    .foregroundColor(.primary)
                                     .cornerRadius(12)
                                     .textSelection(.enabled)
                             }
@@ -3735,7 +4785,7 @@ struct ChatBubble: View {
                         // the ✓ up briefly after the cursor leaves.
                         // `allowsHitTesting` is gated on visibility so the
                         // transparent row never silently eats clicks.
-                        if !isStreamingState && !message.content.isEmpty {
+                        if !isStreamingState && !message.content.isEmpty && !isEditingForResend {
                             HStack(spacing: 2) {
                                 MessageActionIcon(
                                     systemName: copied ? "checkmark" : "square.on.square",
@@ -3743,17 +4793,32 @@ struct ChatBubble: View {
                                     help: copied ? "已复制" : "复制",
                                     action: { performCopy(message.content) }
                                 )
+                                if canActivateRichMarkdown {
+                                    MessageActionIcon(
+                                        systemName: "doc.richtext",
+                                        tint: .secondary,
+                                        help: "渲染复杂内容",
+                                        action: { isRichMarkdownActivated = true }
+                                    )
+                                }
                                 // Edit & resend only makes sense for the user's
                                 // own messages (you edit your prompt, not the
                                 // assistant's output), so the rewind icon is
                                 // gated to .user bubbles.
-                                if onRewind != nil && message.role == .user {
+                                if onConfirmEditResend != nil && message.role == .user {
                                     MessageActionIcon(
                                         systemName: "arrow.uturn.backward",
                                         tint: .secondary,
                                         help: "编辑重发",
-                                        action: { onRewind?(message) }
+                                        action: { beginEditResend() }
                                     )
+                                }
+                                if let ts = message.timestamp {
+                                    Text(Self.formatTimestamp(ts))
+                                        .font(DashboardTypography.messageMeta)
+                                        .foregroundColor(.secondary)
+                                        .monospacedDigit()
+                                        .padding(.leading, 4)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
@@ -3788,48 +4853,6 @@ struct ChatBubble: View {
                     }
                 }
 
-                // Streaming indicator — sub-bubble row showing the AI is
-                // still writing. Sits directly under the bubble with a
-                // small gap (no hover toolbar between them in streaming
-                // state, so this looks like a continuation of the bubble
-                // rather than a disconnected third widget).
-                if message.role == .assistant && message.taskStatus == .loading && !message.content.isEmpty {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .scaleEffect(0.5)
-                            .controlSize(.small)
-                        // Long-run feedback: show elapsed minutes once the run
-                        // crosses 1 minute. Reduces "is it stuck?" anxiety,
-                        // gives the user signal before deciding to cancel.
-                        // TimelineView refreshes every 30s so the number
-                        // advances without any per-bubble state/timer.
-                        ElapsedSinceView(start: message.timestamp)
-                        // Cancel during ACTIVE streaming. The ThinkingIndicator's
-                        // cancel only shows while waiting for the first token
-                        // (content empty); once text starts flowing the message
-                        // renders here, so without this the user couldn't stop a
-                        // long run mid-stream. Aborting keeps the partial output.
-                        if onCancel != nil {
-                            Button(action: { onCancel?(message) }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "xmark.circle")
-                                        .font(.system(size: 11))
-                                    Text("取消")
-                                        .font(.caption)
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.red.opacity(0.12))
-                                .foregroundColor(.red)
-                                .cornerRadius(8)
-                            }
-                            .buttonStyle(.plain)
-                            .help("取消当前执行（保留已生成的部分）")
-                        }
-                    }
-                    .padding(.top, 2)
-                }
-
                 // Detected media files from assistant response
                 if !cachedMediaURLs.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
@@ -3837,56 +4860,6 @@ struct ChatBubble: View {
                             AttachmentThumbnail(url: url)
                         }
                     }
-                }
-
-                // Background task indicator
-                if message.taskStatus == .background {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                        Text("Running in background...")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        // Background runs are cancellable too. `cancelChat`
-                        // already clears BOTH foreground and background tracking
-                        // and aborts by the run's own id, but the .background
-                        // state had no cancel affordance — so a task that the
-                        // 120s timer auto-flipped to background (or any long run
-                        // the user navigated away from and back to) couldn't be
-                        // stopped from the UI. Same abort path as the streaming
-                        // 取消 button; partial output is kept.
-                        if onCancel != nil {
-                            Button(action: { onCancel?(message) }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "xmark.circle")
-                                        .font(.system(size: 11))
-                                    Text("取消")
-                                        .font(.caption)
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.red.opacity(0.12))
-                                .foregroundColor(.red)
-                                .cornerRadius(8)
-                            }
-                            .buttonStyle(.plain)
-                            .help("取消后台执行（保留已生成的部分）")
-                        }
-                    }
-                    .padding(.top, 2)
-                }
-
-                // Cancelled task indicator
-                if message.taskStatus == .cancelled {
-                    HStack(spacing: 4) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundColor(.orange)
-                        Text("Cancelled")
-                            .font(.caption2)
-                            .foregroundColor(.orange)
-                    }
-                    .padding(.top, 2)
                 }
             }
 
@@ -3922,6 +4895,47 @@ struct ChatBubble: View {
             && (message.taskStatus == .loading || message.taskStatus == .background)
     }
 
+    private var showsTopWorkStatus: Bool {
+        message.role == .assistant
+            && (isStreamingState || message.completedAt != nil)
+    }
+
+    private func beginEditResend() {
+        editDraft = message.content
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isEditingForResend = true
+            isHovering = true
+        }
+    }
+
+    private var canActivateRichMarkdown: Bool {
+        message.role == .assistant
+            && !isStreamingState
+            && !allowsRichMarkdown
+            && !isRichMarkdownActivated
+            && MarkdownRenderPolicy.isComplexMarkdown(message.content)
+    }
+
+    private func cancelEditResend() {
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isEditingForResend = false
+        }
+        editDraft = ""
+    }
+
+    private func confirmEditResend() {
+        let trimmed = editDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            cancelEditResend()
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isEditingForResend = false
+        }
+        onConfirmEditResend?(message, trimmed)
+        editDraft = ""
+    }
+
     private func copyToClipboard(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
@@ -3946,6 +4960,138 @@ struct ChatBubble: View {
         }
         copyResetTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: task)
+    }
+}
+
+private struct InlineUserMessageEditor: View {
+    @Binding var text: String
+    let onCommit: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            InlineMessageEditorTextView(
+                text: $text,
+                onCommit: onCommit,
+                onCancel: onCancel
+            )
+            .frame(minHeight: 54, maxHeight: 160)
+
+            HStack(spacing: 6) {
+                Spacer(minLength: 0)
+
+                Button(action: onCancel) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 26, height: 24)
+                }
+                .buttonStyle(.plain)
+                .help("取消")
+
+                Button(action: onCommit) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color(NSColor.windowBackgroundColor))
+                        .frame(width: 26, height: 24)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.primary.opacity(0.62))
+                        }
+                }
+                .buttonStyle(.plain)
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .help("确认并发送")
+            }
+        }
+    }
+}
+
+private struct InlineMessageEditorTextView: NSViewRepresentable {
+    @Binding var text: String
+    let onCommit: () -> Void
+    let onCancel: () -> Void
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.borderType = .noBorder
+
+        let textView = CommitAwareTextView()
+        textView.identifier = NSUserInterfaceItemIdentifier("inlineMessageEditorTextView")
+        textView.delegate = context.coordinator
+        textView.onCommit = onCommit
+        textView.onCancel = onCancel
+        textView.string = text
+        textView.font = NSFont.systemFont(ofSize: 16)
+        textView.textColor = NSColor.labelColor
+        textView.backgroundColor = .clear
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.importsGraphics = false
+        textView.allowsUndo = true
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+        textView.insertionPointColor = NSColor.labelColor
+
+        scrollView.documentView = textView
+
+        DispatchQueue.main.async {
+            textView.window?.makeFirstResponder(textView)
+        }
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? CommitAwareTextView else { return }
+        textView.onCommit = onCommit
+        textView.onCancel = onCancel
+        if textView.string != text {
+            textView.string = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        @Binding var text: String
+
+        init(text: Binding<String>) {
+            self._text = text
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            text = textView.string
+        }
+    }
+
+    final class CommitAwareTextView: NSTextView {
+        var onCommit: (() -> Void)?
+        var onCancel: (() -> Void)?
+
+        override func keyDown(with event: NSEvent) {
+            if event.keyCode == 36,
+               !event.modifierFlags.contains(.shift),
+               !hasMarkedText() {
+                onCommit?()
+                return
+            }
+
+            if event.keyCode == 53 {
+                onCancel?()
+                return
+            }
+
+            super.keyDown(with: event)
+        }
     }
 }
 
@@ -4475,7 +5621,125 @@ struct BrandTextView: View {
     }
 }
 
-// MARK: - Selectable Markdown View (WKWebView-based)
+// MARK: - Assistant Markdown Rendering
+
+private enum MarkdownRenderMode {
+    case native
+    case webView
+}
+
+private enum MarkdownRenderPolicy {
+    static let heightUpdateThreshold: CGFloat = 4
+    static let recentRichMessageLimit = 6
+
+    static func mode(for content: String, isStreaming: Bool, allowsWebView: Bool = true) -> MarkdownRenderMode {
+        if isStreaming { return .native }
+        if !allowsWebView { return .native }
+        return requiresWebView(content) ? .webView : .native
+    }
+
+    static func shouldApplyMeasuredHeight(current: CGFloat, measured: CGFloat) -> Bool {
+        abs(current - measured) >= heightUpdateThreshold
+    }
+
+    static func isComplexMarkdown(_ content: String) -> Bool {
+        requiresWebView(content)
+    }
+
+    static func recentRichMessageIds(in messages: [ChatMessage]) -> Set<UUID> {
+        var ids: Set<UUID> = []
+
+        for message in messages.reversed() {
+            guard ids.count < recentRichMessageLimit else { break }
+            guard message.role == .assistant,
+                  message.taskStatus == .completed,
+                  requiresWebView(message.content) else {
+                continue
+            }
+            ids.insert(message.id)
+        }
+
+        return ids
+    }
+
+    private static func requiresWebView(_ content: String) -> Bool {
+        containsMarkdownTable(content)
+            || containsMathSyntax(content)
+            || containsHTMLBlock(content)
+    }
+
+    private static func containsMarkdownTable(_ content: String) -> Bool {
+        let lines = content
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+
+        guard lines.count >= 2 else { return false }
+
+        for index in 0..<(lines.count - 1) {
+            let header = lines[index]
+            let separator = lines[index + 1]
+                .trimmingCharacters(in: .whitespaces)
+
+            if header.contains("|"),
+               separator.contains("|"),
+               separator.contains("-"),
+               separator.allSatisfy({ char in
+                   char == "|" || char == "-" || char == ":" || char == " "
+               }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static func containsMathSyntax(_ content: String) -> Bool {
+        if content.contains("$$")
+            || content.contains(#"\("#)
+            || content.contains(#"\["#)
+            || content.contains(#"\begin{"#) {
+            return true
+        }
+
+        let pattern = #"(?<![A-Za-z0-9])\$[^\n$]{1,160}\$(?![A-Za-z0-9])"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return false
+        }
+        let range = NSRange(content.startIndex..<content.endIndex, in: content)
+        return regex.firstMatch(in: content, range: range) != nil
+    }
+
+    private static func containsHTMLBlock(_ content: String) -> Bool {
+        let pattern = #"<\s*(table|thead|tbody|tr|td|th|div|details|summary|img|video|audio|iframe|style|script|br|hr)\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return false
+        }
+        let range = NSRange(content.startIndex..<content.endIndex, in: content)
+        return regex.firstMatch(in: content, range: range) != nil
+    }
+}
+
+struct AssistantMessageContentView: View {
+    let content: String
+    let isStreaming: Bool
+    let allowsRichMarkdown: Bool
+
+    init(content: String, isStreaming: Bool, allowsRichMarkdown: Bool = true) {
+        self.content = content
+        self.isStreaming = isStreaming
+        self.allowsRichMarkdown = allowsRichMarkdown
+    }
+
+    var body: some View {
+        if MarkdownRenderPolicy.mode(for: content, isStreaming: isStreaming, allowsWebView: allowsRichMarkdown) == .webView {
+            SelectableMarkdownView(content: content)
+        } else {
+            Markdown(content)
+                .font(DashboardTypography.message)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
 
 // MARK: - Native Markdown View (lightweight, no WKWebView)
 
@@ -4486,6 +5750,7 @@ struct NativeMarkdownView: View {
 
     var body: some View {
         Text(attributedContent)
+            .font(DashboardTypography.message)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -4521,6 +5786,8 @@ struct SelectableMarkdownView: View {
     let content: String
     var onReady: (() -> Void)? = nil
     @State private var height: CGFloat
+    @State private var isWebViewReady = false
+    @State private var pendingWebViewReadyTask: DispatchWorkItem?
 
     init(content: String, onReady: (() -> Void)? = nil) {
         self.content = content
@@ -4558,13 +5825,52 @@ struct SelectableMarkdownView: View {
     }
 
     var body: some View {
-        _MarkdownWebView(content: content, dynamicHeight: $height)
-            .frame(height: max(height, 22))
+        ZStack(alignment: .topLeading) {
+            if !isWebViewReady && !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                NativeMarkdownView(content: content)
+                    .opacity(0.94)
+                    .transition(.opacity)
+            }
+
+            _MarkdownWebView(
+                content: content,
+                dynamicHeight: $height,
+                onRendered: {
+                    markWebViewReadyAfterPaint()
+                    onReady?()
+                }
+            )
+            .opacity(isWebViewReady ? 1 : 0.01)
+        }
+        .frame(height: max(height, 22))
+        .onChange(of: content) { _ in
+            if !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                pendingWebViewReadyTask?.cancel()
+                isWebViewReady = false
+            }
+        }
+        .onDisappear {
+            pendingWebViewReadyTask?.cancel()
+            pendingWebViewReadyTask = nil
+        }
             .onChange(of: height) { newHeight in
                 if newHeight > 22 {
                     onReady?()
                 }
             }
+    }
+
+    private func markWebViewReadyAfterPaint() {
+        pendingWebViewReadyTask?.cancel()
+        let task = DispatchWorkItem {
+            if !isWebViewReady {
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isWebViewReady = true
+                }
+            }
+        }
+        pendingWebViewReadyTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03, execute: task)
     }
 }
 
@@ -4597,14 +5903,16 @@ private class ScrollThroughWebView: WKWebView {
 private struct _MarkdownWebView: NSViewRepresentable {
     let content: String
     @Binding var dynamicHeight: CGFloat
+    var onRendered: (() -> Void)? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(dynamicHeight: $dynamicHeight)
+        Coordinator(dynamicHeight: $dynamicHeight, onRendered: onRendered)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.userContentController.add(context.coordinator, name: "rendered")
         let webView = ScrollThroughWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
@@ -4639,15 +5947,23 @@ private struct _MarkdownWebView: NSViewRepresentable {
             html = MarkdownHTML.buildHTML(content, isDark: isDark)
             markdownHTMLCache.setObject(html as NSString, forKey: cacheKey)
         }
-        webView.loadHTMLString(html, baseURL: nil)
         context.coordinator.lastSource = content
+        if !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            context.coordinator.lastRenderedNonEmptySource = content
+        }
         context.coordinator.lastIsDark = isDark
+        webView.loadHTMLString(html, baseURL: nil)
         return webView
+    }
+
+    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+        nsView.configuration.userContentController.removeScriptMessageHandler(forName: "rendered")
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         let isDark = (colorScheme == .dark)
         let coordinator = context.coordinator
+        coordinator.onRendered = onRendered
 
         // Bail when nothing meaningful changed (SwiftUI re-evaluates
         // bodies aggressively).
@@ -4689,6 +6005,13 @@ private struct _MarkdownWebView: NSViewRepresentable {
                 return
             }
 
+            let shouldPreserveRenderedContent = currentContent
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty && !coordinator.lastRenderedNonEmptySource.isEmpty
+            if shouldPreserveRenderedContent {
+                return
+            }
+
             // Content-only delta. Build just the <body> innards and
             // poke them into the live document via JS. No navigation,
             // no parse-from-scratch, no flash. CSS / MathJax / scripts
@@ -4720,13 +6043,17 @@ private struct _MarkdownWebView: NSViewRepresentable {
         }
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var lastSource: String = ""
         var lastIsDark: Bool = false
         /// Serial queue ensures only one buildHTML runs at a time
         let buildQueue = DispatchQueue(label: "markdown.build", qos: .utility)
         /// Incremented on each loadHTML call; stale builds check this to skip work
         var buildGeneration: Int = 0
+        /// Last non-empty markdown source that reached the WebView. Used to
+        /// avoid replacing visible content with a transient empty body while
+        /// SwiftUI is recycling rows or a session switch is still loading.
+        var lastRenderedNonEmptySource: String = ""
         /// True once the WKWebView has finished its initial navigation —
         /// only then are JS DOM mutations safe to evaluate. Updates that
         /// arrive before this flips are stashed in `pendingBodyHTML` and
@@ -4735,10 +6062,13 @@ private struct _MarkdownWebView: NSViewRepresentable {
         /// Latest body-HTML waiting on the first navigation to finish.
         /// Always holds the freshest value; older stashes are overwritten.
         var pendingBodyHTML: String?
+        var onRendered: (() -> Void)?
+        private var paintNotificationGeneration = 0
         private var dynamicHeight: Binding<CGFloat>
 
-        init(dynamicHeight: Binding<CGFloat>) {
+        init(dynamicHeight: Binding<CGFloat>, onRendered: (() -> Void)?) {
             self.dynamicHeight = dynamicHeight
+            self.onRendered = onRendered
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -4796,6 +6126,7 @@ private struct _MarkdownWebView: NSViewRepresentable {
                 self.evaluateHeight(webView: webView) { newHeight, width in
                     if width > 10 {
                         self.applyHeight(newHeight)
+                        self.notifyRenderedAfterPaint(webView: webView)
                     } else {
                         // Width still ~0, layout not ready — keep retrying.
                         self.measureHeight(webView: webView, attempt: attempt + 1)
@@ -4828,12 +6159,47 @@ private struct _MarkdownWebView: NSViewRepresentable {
 
         private func applyHeight(_ newHeight: CGFloat) {
             // Only update if height actually changed to avoid SwiftUI re-render loop
-            if abs(dynamicHeight.wrappedValue - newHeight) > 1 {
+            if MarkdownRenderPolicy.shouldApplyMeasuredHeight(current: dynamicHeight.wrappedValue, measured: newHeight) {
                 dynamicHeight.wrappedValue = newHeight
+            }
+            if !lastSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                lastRenderedNonEmptySource = lastSource
             }
             // Cache height for LazyVStack recreation
             let heightKey = "\(lastSource.hashValue)" as NSString
             markdownHeightCache.setObject(NSNumber(value: Double(newHeight)), forKey: heightKey)
+        }
+
+        func notifyRenderedAfterPaint(webView: WKWebView) {
+            paintNotificationGeneration += 1
+            let generation = paintNotificationGeneration
+            let js = """
+            (function() {
+                var generation = \(generation);
+                var notify = function() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.rendered) {
+                        window.webkit.messageHandlers.rendered.postMessage(generation);
+                    }
+                };
+                if (window.requestAnimationFrame) {
+                    window.requestAnimationFrame(function() {
+                        window.requestAnimationFrame(notify);
+                    });
+                } else {
+                    window.setTimeout(notify, 32);
+                }
+            })();
+            """
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "rendered",
+                  let generation = message.body as? NSNumber,
+                  generation.intValue == paintNotificationGeneration else {
+                return
+            }
+            onRendered?()
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -4934,8 +6300,8 @@ enum MarkdownHTML {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { background: transparent; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            font-size: 13px; color: \(textColor); line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            font-size: 15px; color: \(textColor); line-height: 1.55;
             -webkit-user-select: text; cursor: text;
             word-wrap: break-word; overflow-wrap: break-word;
             overflow: hidden;
@@ -4952,7 +6318,7 @@ enum MarkdownHTML {
         h4, h5, h6 { font-size: 14px; font-weight: 600; margin: 6px 0 3px; }
         p { margin: 6px 0; }
         code {
-            font-family: Menlo, Monaco, monospace; font-size: 12px;
+            font-family: Menlo, Monaco, monospace; font-size: 13px;
             background: \(codeBg); padding: 1px 4px; border-radius: 3px;
         }
         pre {
@@ -5380,8 +6746,7 @@ private struct AgentSettingsPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack(spacing: 10) {
-                Text(agent.emoji)
-                    .font(.title2)
+                AgentAvatarImage(size: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(agent.name)
@@ -5717,12 +7082,12 @@ private struct OutputsTabView: View {
 private struct WorkspaceFilePanel: View {
     let agentId: String
     @Binding var editingFilePath: String?
+    @Binding var isSearching: Bool
+    @Binding var searchText: String
     let editingFileDirty: Bool
-    let onClose: () -> Void
+    let width: CGFloat
 
     @State private var expandedFolders: Set<String> = []
-    @State private var isSearching = false
-    @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
 
     // Context menu state
@@ -5742,6 +7107,20 @@ private struct WorkspaceFilePanel: View {
         "AGENTS.md", "IDENTITY.md", "SOUL.md", "MEMORY.md",
         "USER.md", "BOOTSTRAP.md", "HEARTBEAT.md", "TOOLS.md"
     ]
+    private static let outputContainerTokens: Set<String> = [
+        "output", "outputs", "artifact", "artifacts", "result", "results",
+        "report", "reports", "generated", "generation", "export", "exports",
+        "log", "logs", "patch", "patches", "diff", "diffs",
+        "screenshot", "screenshots"
+    ]
+    private static let outputFileTokens: Set<String> = [
+        "output", "outputs", "artifact", "result", "results", "report",
+        "review", "audit", "summary", "generated", "patch", "diff", "log",
+        "screenshot", "image", "figure"
+    ]
+    private static let standaloneOutputExtensions: Set<String> = [
+        "pdf", "patch", "diff", "log"
+    ]
 
     private var workspacePath: String {
         DashboardViewModel.resolveAgentWorkspace(agentId)
@@ -5749,61 +7128,7 @@ private struct WorkspaceFilePanel: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.clear)
-                .frame(width: 1)
-                .shadow(color: .black.opacity(0.15), radius: 6, x: -3, y: 0)
-
             VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack(spacing: 8) {
-                    Image(systemName: "folder.fill")
-                        .foregroundColor(.accentColor)
-                    Text("Workspace")
-                        .font(.headline)
-                    Spacer()
-
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            isSearching.toggle()
-                            if !isSearching {
-                                searchText = ""
-                                isSearchFocused = false
-                            } else {
-                                isSearchFocused = true
-                            }
-                        }
-                    }) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 12))
-                            .foregroundColor(isSearching ? .accentColor : .secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Search Files")
-
-                    Button(action: {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: workspacePath))
-                    }) {
-                        Image(systemName: "arrow.up.forward.square")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Open in Finder")
-
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 24, height: 24)
-                            .background(Color(NSColor.controlBackgroundColor))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(16)
-
-                // Search bar
                 if isSearching {
                     HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass")
@@ -5827,18 +7152,21 @@ private struct WorkspaceFilePanel: View {
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(6)
                     .padding(.horizontal, 12)
+                    .padding(.top, 10)
                     .padding(.bottom, 8)
                 }
-
-                Divider()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
                         if query.isEmpty {
                             let visibleItems = buildVisibleItems(root: workspacePath, depth: 0)
-                            ForEach(visibleItems, id: \.item.path) { entry in
-                                fileRowView(item: entry.item, depth: entry.depth)
+                            if visibleItems.isEmpty {
+                                outputsEmptyState
+                            } else {
+                                ForEach(visibleItems, id: \.item.path) { entry in
+                                    fileRowView(item: entry.item, depth: entry.depth)
+                                }
                             }
                             // New item input row at workspace root level
                             if newItemParent == workspacePath {
@@ -5862,8 +7190,17 @@ private struct WorkspaceFilePanel: View {
                 }
                 .id(refreshTrigger)
             }
-            .frame(width: 280)
+            .frame(width: width)
             .background(Color(NSColor.windowBackgroundColor))
+            .onChange(of: isSearching) { active in
+                if active {
+                    DispatchQueue.main.async {
+                        isSearchFocused = true
+                    }
+                } else {
+                    isSearchFocused = false
+                }
+            }
             .alert("Delete", isPresented: Binding<Bool>(
                 get: { deleteConfirmPath != nil },
                 set: { if !$0 { deleteConfirmPath = nil } }
@@ -5883,6 +7220,19 @@ private struct WorkspaceFilePanel: View {
                 }
             }
         }
+    }
+
+    private var outputsEmptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "tray")
+                .font(.system(size: 24))
+                .foregroundColor(.secondary.opacity(0.65))
+            Text("No outputs yet")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
     }
 
     // MARK: - Search result row (flat, with relative path)
@@ -5958,7 +7308,7 @@ private struct WorkspaceFilePanel: View {
     }
 
     private func searchFilesRecursive(directory: String, query: String, depth: Int, results: inout [FileItem]) {
-        guard depth < 3 else { return }
+        guard depth < 4 else { return }
         let fm = FileManager.default
         guard let names = try? fm.contentsOfDirectory(atPath: directory) else { return }
         for name in names {
@@ -5966,7 +7316,8 @@ private struct WorkspaceFilePanel: View {
             let fullPath = (directory as NSString).appendingPathComponent(name)
             var isDir: ObjCBool = false
             fm.fileExists(atPath: fullPath, isDirectory: &isDir)
-            if name.lowercased().contains(query) {
+            let item = FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue)
+            if name.lowercased().contains(query), shouldShowOutputItem(item) {
                 results.append(FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue))
             }
             if isDir.boolValue {
@@ -6306,7 +7657,10 @@ private struct WorkspaceFilePanel: View {
             let fullPath = (path as NSString).appendingPathComponent(name)
             var isDir: ObjCBool = false
             fm.fileExists(atPath: fullPath, isDirectory: &isDir)
-            items.append(FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue))
+            let item = FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue)
+            if shouldShowOutputItem(item) {
+                items.append(item)
+            }
         }
         // Folders first, then files
         return items.sorted { a, b in
@@ -6317,6 +7671,59 @@ private struct WorkspaceFilePanel: View {
 
     private func isHiddenWorkspaceItem(name: String) -> Bool {
         name.hasPrefix(".") || Self.hiddenAgentConfigFileNames.contains(name)
+    }
+
+    private func shouldShowOutputItem(_ item: FileItem) -> Bool {
+        if item.isDirectory {
+            return isOutputContainerName(item.name)
+                || isInsideOutputContainer(item.path)
+                || directoryContainsOutputArtifact(item.path, remainingDepth: 3)
+        }
+
+        return isOutputFile(name: item.name, path: item.path)
+    }
+
+    private func isOutputFile(name: String, path: String) -> Bool {
+        if isInsideOutputContainer(path) { return true }
+        if Self.outputFileTokens.contains(where: { name.lowercased().contains($0) }) { return true }
+
+        let ext = (name as NSString).pathExtension.lowercased()
+        return Self.standaloneOutputExtensions.contains(ext)
+    }
+
+    private func isOutputContainerName(_ name: String) -> Bool {
+        let normalized = name.lowercased()
+        return Self.outputContainerTokens.contains { normalized.contains($0) }
+    }
+
+    private func isInsideOutputContainer(_ path: String) -> Bool {
+        let relativePath = path.replacingOccurrences(of: workspacePath + "/", with: "")
+        let components = relativePath.split(separator: "/").map(String.init)
+        guard components.count > 1 else { return false }
+        return components.dropLast().contains { isOutputContainerName($0) }
+    }
+
+    private func directoryContainsOutputArtifact(_ directory: String, remainingDepth: Int) -> Bool {
+        guard remainingDepth > 0 else { return false }
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: directory) else { return false }
+
+        for name in names {
+            if isHiddenWorkspaceItem(name: name) { continue }
+            let fullPath = (directory as NSString).appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            fm.fileExists(atPath: fullPath, isDirectory: &isDir)
+
+            if isDir.boolValue {
+                if isOutputContainerName(name) || directoryContainsOutputArtifact(fullPath, remainingDepth: remainingDepth - 1) {
+                    return true
+                }
+            } else if isOutputFile(name: name, path: fullPath) {
+                return true
+            }
+        }
+
+        return false
     }
 }
 
@@ -7755,8 +9162,7 @@ struct SessionDetailsPanel: View {
             // user can expand to switch).
             VStack(spacing: 4) {
                 if let agent = viewModel.availableAgents.first(where: { $0.id == viewModel.selectedAgentId }) {
-                    Text(agent.emoji)
-                        .font(.system(size: 24))
+                    AgentAvatarImage(size: 24)
                     Text(agent.name)
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -7982,9 +9388,8 @@ struct SessionDetailsPanel: View {
                         .frame(width: 14)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            if let emoji = item.emoji {
-                                Text(emoji)
-                                    .font(.system(size: 12))
+                            if !item.isUser {
+                                AgentAvatarImage(size: 12)
                             }
                             Text(item.isUser ? "User" : "Assistant")
                                 .font(.system(size: 12, weight: .medium))
@@ -8014,13 +9419,7 @@ struct SessionDetailsPanel: View {
         //     trailing overlay).
         let agent = viewModel.availableAgents.first { $0.id == viewModel.selectedAgentId }
         return HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(Color.accentColor.opacity(0.12))
-                    .frame(width: 36, height: 36)
-                Text(agent?.emoji ?? "🤖")
-                    .font(.system(size: 20))
-            }
+            AgentAvatarImage(size: 36)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(agent?.name ?? viewModel.selectedAgentId)
@@ -8065,9 +9464,9 @@ struct SessionDetailsPanel: View {
                         }
                     } label: {
                         if a.id == viewModel.selectedAgentId {
-                            Label("\(a.emoji) \(a.name)", systemImage: "checkmark")
+                            Label(a.name, systemImage: "checkmark")
                         } else {
-                            Text("\(a.emoji) \(a.name)")
+                            Text(a.name)
                         }
                     }
                 }
@@ -8273,11 +9672,7 @@ struct SessionDetailsPanel: View {
         let id: UUID
         let icon: String
         let color: SwiftUI.Color
-        // Split into role + emoji so the role gets localized; concatenated
-        // strings (e.g. "🤖 Assistant") would be treated as plain Strings
-        // by Text and skip the xcstrings lookup.
         let isUser: Bool
-        let emoji: String?
         let subtitle: String
     }
 
@@ -8308,7 +9703,6 @@ struct SessionDetailsPanel: View {
                 icon: icon,
                 color: color,
                 isUser: msg.role == .user,
-                emoji: msg.role == .user ? nil : msg.agentEmoji,
                 subtitle: String(preview)
             )
         }
@@ -8428,41 +9822,38 @@ struct ChatSessionRow: View {
     /// True when a foreground task is currently streaming inside this
     /// session (whether or not the session is the visible one).
     let isExecuting: Bool
+    let isHovering: Bool
     let isDeleteConfirming: Bool
     let onDeleteIntent: () -> Void
     let onDeleteConfirm: () -> Void
-    @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
+            Color.clear
+                .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer)
+
             Text(meta.title.isEmpty ? String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle) : meta.title)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundColor(.primary)
+                .font(DashboardTypography.sidebarSessionTitle)
                 .fontWeight(isActive ? .medium : .regular)
             Spacer(minLength: 4)
-
-            if isHovering || isDeleteConfirming {
-                Button(action: isDeleteConfirming ? onDeleteConfirm : onDeleteIntent) {
-                    Image(systemName: isDeleteConfirming ? "trash.fill" : "trash")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(isDeleteConfirming ? .white : .secondary)
-                        .frame(width: 20, height: 20)
-                        .background {
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(isDeleteConfirming ? Color.red : Color(NSColor.controlBackgroundColor))
-                        }
-                }
-                .buttonStyle(.plain)
-                .help(isDeleteConfirming
-                      ? String(localized: "Confirm delete", bundle: LanguageManager.shared.localizedBundle)
-                      : String(localized: "Delete", bundle: LanguageManager.shared.localizedBundle))
-            }
         }
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.12)) {
-                isHovering = hovering
+        .frame(height: DashboardSidebarMetrics.sessionRowContentHeight)
+        .overlay(alignment: .trailing) {
+            Button(action: isDeleteConfirming ? onDeleteConfirm : onDeleteIntent) {
+                Image(systemName: isDeleteConfirming ? "trash.fill" : "trash")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(isDeleteConfirming ? .red : .secondary)
+                    .frame(width: DashboardSidebarMetrics.sessionRowActionSize, height: DashboardSidebarMetrics.sessionRowActionSize)
             }
+            .buttonStyle(.plain)
+            .opacity(isHovering || isDeleteConfirming ? 1 : 0)
+            .disabled(!(isHovering || isDeleteConfirming))
+            .help(isDeleteConfirming
+                  ? String(localized: "Confirm delete", bundle: LanguageManager.shared.localizedBundle)
+                  : String(localized: "Delete", bundle: LanguageManager.shared.localizedBundle))
         }
         .help(isExecuting
               ? String(localized: "Task running", bundle: LanguageManager.shared.localizedBundle)

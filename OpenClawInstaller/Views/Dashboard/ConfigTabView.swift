@@ -14,7 +14,7 @@ struct ConfigTabView: View {
     ]
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 24) {
                 LazyVGrid(columns: settingsColumns, alignment: .leading, spacing: 16) {
                     #if REQUIRE_LOGIN

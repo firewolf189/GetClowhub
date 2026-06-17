@@ -7,14 +7,14 @@ The active chat UI is partway through a Codex-style redesign. The prior OpenSpec
 - Message bubbles use `controlBackgroundColor`, which is too close to the window background and makes the gray bubble treatment effectively disappear.
 - The current bubble radius is too pill-shaped for the desired quieter desktop look.
 - The former right-side model selector is no longer visible, but the requested composer-level agent/model switcher is not fully implemented.
-- The Outputs/workspace-style panel control should be a stable top-right panel affordance, not a side effect of the chat scroll area or any scroll anchor.
-- The current collapsed Outputs implementation leaves a narrow trailing toolbar/strip on the far-right edge. The requested closed state should have no right-side strip, icons, divider, or reserved width; only the fixed top-right panel button remains.
+- The Outputs control should be a stable existing-conversation shell header affordance, not a side effect of the chat scroll area or any scroll anchor.
+- The current collapsed Outputs implementation leaves a narrow trailing toolbar/strip on the far-right edge. The requested closed state should have no right-side strip, icons, divider, or reserved width; only the existing-conversation shell header button remains.
 - The current right-side Outputs surface behaves like a floating overlay. It should participate in layout so the chat area moves horizontally instead of being covered.
 - The chat message/composer column can become too wide and leave large visual dead zones. The desired behavior is a stable max-width chat column centered in the remaining space.
 - Opening the composer agent/model selector can move the composer because selector panels participate in layout height instead of floating above it.
 - Some visible chrome labels are hard-coded in one language and do not consistently follow the active app language.
 - The marketplace/expert-team surface exists in the app but is not exposed through the requested left-sidebar `Market` entry under `Automation`.
-- The left sidebar still exposes `Outputs`, even though Outputs should now be accessed through the top-right panel control.
+- The left sidebar still exposes `Outputs`, even though Outputs should now be accessed through the existing-conversation shell header control.
 - Chat sessions do not expose a direct hover-delete affordance in the sidebar, and the current hover affordance does not communicate a clear action.
 - The active session title is not surfaced in the top-left area of the main chat panel after entering a named conversation.
 - Provider settings are visually split into separate exposed cards instead of being grouped under a single `Gateway` settings section.
@@ -26,7 +26,7 @@ The active chat UI is partway through a Codex-style redesign. The prior OpenSpec
 - Persisted chat sessions are still stored in one global app-support location rather than under each agent's own workspace directory.
 - The UI currently has overlapping search affordances; the requested behavior is to keep only the session-search entry point and remove the redundant one.
 
-The change should treat the reference screenshots as the visual target: quiet sidebar, contained main panel, centered empty composer, visible gray bubbles, fixed top-right panel control, smooth animated expansion/collapse, localized sidebar chrome, and grouped Gateway settings.
+The change should treat the reference screenshots as the visual target: quiet sidebar, contained main panel, centered empty composer, visible gray bubbles, existing-conversation shell header control, smooth animated expansion/collapse, localized sidebar chrome, and grouped Gateway settings.
 
 ## Goals / Non-Goals
 
@@ -38,7 +38,7 @@ The change should treat the reference screenshots as the visual target: quiet si
 - Tighten bubble corner radii so the message containers keep only a small amount of rounding.
 - Add a composer-level combined agent/model control that reads like `UX · GPT-5.5 v`.
 - Show agent options and model options through a custom adjacent nested panel using `Model >`, not a native system submenu.
-- Add a fixed top-right panel control for Outputs/workspace panel access and animate its expansion/collapse smoothly.
+- Add an existing-conversation shell header control for Outputs panel access and animate its expansion/collapse smoothly.
 - Use a right-sidebar Outputs surface only when Outputs is expanded; when Outputs is closed, remove the trailing strip entirely.
 - Make the top-right Outputs control a click-only toggle; do not reveal the Outputs sidebar on hover.
 - Keep message bubbles and the composer on a stable max-width chat column that recenters when the left sidebar changes or Outputs opens/closes.
@@ -99,7 +99,7 @@ The change should treat the reference screenshots as the visual target: quiet si
    - Expand/collapse uses width interpolation between no visible right column and the expanded right sidebar column.
    - The closed state must not render a slim right strip, trailing toolbar, folder icon, sidebar icon, or divider at the far-right edge.
    - Hover must not expand the sidebar. The user explicitly requested click-driven behavior only.
-   - Alternative considered: keep Outputs only as a sidebar navigation entry. Rejected because the user explicitly requested the fixed top-right panel affordance.
+   - Alternative considered: keep Outputs only as a sidebar navigation entry. Rejected because the user explicitly requested a header/sidebar affordance.
 
 6. **Keep visual boundaries local and quiet.**
    - Rationale: the requested UI should not have orphan divider lines. Card borders are allowed only when they frame an actual component, such as the composer or a panel.
@@ -116,7 +116,7 @@ The change should treat the reference screenshots as the visual target: quiet si
 
 9. **Treat the top-right Outputs surface as a real right sidebar column when open, not an overlay or always-visible strip.**
    - Rationale: the requested interaction is that Outputs opens into the right sidebar area from the top-right button, but the closed state is visually clean. A left-sidebar `Outputs` route creates a second entry point with different semantics, a floating overlay covers the chat instead of moving it like a sidebar, and a collapsed trailing strip creates an unwanted extra column.
-   - Remove the left-sidebar `Outputs` row. Keep the existing Outputs/workspace panel content available through the fixed top-right control.
+   - Remove the left-sidebar `Outputs` row. Keep the existing Outputs panel content available through the existing-conversation shell header control.
    - The panel should not depend on scroll position or cover the chat content.
    - The right sidebar column width changes between zero/no visible column and the full workspace panel. The chat stage recenters in the remaining space.
    - Click toggles expanded/collapsed state; hover does not change sidebar state.
@@ -202,9 +202,24 @@ The change should treat the reference screenshots as the visual target: quiet si
 
 ## Open Questions
 
-- The fixed top-right control is assumed to open or collapse the Outputs/workspace-style panel. If it should instead control a different panel, update the implementation task before coding.
+- The existing-conversation shell header control is assumed to open or collapse the Outputs panel. If it should instead control a different panel, update the implementation task before coding.
 - The lower-left line is assumed to mean a stray divider or border near the bottom composer/sidebar boundary, not the sidebar's selected-row highlight.
 - The top-left icon is assumed to mean the sidebar header logo next to `GetClawHub`.
 - The `Market` label must follow the active language; English should show `Market`, and Chinese should use the existing or newly added localized value.
 - The top-right Outputs control is click-only. Hover may show a normal tooltip, but it must not expand or reveal the right sidebar. When Outputs is closed, no separate right-side strip should remain visible.
 - The search requirement is interpreted as keeping the session-search input and removing the redundant top-level sidebar `Search` row; clicking search should focus the session-search field and search all sessions globally.
+
+## Final Accepted Layout
+
+The accepted layout is:
+
+```text
+┌ left sidebar top ┬ center shell header: 16pt session title ┬ right sidebar top ┐
+├ left sidebar     ┼ chat content                            ┼ Outputs sidebar   ┤
+```
+
+This means the session title is owned by the center app-shell header, not by `ChatView` or the message timeline. The header only appears for an existing/named conversation. A new empty chat must not render that header or the header separator line.
+
+The right sidebar is a real shell-level sibling column. It opens and closes through explicit button clicks, matching the left sidebar's interaction model. Hover may show a tooltip, but hover must not open, reveal, or resize the sidebar. When the user opens, closes, or resizes a sidebar, the center chat region's available width changes. The chat column keeps a readable max width, but it must shrink when the center region becomes narrower.
+
+The right sidebar title is `Outputs`. Its content is a filtered model-output browser, not the full workspace tree. It should surface generated reports, generated files, images, patches, logs, and similar run artifacts while hiding agent/user/context documents such as `USER.md`, `AGENTS.md`, `TOOLS.md`, `BOOTSTRAP.md`, `IDENTITY.md`, `SOUL.md`, and `MEMORY.md`.

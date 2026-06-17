@@ -30,8 +30,8 @@
 
 ## 5. Fixed Top-Right Panel Control
 
-- [x] 5.1 Add a fixed top-right panel control in the main chat panel chrome.
-- [x] 5.2 Keep the control visible for both empty and non-empty chat states.
+- [x] 5.1 Add an Outputs panel control in the existing-conversation shell header.
+- [x] 5.2 Keep the control visible for named existing conversations and hidden for empty new-chat states.
 - [x] 5.3 Connect the control to the Outputs/workspace-style panel behavior.
 - [x] 5.4 Add smooth expand/collapse animation using right-sidebar width interpolation.
 - [x] 5.5 Make the top-right control click-only; hover must not reveal or expand the Outputs surface.
@@ -58,13 +58,13 @@
 
 ## 9. Anchored Outputs Panel
 
-- [x] 9.1 Move the top-right panel button higher so it sits in the requested panel chrome position.
+- [x] 9.1 Move the Outputs panel button into the requested shell header chrome position.
 - [x] 9.2 Make the Outputs/workspace panel collapse back toward the top-right button with a right-sidebar width transition instead of remaining as a permanently expanded side sheet.
 - [x] 9.3 Move the Outputs/workspace panel out of the overlay layer and into a real right-sidebar layout column.
 - [x] 9.4 Preserve existing workspace file browsing/editing behavior inside the panel.
 - [x] 9.5 Remove the closed-state right-sidebar strip so Outputs closed state reserves no trailing column, divider, folder icon, or sidebar icon.
 - [x] 9.6 Keep the chat timeline and composer on a stable max-width column that recenters when either sidebar changes width.
-- [x] 9.7 Keep the fixed top-right Outputs button as the only visible closed-state Outputs entry point and ensure it opens the expanded right-sidebar panel.
+- [x] 9.7 Keep the shell header Outputs button as the only visible closed-state Outputs entry point and ensure it opens the expanded right-sidebar panel.
 
 ## 10. Top Divider Cleanup
 
@@ -93,7 +93,7 @@
 - [x] 13.5 Run `git diff --check` after implementation.
 - [x] 13.6 Build the macOS app with the repository's Xcode build command after implementation.
 - [x] 13.7 Visually verify light-mode empty `New chat` centered composer, gray bubbles, absence of stray lines, missing sidebar logo icon, localized sidebar labels, Market placement, and no left-sidebar Outputs entry.
-- [x] 13.8 Visually verify dark-mode existing conversation, fixed top-right panel control, anchored smooth panel expand/collapse, and grouped Gateway settings.
+- [x] 13.8 Visually verify dark-mode existing conversation, shell header Outputs control, anchored smooth panel expand/collapse, and grouped Gateway settings.
 - [x] 13.9 Visually verify tightened bubble corner radius, session-row hover delete affordance, named-session chat title, no closed-state right-sidebar strip, stable centered chat width, and reduced top gutter.
 
 ## 14. Right Sidebar Ownership Parity
@@ -128,3 +128,26 @@
 - [x] 18.2 Keep the chat-history session-search control as the only session-search entry point in the sidebar.
 - [x] 18.3 Focus the session-search input when the user activates search.
 - [x] 18.4 Ensure session search filters all chat history globally and does not affect workspace-file search.
+
+## 19. Final Shell Header And Right Sidebar Layout
+
+- [x] 19.1 Move the active conversation title out of `ChatView` and into the center app-shell header.
+- [x] 19.2 Render the center shell header only for existing/named conversations; empty new chats must show no header or header separator.
+- [x] 19.3 Update the active conversation title typography to 16pt.
+- [x] 19.4 Keep the right Outputs sidebar as a shell-level sibling column, not a chat overlay or chat-internal child.
+- [x] 19.5 Keep right-sidebar expansion click-only; hover must not open, reveal, or resize it.
+- [x] 19.6 Ensure left/right sidebar width changes reduce or expand the center chat area's available width while the chat column remains max-width constrained and responsive.
+
+## 20. Outputs-Only Sidebar Content
+
+- [x] 20.1 Change the expanded right sidebar title from workspace terminology to `Outputs`.
+- [x] 20.2 Filter the right sidebar tree and search results to model output artifacts instead of the full workspace.
+- [x] 20.3 Exclude context/config documents including `USER.md`, `AGENTS.md`, `TOOLS.md`, `BOOTSTRAP.md`, `IDENTITY.md`, `SOUL.md`, and `MEMORY.md`.
+- [x] 20.4 Show an empty Outputs state instead of falling back to the complete workspace when no output artifacts match.
+
+## 21. Final Verification
+
+- [x] 21.1 Run `openspec validate --all --strict`.
+- [x] 21.2 Run `git diff --check`.
+- [x] 21.3 Build the macOS app with the `build-macos-apps` Xcode build flow.
+- [ ] 21.4 Visually smoke-check existing conversation header placement, empty new-chat no-header behavior, click-only right sidebar behavior, and Outputs filtering.
