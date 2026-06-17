@@ -5,11 +5,11 @@ import MarkdownUI
 struct SkillsTabView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: DashboardViewModel
+    let onOpenCatalogItem: (SkillCatalogItem) -> Void
     @State private var searchText = ""
     @State private var displayMode: SkillDisplayMode = .all
     @State private var showManualInstallSheet = false
     @State private var skillPendingRemoval: SkillInfo?
-    @State private var selectedCatalogItem: SkillCatalogItem?
 
     private enum SkillDisplayMode: String, CaseIterable {
         case all = "All"
@@ -73,25 +73,27 @@ struct SkillsTabView: View {
         }
     }
 
-    var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    header
-                    searchAndActions
-                    modePicker
-                    content
-                }
-                .frame(maxWidth: 760, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.top, 34)
-                .padding(.bottom, 44)
-                .frame(maxWidth: .infinity)
-            }
+    init(
+        viewModel: DashboardViewModel,
+        onOpenCatalogItem: @escaping (SkillCatalogItem) -> Void = { _ in }
+    ) {
+        self.viewModel = viewModel
+        self.onOpenCatalogItem = onOpenCatalogItem
+    }
 
-            if let selectedCatalogItem {
-                catalogDetailOverlay(for: selectedCatalogItem)
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                searchAndActions
+                modePicker
+                content
             }
+            .frame(maxWidth: 760, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 34)
+            .padding(.bottom, 44)
+            .frame(maxWidth: .infinity)
         }
         .background(Color(NSColor.windowBackgroundColor))
         .task {
@@ -248,9 +250,7 @@ struct SkillsTabView: View {
                                         Task { await viewModel.installCatalogSkill(item) }
                                     },
                                     onOpen: {
-                                        withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-                                            selectedCatalogItem = item
-                                        }
+                                        onOpenCatalogItem(item)
                                     }
                                 )
 
@@ -347,44 +347,6 @@ struct SkillsTabView: View {
             .joined(separator: " ")
             .lowercased()
         return haystack.contains(query)
-    }
-
-    private func catalogDetailOverlay(for item: SkillCatalogItem) -> some View {
-        ZStack {
-            Color.black
-                .opacity(0.001)
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    closeCatalogDetail()
-                }
-
-            SkillCatalogDetailSheet(
-                item: item,
-                installedSkill: installedSkillsByName[item.name],
-                onClose: closeCatalogDetail
-            )
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.45 : 0.18), radius: 28, x: 0, y: 18)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 1)
-            )
-            .padding(28)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .transition(.asymmetric(
-            insertion: .opacity.combined(with: .scale(scale: 0.965, anchor: .center)),
-            removal: .opacity.combined(with: .scale(scale: 0.985, anchor: .center))
-        ))
-        .zIndex(10)
-    }
-
-    private func closeCatalogDetail() {
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.92)) {
-            selectedCatalogItem = nil
-        }
     }
 }
 
@@ -730,17 +692,17 @@ private struct ManualSkillInstallSheet: View {
     }
 }
 
-private struct SkillCatalogDetailSheet: View {
+struct SkillCatalogDetailSheet: View {
     let item: SkillCatalogItem
     let installedSkill: SkillInfo?
     let onClose: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text(item.displayName)
-                        .font(.system(size: 31, weight: .semibold))
+                        .font(.system(size: 22, weight: .semibold))
                         .lineLimit(1)
 
                     HStack(spacing: 8) {
@@ -752,31 +714,31 @@ private struct SkillCatalogDetailSheet: View {
                     }
                 }
 
-                Spacer(minLength: 18)
+                Spacer(minLength: 16)
 
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .help("Close")
             }
-            .padding(.bottom, 20)
+            .padding(.bottom, 16)
 
             Text(item.description)
-                .font(.system(size: 20, weight: .regular))
+                .font(.system(size: 16, weight: .regular))
                 .foregroundStyle(.secondary)
-                .lineSpacing(3)
+                .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
-                .padding(.bottom, 26)
+                .padding(.bottom, 20)
 
             Text("Description")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
-                .padding(.bottom, 10)
+                .padding(.bottom, 8)
 
             ScrollView {
                 Markdown(detailMarkdown)
@@ -830,7 +792,7 @@ private struct SkillDetailChip: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(size: 10, weight: .medium))
             .foregroundStyle(.green)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

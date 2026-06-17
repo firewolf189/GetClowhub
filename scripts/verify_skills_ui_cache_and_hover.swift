@@ -5,9 +5,11 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let viewModelPath = root.appendingPathComponent("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
 let skillsViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SkillsTabView.swift")
+let dashboardViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 
 let viewModel = try String(contentsOf: viewModelPath, encoding: .utf8)
 let skillsView = try String(contentsOf: skillsViewPath, encoding: .utf8)
+let dashboardView = try String(contentsOf: dashboardViewPath, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     if !condition() {
@@ -53,7 +55,7 @@ require(
     "Skill detail should render the SKILL.md body as Markdown."
 )
 require(
-    skillsView.contains(".transition(.asymmetric("),
+    dashboardView.contains(".transition(.asymmetric("),
     "Skill detail sheet should animate in and out instead of appearing abruptly."
 )
 require(
@@ -65,8 +67,36 @@ require(
     "Skill detail Markdown should live in a fixed-height scroll box."
 )
 require(
-    skillsView.contains(".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)"),
-    "Skill detail overlay should fill the available page and center the narrower sheet."
+    !skillsView.contains("private func catalogDetailOverlay"),
+    "Skill detail overlay should not be scoped to the Skills tab column."
+)
+require(
+    dashboardView.contains("private func skillCatalogDetailOverlay"),
+    "DashboardView should own the full-window skill detail overlay."
+)
+require(
+    dashboardView.contains(".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)"),
+    "Skill detail overlay should fill the whole dashboard window and center the narrower sheet."
+)
+require(
+    skillsView.contains("let onOpenCatalogItem: (SkillCatalogItem) -> Void"),
+    "SkillsTabView should notify DashboardView when a catalog item is opened."
+)
+require(
+    skillsView.contains(".font(.system(size: 22, weight: .semibold))"),
+    "Skill detail title should use the smaller approved font size."
+)
+require(
+    skillsView.contains(".font(.system(size: 16, weight: .regular))"),
+    "Skill detail summary should be smaller than the Markdown body area."
+)
+require(
+    skillsView.contains(".font(.system(size: 12, weight: .semibold))"),
+    "Skill detail Description label should use a smaller font size."
+)
+require(
+    skillsView.contains(".font(.system(size: 10, weight: .semibold))"),
+    "Skill detail close icon should use the smaller approved font size."
 )
 require(
     skillsView.contains(".frame(width: 640)"),

@@ -53,6 +53,7 @@ struct DashboardView: View {
     @State private var workspaceBrowserWidth: CGFloat = 280
     @State private var workspaceSearchActive = false
     @State private var workspaceSearchText = ""
+    @State private var selectedSkillCatalogItem: SkillCatalogItem?
     @FocusState private var isGlobalSessionSearchFocused: Bool
 
     private let workspaceSidebarMinWidth: CGFloat = 240
@@ -77,7 +78,8 @@ struct DashboardView: View {
         } content: {
             DetailContentView(
                 viewModel: viewModel,
-                workspaceSidebarController: workspaceSidebarController
+                workspaceSidebarController: workspaceSidebarController,
+                onOpenSkillCatalogItem: presentSkillCatalogDetail
             )
         } detail: {
             workspaceSplitColumn
@@ -134,9 +136,15 @@ struct DashboardView: View {
                 createAgentOverlay
             }
         }
+        .overlay {
+            if let selectedSkillCatalogItem, activeTab == .skills {
+                skillCatalogDetailOverlay(for: selectedSkillCatalogItem)
+            }
+        }
         .animation(.easeInOut, value: viewModel.showSuccess)
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
+        .animation(.spring(response: 0.24, dampingFraction: 0.9), value: selectedSkillCatalogItem?.id)
         .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)
         .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceEditingFilePath)
         .onAppear {
@@ -150,6 +158,11 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $viewModel.showDiagnostics) {
             DiagnosticsSheet(report: viewModel.diagnosticReport, isPresented: $viewModel.showDiagnostics)
+        }
+        .onChange(of: viewModel.selectedTab) { newTab in
+            if newTab != .skills {
+                dismissSkillCatalogDetail()
+            }
         }
     }
 
@@ -390,6 +403,55 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .center)))
+    }
+
+    private func presentSkillCatalogDetail(_ item: SkillCatalogItem) {
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
+            selectedSkillCatalogItem = item
+        }
+    }
+
+    private func dismissSkillCatalogDetail() {
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.92)) {
+            selectedSkillCatalogItem = nil
+        }
+    }
+
+    private func skillCatalogDetailOverlay(for item: SkillCatalogItem) -> some View {
+        GeometryReader { _ in
+            ZStack {
+                Color.black
+                    .opacity(0.001)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        dismissSkillCatalogDetail()
+                    }
+
+                SkillCatalogDetailSheet(
+                    item: item,
+                    installedSkill: installedSkillByName[item.name],
+                    onClose: dismissSkillCatalogDetail
+                )
+                .background(.regularMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .shadow(color: Color.black.opacity(isDark ? 0.45 : 0.18), radius: 28, x: 0, y: 18)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.primary.opacity(isDark ? 0.16 : 0.08), lineWidth: 1)
+                )
+                .padding(28)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+        .transition(.asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.965, anchor: .center)),
+            removal: .opacity.combined(with: .scale(scale: 0.985, anchor: .center))
+        ))
+    }
+
+    private var installedSkillByName: [String: SkillInfo] {
+        SkillNameIndex.firstByName(viewModel.skills) { $0.name }
     }
 
     private var globalSessionSearchOverlay: some View {
@@ -1714,6 +1776,7 @@ private extension EnvironmentValues {
 private struct DetailContentView: View {
     @ObservedObject var viewModel: DashboardViewModel
     let workspaceSidebarController: WorkspaceSidebarController
+    let onOpenSkillCatalogItem: (SkillCatalogItem) -> Void
     @State private var collabPanelWidth: CGFloat = 320
     @State private var dragStartWidth: CGFloat = 320
 
@@ -1828,7 +1891,10 @@ private struct DetailContentView: View {
                     case .config:
                         ConfigTabView(viewModel: viewModel)
                     case .skills:
-                        SkillsTabView(viewModel: viewModel)
+                        SkillsTabView(
+                            viewModel: viewModel,
+                            onOpenCatalogItem: onOpenSkillCatalogItem
+                        )
                     case .models:
                         ModelsTabView(viewModel: viewModel)
                     case .outputs:
