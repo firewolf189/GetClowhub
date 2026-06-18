@@ -53,7 +53,7 @@ struct DashboardView: View {
     @State private var workspaceBrowserWidth: CGFloat = 280
     @State private var workspaceSearchActive = false
     @State private var workspaceSearchText = ""
-    @State private var selectedSkillCatalogItem: SkillCatalogItem?
+    @State private var selectedSkillDetailItem: SkillDetailPresentationItem?
     @State private var skillPendingRemoval: SkillInfo?
     @FocusState private var isGlobalSessionSearchFocused: Bool
 
@@ -80,7 +80,7 @@ struct DashboardView: View {
             DetailContentView(
                 viewModel: viewModel,
                 workspaceSidebarController: workspaceSidebarController,
-                onOpenSkillCatalogItem: presentSkillCatalogDetail
+                onOpenSkillDetail: presentSkillDetail
             )
         } detail: {
             workspaceSplitColumn
@@ -138,14 +138,14 @@ struct DashboardView: View {
             }
         }
         .overlay {
-            if let selectedSkillCatalogItem, activeTab == .skills {
-                skillCatalogDetailOverlay(for: selectedSkillCatalogItem)
+            if let selectedSkillDetailItem, activeTab == .skills {
+                skillDetailOverlay(for: selectedSkillDetailItem)
             }
         }
         .animation(.easeInOut, value: viewModel.showSuccess)
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
-        .animation(.spring(response: 0.24, dampingFraction: 0.9), value: selectedSkillCatalogItem?.id)
+        .animation(.spring(response: 0.24, dampingFraction: 0.9), value: selectedSkillDetailItem?.id)
         .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)
         .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceEditingFilePath)
         .onAppear {
@@ -422,19 +422,19 @@ struct DashboardView: View {
         .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .center)))
     }
 
-    private func presentSkillCatalogDetail(_ item: SkillCatalogItem) {
+    private func presentSkillDetail(_ item: SkillDetailPresentationItem) {
         withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-            selectedSkillCatalogItem = item
+            selectedSkillDetailItem = item
         }
     }
 
     private func dismissSkillCatalogDetail() {
         withAnimation(.spring(response: 0.22, dampingFraction: 0.92)) {
-            selectedSkillCatalogItem = nil
+            selectedSkillDetailItem = nil
         }
     }
 
-    private func skillCatalogDetailOverlay(for item: SkillCatalogItem) -> some View {
+    private func skillDetailOverlay(for item: SkillDetailPresentationItem) -> some View {
         let installedSkill = installedSkillByName[item.name]
 
         return GeometryReader { _ in
@@ -454,7 +454,9 @@ struct DashboardView: View {
                     isRemoving: viewModel.removingSkillName == item.name,
                     canRemove: installedSkill.map(DashboardViewModel.canRemoveSkill) ?? false,
                     onInstall: {
-                        Task { await viewModel.installCatalogSkill(item) }
+                        if let catalogItem = item.catalogItem {
+                            Task { await viewModel.installCatalogSkill(catalogItem) }
+                        }
                     },
                     onRemove: {
                         if let skill = installedSkill {
@@ -1802,7 +1804,7 @@ private extension EnvironmentValues {
 private struct DetailContentView: View {
     @ObservedObject var viewModel: DashboardViewModel
     let workspaceSidebarController: WorkspaceSidebarController
-    let onOpenSkillCatalogItem: (SkillCatalogItem) -> Void
+    let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     @State private var collabPanelWidth: CGFloat = 320
     @State private var dragStartWidth: CGFloat = 320
 
@@ -1919,7 +1921,7 @@ private struct DetailContentView: View {
                     case .skills:
                         SkillsTabView(
                             viewModel: viewModel,
-                            onOpenCatalogItem: onOpenSkillCatalogItem
+                            onOpenSkillDetail: onOpenSkillDetail
                         )
                     case .models:
                         ModelsTabView(viewModel: viewModel)
@@ -2867,7 +2869,7 @@ struct ChatView: View {
             .frame(minHeight: 44, maxHeight: 200)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 8)
-            .padding(.top, 8)
+            .padding(.top, attachedFiles.isEmpty ? 8 : 2)
             .padding(.bottom, 2)
 
             HStack(spacing: 6) {
@@ -5590,35 +5592,65 @@ struct AttachmentPreview: View {
                     .clipped()
                     .cornerRadius(8)
             } else {
-                VStack(spacing: 4) {
-                    if isDirectory {
-                        WorkspaceFolderIcon(isExpanded: false, size: 20)
-                    } else {
-                        Image(systemName: fileIconName)
-                            .font(.system(size: 20))
-                            .foregroundColor(.secondary)
+                HStack(alignment: .center, spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.primary.opacity(0.045))
+                            .frame(width: 52, height: 52)
+                        if isDirectory {
+                            WorkspaceFolderIcon(isExpanded: false, size: 28)
+                        } else {
+                            Image(systemName: fileIconName)
+                                .font(.system(size: 25, weight: .regular))
+                                .foregroundColor(.secondary)
+                        }
                     }
-                    Text(url.lastPathComponent)
-                        .font(.system(size: 9))
-                        .lineLimit(1)
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: 56)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(url.lastPathComponent)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Text(attachmentTypeLabel)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 26)
                 }
-                .frame(width: 60, height: 60)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(width: 220, height: 72)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.primary.opacity(0.045))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.secondary.opacity(0.12), lineWidth: 1)
+                )
             }
 
             // Remove button
             Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 14))
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.white)
-                    .background(Circle().fill(Color.black.opacity(0.6)))
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(Color.black.opacity(0.82)))
             }
             .buttonStyle(.plain)
-            .offset(x: 4, y: -4)
+            .padding(.top, 8)
+            .padding(.trailing, 8)
         }
+    }
+
+    private var attachmentTypeLabel: String {
+        if isDirectory { return "FOLDER" }
+        let ext = url.pathExtension.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ext.isEmpty ? "FILE" : ext.uppercased()
     }
 
     private var fileIconName: String {

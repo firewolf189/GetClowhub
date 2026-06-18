@@ -18648,6 +18648,7 @@
       }
     },
     "Details" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -44101,6 +44102,7 @@
       }
     },
     "Path" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -49199,6 +49201,7 @@
 
     },
     "Requirements" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -53508,9 +53511,6 @@
       }
     },
     "Show Outputs" : {
-
-    },
-    "Skill details" : {
 
     },
     "Skills" : {

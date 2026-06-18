@@ -37,6 +37,11 @@ let installedRow = slice(
     from: "private struct InstalledSkillListRow: View",
     to: "private struct InstalledStatusMark: View"
 )
+let manualInstallSheet = slice(
+    skillsView,
+    from: "private struct ManualSkillInstallSheet: View",
+    to: "struct SkillCatalogDetailSheet: View"
+)
 let detailSheet = slice(
     skillsView,
     from: "struct SkillCatalogDetailSheet: View",
@@ -96,7 +101,7 @@ require(
     "Skill detail overlay should not be scoped to the Skills tab column."
 )
 require(
-    dashboardView.contains("private func skillCatalogDetailOverlay"),
+    dashboardView.contains("private func skillDetailOverlay"),
     "DashboardView should own the full-window skill detail overlay."
 )
 require(
@@ -104,8 +109,8 @@ require(
     "Skill detail overlay should fill the whole dashboard window and center the narrower sheet."
 )
 require(
-    skillsView.contains("let onOpenCatalogItem: (SkillCatalogItem) -> Void"),
-    "SkillsTabView should notify DashboardView when a catalog item is opened."
+    skillsView.contains("let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void"),
+    "SkillsTabView should notify DashboardView with a unified skill detail presentation item."
 )
 require(
     skillsView.contains(".font(.system(size: 22, weight: .semibold))"),
@@ -142,6 +147,31 @@ require(
 require(
     !installedRow.contains(#"Image(systemName: "trash")"#),
     "Installed skill rows should not render the uninstall trash button."
+)
+require(
+    installedRow.contains("let onOpen: () -> Void") &&
+        installedRow.contains(".onTapGesture(perform: onOpen)"),
+    "Installed skill rows should open the unified detail sheet when the row is clicked."
+)
+require(
+    !installedRow.contains("onInfo") &&
+        !installedRow.contains(#"Image(systemName: "info.circle")"#),
+    "Installed skill rows should not use the old info button detail entry."
+)
+require(
+    skillsView.contains("SkillDetailPresentationItem.fromCatalog") &&
+        skillsView.contains("SkillDetailPresentationItem.fromInstalled"),
+    "Both catalog and installed skills should be converted into the same detail presentation model."
+)
+require(
+    !skillsView.contains("selectedSkillDetail") &&
+        !skillsView.contains("func loadSkillDetail"),
+    "SkillsTabView should not use the old selectedSkillDetail sheet path."
+)
+require(
+    detailSheet.contains("let item: SkillDetailPresentationItem") &&
+        detailSheet.contains("item.sourceTitle"),
+    "Skill detail sheet should render from the unified presentation model."
 )
 require(
     detailSheet.contains("let isInstalling: Bool") &&
@@ -184,8 +214,13 @@ require(
     "Skill install controls should not use the system prominent blue button style."
 )
 require(
+    manualInstallSheet.contains(".frame(width: 104)") &&
+        !manualInstallSheet.contains(".frame(width: 78)"),
+    "Manual install button should use a wider frame that visually aligns with Cancel."
+)
+require(
     dashboardView.contains("onInstall: {") &&
-        dashboardView.contains("installCatalogSkill(item)") &&
+        dashboardView.contains("installCatalogSkill(catalogItem)") &&
         dashboardView.contains("onRemove: {") &&
         dashboardView.contains("skillPendingRemoval = skill"),
     "Dashboard skill detail overlay should wire install and uninstall actions."

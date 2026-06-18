@@ -2,10 +2,55 @@ import SwiftUI
 import AppKit
 import MarkdownUI
 
+struct SkillDetailPresentationItem: Identifiable {
+    let id: String
+    let name: String
+    let displayName: String
+    let description: String
+    let documentationMarkdown: String
+    let sourceTitle: String
+    let catalogItem: SkillCatalogItem?
+    let iconURL: URL?
+
+    static func fromCatalog(_ item: SkillCatalogItem) -> SkillDetailPresentationItem {
+        SkillDetailPresentationItem(
+            id: "catalog-\(item.id)",
+            name: item.name,
+            displayName: item.displayName,
+            description: item.description,
+            documentationMarkdown: item.documentationMarkdown,
+            sourceTitle: item.category.title,
+            catalogItem: item,
+            iconURL: item.iconURL
+        )
+    }
+
+    static func fromInstalled(_ skill: SkillInfo, catalogItem: SkillCatalogItem?) -> SkillDetailPresentationItem {
+        let section = SkillLibrarySection.section(
+            forSkillName: skill.name,
+            catalogItemsByName: catalogItem.map { [$0.name: $0] } ?? [:]
+        )
+        let description = catalogItem?.description.nilIfBlank
+            ?? skill.description.nilIfBlank
+            ?? "Installed skill"
+
+        return SkillDetailPresentationItem(
+            id: "installed-\(skill.name)",
+            name: skill.name,
+            displayName: catalogItem?.displayName ?? skill.name,
+            description: description,
+            documentationMarkdown: catalogItem?.documentationMarkdown.nilIfBlank ?? description,
+            sourceTitle: section.title,
+            catalogItem: catalogItem,
+            iconURL: catalogItem?.iconURL
+        )
+    }
+}
+
 struct SkillsTabView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: DashboardViewModel
-    let onOpenCatalogItem: (SkillCatalogItem) -> Void
+    let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     @State private var searchText = ""
     @State private var displayMode: SkillDisplayMode = .all
     @State private var showManualInstallSheet = false
@@ -74,10 +119,10 @@ struct SkillsTabView: View {
 
     init(
         viewModel: DashboardViewModel,
-        onOpenCatalogItem: @escaping (SkillCatalogItem) -> Void = { _ in }
+        onOpenSkillDetail: @escaping (SkillDetailPresentationItem) -> Void = { _ in }
     ) {
         self.viewModel = viewModel
-        self.onOpenCatalogItem = onOpenCatalogItem
+        self.onOpenSkillDetail = onOpenSkillDetail
     }
 
     var body: some View {
@@ -103,12 +148,6 @@ struct SkillsTabView: View {
                 viewModel: viewModel,
                 isPresented: $showManualInstallSheet
             )
-        }
-        .sheet(item: $viewModel.selectedSkillDetail) { detail in
-            SkillDetailSheet(detail: detail, isPresented: Binding(
-                get: { viewModel.selectedSkillDetail != nil },
-                set: { if !$0 { viewModel.selectedSkillDetail = nil } }
-            ))
         }
     }
 
@@ -248,7 +287,7 @@ struct SkillsTabView: View {
                                         Task { await viewModel.installCatalogSkill(item) }
                                     },
                                     onOpen: {
-                                        onOpenCatalogItem(item)
+                                        onOpenSkillDetail(SkillDetailPresentationItem.fromCatalog(item))
                                     }
                                 )
 
@@ -270,9 +309,8 @@ struct SkillsTabView: View {
                                 InstalledSkillListRow(
                                     skill: skill,
                                     catalogItem: nil,
-                                    isLoadingDetail: viewModel.isLoadingSkillDetail,
-                                    onInfo: {
-                                        Task { await viewModel.loadSkillDetail(skill.name) }
+                                    onOpen: {
+                                        onOpenSkillDetail(SkillDetailPresentationItem.fromInstalled(skill, catalogItem: nil))
                                     }
                                 )
 
@@ -309,9 +347,13 @@ struct SkillsTabView: View {
                                 InstalledSkillListRow(
                                     skill: skill,
                                     catalogItem: catalogItemsByName[skill.name],
-                                    isLoadingDetail: viewModel.isLoadingSkillDetail,
-                                    onInfo: {
-                                        Task { await viewModel.loadSkillDetail(skill.name) }
+                                    onOpen: {
+                                        onOpenSkillDetail(
+                                            SkillDetailPresentationItem.fromInstalled(
+                                                skill,
+                                                catalogItem: catalogItemsByName[skill.name]
+                                            )
+                                        )
                                     }
                                 )
 
@@ -462,8 +504,7 @@ private struct InstalledSkillListRow: View {
     @State private var isHovered = false
     let skill: SkillInfo
     let catalogItem: SkillCatalogItem?
-    let isLoadingDetail: Bool
-    let onInfo: () -> Void
+    let onOpen: () -> Void
 
     var body: some View {
         HStack(spacing: 14) {
@@ -484,16 +525,6 @@ private struct InstalledSkillListRow: View {
             Spacer(minLength: 16)
 
             InstalledStatusMark(status: skill.status)
-
-            Button(action: onInfo) {
-                Image(systemName: "info.circle")
-                    .font(.system(size: 16))
-                    .frame(width: 26, height: 26)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .disabled(isLoadingDetail)
-            .help("Skill details")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 9)
@@ -502,6 +533,8 @@ private struct InstalledSkillListRow: View {
                 .fill(rowBackground)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpen)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.18)) {
                 isHovered = hovering
@@ -670,10 +703,10 @@ private struct ManualSkillInstallSheet: View {
                 } label: {
                     if viewModel.isInstallingManualSkill {
                         Text("Installing...")
-                            .frame(width: 78)
+                            .frame(width: 104)
                     } else {
                         Text("Install")
-                            .frame(width: 78)
+                            .frame(width: 104)
                     }
                 }
                 .buttonStyle(SkillPillButtonStyle(tone: .install, isDisabled: !canInstall))
@@ -690,7 +723,7 @@ private struct ManualSkillInstallSheet: View {
 }
 
 struct SkillCatalogDetailSheet: View {
-    let item: SkillCatalogItem
+    let item: SkillDetailPresentationItem
     let installedSkill: SkillInfo?
     let isInstalling: Bool
     let isRemoving: Bool
@@ -708,7 +741,7 @@ struct SkillCatalogDetailSheet: View {
                         .lineLimit(1)
 
                     HStack(spacing: 8) {
-                        SkillDetailChip(title: item.category.title)
+                        SkillDetailChip(title: item.sourceTitle)
                         SkillDetailChip(title: installedSkill == nil ? "Not installed" : "Installed")
                         if let installedSkill {
                             SkillDetailChip(title: installedSkill.status == .ready ? "Ready" : "Missing")
@@ -912,117 +945,6 @@ private struct SkillPillButtonStyle: ButtonStyle {
             return 1
         case .neutral, .destructive:
             return 0
-        }
-    }
-}
-
-struct SkillDetailSheet: View {
-    let detail: SkillDetailInfo
-    @Binding var isPresented: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Circle()
-                    .fill(detail.isReady ? Color.green : Color.orange)
-                    .frame(width: 10, height: 10)
-
-                Text(detail.name)
-                    .font(.headline)
-
-                Text(detail.status)
-                    .font(.caption)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(detail.isReady ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
-                    .foregroundColor(detail.isReady ? .green : .orange)
-                    .cornerRadius(4)
-
-                Spacer()
-
-                Button("Close") {
-                    isPresented = false
-                }
-                .keyboardShortcut(.cancelAction)
-            }
-            .padding(16)
-
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if !detail.description.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Description")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-
-                            Text(detail.description)
-                                .font(.body)
-                                .textSelection(.enabled)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Details")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-
-                        if !detail.source.isEmpty {
-                            let source = SkillSourcePresentation(source: detail.source)
-                            DetailRow(label: "Source", value: source.label)
-                            DetailRow(label: "Raw", value: source.detail)
-                        }
-                        if !detail.path.isEmpty {
-                            DetailRow(label: "Path", value: detail.path)
-                        }
-                    }
-
-                    if !detail.requirements.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Requirements")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-
-                            ForEach(detail.requirements, id: \.self) { req in
-                                HStack(spacing: 6) {
-                                    Image(systemName: req.contains("\u{2713}") ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(req.contains("\u{2713}") ? .green : .orange)
-                                        .font(.caption)
-
-                                    Text(req)
-                                        .font(.system(.caption, design: .monospaced))
-                                        .textSelection(.enabled)
-                                }
-                            }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-            }
-        }
-        .frame(width: 500, height: 400)
-    }
-}
-
-struct DetailRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text(label + ":")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .frame(width: 60, alignment: .trailing)
-
-            Text(value)
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
         }
     }
 }
