@@ -687,9 +687,13 @@ private struct ManualSkillInstallSheet: View {
             HStack {
                 Spacer()
 
-                Button("Cancel") {
+                Button {
                     isPresented = false
+                } label: {
+                    Text("Cancel")
+                        .frame(width: 104, height: 30)
                 }
+                .buttonStyle(SkillPillButtonStyle(tone: .neutral, isDisabled: viewModel.isInstallingManualSkill))
                 .keyboardShortcut(.cancelAction)
                 .disabled(viewModel.isInstallingManualSkill)
 
@@ -703,10 +707,10 @@ private struct ManualSkillInstallSheet: View {
                 } label: {
                     if viewModel.isInstallingManualSkill {
                         Text("Installing...")
-                            .frame(width: 104)
+                            .frame(width: 104, height: 30)
                     } else {
                         Text("Install")
-                            .frame(width: 104)
+                            .frame(width: 104, height: 30)
                     }
                 }
                 .buttonStyle(SkillPillButtonStyle(tone: .install, isDisabled: !canInstall))

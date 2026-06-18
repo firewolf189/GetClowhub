@@ -5592,43 +5592,43 @@ struct AttachmentPreview: View {
                     .clipped()
                     .cornerRadius(8)
             } else {
-                HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .center, spacing: 10) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color.primary.opacity(0.045))
-                            .frame(width: 52, height: 52)
+                            .frame(width: 40, height: 40)
                         if isDirectory {
-                            WorkspaceFolderIcon(isExpanded: false, size: 28)
+                            WorkspaceFolderIcon(isExpanded: false, size: 20)
                         } else {
                             Image(systemName: fileIconName)
-                                .font(.system(size: 25, weight: .regular))
+                                .font(.system(size: 20, weight: .regular))
                                 .foregroundColor(.secondary)
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(url.lastPathComponent)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(.primary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Text(attachmentTypeLabel)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.system(size: 11, weight: .regular))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
 
-                    Spacer(minLength: 26)
+                    Spacer(minLength: 22)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .frame(width: 220, height: 72)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .frame(width: 206, height: 56)
                 .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(Color.primary.opacity(0.045))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(Color.secondary.opacity(0.12), lineWidth: 1)
                 )
             }
@@ -5636,14 +5636,14 @@ struct AttachmentPreview: View {
             // Remove button
             Button(action: onRemove) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 24, height: 24)
                     .background(Circle().fill(Color.black.opacity(0.82)))
             }
             .buttonStyle(.plain)
-            .padding(.top, 8)
-            .padding(.trailing, 8)
+            .padding(.top, 4)
+            .padding(.trailing, 5)
         }
     }
 

@@ -96,7 +96,7 @@ expect(project.contains("WorkspaceFolderIcon.swift in Sources"), "WorkspaceFolde
 expect(dashboard.contains("private func workspaceItemIcon(item: FileItem, isExpanded: Bool) -> some View"), "WorkspaceFilePanel should render custom folder assets through a helper")
 expect(dashboard.contains("WorkspaceFolderIcon(isExpanded: isExpanded, size: 20)"), "expanded folders should use the shared folder icon component")
 expect(dashboard.contains("workspaceItemIcon(item: item, isExpanded: false)"), "search result directory rows should use the closed-folder asset")
-expect(dashboard.contains("WorkspaceFolderIcon(isExpanded: false, size: 28)"), "attachment directory previews should use the shared closed-folder asset")
+expect(dashboard.contains("WorkspaceFolderIcon(isExpanded: false, size: 20)"), "attachment directory previews should use the shared closed-folder asset at 20pt")
 
 let workspacePanel = slice(dashboard, from: "private struct WorkspaceFilePanel: View", to: "private struct CommitTextField")
 expect(
@@ -114,8 +114,8 @@ expect(
     "AttachmentPreview should show a compact file type label"
 )
 expect(
-    attachmentPreview.contains("HStack(alignment: .center, spacing: 12)"),
-    "AttachmentPreview non-image chips should use the horizontal upload-card layout"
+    attachmentPreview.contains("HStack(alignment: .center, spacing: 10)"),
+    "AttachmentPreview non-image chips should use a tighter horizontal upload-card layout"
 )
 expect(
     attachmentPreview.contains(".fill(Color.primary.opacity(0.045))"),
@@ -126,8 +126,8 @@ expect(
     "AttachmentPreview should use a subtle gray border"
 )
 expect(
-    attachmentPreview.contains(".frame(width: 220, height: 72)"),
-    "AttachmentPreview non-image chips should be compact horizontal cards"
+    attachmentPreview.contains(".frame(width: 206, height: 56)"),
+    "AttachmentPreview non-image chips should be compact low-profile horizontal cards"
 )
 expect(
     dashboard.contains(".padding(.top, attachedFiles.isEmpty ? 8 : 2)"),

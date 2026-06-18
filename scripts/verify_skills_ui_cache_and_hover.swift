@@ -214,9 +214,25 @@ require(
     "Skill install controls should not use the system prominent blue button style."
 )
 require(
-    manualInstallSheet.contains(".frame(width: 104)") &&
+    manualInstallSheet.contains(#"Text("Cancel")"#) &&
+        manualInstallSheet.contains(".buttonStyle(SkillPillButtonStyle(tone: .neutral") &&
+        manualInstallSheet.contains(".frame(width: 104, height: 30)") &&
         !manualInstallSheet.contains(".frame(width: 78)"),
-    "Manual install button should use a wider frame that visually aligns with Cancel."
+    "Manual install sheet buttons should use matching fixed frames and pill styles."
+)
+require(
+    !skillsView.contains(".sheet(isPresented: $showManualInstallSheet)"),
+    "Manual install should not use the system sheet because outside-click dismissal needs a custom overlay."
+)
+require(
+    skillsView.contains("private var manualInstallOverlay: some View") &&
+        skillsView.contains("if showManualInstallSheet") &&
+        skillsView.contains("Color.black") &&
+        skillsView.contains(".opacity(0.001)") &&
+        skillsView.contains(".contentShape(Rectangle())") &&
+        skillsView.contains("showManualInstallSheet = false") &&
+        skillsView.contains(".onTapGesture {}"),
+    "Manual install overlay should use a transparent outside-click layer and keep inner clicks from dismissing."
 )
 require(
     dashboardView.contains("onInstall: {") &&
