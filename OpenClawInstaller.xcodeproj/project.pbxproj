@@ -39,6 +39,7 @@
 		356410622F5802970045A6F7 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102D2F5802970045A6F7 /* PermissionManager.swift */; };
 		356410632F5802970045A6F7 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410412F5802970045A6F7 /* ErrorView.swift */; };
 		AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGAV0000000000000002 /* AgentAvatarImage.swift */; };
+		WFIC0000000000000001 /* WorkspaceFolderIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = WFIC0000000000000002 /* WorkspaceFolderIcon.swift */; };
 		SCSV0000000000000001 /* SmoothScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SCSV0000000000000002 /* SmoothScrollView.swift */; };
 		356410642F5802970045A6F7 /* OpenClawService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102C2F5802970045A6F7 /* OpenClawService.swift */; };
 		FC838E8912A04DD484067D79 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */; };
@@ -126,6 +127,7 @@
 		3564103E2F5802970045A6F7 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		356410412F5802970045A6F7 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 		AGAV0000000000000002 /* AgentAvatarImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentAvatarImage.swift; sourceTree = "<group>"; };
+		WFIC0000000000000002 /* WorkspaceFolderIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFolderIcon.swift; sourceTree = "<group>"; };
 		SCSV0000000000000002 /* SmoothScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmoothScrollView.swift; sourceTree = "<group>"; };
 		356410432F5802970045A6F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		356410452F5802970045A6F7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -316,6 +318,7 @@
 			isa = PBXGroup;
 			children = (
 				AGAV0000000000000002 /* AgentAvatarImage.swift */,
+				WFIC0000000000000002 /* WorkspaceFolderIcon.swift */,
 				356410412F5802970045A6F7 /* ErrorView.swift */,
 				SCSV0000000000000002 /* SmoothScrollView.swift */,
 			);
@@ -478,6 +481,7 @@
 				356410622F5802970045A6F7 /* PermissionManager.swift in Sources */,
 				356410632F5802970045A6F7 /* ErrorView.swift in Sources */,
 				AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */,
+				WFIC0000000000000001 /* WorkspaceFolderIcon.swift in Sources */,
 				SCSV0000000000000001 /* SmoothScrollView.swift in Sources */,
 				356410642F5802970045A6F7 /* OpenClawService.swift in Sources */,
 				356410652F5802970045A6F7 /* StatusTabView.swift in Sources */,

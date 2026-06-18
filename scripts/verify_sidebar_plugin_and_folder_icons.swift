@@ -83,18 +83,31 @@ expect(closedDay.contains(#"d="M4 8.2"#), "closed folder should use the custom c
 expect(openDay.contains(#"d="M3.6 10.2"#), "open folder should use the custom open-folder front outline")
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let workspaceFolderIcon = read("OpenClawInstaller/Views/Shared/WorkspaceFolderIcon.swift")
+let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 expect(
     dashboard.contains(#"navRow(.plugins, title: String(localized: "Plugins", bundle: languageManager.localizedBundle), systemImage: "puzzlepiece.fill", assetImage: "PluginIcon")"#),
     "Plugins nav row should use PluginIcon"
 )
+expect(workspaceFolderIcon.contains("struct WorkspaceFolderIcon: View"), "shared folder icon component should exist")
+expect(workspaceFolderIcon.contains(#"Image(isExpanded ? "WorkspaceFolderOpenIcon" : "WorkspaceFolderClosedIcon")"#), "shared folder icon should render the asset catalog folder icons")
+expect(workspaceFolderIcon.contains(".frame(width: size, height: size)"), "shared folder icon should expose a reusable size")
+expect(project.contains("WorkspaceFolderIcon.swift in Sources"), "WorkspaceFolderIcon should be part of the app target sources")
 expect(dashboard.contains("private func workspaceItemIcon(item: FileItem, isExpanded: Bool) -> some View"), "WorkspaceFilePanel should render custom folder assets through a helper")
-expect(dashboard.contains(#"Image(isExpanded ? "WorkspaceFolderOpenIcon" : "WorkspaceFolderClosedIcon")"#), "expanded folders should use the open-folder asset")
+expect(dashboard.contains("WorkspaceFolderIcon(isExpanded: isExpanded, size: 20)"), "expanded folders should use the shared folder icon component")
 expect(dashboard.contains("workspaceItemIcon(item: item, isExpanded: false)"), "search result directory rows should use the closed-folder asset")
+expect(dashboard.contains("WorkspaceFolderIcon(isExpanded: false, size: 20)"), "attachment directory previews should use the shared closed-folder asset")
 
 let workspacePanel = slice(dashboard, from: "private struct WorkspaceFilePanel: View", to: "private struct CommitTextField")
 expect(
     !workspacePanel.contains(#"Image(systemName: item.isDirectory ? "folder.fill" : fileIcon(for: item.name))"#),
     "WorkspaceFilePanel should not use the old filled SF Symbol folder"
+)
+
+let attachmentPreview = slice(dashboard, from: "struct AttachmentPreview: View", to: "// MARK: - Success Toast")
+expect(
+    !attachmentPreview.contains(#""folder.fill""#),
+    "AttachmentPreview should not use the old filled SF Symbol folder"
 )
 
 print("Sidebar plugin and folder icon verification passed")

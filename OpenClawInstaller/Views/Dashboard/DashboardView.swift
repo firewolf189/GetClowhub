@@ -5591,9 +5591,13 @@ struct AttachmentPreview: View {
                     .cornerRadius(8)
             } else {
                 VStack(spacing: 4) {
-                    Image(systemName: fileIconName)
-                        .font(.system(size: 20))
-                        .foregroundColor(isDirectory ? .accentColor : .secondary)
+                    if isDirectory {
+                        WorkspaceFolderIcon(isExpanded: false, size: 20)
+                    } else {
+                        Image(systemName: fileIconName)
+                            .font(.system(size: 20))
+                            .foregroundColor(.secondary)
+                    }
                     Text(url.lastPathComponent)
                         .font(.system(size: 9))
                         .lineLimit(1)
@@ -5618,9 +5622,6 @@ struct AttachmentPreview: View {
     }
 
     private var fileIconName: String {
-        // Folder takes precedence over extension — `~/Projects/foo.bar` is still
-        // a folder; rendering it as a generic doc icon would be misleading.
-        if isDirectory { return "folder.fill" }
         let ext = url.pathExtension.lowercased()
         switch ext {
         case "pdf": return "doc.fill"
@@ -7723,10 +7724,7 @@ private struct WorkspaceFilePanel: View {
     @ViewBuilder
     private func workspaceItemIcon(item: FileItem, isExpanded: Bool) -> some View {
         if item.isDirectory {
-            Image(isExpanded ? "WorkspaceFolderOpenIcon" : "WorkspaceFolderClosedIcon")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 20, height: 20)
+            WorkspaceFolderIcon(isExpanded: isExpanded, size: 20)
         } else {
             Image(systemName: fileIcon(for: item.name))
                 .font(.system(size: 17))
