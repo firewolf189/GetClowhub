@@ -170,8 +170,9 @@ require(
     "Skills UI should centralize the install colors in a small palette."
 )
 require(
-    skillsView.contains("Color(red: 0.42, green: 0.13, blue: 0.16)"),
-    "Skill uninstall should use a muted dark red pill background."
+    skillsView.contains("Color(red: 1.0, green: 0.18, blue: 0.20)") &&
+        skillsView.contains(".opacity(colorScheme == .dark ? 0.20 : 0.14)"),
+    "Skill uninstall should use a translucent red pill background."
 )
 require(
     skillsView.contains("Color(red: 0.72, green: 0.47, blue: 0.12)") &&

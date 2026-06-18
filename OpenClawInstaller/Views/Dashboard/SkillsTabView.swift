@@ -892,7 +892,8 @@ private struct SkillPillButtonStyle: ButtonStyle {
                 ? Color.white.opacity(0.12)
                 : Color.black.opacity(0.08)
         case .destructive:
-            return Color(red: 0.42, green: 0.13, blue: 0.16)
+            return Color(red: 1.0, green: 0.18, blue: 0.20)
+                .opacity(colorScheme == .dark ? 0.20 : 0.14)
         }
     }
 
