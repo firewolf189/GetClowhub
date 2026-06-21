@@ -31,53 +31,84 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 let dashboardView = slice(dashboard, from: "struct DashboardView: View", to: "// MARK: - Sidebar")
 let detailContentView = slice(dashboard, from: "struct DetailContentView: View", to: "// MARK: - Collab Drag Handle")
 
 assertContains(
     dashboardView,
-    "} content: {\n            DetailContentView(",
-    "root DashboardView should use a three-column NavigationSplitView content column for the main pane"
+    "} detail: {\n            DashboardWorkspaceSplitView(",
+    "root DashboardView should still use the left system NavigationSplitView sidebar and place an AppKit split in detail"
 )
 assertContains(
     dashboardView,
-    "} detail: {\n            workspaceSplitColumn",
-    "root DashboardView should render the workspace as the trailing NavigationSplitView detail column"
+    "DashboardWorkspaceSplitView(",
+    "right Outputs column should be owned by an AppKit split container"
 )
 assertContains(
+    dashboardView,
+    "workspaceExpandedSidebar(width:",
+    "DashboardView should pass the Outputs surface into the AppKit split container"
+)
+assertNotContains(
+    dashboardView,
+    ".inspector(isPresented:",
+    "right Outputs column should not use SwiftUI inspector when using the AppKit split approach"
+)
+assertNotContains(
+    dashboardView,
+    ".inspectorColumnWidth(",
+    "right Outputs sizing should be handled by the AppKit split controller"
+)
+assertNotContains(
+    dashboardView,
+    "} content: {",
+    "root DashboardView should not keep a three-column NavigationSplitView content column for Outputs"
+)
+assertNotContains(
     dashboardView,
     "private var workspaceSplitColumn: some View",
-    "workspace trailing column should be owned by DashboardView instead of DetailContentView"
+    "Outputs should no longer be rendered as a manual trailing NavigationSplitView column"
+)
+assertContains(
+    dashboard,
+    "private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSViewControllerRepresentable",
+    "right Outputs column should be bridged through an AppKit split view"
+)
+assertContains(
+    dashboard,
+    "private final class DashboardWorkspaceSplitController: NSSplitViewController",
+    "right Outputs column should be managed by NSSplitViewController"
+)
+assertContains(
+    dashboard,
+    "sidebarItem.animator().isCollapsed = !isSidebarExpanded",
+    "AppKit split should own the right sidebar collapse animation"
 )
 assertContains(
     dashboardView,
     "ToolbarItem(placement: .navigation)",
     "conversation title should move into the window toolbar near the system left-sidebar button"
 )
-assertContains(
-    dashboardView,
-    ".allowsHitTesting(false)",
-    "conversation title should render as plain non-interactive titlebar text without a toolbar hover pill"
-)
 assertNotContains(
     dashboardView,
     "ToolbarItem(placement: .primaryAction)",
-    "workspace toggle should not live in the global toolbar because macOS places it beside the conversation title"
+    "right Outputs controls should not use the main toolbar primaryAction placement"
 )
 assertContains(
     dashboardView,
     "DashboardTitlebarAccessoryInstaller(",
-    "workspace titlebar controls should be installed as a trailing titlebar accessory"
+    "right Outputs controls should be installed into the window titlebar"
 )
 assertContains(
     dashboardView,
     "RightOutputsTitlebarAccessory(",
-    "workspace titlebar accessory should render the right-column Outputs controls"
+    "right Outputs title and controls should be rendered by a titlebar accessory"
 )
 assertContains(
     dashboard,
-    "private struct DashboardTitlebarAccessoryInstaller<Accessory: View>: NSViewRepresentable",
-    "right-column header controls should use a narrow AppKit titlebar bridge"
+    "private struct DashboardTitlebarAccessoryInstaller",
+    "DashboardView should keep a narrow AppKit bridge for titlebar-only Outputs controls"
 )
 assertContains(
     dashboard,
@@ -86,13 +117,13 @@ assertContains(
 )
 assertContains(
     dashboard,
-    ".frame(maxHeight: .infinity)",
-    "right-column divider should be rendered in the titlebar accessory so it visually continues the split boundary"
+    "private struct RightOutputsTitlebarAccessory",
+    "custom Outputs titlebar controls should live outside the inspector content"
 )
 assertContains(
-    dashboardView,
-    "Self.workspaceLayoutMetrics.titlebarAccessoryWidthAdjustment",
-    "right-column titlebar accessory should compensate for the system split column's visible width"
+    dashboard,
+    "titlebarAccessoryWidthAdjustment",
+    "right titlebar accessory width should share the Outputs layout metric contract"
 )
 assertContains(
     detailContentView,
@@ -125,6 +156,55 @@ assertNotContains(
     workspaceFilePanel,
     "Image(systemName: \"tray.full.fill\")",
     "WorkspaceFilePanel should not duplicate the Outputs titlebar icon inside the content column"
+)
+
+assertNotContains(
+    dashboard,
+    "private var workspaceInspectorContent: some View",
+    "AppKit split mode should not keep a SwiftUI inspector content wrapper"
+)
+assertNotContains(
+    dashboard,
+    "WorkspaceInspectorHeader(",
+    "right sidebar content should not create its own header row"
+)
+
+let rightOutputsTitlebarAccessory = slice(dashboard, from: "private struct RightOutputsTitlebarAccessory: View", to: "// MARK: - Sidebar")
+assertContains(
+    rightOutputsTitlebarAccessory,
+    "Text(\"Outputs\")",
+    "expanded Outputs title should live in the window titlebar accessory"
+)
+assertContains(
+    rightOutputsTitlebarAccessory,
+    "Image(systemName: \"sidebar.right\")",
+    "Outputs titlebar accessory should use the standard right-sidebar icon"
+)
+assertContains(
+    rightOutputsTitlebarAccessory,
+    ".font(.system(size: 16, weight: .medium))",
+    "right sidebar titlebar icon should visually match the system left-sidebar toolbar icon size"
+)
+assertContains(
+    rightOutputsTitlebarAccessory,
+    ".frame(width: 32, height: 32)",
+    "right sidebar titlebar icon should use the same apparent button footprint as the left toolbar icon"
+)
+assertNotContains(
+    rightOutputsTitlebarAccessory,
+    "Image(systemName: \"xmark\")",
+    "Outputs titlebar accessory should not use a generic close icon for sidebar collapse"
+)
+
+assertContains(
+    project,
+    "MACOSX_DEPLOYMENT_TARGET = 14.0;",
+    "macOS deployment target should stay at the current project baseline"
+)
+assertNotContains(
+    project,
+    "MACOSX_DEPLOYMENT_TARGET = 13.0;",
+    "macOS 13 deployment target should be removed when using SwiftUI inspector"
 )
 
 print("Native workspace split source verification passed")

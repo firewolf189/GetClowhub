@@ -68,6 +68,13 @@ require(
     "Refresh action should force catalog sync."
 )
 require(
+    skillsView.contains(#"TextField("Search skills", text: $searchText)"#) &&
+        skillsView.contains("RoundedRectangle(cornerRadius: 8, style: .continuous)") &&
+        skillsView.contains(".stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)") &&
+        !skillsView.contains(".clipShape(Capsule())"),
+    "Skills search field should match the bordered Plugins search field style."
+)
+require(
     skillCatalogItem.contains("let isRecommended: Bool"),
     "Skill catalog items should carry a recommended flag from marketplace.json."
 )

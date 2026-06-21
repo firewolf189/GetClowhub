@@ -32,10 +32,19 @@ func assertBefore(_ haystack: String, _ first: String, _ second: String, _ messa
     }
 }
 
+func slice(_ haystack: String, from start: String, to end: String) -> String {
+    guard let startRange = haystack.range(of: start),
+          let endRange = haystack[startRange.upperBound...].range(of: end) else {
+        fatalError("Could not slice source between \(start) and \(end)")
+    }
+    return String(haystack[startRange.lowerBound..<endRange.lowerBound])
+}
+
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let config = read("OpenClawInstaller/Views/Dashboard/ConfigTabView.swift")
 let metrics = read("OpenClawInstaller/Views/Dashboard/OutputsSidebarLayoutMetrics.swift")
 let layoutScript = read("scripts/verify_outputs_sidebar_layout.swift")
+let rightOutputsTitlebarAccessory = slice(dashboard, from: "private struct RightOutputsTitlebarAccessory: View", to: "// MARK: - Sidebar")
 
 assertContains(
     dashboard,
@@ -144,17 +153,26 @@ assertContains(
 
 assertContains(metrics, "collapsedWidth: CGFloat = 0", "closed Outputs sidebar must reserve zero width")
 assertContains(layoutScript, "narrow windows close Outputs without leaving a trailing strip", "Outputs layout verification must cover narrow-window closed strip behavior")
-assertContains(dashboard, "private var workspaceSplitColumn: some View", "Outputs sidebar column must be owned by the root split shell")
-assertContains(dashboard, "} detail: {\n            workspaceSplitColumn", "Outputs sidebar must render as the trailing NavigationSplitView column")
+assertContains(dashboard, "DashboardWorkspaceSplitView(", "Outputs sidebar must use the AppKit right split container")
+assertContains(dashboard, "private final class DashboardWorkspaceSplitController: NSSplitViewController", "Outputs sidebar split must be owned by AppKit")
+assertContains(dashboard, "sidebarItem.animator().isCollapsed = !isSidebarExpanded", "Outputs sidebar collapse must be owned by the AppKit split")
+assertNotContains(dashboard, ".inspector(isPresented:", "Outputs sidebar must not use SwiftUI inspector in AppKit split mode")
+assertNotContains(dashboard, "private var workspaceInspectorContent: some View", "Outputs sidebar must not keep a SwiftUI inspector wrapper")
+assertNotContains(dashboard, "private var workspaceSplitColumn: some View", "Outputs sidebar must not use a manual trailing split column")
 assertContains(dashboard, "ToolbarItem(placement: .navigation)", "conversation title must live in the window toolbar")
-assertNotContains(dashboard, "ToolbarItem(placement: .primaryAction)", "Outputs toggle must not use the global toolbar placement")
+assertNotContains(dashboard, "ToolbarItem(placement: .primaryAction)", "Outputs toggle must not use the main toolbar primaryAction placement")
 assertContains(dashboard, "DashboardTitlebarAccessoryInstaller(", "Outputs controls must be installed into the existing titlebar header")
 assertContains(dashboard, "RightOutputsTitlebarAccessory(", "Outputs title and toggle must share the right-column titlebar accessory")
 assertNotContains(dashboard, #"Image(systemName: "tray.full.fill")"#, "right sidebar header must not show the removed blue tray icon")
 assertContains(dashboard, ".animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)", "Outputs sidebar expansion must animate")
 assertNotContains(dashboard, "private var chatTopChrome", "ChatView must not own the conversation header")
 assertNotContains(dashboard, "private var conversationHeader: some View", "conversation header must not consume vertical space inside the chat content")
+assertNotContains(dashboard, "WorkspaceInspectorHeader(", "right sidebar content must not create a second header row")
 assertContains(dashboard, "private struct RightOutputsTitlebarAccessory: View", "right sidebar title must live in the existing titlebar header")
+assertContains(rightOutputsTitlebarAccessory, #"Image(systemName: "sidebar.right")"#, "right sidebar collapse must use the standard inspector sidebar icon")
+assertContains(rightOutputsTitlebarAccessory, ".font(.system(size: 16, weight: .medium))", "right sidebar titlebar icon must visually match the system left-sidebar toolbar icon size")
+assertContains(rightOutputsTitlebarAccessory, ".frame(width: 32, height: 32)", "right sidebar titlebar icon must use the same apparent button footprint as the left toolbar icon")
+assertNotContains(rightOutputsTitlebarAccessory, #"Image(systemName: "xmark")"#, "right sidebar collapse must not use a generic close icon")
 assertContains(dashboard, "private func shouldShowOutputItem", "right sidebar must filter the workspace to output artifacts")
 assertContains(dashboard, "\"USER.md\", \"BOOTSTRAP.md\", \"HEARTBEAT.md\", \"TOOLS.md\"", "Outputs filtering must exclude user/context documents")
 

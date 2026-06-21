@@ -87,17 +87,24 @@ struct DashboardView: View {
                 onRequestCreateAgent: presentCreateAgentOverlay,
                 onOpenSettingsSection: openSettingsSection
             )
-        } content: {
-            DetailContentView(
-                viewModel: viewModel,
-                workspaceSidebarController: workspaceSidebarController,
-                requestedUserMessageJumpId: $requestedUserMessageJumpId,
-                selectedSettingsSection: $selectedSettingsSection,
-                onOpenSkillDetail: presentSkillDetail,
-                onOpenPluginDetail: presentPluginDetail
-            )
         } detail: {
-            workspaceSplitColumn
+            DashboardWorkspaceSplitView(
+                isSidebarExpanded: isWorkspaceSidebarExpanded,
+                sidebarWidth: max(workspaceColumnIdealWidth, Self.workspaceLayoutMetrics.browserWidth),
+                minSidebarWidth: workspaceSidebarMinWidth,
+                maxSidebarWidth: workspaceColumnMaxWidth
+            ) {
+                DetailContentView(
+                    viewModel: viewModel,
+                    workspaceSidebarController: workspaceSidebarController,
+                    requestedUserMessageJumpId: $requestedUserMessageJumpId,
+                    selectedSettingsSection: $selectedSettingsSection,
+                    onOpenSkillDetail: presentSkillDetail,
+                    onOpenPluginDetail: presentPluginDetail
+                )
+            } sidebar: {
+                workspaceExpandedSidebar(width: max(workspaceColumnIdealWidth, Self.workspaceLayoutMetrics.browserWidth))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(colorSchemeForAppearance)
@@ -374,8 +381,10 @@ struct DashboardView: View {
 
     private var rightTitlebarAccessoryWidth: CGFloat {
         guard isChatTabActive else { return 0 }
-        let expandedWidth = workspaceColumnIdealWidth + Self.workspaceLayoutMetrics.titlebarAccessoryWidthAdjustment
-        return max(isWorkspaceSidebarExpanded ? expandedWidth : 44, 44)
+        guard isWorkspaceSidebarExpanded else { return 44 }
+
+        let expandedWidth = max(workspaceColumnIdealWidth, Self.workspaceLayoutMetrics.browserWidth)
+        return expandedWidth + Self.workspaceLayoutMetrics.titlebarAccessoryWidthAdjustment
     }
 
     private var selectedWorkspacePath: String {
@@ -397,21 +406,6 @@ struct DashboardView: View {
             hasEditor: workspaceEditingFilePath != nil,
             toggle: { toggleWorkspaceSidebar() }
         )
-    }
-
-    @ViewBuilder
-    private var workspaceSplitColumn: some View {
-        if isWorkspaceSidebarExpanded {
-            workspaceExpandedSidebar(width: workspaceColumnIdealWidth)
-                .navigationSplitViewColumnWidth(
-                    min: workspaceSidebarMinWidth,
-                    ideal: workspaceColumnIdealWidth,
-                    max: workspaceColumnMaxWidth
-                )
-        } else {
-            Color.clear
-                .navigationSplitViewColumnWidth(min: 0, ideal: 0, max: 0)
-        }
     }
 
     private func workspaceExpandedSidebar(width: CGFloat) -> some View {
@@ -904,6 +898,143 @@ private struct TitlebarSeparatorSuppressor: NSViewRepresentable {
     }
 }
 
+private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSViewControllerRepresentable {
+    let isSidebarExpanded: Bool
+    let sidebarWidth: CGFloat
+    let minSidebarWidth: CGFloat
+    let maxSidebarWidth: CGFloat
+    let content: Content
+    let sidebar: Sidebar
+
+    init(
+        isSidebarExpanded: Bool,
+        sidebarWidth: CGFloat,
+        minSidebarWidth: CGFloat,
+        maxSidebarWidth: CGFloat,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder sidebar: () -> Sidebar
+    ) {
+        self.isSidebarExpanded = isSidebarExpanded
+        self.sidebarWidth = sidebarWidth
+        self.minSidebarWidth = minSidebarWidth
+        self.maxSidebarWidth = maxSidebarWidth
+        self.content = content()
+        self.sidebar = sidebar()
+    }
+
+    func makeNSViewController(context: Context) -> DashboardWorkspaceSplitController {
+        let controller = DashboardWorkspaceSplitController()
+        controller.loadViewIfNeeded()
+        return controller
+    }
+
+    func updateNSViewController(_ controller: DashboardWorkspaceSplitController, context: Context) {
+        controller.update(
+            content: AnyView(content),
+            sidebar: AnyView(sidebar),
+            isSidebarExpanded: isSidebarExpanded,
+            sidebarWidth: sidebarWidth,
+            minSidebarWidth: minSidebarWidth,
+            maxSidebarWidth: maxSidebarWidth
+        )
+    }
+}
+
+private final class DashboardWorkspaceSplitController: NSSplitViewController {
+    private let contentHost = NSHostingController(rootView: AnyView(EmptyView()))
+    private let sidebarHost = NSHostingController(rootView: AnyView(EmptyView()))
+    private lazy var contentItem = NSSplitViewItem(viewController: contentHost)
+    private lazy var sidebarItem = NSSplitViewItem(viewController: sidebarHost)
+
+    private var currentSidebarWidth: CGFloat = 0
+    private var currentMinSidebarWidth: CGFloat = 240
+    private var currentMaxSidebarWidth: CGFloat = 420
+    private var currentIsSidebarExpanded = false
+    private var hasInstalledSplitItems = false
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        installSplitItemsIfNeeded()
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        applySidebarWidth()
+    }
+
+    func update(
+        content: AnyView,
+        sidebar: AnyView,
+        isSidebarExpanded: Bool,
+        sidebarWidth: CGFloat,
+        minSidebarWidth: CGFloat,
+        maxSidebarWidth: CGFloat
+    ) {
+        loadViewIfNeeded()
+        installSplitItemsIfNeeded()
+
+        contentHost.rootView = content
+        sidebarHost.rootView = sidebar
+        currentSidebarWidth = sidebarWidth
+        currentMinSidebarWidth = minSidebarWidth
+        currentMaxSidebarWidth = maxSidebarWidth
+        sidebarItem.minimumThickness = minSidebarWidth
+        sidebarItem.maximumThickness = maxSidebarWidth
+
+        let shouldAnimate = currentIsSidebarExpanded != isSidebarExpanded
+        currentIsSidebarExpanded = isSidebarExpanded
+        setSidebarExpanded(isSidebarExpanded, animated: shouldAnimate)
+        applySidebarWidth()
+    }
+
+    private func installSplitItemsIfNeeded() {
+        guard !hasInstalledSplitItems else { return }
+
+        splitView.isVertical = true
+        splitView.dividerStyle = .thin
+        splitView.autosaveName = nil
+
+        contentItem.canCollapse = false
+        contentItem.minimumThickness = 360
+        sidebarItem.canCollapse = true
+        sidebarItem.holdingPriority = NSLayoutConstraint.Priority(240)
+
+        addSplitViewItem(contentItem)
+        addSplitViewItem(sidebarItem)
+        sidebarItem.isCollapsed = true
+        hasInstalledSplitItems = true
+    }
+
+    private func setSidebarExpanded(_ isSidebarExpanded: Bool, animated: Bool) {
+        guard sidebarItem.isCollapsed != !isSidebarExpanded else { return }
+
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.22
+                context.allowsImplicitAnimation = true
+                sidebarItem.animator().isCollapsed = !isSidebarExpanded
+            } completionHandler: {
+                self.applySidebarWidth()
+            }
+        } else {
+            sidebarItem.isCollapsed = !isSidebarExpanded
+        }
+    }
+
+    private func applySidebarWidth() {
+        guard hasInstalledSplitItems, currentIsSidebarExpanded, !sidebarItem.isCollapsed else { return }
+        let totalWidth = splitView.bounds.width
+        guard totalWidth > 0 else { return }
+
+        let availableSidebarWidth = max(0, totalWidth - contentItem.minimumThickness)
+        let upperBound = min(currentMaxSidebarWidth, availableSidebarWidth)
+        let targetWidth = min(max(currentSidebarWidth, currentMinSidebarWidth), upperBound)
+        guard targetWidth > 0 else { return }
+
+        splitView.setPosition(totalWidth - targetWidth, ofDividerAt: 0)
+    }
+}
+
 private let rightOutputsTitlebarAccessoryID = NSUserInterfaceItemIdentifier("GetClowHub.RightOutputsTitlebarAccessory")
 
 private struct DashboardTitlebarAccessoryInstaller<Accessory: View>: NSViewRepresentable {
@@ -1055,18 +1186,11 @@ private struct RightOutputsTitlebarAccessory: View {
             }
 
             HStack(spacing: 8) {
-                Button(action: toggle) {
-                    Image(systemName: "sidebar.right")
-                        .font(.system(size: 13, weight: .medium))
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.plain)
-                .help(isExpanded ? "Hide Outputs" : "Show Outputs")
-
                 if isExpanded {
                     Text("Outputs")
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
+                        .allowsHitTesting(false)
 
                     Spacer(minLength: 8)
 
@@ -1087,19 +1211,22 @@ private struct RightOutputsTitlebarAccessory: View {
                     }
                     .buttonStyle(.plain)
                     .help("Open in Finder")
-
-                    Button(action: close) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 22, height: 22)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Hide Outputs")
+                } else {
+                    Spacer(minLength: 0)
                 }
+
+                Button(action: isExpanded ? close : toggle) {
+                    Image(systemName: "sidebar.right")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .help(isExpanded ? "Hide Outputs" : "Show Outputs")
             }
-            .padding(.horizontal, isExpanded ? 10 : 6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isExpanded ? .leading : .trailing)
+            .padding(.leading, isExpanded ? 12 : 6)
+            .padding(.trailing, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
         }
     }
 }

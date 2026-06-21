@@ -14,7 +14,7 @@ struct OutputsSidebarLayoutMetrics {
         editorWidth: CGFloat = 480,
         minimumChatStageWidth: CGFloat = 640,
         chatColumnMaxWidth: CGFloat = 820,
-        titlebarAccessoryWidthAdjustment: CGFloat = 36
+        titlebarAccessoryWidthAdjustment: CGFloat = 0
     ) {
         self.collapsedWidth = collapsedWidth
         self.browserWidth = browserWidth
