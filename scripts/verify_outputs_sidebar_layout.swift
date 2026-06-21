@@ -40,12 +40,6 @@ struct VerifyOutputsSidebarLayout {
             600,
             "narrow chat stages use the available width"
         )
-        assertEqual(
-            metrics.titlebarAccessoryWidthAdjustment,
-            0,
-            "right titlebar accessory aligns to the inspector width by default"
-        )
-
         print("OutputsSidebarLayoutMetrics verification passed")
     }
 

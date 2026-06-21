@@ -103,7 +103,7 @@ struct DashboardView: View {
                     onOpenPluginDetail: presentPluginDetail
                 )
             } sidebar: {
-                workspaceExpandedSidebar(width: max(workspaceColumnIdealWidth, Self.workspaceLayoutMetrics.browserWidth))
+                workspaceSidebarPane(width: max(workspaceColumnIdealWidth, Self.workspaceLayoutMetrics.browserWidth))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -116,10 +116,7 @@ struct DashboardView: View {
             ) {
                 RightOutputsTitlebarAccessory(
                     isExpanded: isWorkspaceSidebarExpanded,
-                    isSearching: workspaceSearchActive,
                     toggle: toggleWorkspaceSidebar,
-                    toggleSearch: toggleWorkspaceSearch,
-                    openFolder: openSelectedWorkspaceFolder,
                     close: { hideWorkspaceSidebar(resetEditor: true) }
                 )
             }
@@ -174,6 +171,7 @@ struct DashboardView: View {
         .overlay(alignment: .topLeading) {
             sessionTitleUserMessagesFlyout
         }
+        .cursorDotOverlay(isEnabled: true)
         .animation(.easeInOut, value: viewModel.showSuccess)
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
@@ -381,10 +379,7 @@ struct DashboardView: View {
 
     private var rightTitlebarAccessoryWidth: CGFloat {
         guard isChatTabActive else { return 0 }
-        guard isWorkspaceSidebarExpanded else { return 44 }
-
-        let expandedWidth = max(workspaceColumnIdealWidth, Self.workspaceLayoutMetrics.browserWidth)
-        return expandedWidth + Self.workspaceLayoutMetrics.titlebarAccessoryWidthAdjustment
+        return 44
     }
 
     private var selectedWorkspacePath: String {
@@ -406,6 +401,22 @@ struct DashboardView: View {
             hasEditor: workspaceEditingFilePath != nil,
             toggle: { toggleWorkspaceSidebar() }
         )
+    }
+
+    private func workspaceSidebarPane(width: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            WorkspaceOutputsPaneHeader(
+                isSearching: workspaceSearchActive,
+                toggleSearch: toggleWorkspaceSearch,
+                openFolder: openSelectedWorkspaceFolder
+            )
+
+            Divider()
+
+            workspaceExpandedSidebar(width: width)
+        }
+        .frame(width: width, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private func workspaceExpandedSidebar(width: CGFloat) -> some View {
@@ -898,6 +909,8 @@ private struct TitlebarSeparatorSuppressor: NSViewRepresentable {
     }
 }
 
+private let sidebarAnimationDuration: TimeInterval = 0.22
+
 private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSViewControllerRepresentable {
     let isSidebarExpanded: Bool
     let sidebarWidth: CGFloat
@@ -951,6 +964,7 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
     private var currentMaxSidebarWidth: CGFloat = 420
     private var currentIsSidebarExpanded = false
     private var hasInstalledSplitItems = false
+    private var hasAppliedInitialLayout = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -978,13 +992,15 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
         currentSidebarWidth = sidebarWidth
         currentMinSidebarWidth = minSidebarWidth
         currentMaxSidebarWidth = maxSidebarWidth
-        sidebarItem.minimumThickness = minSidebarWidth
+        sidebarItem.minimumThickness = 0
         sidebarItem.maximumThickness = maxSidebarWidth
 
         let shouldAnimate = currentIsSidebarExpanded != isSidebarExpanded
         currentIsSidebarExpanded = isSidebarExpanded
         setSidebarExpanded(isSidebarExpanded, animated: shouldAnimate)
-        applySidebarWidth()
+        if isSidebarExpanded, !shouldAnimate {
+            applySidebarWidth()
+        }
     }
 
     private func installSplitItemsIfNeeded() {
@@ -1001,37 +1017,98 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
 
         addSplitViewItem(contentItem)
         addSplitViewItem(sidebarItem)
+        sidebarItem.minimumThickness = 0
         sidebarItem.isCollapsed = true
         hasInstalledSplitItems = true
     }
 
     private func setSidebarExpanded(_ isSidebarExpanded: Bool, animated: Bool) {
-        guard sidebarItem.isCollapsed != !isSidebarExpanded else { return }
+        guard hasInstalledSplitItems else { return }
 
-        if animated {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.22
-                context.allowsImplicitAnimation = true
-                sidebarItem.animator().isCollapsed = !isSidebarExpanded
-            } completionHandler: {
-                self.applySidebarWidth()
+        if !hasAppliedInitialLayout {
+            if isSidebarExpanded {
+                sidebarItem.isCollapsed = false
+                setSidebarWidth(resolvedSidebarWidth())
+            } else {
+                sidebarItem.isCollapsed = true
+                sidebarHost.view.isHidden = true
             }
+            hasAppliedInitialLayout = true
+            return
+        }
+
+        let targetWidth = isSidebarExpanded ? resolvedSidebarWidth() : 0
+        guard animated else {
+            if isSidebarExpanded {
+                sidebarItem.isCollapsed = false
+                setSidebarWidth(targetWidth)
+            } else {
+                setSidebarWidth(0)
+                sidebarItem.isCollapsed = true
+                sidebarHost.view.isHidden = true
+            }
+            return
+        }
+
+        if isSidebarExpanded {
+            sidebarItem.isCollapsed = false
+            setSidebarWidth(0)
+            animateSidebarWidth(to: targetWidth)
         } else {
-            sidebarItem.isCollapsed = !isSidebarExpanded
+            animateSidebarWidth(to: 0) {
+                self.sidebarItem.isCollapsed = true
+                self.sidebarHost.view.isHidden = true
+            }
+        }
+    }
+
+    private func resolvedSidebarWidth() -> CGFloat {
+        let totalWidth = splitView.bounds.width
+        guard totalWidth > 0 else { return currentSidebarWidth }
+
+        let availableSidebarWidth = max(0, totalWidth - contentItem.minimumThickness)
+        let upperBound = min(currentMaxSidebarWidth, availableSidebarWidth)
+        guard upperBound >= currentMinSidebarWidth else { return 0 }
+
+        return min(max(currentSidebarWidth, currentMinSidebarWidth), upperBound)
+    }
+
+    private func setSidebarWidth(_ width: CGFloat) {
+        let totalWidth = splitView.bounds.width
+        guard totalWidth > 0 else { return }
+        splitView.setPosition(totalWidth - max(0, width), ofDividerAt: 0)
+        sidebarHost.view.isHidden = width <= 0.5
+    }
+
+    private func animateSidebarWidth(to width: CGFloat, completion: (() -> Void)? = nil) {
+        let totalWidth = splitView.bounds.width
+        guard totalWidth > 0 else {
+            setSidebarWidth(width)
+            completion?()
+            return
+        }
+
+        sidebarHost.view.isHidden = false
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = sidebarAnimationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.allowsImplicitAnimation = true
+            splitView.animator().setPosition(totalWidth - max(0, width), ofDividerAt: 0)
+        } completionHandler: {
+            self.sidebarHost.view.isHidden = width <= 0.5
+            completion?()
         }
     }
 
     private func applySidebarWidth() {
-        guard hasInstalledSplitItems, currentIsSidebarExpanded, !sidebarItem.isCollapsed else { return }
-        let totalWidth = splitView.bounds.width
-        guard totalWidth > 0 else { return }
-
-        let availableSidebarWidth = max(0, totalWidth - contentItem.minimumThickness)
-        let upperBound = min(currentMaxSidebarWidth, availableSidebarWidth)
-        let targetWidth = min(max(currentSidebarWidth, currentMinSidebarWidth), upperBound)
-        guard targetWidth > 0 else { return }
-
-        splitView.setPosition(totalWidth - targetWidth, ofDividerAt: 0)
+        guard hasInstalledSplitItems, hasAppliedInitialLayout else { return }
+        if currentIsSidebarExpanded {
+            sidebarItem.isCollapsed = false
+            setSidebarWidth(resolvedSidebarWidth())
+        } else {
+            sidebarItem.isCollapsed = true
+            sidebarHost.view.isHidden = true
+        }
     }
 }
 
@@ -1046,7 +1123,7 @@ private struct DashboardTitlebarAccessoryInstaller<Accessory: View>: NSViewRepre
     init(
         isVisible: Bool,
         width: CGFloat,
-        height: CGFloat = 38,
+        height: CGFloat = 44,
         @ViewBuilder accessory: () -> Accessory
     ) {
         self.isVisible = isVisible
@@ -1132,7 +1209,18 @@ private struct DashboardTitlebarAccessoryInstaller<Accessory: View>: NSViewRepre
                 NSLayoutConstraint.activate([widthConstraint, heightConstraint].compactMap { $0 })
             }
 
-            widthConstraint?.constant = max(width, 44)
+            let targetWidth = max(width, 44)
+            if let widthConstraint, abs(widthConstraint.constant - targetWidth) > 0.5 {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = sidebarAnimationDuration
+                    context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    context.allowsImplicitAnimation = true
+                    self.widthConstraint?.animator().constant = targetWidth
+                    hostingController.view.superview?.layoutSubtreeIfNeeded()
+                }
+            } else {
+                widthConstraint?.constant = targetWidth
+            }
             heightConstraint?.constant = height
         }
 
@@ -1170,64 +1258,60 @@ private struct DashboardTitlebarAccessoryInstaller<Accessory: View>: NSViewRepre
     }
 }
 
-private struct RightOutputsTitlebarAccessory: View {
-    let isExpanded: Bool
+private struct WorkspaceOutputsPaneHeader: View {
     let isSearching: Bool
-    let toggle: () -> Void
     let toggleSearch: () -> Void
     let openFolder: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Outputs")
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            Button(action: toggleSearch) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundColor(isSearching ? .accentColor : .secondary)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .help("Search Files")
+
+            Button(action: openFolder) {
+                Image(systemName: "arrow.up.forward.square")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .help("Open in Finder")
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
+        .frame(height: 44)
+    }
+}
+
+private struct RightOutputsTitlebarAccessory: View {
+    let isExpanded: Bool
+    let toggle: () -> Void
     let close: () -> Void
 
     var body: some View {
         HStack(spacing: 0) {
-            if isExpanded {
-                Divider()
-                    .frame(maxHeight: .infinity)
+            Button(action: isExpanded ? close : toggle) {
+                Image(systemName: "sidebar.right")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .frame(width: 34, height: 34)
             }
-
-            HStack(spacing: 8) {
-                if isExpanded {
-                    Text("Outputs")
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(1)
-                        .allowsHitTesting(false)
-
-                    Spacer(minLength: 8)
-
-                    Button(action: toggleSearch) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 12))
-                            .foregroundColor(isSearching ? .accentColor : .secondary)
-                            .frame(width: 22, height: 22)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Search Files")
-
-                    Button(action: openFolder) {
-                        Image(systemName: "arrow.up.forward.square")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                            .frame(width: 22, height: 22)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Open in Finder")
-                } else {
-                    Spacer(minLength: 0)
-                }
-
-                Button(action: isExpanded ? close : toggle) {
-                    Image(systemName: "sidebar.right")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
-                .help(isExpanded ? "Hide Outputs" : "Show Outputs")
-            }
-            .padding(.leading, isExpanded ? 12 : 6)
-            .padding(.trailing, 8)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .buttonStyle(.plain)
+            .help(isExpanded ? "Hide Outputs" : "Show Outputs")
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
     }
 }
 
@@ -2285,27 +2369,9 @@ struct SidebarView: View {
 
     private var marketplaceList: some View {
         VStack(spacing: 0) {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search agents...", text: $marketplaceSearchText)
-                    .textFieldStyle(.plain)
-                if !marketplaceSearchText.isEmpty {
-                    Button {
-                        marketplaceSearchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(8)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
+            UnifiedSearchField(placeholder: "Search agents...", text: $marketplaceSearchText)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
 
             // Agent list - tree view or flat search results.
             //
@@ -3141,6 +3207,7 @@ struct ChatView: View {
                 .allowsHitTesting(false)
             )
         }
+        .cursorDotDisabledRegion()
         .coordinateSpace(name: "chatScrollSpace")
         .background(
             GeometryReader { viewportProxy in
@@ -4232,8 +4299,7 @@ struct ChatView: View {
             viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
 
             // Show placeholder
-            let isChinese = LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
-            let clarifyingText = isChinese ? "正在了解需求..." : "Understanding requirements..."
+            let clarifyingText = String(localized: "Understanding requirements...", bundle: LanguageManager.shared.localizedBundle)
             viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
 
             let collabVM = viewModel.getOrCreateCollabViewModel()
@@ -4274,7 +4340,7 @@ struct ChatView: View {
                     if confirmWords.contains(lower) {
                         viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                             role: .assistant,
-                            content: "开始执行任务...",
+                            content: String(localized: "Starting task execution...", bundle: LanguageManager.shared.localizedBundle),
                             agentId: "commander"
                         ))
                         Task {
@@ -4342,8 +4408,7 @@ struct ChatView: View {
                 } else {
                     // Commander says this needs collab — proceed with full flow
                     await MainActor.run {
-                        let isChinese = LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
-                        let clarifyingText = isChinese ? "正在了解需求..." : "Understanding requirements..."
+                        let clarifyingText = String(localized: "Understanding requirements...", bundle: LanguageManager.shared.localizedBundle)
                         viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
 
                         viewModel.showCollabPanel = true
@@ -5307,7 +5372,6 @@ private struct WorkStatusHeader: View {
                         Text(WorkStatusDurationText.status(
                             elapsedSeconds: max(0, Int(end.timeIntervalSince(start))),
                             isFinished: true,
-                            isChinese: isChinese
                         ))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
@@ -5315,13 +5379,13 @@ private struct WorkStatusHeader: View {
                     }
                 } else {
                     statusBody {
-                        IsolatedElapsedWorkStatusText(start: start, isChinese: isChinese)
+                        IsolatedElapsedWorkStatusText(start: start)
                     }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     headerButton {
-                        Text(isChinese ? "正在工作" : "Working")
+                        Text(String(localized: "Working", bundle: LanguageManager.shared.localizedBundle))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.secondary)
                     }
@@ -5388,37 +5452,31 @@ private struct WorkStatusHeader: View {
         .buttonStyle(.plain)
     }
 
-    private var isChinese: Bool {
-        LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
-    }
 }
 
 private enum WorkStatusDurationText {
-    static func status(elapsedSeconds: Int, isFinished: Bool, isChinese: Bool) -> String {
-        if isChinese {
-            return "已运行 \(localizedDuration(elapsedSeconds))"
-        }
-        return isFinished
-            ? "Worked for \(englishDuration(elapsedSeconds))"
-            : "Working for \(englishDuration(elapsedSeconds))"
-    }
-
-    private static func englishDuration(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-        if minutes > 0 {
-            return "\(minutes)m \(remainingSeconds)s"
-        }
-        return "\(remainingSeconds)s"
+    static func status(elapsedSeconds: Int, isFinished: Bool) -> String {
+        let key = isFinished ? "Done in %@" : "Working for %@"
+        return String(
+            format: String(localized: String.LocalizationValue(key), bundle: LanguageManager.shared.localizedBundle),
+            localizedDuration(elapsedSeconds)
+        )
     }
 
     private static func localizedDuration(_ seconds: Int) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         if minutes > 0 {
-            return "\(minutes)分\(remainingSeconds)秒"
+            return String(
+                format: String(localized: "%lldm %llds", bundle: LanguageManager.shared.localizedBundle),
+                Int64(minutes),
+                Int64(remainingSeconds)
+            )
         }
-        return "\(remainingSeconds)秒"
+        return String(
+            format: String(localized: "%llds", bundle: LanguageManager.shared.localizedBundle),
+            Int64(remainingSeconds)
+        )
     }
 }
 
@@ -5426,15 +5484,13 @@ private struct IsolatedElapsedWorkStatusText: View {
     private static let reservedWidth: CGFloat = 156
 
     let start: Date
-    let isChinese: Bool
 
     var body: some View {
         TimelineView(.periodic(from: start, by: 1)) { ctx in
             ShimmeringWorkStatusText(
                 text: WorkStatusDurationText.status(
                     elapsedSeconds: max(0, Int(ctx.date.timeIntervalSince(start))),
-                    isFinished: false,
-                    isChinese: isChinese
+                    isFinished: false
                 )
             )
             .monospacedDigit()

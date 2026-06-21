@@ -121,7 +121,7 @@ struct ConfigTabView: View {
             }
         case .persona:
             settingsScroll {
-                PersonaSettingsCard(viewModel: viewModel)
+                AgentPersonaSettingsList(viewModel: viewModel)
             }
         case .status:
             StatusTabView(viewModel: viewModel)
@@ -364,19 +364,253 @@ private struct PreferencesSettingsCard: View {
     }
 }
 
-private struct PersonaSettingsCard: View {
+private struct AgentPersonaSettingsList: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @State private var expandedAgentId: String?
+    @State private var areMoreFilesExpanded = false
+
+    private let optionalPersonaFiles: [PersonaFileDescriptor] = [
+        PersonaFileDescriptor(fileName: "USER.md", icon: "person.fill"),
+        PersonaFileDescriptor(fileName: "AGENTS.md", icon: "person.3.fill"),
+        PersonaFileDescriptor(fileName: "BOOTSTRAP.md", icon: "power"),
+        PersonaFileDescriptor(fileName: "HEARTBEAT.md", icon: "heart.text.clipboard"),
+        PersonaFileDescriptor(fileName: "TOOLS.md", icon: "wrench.and.screwdriver")
+    ]
 
     var body: some View {
-        SettingsCard(title: "Persona", systemImage: "person.text.rectangle") {
-            Text("Edit identity, memory, and persona files from one place.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Button("Open Persona") {
-                viewModel.selectedTab = .persona
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(viewModel.availableAgents) { agent in
+                agentRow(agent)
             }
-            .buttonStyle(.bordered)
         }
+        .onAppear {
+            viewModel.loadAvailableAgents()
+        }
+    }
+
+    private func agentRow(_ agent: AgentOption) -> some View {
+        let isExpanded = expandedAgentId == agent.id
+        let unsavedCount = unsavedFileCount(for: agent)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                toggleAgent(agent)
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(width: 14)
+
+                    Image(systemName: "person.text.rectangle")
+                        .foregroundColor(.accentColor)
+                        .frame(width: 18)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 8) {
+                            Text(agent.name)
+                                .font(.system(size: 14, weight: .semibold))
+                                .lineLimit(1)
+
+                            Text(agent.id)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        HStack(spacing: 8) {
+                            if !agent.model.isEmpty {
+                                Label(agent.model, systemImage: "cpu")
+                                    .lineLimit(1)
+                            }
+
+                            Label(compactWorkspacePath(for: agent), systemImage: "folder")
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                        if !agent.description.isEmpty {
+                            Text(agent.description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+
+                    Spacer(minLength: 12)
+
+                    HStack(spacing: 8) {
+                        Text(personaStatusText(for: agent))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+
+                        if unsavedCount > 0 {
+                            Text("\(unsavedCount) unsaved")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(.orange)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color.orange.opacity(0.14))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                Divider()
+                    .padding(.horizontal, 14)
+
+                agentPersonaEditors
+                    .padding(14)
+            }
+        }
+        .background(Color(NSColor.controlBackgroundColor).opacity(isExpanded ? 0.88 : 0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isExpanded ? Color.accentColor.opacity(0.42) : Color.gray.opacity(0.18), lineWidth: 1)
+        )
+    }
+
+    private var agentPersonaEditors: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            MarkdownFileEditor(
+                title: "IDENTITY.md",
+                icon: "person.crop.circle",
+                content: viewModel.settingsBinding(for: .identity),
+                isDirty: viewModel.selectedAgentDetail?.identityDirty ?? false,
+                onSave: {
+                    viewModel.saveAgentPersonaFile(file: .identity)
+                },
+                initiallyExpanded: false
+            )
+
+            MarkdownFileEditor(
+                title: "SOUL.md",
+                icon: "heart.fill",
+                content: viewModel.settingsBinding(for: .soul),
+                isDirty: viewModel.selectedAgentDetail?.soulDirty ?? false,
+                onSave: {
+                    viewModel.saveAgentPersonaFile(file: .soul)
+                },
+                initiallyExpanded: false
+            )
+
+            MarkdownFileEditor(
+                title: "MEMORY.md",
+                icon: "brain.head.profile",
+                content: viewModel.settingsBinding(for: .memory),
+                isDirty: viewModel.selectedAgentDetail?.memoryDirty ?? false,
+                onSave: {
+                    viewModel.saveAgentPersonaFile(file: .memory)
+                },
+                initiallyExpanded: false
+            )
+
+            let visibleOptionalFiles = optionalPersonaFiles.filter { file in
+                let fileName = file.fileName
+                return viewModel.hasPersonaFile(fileName)
+            }
+
+            if !visibleOptionalFiles.isEmpty {
+                DisclosureGroup(isExpanded: $areMoreFilesExpanded) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(visibleOptionalFiles) { file in
+                            let fileName = file.fileName
+                            MarkdownFileEditor(
+                                title: fileName,
+                                icon: file.icon,
+                                content: viewModel.settingsBindingByName(fileName),
+                                isDirty: viewModel.isFileDirtyByName(fileName),
+                                onSave: {
+                                    viewModel.savePersonaFileByName(fileName)
+                                },
+                                initiallyExpanded: false
+                            )
+                        }
+                    }
+                    .padding(.top, 10)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "folder.badge.gearshape")
+                            .foregroundColor(.secondary)
+                        Text("More files")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("\(visibleOptionalFiles.count)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.primary.opacity(0.08))
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(12)
+                .background(Color(NSColor.windowBackgroundColor).opacity(0.45))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
+    }
+
+    private func toggleAgent(_ agent: AgentOption) {
+        if expandedAgentId == agent.id {
+            expandedAgentId = nil
+            return
+        }
+
+        expandedAgentId = agent.id
+        areMoreFilesExpanded = false
+        viewModel.selectedAgentId = agent.id
+        viewModel.loadSelectedAgentDetail()
+    }
+
+    private func personaStatusText(for agent: AgentOption) -> String {
+        let workspace = DashboardViewModel.resolveAgentWorkspace(agent.id)
+        let files = ["IDENTITY.md", "SOUL.md", "MEMORY.md"] + optionalPersonaFiles.map(\.fileName)
+        let count = files.filter { fileName in
+            FileManager.default.fileExists(atPath: (workspace as NSString).appendingPathComponent(fileName))
+        }.count
+        return "\(count) files"
+    }
+
+    private func unsavedFileCount(for agent: AgentOption) -> Int {
+        guard let detail = viewModel.selectedAgentDetail, detail.id == agent.id else {
+            return 0
+        }
+
+        return [
+            detail.identityDirty,
+            detail.soulDirty,
+            detail.memoryDirty,
+            detail.userDirty,
+            detail.agentsDirty,
+            detail.bootstrapDirty,
+            detail.heartbeatDirty,
+            detail.toolsDirty
+        ].filter { $0 }.count
+    }
+
+    private func compactWorkspacePath(for agent: AgentOption) -> String {
+        let workspace = DashboardViewModel.resolveAgentWorkspace(agent.id)
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return workspace.replacingOccurrences(of: home, with: "~")
+    }
+}
+
+private struct PersonaFileDescriptor: Identifiable {
+    let fileName: String
+    let icon: String
+
+    var id: String {
+        fileName
     }
 }
 

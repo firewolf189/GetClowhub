@@ -47,8 +47,8 @@ assertContains(
 )
 assertContains(
     dashboardView,
-    "workspaceExpandedSidebar(width:",
-    "DashboardView should pass the Outputs surface into the AppKit split container"
+    "workspaceSidebarPane(width:",
+    "DashboardView should pass the unified Outputs pane into the AppKit split container"
 )
 assertNotContains(
     dashboardView,
@@ -82,8 +82,33 @@ assertContains(
 )
 assertContains(
     dashboard,
-    "sidebarItem.animator().isCollapsed = !isSidebarExpanded",
-    "AppKit split should own the right sidebar collapse animation"
+    "private let sidebarAnimationDuration: TimeInterval = 0.22",
+    "right split and titlebar accessory should share one animation duration"
+)
+assertContains(
+    dashboard,
+    "splitView.animator().setPosition",
+    "AppKit split should animate the divider position instead of jumping collapsed state"
+)
+assertContains(
+    dashboard,
+    "sidebarItem.canCollapse = true",
+    "right AppKit split item should be allowed to fully collapse after the divider animation"
+)
+assertContains(
+    dashboard,
+    "sidebarItem.isCollapsed = true",
+    "right AppKit split item should fully collapse so no empty trailing strip remains"
+)
+assertContains(
+    dashboard,
+    "widthConstraint?.animator().constant",
+    "right titlebar accessory bridge should update its AppKit width constraint through animation"
+)
+assertContains(
+    dashboard,
+    "height: CGFloat = 44",
+    "right titlebar accessory should occupy the full toolbar row height"
 )
 assertContains(
     dashboardView,
@@ -103,7 +128,7 @@ assertContains(
 assertContains(
     dashboardView,
     "RightOutputsTitlebarAccessory(",
-    "right Outputs title and controls should be rendered by a titlebar accessory"
+    "right Outputs toggle should be rendered by a titlebar accessory"
 )
 assertContains(
     dashboard,
@@ -118,12 +143,17 @@ assertContains(
 assertContains(
     dashboard,
     "private struct RightOutputsTitlebarAccessory",
-    "custom Outputs titlebar controls should live outside the inspector content"
+    "custom Outputs titlebar toggle should live outside the inspector content"
+)
+assertNotContains(
+    dashboard,
+    "titlebarAccessoryWidthAdjustment",
+    "right titlebar accessory must not share the Outputs pane width metric"
 )
 assertContains(
     dashboard,
-    "titlebarAccessoryWidthAdjustment",
-    "right titlebar accessory width should share the Outputs layout metric contract"
+    "private var rightTitlebarAccessoryWidth: CGFloat {\n        guard isChatTabActive else { return 0 }\n        return 44\n    }",
+    "right titlebar accessory should stay as a fixed toolbar toggle width"
 )
 assertContains(
     detailContentView,
@@ -157,6 +187,22 @@ assertNotContains(
     "Image(systemName: \"tray.full.fill\")",
     "WorkspaceFilePanel should not duplicate the Outputs titlebar icon inside the content column"
 )
+assertContains(
+    dashboard,
+    "private func workspaceSidebarPane(width: CGFloat) -> some View",
+    "right Outputs header and content should live in one AppKit split pane"
+)
+let workspaceSidebarPane = slice(dashboard, from: "private func workspaceSidebarPane(width: CGFloat) -> some View", to: "    private func workspaceExpandedSidebar")
+assertContains(
+    workspaceSidebarPane,
+    "WorkspaceOutputsPaneHeader(",
+    "right split pane should own the Outputs header row"
+)
+assertContains(
+    workspaceSidebarPane,
+    "workspaceExpandedSidebar(width: width)",
+    "right split pane should own the Outputs file content"
+)
 
 assertNotContains(
     dashboard,
@@ -170,10 +216,10 @@ assertNotContains(
 )
 
 let rightOutputsTitlebarAccessory = slice(dashboard, from: "private struct RightOutputsTitlebarAccessory: View", to: "// MARK: - Sidebar")
-assertContains(
+assertNotContains(
     rightOutputsTitlebarAccessory,
     "Text(\"Outputs\")",
-    "expanded Outputs title should live in the window titlebar accessory"
+    "window titlebar accessory should stay as a fixed toggle, not a second resizing Outputs header"
 )
 assertContains(
     rightOutputsTitlebarAccessory,
@@ -182,12 +228,12 @@ assertContains(
 )
 assertContains(
     rightOutputsTitlebarAccessory,
-    ".font(.system(size: 16, weight: .medium))",
+    ".font(.system(size: 18, weight: .medium))",
     "right sidebar titlebar icon should visually match the system left-sidebar toolbar icon size"
 )
 assertContains(
     rightOutputsTitlebarAccessory,
-    ".frame(width: 32, height: 32)",
+    ".frame(width: 34, height: 34)",
     "right sidebar titlebar icon should use the same apparent button footprint as the left toolbar icon"
 )
 assertNotContains(

@@ -190,35 +190,7 @@ struct PluginsTabView: View {
 
     private var searchAndActions: some View {
         HStack(spacing: 10) {
-            HStack(spacing: 9) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-
-                TextField("Search plugins", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 15))
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Clear search")
-                }
-            }
-            .padding(.horizontal, 11)
-            .frame(height: 34)
-            .background(Color(NSColor.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)
-            )
+            UnifiedSearchField(placeholder: "Search plugins", text: $searchText)
 
             if hasGlobalPlugins {
                 Button {

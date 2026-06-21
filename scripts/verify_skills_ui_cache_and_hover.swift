@@ -8,12 +8,14 @@ let skillCatalogItemPath = root.appendingPathComponent("OpenClawInstaller/Models
 let skillsViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SkillsTabView.swift")
 let dashboardViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let skillCatalogServicePath = root.appendingPathComponent("OpenClawInstaller/Services/SkillCatalogService.swift")
+let unifiedSearchFieldPath = root.appendingPathComponent("OpenClawInstaller/Views/Shared/UnifiedSearchField.swift")
 
 let viewModel = try String(contentsOf: viewModelPath, encoding: .utf8)
 let skillCatalogItem = try String(contentsOf: skillCatalogItemPath, encoding: .utf8)
 let skillsView = try String(contentsOf: skillsViewPath, encoding: .utf8)
 let dashboardView = try String(contentsOf: dashboardViewPath, encoding: .utf8)
 let skillCatalogService = try String(contentsOf: skillCatalogServicePath, encoding: .utf8)
+let unifiedSearchField = try String(contentsOf: unifiedSearchFieldPath, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     if !condition() {
@@ -68,11 +70,11 @@ require(
     "Refresh action should force catalog sync."
 )
 require(
-    skillsView.contains(#"TextField("Search skills", text: $searchText)"#) &&
-        skillsView.contains("RoundedRectangle(cornerRadius: 8, style: .continuous)") &&
-        skillsView.contains(".stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)") &&
-        !skillsView.contains(".clipShape(Capsule())"),
-    "Skills search field should match the bordered Plugins search field style."
+    skillsView.contains("UnifiedSearchField(placeholder: \"Search skills\", text: $searchText)") &&
+        unifiedSearchField.contains("RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)") &&
+        unifiedSearchField.contains(".stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)") &&
+        !unifiedSearchField.contains(".clipShape(Capsule())"),
+    "Skills search field should use the shared bordered search field style."
 )
 require(
     skillCatalogItem.contains("let isRecommended: Bool"),

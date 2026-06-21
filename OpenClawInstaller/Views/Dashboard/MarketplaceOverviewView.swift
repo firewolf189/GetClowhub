@@ -55,29 +55,10 @@ struct MarketplaceOverviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Search bar
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField(
-                    String(localized: "Search agents...", bundle: languageManager.localizedBundle),
-                    text: $searchText
-                )
-                .textFieldStyle(.plain)
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(10)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
-            .frame(maxWidth: .infinity)
+            UnifiedSearchField(
+                placeholder: String(localized: "Search agents...", bundle: languageManager.localizedBundle),
+                text: $searchText
+            )
 
             // Content
             SmoothScrollView {

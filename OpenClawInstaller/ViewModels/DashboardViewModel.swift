@@ -103,6 +103,7 @@ class DashboardViewModel: ObservableObject {
 
     // Maps msgId → runId for active WebSocket chat runs
     private var activeChatRuns: [UUID: String] = [:]
+    private var taskSessionKeyOverride: [UUID: String] = [:]
 
     init(
         openclawService: OpenClawService,
@@ -2866,6 +2867,234 @@ class DashboardViewModel: ObservableObject {
         return (imageAttachments, inlineText)
     }
 
+    private struct LocalImageReviewChunkResult {
+        let chunkIndex: Int
+        let status: String
+        let text: String
+    }
+
+    private func runLocalImageReviewBatch(
+        userText: String,
+        attachments: [URL],
+        msgId: UUID,
+        agentId: String,
+        agentEmoji: String?
+    ) async {
+        let store = ImageReviewBatchStore()
+
+        defer {
+            activeChatRuns.removeValue(forKey: msgId)
+            taskSessionKeyOverride.removeValue(forKey: msgId)
+            foregroundTaskIds.remove(msgId)
+            backgroundTaskIds.remove(msgId)
+            taskAgentMap.removeValue(forKey: msgId)
+            taskSessionMap.removeValue(forKey: msgId)
+            recomputeIsSendingMessage()
+        }
+
+        do {
+            let batch = try await Task.detached(priority: .utility) {
+                try ImageReviewBatchStore().createBatch(from: attachments, messageText: userText)
+            }.value
+
+            guard let batch else {
+                let error = "No supported image files were found in the uploaded attachments."
+                updateMessage(msgId: msgId, content: error, status: .completed, agentId: agentId, agentEmoji: agentEmoji)
+                return
+            }
+
+            try store.markBatch(batch, status: .running)
+            let manifest = try store.loadManifest(for: batch)
+            updateMessage(
+                msgId: msgId,
+                content: localImageReviewProgressMessage(batch: batch, completedChunks: 0),
+                status: .loading,
+                agentId: agentId,
+                agentEmoji: agentEmoji
+            )
+
+            var chunkResults: [LocalImageReviewChunkResult] = []
+            for chunkIndex in 0..<batch.chunkCount {
+                if findMessage(byId: msgId)?.taskStatus == .cancelled {
+                    try? store.markBatch(batch, status: .cancelled, completedAt: Date())
+                    return
+                }
+
+                let entries = manifest.filter { $0.chunkIndex == chunkIndex }
+                let prompt = ImageReviewBatchStore.buildChunkReviewPrompt(
+                    batch: batch,
+                    chunkIndex: chunkIndex,
+                    entries: entries,
+                    userMessage: userText
+                )
+                let sessionKey = ImageReviewBatchStore.chunkSessionKey(
+                    agentId: agentId,
+                    batchId: batch.id,
+                    chunkIndex: chunkIndex
+                )
+                let chunkResult = await runLocalImageReviewChunk(
+                    sessionKey: sessionKey,
+                    prompt: prompt,
+                    msgId: msgId
+                )
+                let result = LocalImageReviewChunkResult(
+                    chunkIndex: chunkIndex,
+                    status: chunkResult.status,
+                    text: chunkResult.text
+                )
+                chunkResults.append(result)
+                try store.appendChunkResult(
+                    batch: batch,
+                    chunkIndex: chunkIndex,
+                    status: result.status,
+                    responseText: result.text
+                )
+
+                updateMessage(
+                    msgId: msgId,
+                    content: localImageReviewProgressMessage(batch: batch, completedChunks: chunkIndex + 1),
+                    status: .loading,
+                    agentId: agentId,
+                    agentEmoji: agentEmoji
+                )
+
+                if result.status != "completed" {
+                    try store.markBatch(batch, status: .failed, completedAt: Date())
+                    updateMessage(
+                        msgId: msgId,
+                        content: localImageReviewFinalMessage(batch: batch, chunkResults: chunkResults, failed: true),
+                        status: .completed,
+                        agentId: agentId,
+                        agentEmoji: agentEmoji
+                    )
+                    return
+                }
+            }
+
+            try writeLocalImageReviewReport(batch: batch, userText: userText, chunkResults: chunkResults)
+            try store.markBatch(batch, status: .completed, completedAt: Date())
+            _ = try? store.cleanupImageCache()
+            updateMessage(
+                msgId: msgId,
+                content: localImageReviewFinalMessage(batch: batch, chunkResults: chunkResults, failed: false),
+                status: .completed,
+                agentId: agentId,
+                agentEmoji: agentEmoji
+            )
+        } catch {
+            let message = "Local image review batch failed: \(error.localizedDescription)"
+            updateMessage(msgId: msgId, content: message, status: .completed, agentId: agentId, agentEmoji: agentEmoji)
+        }
+    }
+
+    private func runLocalImageReviewChunk(
+        sessionKey: String,
+        prompt: String,
+        msgId: UUID
+    ) async -> (status: String, text: String) {
+        let subscriberId = msgId.uuidString
+        let eventStream = gatewayClient.subscribeToEvents(subscriberId: subscriberId)
+        taskSessionKeyOverride[msgId] = sessionKey
+
+        defer {
+            gatewayClient.unsubscribe(subscriberId: subscriberId)
+            activeChatRuns.removeValue(forKey: msgId)
+            taskSessionKeyOverride.removeValue(forKey: msgId)
+        }
+
+        guard let runId = await gatewayClient.chatSend(sessionKey: sessionKey, message: prompt, attachments: nil) else {
+            return ("failed", "Failed to send local image review chunk.")
+        }
+        activeChatRuns[msgId] = runId
+
+        var accumulatedText = ""
+        for await event in eventStream {
+            switch event {
+            case .delta(let eventRunId, let eventSessionKey, let text):
+                guard eventRunId == runId, eventSessionKey == sessionKey, !text.isEmpty else { continue }
+                accumulatedText = text
+            case .final_(let eventRunId, let eventSessionKey, let text):
+                guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                var finalText = text.isEmpty ? accumulatedText : text
+                if finalText.isEmpty,
+                   let historyText = await gatewayClient.fetchLastAssistantMessage(sessionKey: sessionKey) {
+                    finalText = historyText
+                }
+                return ("completed", finalText.isEmpty ? "Chunk completed." : finalText)
+            case .aborted(let eventRunId, let eventSessionKey):
+                guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                return ("cancelled", accumulatedText)
+            case .error(let eventRunId, let eventSessionKey, let message):
+                guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                return ("failed", message)
+            case .activity:
+                continue
+            }
+        }
+        return ("failed", accumulatedText.isEmpty ? "Connection interrupted before this chunk completed." : accumulatedText)
+    }
+
+    private func localImageReviewProgressMessage(batch: ImageReviewBatchStore.Batch, completedChunks: Int) -> String {
+        """
+        Local image review batch is running.
+
+        Batch ID: \(batch.id)
+        Images: \(batch.imageCount)
+        Chunks: \(completedChunks)/\(batch.chunkCount)
+        Manifest: \(batch.manifestURL.path)
+        Results: \(batch.resultsURL.path)
+        """
+    }
+
+    private func localImageReviewFinalMessage(
+        batch: ImageReviewBatchStore.Batch,
+        chunkResults: [LocalImageReviewChunkResult],
+        failed: Bool
+    ) -> String {
+        let status = failed ? "Local image review batch stopped before all chunks completed." : "Local image review batch completed."
+        let completed = chunkResults.filter { $0.status == "completed" }.count
+        return """
+        \(status)
+
+        Batch ID: \(batch.id)
+        Images: \(batch.imageCount)
+        Completed chunks: \(completed)/\(batch.chunkCount)
+        Manifest: \(batch.manifestURL.path)
+        Chunk results: \(batch.resultsURL.path)
+        Report: \(batch.reportURL.path)
+        """
+    }
+
+    private func writeLocalImageReviewReport(
+        batch: ImageReviewBatchStore.Batch,
+        userText: String,
+        chunkResults: [LocalImageReviewChunkResult]
+    ) throws {
+        let sections = chunkResults
+            .sorted { $0.chunkIndex < $1.chunkIndex }
+            .map { result in
+                """
+                ## Chunk \(result.chunkIndex + 1)
+
+                Status: \(result.status)
+
+                \(result.text)
+                """
+            }
+            .joined(separator: "\n\n")
+        let report = """
+        # Local Image Review Batch
+
+        Batch ID: \(batch.id)
+        Images: \(batch.imageCount)
+        Chunks: \(batch.chunkCount)
+        Request: \(userText)
+
+        \(sections)
+        """
+        try Data(report.utf8).write(to: batch.reportURL, options: .atomic)
+    }
+
     private func updateMessage(
         msgId: UUID,
         content: String,
@@ -3001,6 +3230,21 @@ class DashboardViewModel: ObservableObject {
             taskAgentMap.removeValue(forKey: msgId)
             taskSessionMap.removeValue(forKey: msgId)
             recomputeIsSendingMessage()
+            return
+        }
+
+        if ImageReviewBatchStore.isImageReviewBatchCandidate(
+            urls: attachments,
+            messageText: text,
+            selectedAgentId: currentAgentId
+        ) {
+            await runLocalImageReviewBatch(
+                userText: text,
+                attachments: attachments,
+                msgId: msgId,
+                agentId: currentAgentId,
+                agentEmoji: currentAgentEmoji
+            )
             return
         }
 
@@ -3357,8 +3601,7 @@ class DashboardViewModel: ObservableObject {
         let runId = activeChatRuns[msgId]
         let taskAgent = taskAgentMap[msgId] ?? selectedAgentId
         let taskSid = taskSessionMap[msgId] ?? selectedSessionIdByAgent[taskAgent]
-        if let taskSid = taskSid {
-            let sessionKey = sessionKeyForAgent(taskAgent, sessionId: taskSid)
+        if let sessionKey = taskSessionKeyOverride[msgId] ?? taskSid.map({ sessionKeyForAgent(taskAgent, sessionId: $0) }) {
             Task {
                 _ = await gatewayClient.abortChat(sessionKey: sessionKey, runId: runId)
             }
@@ -3385,6 +3628,7 @@ class DashboardViewModel: ObservableObject {
         backgroundTaskIds.remove(msgId)
         taskAgentMap.removeValue(forKey: msgId)
         taskSessionMap.removeValue(forKey: msgId)
+        taskSessionKeyOverride.removeValue(forKey: msgId)
         recomputeIsSendingMessage()
     }
 

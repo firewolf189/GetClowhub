@@ -56,7 +56,7 @@ struct OpenClawInstallerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var services = AppServices()
     @StateObject private var sparkleUpdater = SparkleUpdater()
-    @StateObject private var languageManager = LanguageManager()
+    @StateObject private var languageManager = LanguageManager.shared
     #if REQUIRE_LOGIN
     @StateObject private var authManager = AuthManager()
     @StateObject private var membershipManager = MembershipManager()

@@ -42,6 +42,12 @@ expect(renderer.contains("struct A2UIComponentView"), "A2UI component renderer s
 expect(renderer.contains("Unsupported component"), "Unknown components should render a fallback")
 expect(renderer.contains("AsyncImage"), "Image components should use SwiftUI image loading")
 expect(renderer.contains("A2UIComponentView(component:"), "Renderer should recurse through component children")
+expect(renderer.contains("A2UICardPalette"), "A2UI cards should use a dedicated color palette")
+expect(renderer.contains("morandiKhakiBackground"), "Outer card should use a Morandi khaki background")
+expect(renderer.contains("morandiKhakiBorder"), "Outer card should use a stronger khaki border")
+expect(renderer.contains("innerCardBackground"), "Nested card panels should use a coordinated warm inner background")
+expect(!renderer.contains("controlBackgroundColor"), "Outer A2UI card should not use the default control background")
+expect(!renderer.contains("textBackgroundColor"), "Nested A2UI cards should not use the default text background")
 
 expect(dashboard.contains("A2UICardParser.parse(content)"), "Assistant messages should try A2UI parsing before Markdown")
 expect(dashboard.contains("A2UICardView(payload:"), "Assistant messages should render A2UI cards")

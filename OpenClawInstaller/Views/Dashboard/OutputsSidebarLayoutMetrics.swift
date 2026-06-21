@@ -6,22 +6,19 @@ struct OutputsSidebarLayoutMetrics {
     let editorWidth: CGFloat
     let minimumChatStageWidth: CGFloat
     let chatColumnMaxWidth: CGFloat
-    let titlebarAccessoryWidthAdjustment: CGFloat
 
     init(
         collapsedWidth: CGFloat = 0,
         browserWidth: CGFloat = 280,
         editorWidth: CGFloat = 480,
         minimumChatStageWidth: CGFloat = 640,
-        chatColumnMaxWidth: CGFloat = 820,
-        titlebarAccessoryWidthAdjustment: CGFloat = 0
+        chatColumnMaxWidth: CGFloat = 820
     ) {
         self.collapsedWidth = collapsedWidth
         self.browserWidth = browserWidth
         self.editorWidth = editorWidth
         self.minimumChatStageWidth = minimumChatStageWidth
         self.chatColumnMaxWidth = chatColumnMaxWidth
-        self.titlebarAccessoryWidthAdjustment = titlebarAccessoryWidthAdjustment
     }
 
     func sidebarWidth(isExpanded: Bool, hasEditor: Bool, availableWidth: CGFloat) -> CGFloat {
