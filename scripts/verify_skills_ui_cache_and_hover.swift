@@ -4,11 +4,13 @@ import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let viewModelPath = root.appendingPathComponent("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let skillCatalogItemPath = root.appendingPathComponent("OpenClawInstaller/Models/SkillCatalogItem.swift")
 let skillsViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SkillsTabView.swift")
 let dashboardViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let skillCatalogServicePath = root.appendingPathComponent("OpenClawInstaller/Services/SkillCatalogService.swift")
 
 let viewModel = try String(contentsOf: viewModelPath, encoding: .utf8)
+let skillCatalogItem = try String(contentsOf: skillCatalogItemPath, encoding: .utf8)
 let skillsView = try String(contentsOf: skillsViewPath, encoding: .utf8)
 let dashboardView = try String(contentsOf: dashboardViewPath, encoding: .utf8)
 let skillCatalogService = try String(contentsOf: skillCatalogServicePath, encoding: .utf8)
@@ -64,6 +66,64 @@ require(
 require(
     skillsView.contains("loadSkillMarket(forceSync: true)"),
     "Refresh action should force catalog sync."
+)
+require(
+    skillCatalogItem.contains("let isRecommended: Bool"),
+    "Skill catalog items should carry a recommended flag from marketplace.json."
+)
+require(
+    skillCatalogItem.contains("let tags: [String]") &&
+        skillCatalogItem.contains("let sortOrder: Int"),
+    "Skill catalog items should carry marketplace tags and ordering metadata."
+)
+require(
+    !skillCatalogItem.contains("SkillCatalogCategory") &&
+        !skillCatalogItem.contains("SkillLibrarySection") &&
+        !skillCatalogItem.contains("builtIn") &&
+        !skillCatalogItem.contains(#"Built-in"#),
+    "Skill catalog should no longer expose built-in/library section enums; source classification is tag-driven."
+)
+require(
+    skillCatalogService.contains("marketplace.json") &&
+        skillCatalogService.contains("JSONDecoder()") &&
+        skillCatalogService.contains("private struct SkillMarketplace") &&
+        skillCatalogService.contains("private struct SkillMarketplaceEntry") &&
+        skillCatalogService.contains("isRecommended: isRecommended"),
+    "SkillCatalogService should parse recommended, tags, and order from marketplace.json."
+)
+require(
+    !skillCatalogService.contains(#"frontmatter["recommended"]"#),
+    "SkillCatalogService should not use SKILL.md frontmatter for recommendation state."
+)
+require(
+    skillCatalogService.contains(#".appendingPathComponent("skills")"#) &&
+        !skillCatalogService.contains(#".appendingPathComponent(SkillCatalogCategory.builtIn.rawValue)"#) &&
+        !skillCatalogService.contains(#".appendingPathComponent("built-in")"#),
+    "SkillCatalogService should scan direct skills/* directories instead of falling back to old category folders."
+)
+require(
+    skillsView.contains("@State private var displayMode: SkillDisplayMode = .recommend") &&
+        skillsView.contains(#"case recommend = "Recommend""#) &&
+        skillsView.range(of: #"case recommend = "Recommend""#)!.lowerBound < skillsView.range(of: #"case all = "All""#)!.lowerBound,
+    "Skills tab should default to Recommend and place it before All."
+)
+require(
+    skillsView.contains("private var filteredRecommendedCatalogItems: [SkillCatalogItem]") &&
+        skillsView.contains("filteredCatalogItems.filter(\\.isRecommended)") &&
+        skillsView.contains("recommendedSkillsContent") &&
+        skillsView.contains("case .recommend:"),
+    "Skills tab should render a dedicated Recommend list from recommended catalog items."
+)
+require(
+    skillsView.contains("item.tags") &&
+        skillsView.contains("item.tags.joined"),
+    "Skills tab search should include marketplace tags."
+)
+require(
+    !skillsView.contains("InstalledSection") &&
+        !skillsView.contains("installedSections") &&
+        skillsView.contains(#"SkillSectionHeader(title: "Installed""#),
+    "Installed skills should render as one list instead of preserving Catalog/Custom sub-sections."
 )
 require(
     skillsView.contains("withAnimation(.easeInOut(duration: 0.18))"),

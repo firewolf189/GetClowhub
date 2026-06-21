@@ -29,35 +29,74 @@ enum PluginCatalogService {
             throw PluginCatalogError.missingPluginsDirectory
         }
 
-        var itemsByName: [String: PluginCatalogItem] = [:]
-
-        for item in try parseCatalogItems(rootURL: rootURL, source: .all) {
-            itemsByName[item.name] = item
+        let marketplaceItems = parseMarketplaceCatalog(rootURL: rootURL)
+        if !marketplaceItems.isEmpty {
+            return sortCatalogItems(marketplaceItems)
         }
 
-        for item in try parseCatalogItems(rootURL: rootURL, source: .recommend) {
-            itemsByName[item.name] = item
-        }
-
-        return itemsByName.values.sorted { lhs, rhs in
-            if lhs.source != rhs.source {
-                return sourceSortRank(lhs.source) < sourceSortRank(rhs.source)
+        let scannedItems = pluginDirectories(in: pluginsURL).compactMap { pluginURL -> CatalogEntry? in
+            guard let item = parsePlugin(rootURL: rootURL, pluginURL: pluginURL, source: .all) else {
+                return nil
             }
-            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            return CatalogEntry(item: item, order: nil)
         }
+
+        return sortCatalogItems(scannedItems)
     }
 
-    private static func parseCatalogItems(
-        rootURL: URL,
-        source: PluginCatalogSource
-    ) throws -> [PluginCatalogItem] {
-        let sourceURL = rootURL
+    private static func parseMarketplaceCatalog(rootURL: URL) -> [CatalogEntry] {
+        let manifestURL = rootURL
+            .appendingPathComponent(".agents")
             .appendingPathComponent("plugins")
-            .appendingPathComponent(source == .all ? "All" : "recommend")
-
-        return pluginDirectories(in: sourceURL).compactMap { pluginURL in
-            parsePlugin(rootURL: rootURL, pluginURL: pluginURL, source: source)
+            .appendingPathComponent("marketplace.json")
+        guard let manifest: PluginMarketplaceManifest = decodeJSON(manifestURL) else {
+            return []
         }
+
+        var itemsByName: [String: CatalogEntry] = [:]
+        for (index, entry) in manifest.plugins.enumerated() {
+            guard let pluginURL = pluginURL(for: entry, rootURL: rootURL),
+                  let item = parsePlugin(
+                    rootURL: rootURL,
+                    pluginURL: pluginURL,
+                    source: entry.catalogSource
+                  ) else {
+                continue
+            }
+
+            let catalogEntry = CatalogEntry(item: item, order: entry.order ?? index)
+            if let existingEntry = itemsByName[item.name],
+               shouldKeep(existingEntry, over: catalogEntry) {
+                continue
+            }
+            itemsByName[item.name] = catalogEntry
+        }
+
+        return Array(itemsByName.values)
+    }
+
+    private static func pluginURL(for entry: PluginMarketplaceEntry, rootURL: URL) -> URL? {
+        let fallbackName = entry.name?.nilIfBlank ?? entry.id?.nilIfBlank
+        guard var path = entry.path?.nilIfBlank
+            ?? entry.source?.path?.nilIfBlank
+            ?? fallbackName.map({ "plugins/\($0)" }) else {
+            return nil
+        }
+
+        while path.hasPrefix("./") {
+            path.removeFirst(2)
+        }
+
+        guard !path.hasPrefix("/"), !path.contains("://") else {
+            return nil
+        }
+
+        let rootPath = rootURL.standardizedFileURL.path
+        let pluginURL = rootURL.appendingPathComponent(path).standardizedFileURL
+        guard pluginURL.path.hasPrefix(rootPath + "/") else {
+            return nil
+        }
+        return pluginURL
     }
 
     private static func pluginDirectories(in rootURL: URL) -> [URL] {
@@ -266,8 +305,94 @@ enum PluginCatalogService {
         }
     }
 
+    private static func shouldKeep(_ existingEntry: CatalogEntry, over newEntry: CatalogEntry) -> Bool {
+        let existingRank = sourceSortRank(existingEntry.item.source)
+        let newRank = sourceSortRank(newEntry.item.source)
+        if existingRank != newRank {
+            return existingRank < newRank
+        }
+
+        switch (existingEntry.order, newEntry.order) {
+        case let (existing?, new?):
+            return existing <= new
+        case (_?, nil):
+            return true
+        case (nil, _?):
+            return false
+        case (nil, nil):
+            return existingEntry.item.displayName.localizedCaseInsensitiveCompare(newEntry.item.displayName) != .orderedDescending
+        }
+    }
+
+    private static func sortCatalogItems(_ entries: [CatalogEntry]) -> [PluginCatalogItem] {
+        entries.sorted { lhs, rhs in
+            if lhs.item.source != rhs.item.source {
+                return sourceSortRank(lhs.item.source) < sourceSortRank(rhs.item.source)
+            }
+
+            switch (lhs.order, rhs.order) {
+            case let (left?, right?) where left != right:
+                return left < right
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            default:
+                return lhs.item.displayName.localizedCaseInsensitiveCompare(rhs.item.displayName) == .orderedAscending
+            }
+        }
+        .map(\.item)
+    }
+
     private static func shellQuote(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
+private struct CatalogEntry {
+    let item: PluginCatalogItem
+    let order: Int?
+}
+
+private struct PluginMarketplaceManifest: Decodable {
+    let plugins: [PluginMarketplaceEntry]
+}
+
+private struct PluginMarketplaceEntry: Decodable {
+    let id: String?
+    let name: String?
+    let path: String?
+    let source: Source?
+    let tags: [String]?
+    let order: Int?
+
+    var catalogSource: PluginCatalogSource {
+        if normalizedTags.contains("recommend") {
+            return .recommend
+        }
+
+        if normalizedPathComponents.contains("recommend") {
+            return .recommend
+        }
+
+        return .all
+    }
+
+    private var normalizedTags: Set<String> {
+        Set((tags ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+    }
+
+    private var normalizedPathComponents: Set<String> {
+        let path = self.path ?? source?.path ?? ""
+        let components = path
+            .replacingOccurrences(of: "\\", with: "/")
+            .split(separator: "/")
+            .map { String($0).lowercased() }
+        return Set(components)
+    }
+
+    struct Source: Decodable {
+        let path: String?
     }
 }
 

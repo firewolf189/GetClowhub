@@ -100,9 +100,10 @@ struct MainContentView: View {
     @EnvironmentObject var authManager: AuthManager
     #endif
 
-    @State private var viewMode: ViewMode = .initial
+    @State private var viewMode: ViewMode = .checking
 
     enum ViewMode {
+        case checking
         case initial
         case installation
         case dashboard
@@ -112,6 +113,9 @@ struct MainContentView: View {
         ZStack {
             Group {
                 switch viewMode {
+                case .checking:
+                    StartupCheckingView()
+
                 case .initial:
                     InitialView(
                         systemEnvironment: services.systemEnvironment,
@@ -234,11 +238,33 @@ struct MainContentView: View {
     }
 
     private func determineInitialView() async {
-        // Always start on the initial landing page.
-        // The InitialView will show different options depending on
-        // whether OpenClaw is detected (dashboard button vs install button).
         await services.systemEnvironment.performFullCheck()
-        viewMode = .initial
+        if services.systemEnvironment.openclawInfo != nil {
+            viewMode = .dashboard
+        } else {
+            viewMode = .initial
+        }
+    }
+}
+
+private struct StartupCheckingView: View {
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image("Logo1")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 160, height: 160)
+
+            BrandTextView()
+
+            ProgressView()
+                .scaleEffect(1.1)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

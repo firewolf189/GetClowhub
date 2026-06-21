@@ -27,6 +27,8 @@ enum SkillCatalogService {
 
     static func parseCatalog(rootURL: URL) throws -> [SkillCatalogItem] {
         var items: [SkillCatalogItem] = []
+        let marketplaceEntriesByID = loadMarketplace(rootURL: rootURL).entriesByID
+
         for skillURL in catalogSkillDirectories(rootURL: rootURL) {
             let skillMarkdownURL = skillURL.appendingPathComponent("SKILL.md")
             let markdown = try String(contentsOf: skillMarkdownURL, encoding: .utf8)
@@ -35,6 +37,12 @@ enum SkillCatalogService {
             let name = frontmatter["name"]?.nilIfBlank ?? folderName
             let description = frontmatter["description"]?.nilIfBlank ?? firstParagraph(in: markdown)
             let documentationMarkdown = markdownBody(in: markdown, fallback: description)
+            let marketplaceEntry = marketplaceEntry(
+                in: marketplaceEntriesByID,
+                skillName: name,
+                folderName: folderName
+            )
+            let isRecommended = marketplaceEntry?.recommended ?? false
 
             items.append(
                 SkillCatalogItem(
@@ -43,7 +51,9 @@ enum SkillCatalogService {
                     displayName: displayName(for: name),
                     description: description,
                     documentationMarkdown: documentationMarkdown,
-                    category: .builtIn,
+                    isRecommended: isRecommended,
+                    tags: normalizedTags(marketplaceEntry?.tags),
+                    sortOrder: marketplaceEntry?.order ?? defaultSortOrder,
                     relativePath: relativePath(from: rootURL, to: skillURL),
                     iconURL: preferredIconURL(in: skillURL, frontmatter: frontmatter)
                 )
@@ -51,18 +61,87 @@ enum SkillCatalogService {
         }
 
         return items.sorted { lhs, rhs in
-            if lhs.category != rhs.category {
-                return categorySortRank(lhs.category) < categorySortRank(rhs.category)
+            if lhs.sortOrder != rhs.sortOrder {
+                return lhs.sortOrder < rhs.sortOrder
             }
             return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
     }
 
+    private static let defaultSortOrder = 1_000_000
+
+    private struct SkillMarketplace: Decodable {
+        let version: Int?
+        let skills: [SkillMarketplaceEntry]
+
+        var entriesByID: [String: SkillMarketplaceEntry] {
+            skills.reduce(into: [:]) { result, entry in
+                let key = normalizedMarketplaceID(entry.id)
+                guard result[key] == nil else { return }
+                result[key] = entry
+            }
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case version
+            case skills
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            version = try container.decodeIfPresent(Int.self, forKey: .version)
+            skills = try container.decodeIfPresent([SkillMarketplaceEntry].self, forKey: .skills) ?? []
+        }
+
+        init(version: Int? = nil, skills: [SkillMarketplaceEntry] = []) {
+            self.version = version
+            self.skills = skills
+        }
+    }
+
+    private struct SkillMarketplaceEntry: Decodable {
+        let id: String
+        let recommended: Bool?
+        let tags: [String]?
+        let order: Int?
+    }
+
+    private static func loadMarketplace(rootURL: URL) -> SkillMarketplace {
+        let marketplaceURL = rootURL.appendingPathComponent("marketplace.json")
+        guard let data = try? Data(contentsOf: marketplaceURL),
+              let marketplace = try? JSONDecoder().decode(SkillMarketplace.self, from: data) else {
+            return SkillMarketplace()
+        }
+        return marketplace
+    }
+
+    private static func marketplaceEntry(
+        in entriesByID: [String: SkillMarketplaceEntry],
+        skillName: String,
+        folderName: String
+    ) -> SkillMarketplaceEntry? {
+        entriesByID[normalizedMarketplaceID(skillName)]
+            ?? entriesByID[normalizedMarketplaceID(folderName)]
+    }
+
+    private static func normalizedMarketplaceID(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func normalizedTags(_ tags: [String]?) -> [String] {
+        var seen = Set<String>()
+        return (tags ?? []).compactMap { tag in
+            let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            let key = trimmed.lowercased()
+            guard seen.insert(key).inserted else { return nil }
+            return trimmed
+        }
+    }
+
     private static func catalogSkillDirectories(rootURL: URL) -> [URL] {
-        let builtInURL = rootURL
-            .appendingPathComponent("skills")
-            .appendingPathComponent(SkillCatalogCategory.builtIn.rawValue)
-        return directSkillDirectories(in: builtInURL)
+        let skillsURL = rootURL.appendingPathComponent("skills")
+        return directSkillDirectories(in: skillsURL)
     }
 
     private static func directSkillDirectories(in rootURL: URL) -> [URL] {
@@ -213,13 +292,6 @@ enum SkillCatalogService {
                 word.prefix(1).uppercased() + word.dropFirst()
             }
             .joined(separator: " ")
-    }
-
-    private static func categorySortRank(_ category: SkillCatalogCategory) -> Int {
-        switch category {
-        case .builtIn:
-            return 1
-        }
     }
 
     private static func shellQuote(_ value: String) -> String {

@@ -54,6 +54,7 @@ struct DashboardView: View {
     @State private var workspaceSearchActive = false
     @State private var workspaceSearchText = ""
     @State private var selectedSkillDetailItem: SkillDetailPresentationItem?
+    @State private var selectedPluginDetailItem: PluginDetailPresentationItem?
     @State private var skillPendingRemoval: SkillInfo?
     @State private var requestedUserMessageJumpId: UUID?
     @State private var sessionTitleFrame: CGRect = .zero
@@ -61,11 +62,13 @@ struct DashboardView: View {
     @State private var isSessionTitleFlyoutHovering = false
     @State private var isSessionTitleFlyoutPresented = false
     @State private var sessionTitleFlyoutCloseTask: DispatchWorkItem?
+    @Namespace private var pluginDetailNamespace
     @FocusState private var isGlobalSessionSearchFocused: Bool
 
     private let workspaceSidebarMinWidth: CGFloat = 240
     private let workspaceSidebarMaxWidth: CGFloat = 420
     private let sessionTitleFlyoutWidth: CGFloat = 360
+    private let pluginDetailAnimation = Animation.spring(response: 0.34, dampingFraction: 0.86, blendDuration: 0.04)
     private static let workspaceLayoutMetrics = OutputsSidebarLayoutMetrics()
 
     init(viewModel: DashboardViewModel) {
@@ -88,7 +91,9 @@ struct DashboardView: View {
                 viewModel: viewModel,
                 workspaceSidebarController: workspaceSidebarController,
                 requestedUserMessageJumpId: $requestedUserMessageJumpId,
-                onOpenSkillDetail: presentSkillDetail
+                onOpenSkillDetail: presentSkillDetail,
+                pluginDetailNamespace: pluginDetailNamespace,
+                onOpenPluginDetail: presentPluginDetail
             )
         } detail: {
             workspaceSplitColumn
@@ -153,6 +158,11 @@ struct DashboardView: View {
                 skillDetailOverlay(for: selectedSkillDetailItem)
             }
         }
+        .overlay {
+            if let selectedPluginDetailItem, activeTab == .plugins {
+                pluginDetailOverlay(for: selectedPluginDetailItem)
+            }
+        }
         .overlay(alignment: .topLeading) {
             sessionTitleUserMessagesFlyout
         }
@@ -160,6 +170,7 @@ struct DashboardView: View {
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
         .animation(.spring(response: 0.24, dampingFraction: 0.9), value: selectedSkillDetailItem?.id)
+        .animation(pluginDetailAnimation, value: selectedPluginDetailItem?.id)
         .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)
         .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceEditingFilePath)
         .onAppear {
@@ -189,6 +200,9 @@ struct DashboardView: View {
             closeSessionTitleFlyout()
             if newTab != .skills {
                 dismissSkillCatalogDetail()
+            }
+            if newTab != .plugins {
+                dismissPluginCatalogDetail()
             }
         }
         .onChange(of: currentSessionMetadata?.id) { _ in
@@ -605,8 +619,133 @@ struct DashboardView: View {
         ))
     }
 
+    private func presentPluginDetail(_ item: PluginDetailPresentationItem) {
+        withAnimation(pluginDetailAnimation) {
+            selectedPluginDetailItem = item
+        }
+    }
+
+    private func dismissPluginCatalogDetail() {
+        withAnimation(pluginDetailAnimation) {
+            selectedPluginDetailItem = nil
+        }
+    }
+
+    private func pluginDetailOverlay(for item: PluginDetailPresentationItem) -> some View {
+        let installedPlugin = resolvedPluginDetailInstalledPlugin(for: item)
+
+        return GeometryReader { _ in
+            ZStack {
+                Color.black
+                    .opacity(0.001)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if viewModel.installingCatalogPluginName == nil && !viewModel.isPerformingAction {
+                            dismissPluginCatalogDetail()
+                        }
+                    }
+
+                PluginCatalogDetailSheet(
+                    item: item,
+                    installedPlugin: installedPlugin,
+                    isInstalling: item.catalogItem.map { viewModel.installingCatalogPluginName == $0.name } ?? false,
+                    isPerformingAction: viewModel.isPerformingAction,
+                    onInstall: {
+                        if let catalogItem = item.catalogItem {
+                            Task { await viewModel.installCatalogPlugin(catalogItem) }
+                        }
+                    },
+                    onEnable: {
+                        if let installedPlugin {
+                            Task { await viewModel.enablePlugin(installedPlugin) }
+                        }
+                    },
+                    onDisable: {
+                        if let installedPlugin {
+                            Task { await viewModel.disablePlugin(installedPlugin) }
+                        }
+                    },
+                    onUpdate: {
+                        if let installedPlugin {
+                            Task { await viewModel.updatePlugin(installedPlugin) }
+                        }
+                    },
+                    onUninstall: {
+                        if let installedPlugin {
+                            Task { await viewModel.uninstallPlugin(installedPlugin) }
+                        }
+                    },
+                    onClose: dismissPluginCatalogDetail
+                )
+                .background {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.regularMaterial)
+                        .matchedGeometryEffect(
+                            id: "plugin-card-\(item.id)",
+                            in: pluginDetailNamespace,
+                            isSource: false
+                        )
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .shadow(color: Color.black.opacity(isDark ? 0.45 : 0.18), radius: 28, x: 0, y: 18)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.primary.opacity(isDark ? 0.16 : 0.08), lineWidth: 1)
+                )
+                .padding(28)
+                .onTapGesture {}
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+        .transition(.asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.965, anchor: .center)),
+            removal: .opacity.combined(with: .scale(scale: 0.985, anchor: .center))
+        ))
+    }
+
     private var installedSkillByName: [String: SkillInfo] {
         SkillNameIndex.firstByName(viewModel.skills) { $0.name }
+    }
+
+    private func resolvedPluginDetailInstalledPlugin(for item: PluginDetailPresentationItem) -> PluginInfo? {
+        if let catalogItem = item.catalogItem {
+            return installedPlugin(for: catalogItem)
+        }
+        if let installedPlugin = item.installedPlugin {
+            return installedPluginsByID[pluginLookupKey(installedPlugin.pluginId)]
+                ?? installedPluginsByChannel[pluginLookupKey(installedPlugin.channel)]
+                ?? installedPlugin
+        }
+        return nil
+    }
+
+    private func installedPlugin(for item: PluginCatalogItem) -> PluginInfo? {
+        installedPluginsByID[pluginLookupKey(item.openClawPluginID)]
+            ?? installedPluginsByID[pluginLookupKey(item.name)]
+            ?? installedPluginsByChannel[pluginLookupKey(item.name)]
+    }
+
+    private var installedPluginsByID: [String: PluginInfo] {
+        firstInstalledPlugins { $0.pluginId }
+    }
+
+    private var installedPluginsByChannel: [String: PluginInfo] {
+        firstInstalledPlugins { $0.channel }
+    }
+
+    private func firstInstalledPlugins(key: (PluginInfo) -> String) -> [String: PluginInfo] {
+        var result: [String: PluginInfo] = [:]
+        for plugin in viewModel.plugins where result[pluginLookupKey(key(plugin))] == nil {
+            result[pluginLookupKey(key(plugin))] = plugin
+        }
+        return result
+    }
+
+    private func pluginLookupKey(_ value: String) -> String {
+        let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let slashIndex = lower.lastIndex(of: "/") else { return lower }
+        return String(lower[lower.index(after: slashIndex)...])
     }
 
     private var globalSessionSearchOverlay: some View {
@@ -1929,6 +2068,8 @@ private struct DetailContentView: View {
     let workspaceSidebarController: WorkspaceSidebarController
     @Binding var requestedUserMessageJumpId: UUID?
     let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
+    let pluginDetailNamespace: Namespace.ID
+    let onOpenPluginDetail: (PluginDetailPresentationItem) -> Void
     @State private var collabPanelWidth: CGFloat = 320
     @State private var dragStartWidth: CGFloat = 320
 
@@ -2058,7 +2199,11 @@ private struct DetailContentView: View {
                     case .channels:
                         ChannelsTabView(viewModel: viewModel)
                     case .plugins:
-                        PluginsTabView(viewModel: viewModel)
+                        PluginsTabView(
+                            viewModel: viewModel,
+                            pluginDetailNamespace: pluginDetailNamespace,
+                            onOpenPluginDetail: onOpenPluginDetail
+                        )
                     case .cron:
                         CronTabView(viewModel: viewModel)
                     case .logs:

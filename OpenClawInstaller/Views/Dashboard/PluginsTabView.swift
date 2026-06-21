@@ -62,17 +62,11 @@ struct PluginDetailPresentationItem: Identifiable {
 struct PluginsTabView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: DashboardViewModel
-    @Namespace private var pluginDetailNamespace
+    let pluginDetailNamespace: Namespace.ID
+    let onOpenPluginDetail: (PluginDetailPresentationItem) -> Void
     @State private var searchText = ""
     @State private var displayMode: PluginDisplayMode = .recommend
     @State private var showInstallSheet = false
-    @State private var selectedDetailItem: PluginDetailPresentationItem?
-
-    private let pluginDetailAnimation = Animation.spring(
-        response: 0.34,
-        dampingFraction: 0.86,
-        blendDuration: 0.04
-    )
 
     private enum PluginDisplayMode: String, CaseIterable {
         case recommend = "Recommend"
@@ -149,16 +143,6 @@ struct PluginsTabView: View {
         }
     }
 
-    private var detailBackdropOpacity: Double {
-        colorScheme == .dark ? 0.34 : 0.18
-    }
-
-    private var detailCardBackground: Color {
-        colorScheme == .dark
-            ? Color(NSColor.windowBackgroundColor)
-            : Color(NSColor.controlBackgroundColor)
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -174,9 +158,6 @@ struct PluginsTabView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color(NSColor.windowBackgroundColor))
-        .overlay {
-            detailOverlay
-        }
         .task {
             await viewModel.loadPluginMarket()
         }
@@ -185,76 +166,6 @@ struct PluginsTabView: View {
                 viewModel: viewModel,
                 isPresented: $showInstallSheet
             )
-        }
-    }
-
-    @ViewBuilder
-    private var detailOverlay: some View {
-        if let selectedDetailItem {
-            let installedPlugin = resolvedInstalledPlugin(for: selectedDetailItem)
-
-            ZStack {
-                Color.black
-                    .opacity(detailBackdropOpacity)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if viewModel.installingCatalogPluginName == nil && !viewModel.isPerformingAction {
-                            closeDetail()
-                        }
-                    }
-
-                PluginCatalogDetailSheet(
-                    item: selectedDetailItem,
-                    installedPlugin: installedPlugin,
-                    namespace: pluginDetailNamespace,
-                    geometryID: selectedDetailItem.id,
-                    isInstalling: selectedDetailItem.catalogItem.map { viewModel.installingCatalogPluginName == $0.name } ?? false,
-                    isPerformingAction: viewModel.isPerformingAction,
-                    onInstall: {
-                        guard let catalogItem = selectedDetailItem.catalogItem else { return }
-                        Task { await viewModel.installCatalogPlugin(catalogItem) }
-                    },
-                    onEnable: {
-                        guard let installedPlugin else { return }
-                        Task { await viewModel.enablePlugin(installedPlugin) }
-                    },
-                    onDisable: {
-                        guard let installedPlugin else { return }
-                        Task { await viewModel.disablePlugin(installedPlugin) }
-                    },
-                    onUpdate: {
-                        guard let installedPlugin else { return }
-                        Task { await viewModel.updatePlugin(installedPlugin) }
-                    },
-                    onUninstall: {
-                        guard let installedPlugin else { return }
-                        Task { await viewModel.uninstallPlugin(installedPlugin) }
-                    },
-                    onClose: {
-                        closeDetail()
-                    }
-                )
-                .background {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(detailCardBackground)
-                        .matchedGeometryEffect(
-                            id: "plugin-card-\(selectedDetailItem.id)",
-                            in: pluginDetailNamespace,
-                            isSource: false
-                        )
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.36 : 0.16), radius: 28, x: 0, y: 16)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
-                )
-                .padding(28)
-                .onTapGesture {}
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .center)))
         }
     }
 
@@ -480,7 +391,7 @@ struct PluginsTabView: View {
                             Task { await viewModel.installCatalogPlugin(item) }
                         },
                         onOpen: {
-                            openDetail(PluginDetailPresentationItem.fromCatalog(item, installedPlugin: installedPlugin))
+                            onOpenPluginDetail(PluginDetailPresentationItem.fromCatalog(item, installedPlugin: installedPlugin))
                         }
                     )
 
@@ -507,7 +418,7 @@ struct PluginsTabView: View {
                         namespace: pluginDetailNamespace,
                         geometryID: "installed-\(plugin.pluginId)",
                         onOpen: {
-                            openDetail(PluginDetailPresentationItem.fromInstalled(plugin, catalogItem: catalogItem))
+                            onOpenPluginDetail(PluginDetailPresentationItem.fromInstalled(plugin, catalogItem: catalogItem))
                         }
                     )
 
@@ -518,16 +429,6 @@ struct PluginsTabView: View {
                 }
             }
         }
-    }
-
-    private func resolvedInstalledPlugin(for detailItem: PluginDetailPresentationItem) -> PluginInfo? {
-        if let catalogItem = detailItem.catalogItem {
-            return installedPlugin(for: catalogItem)
-        }
-        if let installedPlugin = detailItem.installedPlugin {
-            return installedPluginsByID[lookupKey(installedPlugin.pluginId)] ?? installedPlugin
-        }
-        return nil
     }
 
     private func installedPlugin(for item: PluginCatalogItem) -> PluginInfo? {
@@ -562,18 +463,6 @@ struct PluginsTabView: View {
         let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard let slashIndex = lower.lastIndex(of: "/") else { return lower }
         return String(lower[lower.index(after: slashIndex)...])
-    }
-
-    private func openDetail(_ item: PluginDetailPresentationItem) {
-        withAnimation(pluginDetailAnimation) {
-            selectedDetailItem = item
-        }
-    }
-
-    private func closeDetail() {
-        withAnimation(pluginDetailAnimation) {
-            selectedDetailItem = nil
-        }
     }
 
     private func matchesSearch(name: String, description: String, metadata: [String]) -> Bool {
@@ -646,14 +535,12 @@ private struct CatalogPluginListRow: View {
     var body: some View {
         HStack(spacing: 14) {
             PluginCatalogIcon(iconURL: item.iconURL, size: 32)
-                .matchedGeometryEffect(id: "plugin-icon-\(geometryID)", in: namespace)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.displayName)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .matchedGeometryEffect(id: "plugin-title-\(geometryID)", in: namespace)
 
                 Text(item.description)
                     .font(.system(size: 13))
@@ -735,14 +622,12 @@ private struct InstalledPluginListRow: View {
     var body: some View {
         HStack(spacing: 14) {
             PluginCatalogIcon(iconURL: catalogItem?.iconURL, size: 32)
-                .matchedGeometryEffect(id: "plugin-icon-\(geometryID)", in: namespace)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(catalogItem?.displayName ?? plugin.channel)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .matchedGeometryEffect(id: "plugin-title-\(geometryID)", in: namespace)
 
                 Text(catalogItem?.description.nilIfBlank ?? plugin.pluginId)
                     .font(.system(size: 13))
@@ -878,8 +763,6 @@ private struct EmptyPluginStateView: View {
 struct PluginCatalogDetailSheet: View {
     let item: PluginDetailPresentationItem
     let installedPlugin: PluginInfo?
-    let namespace: Namespace.ID
-    let geometryID: String
     let isInstalling: Bool
     let isPerformingAction: Bool
     let onInstall: () -> Void
@@ -894,22 +777,10 @@ struct PluginCatalogDetailSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 14) {
-                PluginCatalogIcon(iconURL: item.iconURL, size: 44)
-                    .matchedGeometryEffect(
-                        id: "plugin-icon-\(geometryID)",
-                        in: namespace,
-                        isSource: false
-                    )
-
                 VStack(alignment: .leading, spacing: 10) {
                     Text(item.displayName)
                         .font(.system(size: 22, weight: .semibold))
                         .lineLimit(1)
-                        .matchedGeometryEffect(
-                            id: "plugin-title-\(geometryID)",
-                            in: namespace,
-                            isSource: false
-                        )
 
                     HStack(spacing: 8) {
                         PluginDetailChip(title: item.sourceTitle)
@@ -1407,24 +1278,34 @@ struct InstallPluginSheet: View {
     }
 }
 
-#Preview {
-    PluginsTabView(
-        viewModel: DashboardViewModel(
-            openclawService: OpenClawService(
+private struct PluginsTabPreviewWrapper: View {
+    @Namespace private var pluginDetailNamespace
+
+    var body: some View {
+        PluginsTabView(
+            viewModel: DashboardViewModel(
+                openclawService: OpenClawService(
+                    commandExecutor: CommandExecutor(
+                        permissionManager: PermissionManager()
+                    )
+                ),
+                settings: AppSettingsManager(),
+                systemEnvironment: SystemEnvironment(
+                    commandExecutor: CommandExecutor(
+                        permissionManager: PermissionManager()
+                    )
+                ),
                 commandExecutor: CommandExecutor(
                     permissionManager: PermissionManager()
                 )
             ),
-            settings: AppSettingsManager(),
-            systemEnvironment: SystemEnvironment(
-                commandExecutor: CommandExecutor(
-                    permissionManager: PermissionManager()
-                )
-            ),
-            commandExecutor: CommandExecutor(
-                permissionManager: PermissionManager()
-            )
+            pluginDetailNamespace: pluginDetailNamespace,
+            onOpenPluginDetail: { _ in }
         )
-    )
-    .frame(width: 700, height: 600)
+    }
+}
+
+#Preview {
+    PluginsTabPreviewWrapper()
+        .frame(width: 700, height: 600)
 }

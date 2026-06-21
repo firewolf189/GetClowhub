@@ -19,17 +19,21 @@ struct SkillDetailPresentationItem: Identifiable {
             displayName: item.displayName,
             description: item.description,
             documentationMarkdown: item.documentationMarkdown,
-            sourceTitle: item.category.title,
+            sourceTitle: item.isRecommended ? "Recommend" : "Catalog",
             catalogItem: item,
             iconURL: item.iconURL
         )
     }
 
     static func fromInstalled(_ skill: SkillInfo, catalogItem: SkillCatalogItem?) -> SkillDetailPresentationItem {
-        let section = SkillLibrarySection.section(
-            forSkillName: skill.name,
-            catalogItemsByName: catalogItem.map { [$0.name: $0] } ?? [:]
-        )
+        let sourceTitle: String
+        if catalogItem?.isRecommended == true {
+            sourceTitle = "Recommend"
+        } else if catalogItem != nil {
+            sourceTitle = "Catalog"
+        } else {
+            sourceTitle = "Custom"
+        }
         let description = catalogItem?.description.nilIfBlank
             ?? skill.description.nilIfBlank
             ?? "Installed skill"
@@ -40,7 +44,7 @@ struct SkillDetailPresentationItem: Identifiable {
             displayName: catalogItem?.displayName ?? skill.name,
             description: description,
             documentationMarkdown: catalogItem?.documentationMarkdown.nilIfBlank ?? description,
-            sourceTitle: section.title,
+            sourceTitle: sourceTitle,
             catalogItem: catalogItem,
             iconURL: catalogItem?.iconURL
         )
@@ -52,18 +56,13 @@ struct SkillsTabView: View {
     @ObservedObject var viewModel: DashboardViewModel
     let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     @State private var searchText = ""
-    @State private var displayMode: SkillDisplayMode = .all
+    @State private var displayMode: SkillDisplayMode = .recommend
     @State private var skillPointerLocation: CGPoint?
 
     private enum SkillDisplayMode: String, CaseIterable {
+        case recommend = "Recommend"
         case all = "All"
         case installed = "Installed"
-    }
-
-    private struct InstalledSection: Identifiable {
-        let id: SkillLibrarySection
-        let title: String
-        let items: [SkillInfo]
     }
 
     private var installedSkillsByName: [String: SkillInfo] {
@@ -79,9 +78,13 @@ struct SkillsTabView: View {
             matchesSearch(
                 name: item.displayName,
                 description: item.description,
-                metadata: [item.name, item.category.title]
+                metadata: [item.name, item.isRecommended ? "recommended" : "", item.tags.joined(separator: " ")]
             )
         }
+    }
+
+    private var filteredRecommendedCatalogItems: [SkillCatalogItem] {
+        filteredCatalogItems.filter(\.isRecommended)
     }
 
     private var filteredInstalledSkills: [SkillInfo] {
@@ -90,30 +93,13 @@ struct SkillsTabView: View {
             return matchesSearch(
                 name: catalogItem?.displayName ?? skill.name,
                 description: catalogItem?.description ?? skill.description,
-                metadata: [skill.name, skill.source, catalogItem?.category.title ?? ""]
+                metadata: [
+                    skill.name,
+                    skill.source,
+                    catalogItem?.isRecommended == true ? "recommended" : "",
+                    catalogItem?.tags.joined(separator: " ") ?? ""
+                ]
             )
-        }
-    }
-
-    private var customInstalledSkills: [SkillInfo] {
-        filteredInstalledSkills.filter { skill in
-            SkillLibrarySection.section(
-                forSkillName: skill.name,
-                catalogItemsByName: catalogItemsByName
-            ) == .custom
-        }
-    }
-
-    private var installedSections: [InstalledSection] {
-        SkillLibrarySection.allCases.compactMap { section in
-            let items = filteredInstalledSkills.filter {
-                SkillLibrarySection.section(
-                    forSkillName: $0.name,
-                    catalogItemsByName: catalogItemsByName
-                ) == section
-            }
-            guard !items.isEmpty else { return nil }
-            return InstalledSection(id: section, title: section.title, items: items)
         }
     }
 
@@ -226,16 +212,42 @@ struct SkillsTabView: View {
             }
         }
         .pickerStyle(.segmented)
-        .frame(width: 190)
+        .frame(width: 284)
     }
 
     @ViewBuilder
     private var content: some View {
         switch displayMode {
+        case .recommend:
+            recommendedSkillsContent
         case .all:
             allSkillsContent
         case .installed:
             installedSkillsContent
+        }
+    }
+
+    @ViewBuilder
+    private var recommendedSkillsContent: some View {
+        if viewModel.isLoadingSkillCatalog && viewModel.skillCatalog.isEmpty {
+            LoadingStateView(text: "Loading skill catalog...")
+        } else if let error = viewModel.skillCatalogError, viewModel.skillCatalog.isEmpty {
+            EmptySkillStateView(
+                systemImage: "exclamationmark.triangle",
+                title: "Could not load skill catalog",
+                detail: error
+            )
+        } else if filteredRecommendedCatalogItems.isEmpty {
+            EmptySkillStateView(
+                systemImage: "bolt",
+                title: viewModel.skillCatalog.isEmpty ? "No recommended skills" : "No matching recommended skills",
+                detail: nil
+            )
+        } else {
+            catalogSkillSection(
+                title: "Recommend",
+                items: filteredRecommendedCatalogItems
+            )
         }
     }
 
@@ -249,63 +261,42 @@ struct SkillsTabView: View {
                 title: "Could not load skill catalog",
                 detail: error
             )
-        } else if filteredCatalogItems.isEmpty && customInstalledSkills.isEmpty {
+        } else if filteredCatalogItems.isEmpty {
             EmptySkillStateView(
                 systemImage: "bolt.slash",
-                title: viewModel.skillCatalog.isEmpty && viewModel.skills.isEmpty ? "No skills found" : "No matching skills",
+                title: viewModel.skillCatalog.isEmpty ? "No skills found" : "No matching skills",
                 detail: nil
             )
         } else {
-            VStack(alignment: .leading, spacing: 26) {
-                if !filteredCatalogItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        SkillSectionHeader(title: SkillLibrarySection.builtIn.title, count: filteredCatalogItems.count)
+            catalogSkillSection(
+                title: "All",
+                items: filteredCatalogItems
+            )
+        }
+    }
 
-                        VStack(spacing: 0) {
-                            ForEach(Array(filteredCatalogItems.enumerated()), id: \.offset) { index, item in
-                                CatalogSkillListRow(
-                                    item: item,
-                                    installedSkill: installedSkillsByName[item.name],
-                                    isInstalling: viewModel.installingCatalogSkillName == item.name,
-                                    pointerLocation: skillPointerLocation,
-                                    onInstall: {
-                                        Task { await viewModel.installCatalogSkill(item) }
-                                    },
-                                    onOpen: {
-                                        onOpenSkillDetail(SkillDetailPresentationItem.fromCatalog(item))
-                                    }
-                                )
+    private func catalogSkillSection(title: String, items: [SkillCatalogItem]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SkillSectionHeader(title: title, count: items.count)
 
-                                if index < filteredCatalogItems.count - 1 {
-                                    Divider()
-                                        .padding(.leading, 56)
-                                }
-                            }
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                    CatalogSkillListRow(
+                        item: item,
+                        installedSkill: installedSkillsByName[item.name],
+                        isInstalling: viewModel.installingCatalogSkillName == item.name,
+                        pointerLocation: skillPointerLocation,
+                        onInstall: {
+                            Task { await viewModel.installCatalogSkill(item) }
+                        },
+                        onOpen: {
+                            onOpenSkillDetail(SkillDetailPresentationItem.fromCatalog(item))
                         }
-                    }
-                }
+                    )
 
-                if !customInstalledSkills.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        SkillSectionHeader(title: SkillLibrarySection.custom.title, count: customInstalledSkills.count)
-
-                        VStack(spacing: 0) {
-                            ForEach(Array(customInstalledSkills.enumerated()), id: \.offset) { index, skill in
-                                InstalledSkillListRow(
-                                    skill: skill,
-                                    catalogItem: nil,
-                                    pointerLocation: skillPointerLocation,
-                                    onOpen: {
-                                        onOpenSkillDetail(SkillDetailPresentationItem.fromInstalled(skill, catalogItem: nil))
-                                    }
-                                )
-
-                                if index < customInstalledSkills.count - 1 {
-                                    Divider()
-                                        .padding(.leading, 56)
-                                }
-                            }
-                        }
+                    if index < items.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
                     }
                 }
             }
@@ -316,39 +307,35 @@ struct SkillsTabView: View {
     private var installedSkillsContent: some View {
         if viewModel.isLoadingSkills && viewModel.skills.isEmpty {
             LoadingStateView(text: "Loading installed skills...")
-        } else if installedSections.isEmpty {
+        } else if filteredInstalledSkills.isEmpty {
             EmptySkillStateView(
                 systemImage: "checkmark.circle",
                 title: viewModel.skills.isEmpty ? "No installed skills" : "No matching installed skills",
                 detail: nil
             )
         } else {
-            VStack(alignment: .leading, spacing: 26) {
-                ForEach(installedSections) { section in
-                    VStack(alignment: .leading, spacing: 10) {
-                        SkillSectionHeader(title: section.title, count: section.items.count)
+            VStack(alignment: .leading, spacing: 10) {
+                SkillSectionHeader(title: "Installed", count: filteredInstalledSkills.count)
 
-                        VStack(spacing: 0) {
-                            ForEach(Array(section.items.enumerated()), id: \.offset) { index, skill in
-                                InstalledSkillListRow(
-                                    skill: skill,
-                                    catalogItem: catalogItemsByName[skill.name],
-                                    pointerLocation: skillPointerLocation,
-                                    onOpen: {
-                                        onOpenSkillDetail(
-                                            SkillDetailPresentationItem.fromInstalled(
-                                                skill,
-                                                catalogItem: catalogItemsByName[skill.name]
-                                            )
-                                        )
-                                    }
+                VStack(spacing: 0) {
+                    ForEach(Array(filteredInstalledSkills.enumerated()), id: \.offset) { index, skill in
+                        InstalledSkillListRow(
+                            skill: skill,
+                            catalogItem: catalogItemsByName[skill.name],
+                            pointerLocation: skillPointerLocation,
+                            onOpen: {
+                                onOpenSkillDetail(
+                                    SkillDetailPresentationItem.fromInstalled(
+                                        skill,
+                                        catalogItem: catalogItemsByName[skill.name]
+                                    )
                                 )
-
-                                if index < section.items.count - 1 {
-                                    Divider()
-                                        .padding(.leading, 56)
-                                }
                             }
+                        )
+
+                        if index < filteredInstalledSkills.count - 1 {
+                            Divider()
+                                .padding(.leading, 56)
                         }
                     }
                 }
