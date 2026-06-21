@@ -140,14 +140,46 @@ struct SkillsTabView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color(NSColor.windowBackgroundColor))
+        .overlay {
+            manualInstallOverlay
+        }
         .task {
             await viewModel.loadSkillMarket()
         }
-        .sheet(isPresented: $showManualInstallSheet) {
-            ManualSkillInstallSheet(
-                viewModel: viewModel,
-                isPresented: $showManualInstallSheet
-            )
+    }
+
+    @ViewBuilder
+    private var manualInstallOverlay: some View {
+        if showManualInstallSheet {
+            ZStack {
+                Color.black
+                    .opacity(0.001)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if !viewModel.isInstallingManualSkill {
+                            withAnimation(.easeInOut(duration: 0.14)) {
+                                showManualInstallSheet = false
+                            }
+                        }
+                    }
+
+                ManualSkillInstallSheet(
+                    viewModel: viewModel,
+                    isPresented: $showManualInstallSheet
+                )
+                .background(.regularMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.36 : 0.16), radius: 28, x: 0, y: 16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
+                )
+                .padding(28)
+                .onTapGesture {}
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .center)))
         }
     }
 
@@ -198,7 +230,9 @@ struct SkillsTabView: View {
             .clipShape(Capsule())
 
             Button {
-                showManualInstallSheet = true
+                withAnimation(.easeInOut(duration: 0.14)) {
+                    showManualInstallSheet = true
+                }
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 15, weight: .medium))
@@ -688,7 +722,9 @@ private struct ManualSkillInstallSheet: View {
                 Spacer()
 
                 Button {
-                    isPresented = false
+                    withAnimation(.easeInOut(duration: 0.14)) {
+                        isPresented = false
+                    }
                 } label: {
                     Text("Cancel")
                         .frame(width: 104, height: 30)
@@ -701,7 +737,9 @@ private struct ManualSkillInstallSheet: View {
                     Task {
                         let success = await viewModel.installManualSkill(repositoryInput: repositoryInput)
                         if success {
-                            isPresented = false
+                            withAnimation(.easeInOut(duration: 0.14)) {
+                                isPresented = false
+                            }
                         }
                     }
                 } label: {

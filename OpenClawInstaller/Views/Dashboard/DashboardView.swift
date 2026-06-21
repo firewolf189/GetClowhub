@@ -6426,7 +6426,7 @@ enum MarkdownHTML {
         html, body { background: transparent; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-            font-size: 14px; color: \(textColor); line-height: 1.55;
+            font-size: 15px; color: \(textColor); line-height: 1.55;
             -webkit-user-select: text; cursor: text;
             word-wrap: break-word; overflow-wrap: break-word;
             overflow: hidden;
@@ -6452,7 +6452,7 @@ enum MarkdownHTML {
         }
         pre code { background: none; padding: 0; }
         table { border-collapse: collapse; margin: 8px 0; }
-        th, td { border: 1px solid \(borderColor); padding: 5px 10px; text-align: left; }
+        th, td { border: 1px solid \(borderColor); padding: 5px 10px; text-align: left; font-size: 15px; line-height: 1.55; }
         th { font-weight: 600; }
         tr:nth-child(even) { background: \(tableBg); }
         blockquote {

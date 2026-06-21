@@ -2734,6 +2734,8 @@ class DashboardViewModel: ObservableObject {
 
     /// Extensions that the gateway accepts as image attachments (via base64 in `content` field).
     private static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp"]
+    private static let maxInlineImageAttachmentCount = 8
+    private static let maxInlineImageAttachmentBytes = 12 * 1024 * 1024
 
     /// True iff `url` is an existing directory. Cheap stat; called per-attachment.
     private static func urlIsDirectory(_ url: URL) -> Bool {
@@ -2742,12 +2744,53 @@ class DashboardViewModel: ObservableObject {
         return exists && isDir.boolValue
     }
 
+    private static func fileSize(at url: URL) -> Int64? {
+        guard let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
+              let size = values.fileSize else {
+            return nil
+        }
+        return Int64(size)
+    }
+
     /// Process attachments: images → base64 attachments array; other files → pass file path in message;
     /// directories → pass folder path with a "folder" hint so the agent picks list_dir over read_file.
     /// Returns (imageAttachments, textToAppend).
     private func processAttachments(_ urls: [URL]) -> (attachments: [[String: Any]], inlineText: String) {
         var imageAttachments: [[String: Any]] = []
         var textParts: [String] = []
+        let imageFileURLs = urls.filter { url in
+            !Self.urlIsDirectory(url) && Self.imageExtensions.contains(url.pathExtension.lowercased())
+        }
+        var totalImageBytes: Int64 = 0
+        var allImageSizesKnown = true
+        for url in imageFileURLs {
+            if let size = Self.fileSize(at: url) {
+                totalImageBytes += size
+            } else {
+                allImageSizesKnown = false
+            }
+        }
+        let shouldInlineImageAttachments = imageFileURLs.count <= Self.maxInlineImageAttachmentCount
+            && allImageSizesKnown
+            && totalImageBytes <= Int64(Self.maxInlineImageAttachmentBytes)
+        let imageBatchUsesPathMode = !imageFileURLs.isEmpty && !shouldInlineImageAttachments
+        if imageBatchUsesPathMode {
+            let totalMB = Double(totalImageBytes) / 1024.0 / 1024.0
+            os_log(
+                .info,
+                "processAttachments: image batch path mode count=%d totalMB=%.2f knownSizes=%{public}@",
+                imageFileURLs.count,
+                totalMB,
+                String(allImageSizesKnown)
+            )
+            textParts.append(
+                String(
+                    format: "Image batch passed by file path because it contains %d image(s), %.2f MB total. Review these local image paths directly.",
+                    imageFileURLs.count,
+                    totalMB
+                )
+            )
+        }
 
         for url in urls {
             let ext = url.pathExtension.lowercased()
@@ -2766,6 +2809,11 @@ class DashboardViewModel: ObservableObject {
 
             // Image files → send as base64 attachment (gateway only accepts image/*)
             if Self.imageExtensions.contains(ext) {
+                if imageBatchUsesPathMode {
+                    os_log(.info, "processAttachments: image '%{public}@' path-mode due to large batch", fileName)
+                    textParts.append("Attached image file: \(url.path)")
+                    continue
+                }
                 guard let data = try? Data(contentsOf: url) else {
                     os_log(.error, "processAttachments: failed to read image file: %{public}@", fileName)
                     continue

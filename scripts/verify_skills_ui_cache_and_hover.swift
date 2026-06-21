@@ -230,6 +230,7 @@ require(
         skillsView.contains("Color.black") &&
         skillsView.contains(".opacity(0.001)") &&
         skillsView.contains(".contentShape(Rectangle())") &&
+        skillsView.contains("withAnimation(.easeInOut(duration: 0.14))") &&
         skillsView.contains("showManualInstallSheet = false") &&
         skillsView.contains(".onTapGesture {}"),
     "Manual install overlay should use a transparent outside-click layer and keep inner clicks from dismissing."

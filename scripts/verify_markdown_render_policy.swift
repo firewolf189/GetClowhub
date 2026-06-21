@@ -44,6 +44,14 @@ expectContains(
     "Height writeback should use the shared threshold policy"
 )
 expectContains(
+    "font-size: 15px; color:",
+    "Rich markdown body text should use the same 15px size as normal message text"
+)
+expectContains(
+    "th, td { border: 1px solid \\(borderColor); padding: 5px 10px; text-align: left; font-size: 15px; line-height: 1.55; }",
+    "Rich markdown table cells should match normal message text size"
+)
+expectContains(
     "static let recentRichMessageLimit = 6",
     "Only a bounded number of recent complex messages should use WKWebView"
 )
