@@ -10,7 +10,7 @@ struct PluginsTabView: View {
     }
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 16) {
                 // Header
                 HStack {

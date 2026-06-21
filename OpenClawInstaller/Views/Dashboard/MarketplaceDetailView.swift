@@ -14,7 +14,7 @@ struct MarketplaceDetailView: View {
     @State private var installError: String?
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Back to marketplace
                 if let onBack = onBack {
@@ -22,7 +22,7 @@ struct MarketplaceDetailView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 12, weight: .semibold))
-                            Text("Marketplace")
+                            Text("AgentsMarket")
                                 .font(.system(size: 13))
                         }
                         .foregroundColor(.secondary)
@@ -62,8 +62,7 @@ struct MarketplaceDetailView: View {
 
     private var headerSection: some View {
         HStack(spacing: 16) {
-            Text(agent.emoji)
-                .font(.system(size: 56))
+            AgentAvatarImage(size: 56)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(agent.name)
@@ -234,8 +233,7 @@ struct MarketplaceDetailView: View {
             SubAgentsViewModel.patchAgentIdentity(
                 configPath: configPath,
                 agentId: agentId,
-                name: displayName,
-                emoji: agent.emoji
+                name: displayName
             )
 
             // Step 3: Patch agent model in openclaw.json

@@ -6,7 +6,7 @@ struct BillingTabView: View {
     @ObservedObject var membershipManager: MembershipManager
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 16) {
                 OfficialServiceBillingSection(viewModel: viewModel, membershipManager: membershipManager)
             }

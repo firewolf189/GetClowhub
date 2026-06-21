@@ -253,7 +253,7 @@ struct MessageBubble: View {
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
                 ZStack(alignment: .topTrailing) {
                     if message.role == .assistant {
-                        SelectableMarkdownView(content: message.content)
+                        AssistantMessageContentView(content: message.content, isStreaming: false)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 8)
@@ -281,12 +281,10 @@ struct MessageBubble: View {
                 }
 
                 // Always-visible copy affordance under each bubble (dimmed
-                // when the bubble isn't hovered). The assistant side
-                // renders via WKWebView (SelectableMarkdownView), which
-                // supports drag-select inside a single message but
-                // can't span bubbles — so a one-click copy is the most
-                // reliable path. Click → icon swaps to checkmark + "已
-                // 复制" label for 1.5s.
+                // when the bubble isn't hovered). Assistant replies share
+                // the main chat markdown renderer, so a one-click copy stays
+                // the most reliable path across native and rich rendering.
+                // Click → icon swaps to checkmark + "已复制" label for 1.5s.
                 if !message.content.isEmpty {
                     // Shared borderless action icon (matches the main chat).
                     MessageActionIcon(

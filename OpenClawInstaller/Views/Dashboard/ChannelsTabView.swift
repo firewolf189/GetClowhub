@@ -6,7 +6,7 @@ struct ChannelsTabView: View {
     @State private var showAddSheet = false
 
     var body: some View {
-        ScrollView {
+        SmoothScrollView {
             VStack(spacing: 16) {
                 // Header
                 HStack {

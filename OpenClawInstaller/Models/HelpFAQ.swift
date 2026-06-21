@@ -185,8 +185,8 @@ struct HelpFAQMatcher {
         FAQItem(
             keywords: ["技能", "skill", "安装", "install"],
             question: "如何安装技能？",
-            answerZh: "进入 Skills 页面，点击 Install 按钮，粘贴安装命令（格式：npx skills add <url> --skill <name>），等待安装完成。也可以点击 Market 按钮浏览技能市场。",
-            answerEn: "Go to the Skills page, click Install, paste the install command (format: npx skills add <url> --skill <name>), and wait for completion. You can also click Market to browse available skills."
+            answerZh: "进入 Skills 页面，点击 Install 粘贴安装命令（格式：npx skills add <url> --skill <name>），等待安装完成。",
+            answerEn: "Go to the Skills page, click Install and paste an install command (format: npx skills add <url> --skill <name>)."
         ),
         FAQItem(
             keywords: ["渠道", "channel", "telegram", "discord", "连接", "平台", "slack", "微信", "wechat"],

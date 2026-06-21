@@ -281,8 +281,7 @@ struct IdentityCardView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            Text(identity.emoji)
-                .font(.system(size: 48))
+            AgentAvatarImage(size: 56)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(identity.name)
@@ -604,7 +603,6 @@ struct ParsedIdentity {
     var name: String = ""
     var creature: String = ""
     var vibe: String = ""
-    var emoji: String = "🤖"
     var division: String = ""
 }
 
@@ -690,9 +688,6 @@ class PersonaViewModel: ObservableObject {
                 identity.creature = trimmed.replacingOccurrences(of: "- **Creature:**", with: "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix("- **Vibe:**") {
                 identity.vibe = trimmed.replacingOccurrences(of: "- **Vibe:**", with: "").trimmingCharacters(in: .whitespaces)
-            } else if trimmed.hasPrefix("- **Emoji:**") {
-                let emoji = trimmed.replacingOccurrences(of: "- **Emoji:**", with: "").trimmingCharacters(in: .whitespaces)
-                if !emoji.isEmpty { identity.emoji = emoji }
             } else if trimmed.hasPrefix("- **Division:**") {
                 identity.division = trimmed.replacingOccurrences(of: "- **Division:**", with: "").trimmingCharacters(in: .whitespaces)
             }

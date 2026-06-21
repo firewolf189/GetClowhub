@@ -10,6 +10,24 @@ enum GatewayChatEvent {
     case final_(runId: String, sessionKey: String, text: String)
     case aborted(runId: String, sessionKey: String)
     case error(runId: String, sessionKey: String, message: String)
+    case activity(runId: String, sessionKey: String?, event: GatewayActivityEvent)
+}
+
+struct GatewayActivityEvent: Equatable {
+    enum Kind: String, Equatable {
+        case loadedTools
+        case searchedCode
+        case readFiles
+        case ranCommands
+        case editedFiles
+        case createdFiles
+        case selectedModel
+        case toolFailed
+    }
+
+    let kind: Kind
+    let detail: String?
+    let dedupeKey: String
 }
 
 /// Last gateway-side rejection seen on the connect handshake. Carries the raw
@@ -473,6 +491,13 @@ class GatewayClient: ObservableObject {
             return
         }
 
+        if type == "event", let event = json["event"] as? String, event == "agent" {
+            if let payload = json["payload"] as? [String: Any] {
+                handleAgentEventPayload(payload)
+            }
+            return
+        }
+
         if type == "res" {
             if let id = json["id"] as? String {
                 // Check if there is a pending chat.send request (returns runId)
@@ -735,7 +760,7 @@ class GatewayClient: ObservableObject {
             ],
             "role": connectRole,
             "scopes": scopes,
-            "caps": [] as [String],
+            "caps": ["tool-events"],
             "auth": auth,
             "locale": locale,
         ]
@@ -910,6 +935,148 @@ class GatewayClient: ObservableObject {
     }
 
     // MARK: - Chat Event Helpers
+
+    private func handleAgentEventPayload(_ payload: [String: Any]) {
+        guard let runId = payload["runId"] as? String else { return }
+        let sessionKey = payload["sessionKey"] as? String
+        guard let event = parseGatewayActivity(from: payload) else { return }
+        broadcastEvent(.activity(runId: runId, sessionKey: sessionKey, event: event))
+    }
+
+    private func parseGatewayActivity(from payload: [String: Any]) -> GatewayActivityEvent? {
+        let stream = payload["stream"] as? String
+        let data = payload["data"] as? [String: Any] ?? [:]
+
+        if let modelEvent = parseModelActivity(data: data, payload: payload) {
+            return modelEvent
+        }
+
+        guard stream == "tool" else {
+            if stream == "error" {
+                let key = stableActivityKey(prefix: "agent-error", payload: payload, data: data)
+                return GatewayActivityEvent(kind: .toolFailed, detail: nil, dedupeKey: key)
+            }
+            return nil
+        }
+
+        let toolName = firstString(in: data, keys: ["toolName", "name", "tool", "commandName"])
+            ?? firstString(in: payload, keys: ["toolName", "name", "tool"])
+        let normalizedTool = toolName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let isError = boolValue(data["isError"])
+            || ["error", "failed", "failure"].contains((firstString(in: data, keys: ["status", "state", "phase"]) ?? "").lowercased())
+
+        let detail = sanitizedActivityDetail(for: normalizedTool, data: data)
+        let key = stableActivityKey(prefix: "tool", payload: payload, data: data, fallback: "\(normalizedTool ?? "unknown"):\(detail ?? "")")
+
+        if isError {
+            return GatewayActivityEvent(kind: .toolFailed, detail: detail ?? toolName, dedupeKey: key)
+        }
+
+        switch normalizedTool {
+        case "read", "read_file", "file_read":
+            return GatewayActivityEvent(kind: .readFiles, detail: detail, dedupeKey: key)
+        case "exec", "bash", "shell", "command", "run_command":
+            return GatewayActivityEvent(kind: .ranCommands, detail: detail, dedupeKey: key)
+        case "write", "create_file":
+            return GatewayActivityEvent(kind: .createdFiles, detail: detail, dedupeKey: key)
+        case "edit", "patch", "apply_patch", "str_replace", "replace", "write_file":
+            return GatewayActivityEvent(kind: .editedFiles, detail: detail, dedupeKey: key)
+        case "grep", "rg", "search", "glob", "find", "list", "ls", "list_dir":
+            return GatewayActivityEvent(kind: .searchedCode, detail: detail, dedupeKey: key)
+        case .some:
+            return GatewayActivityEvent(kind: .loadedTools, detail: toolName, dedupeKey: key)
+        case .none:
+            return nil
+        }
+    }
+
+    private func parseModelActivity(data: [String: Any], payload: [String: Any]) -> GatewayActivityEvent? {
+        let provider = firstString(in: data, keys: ["provider"])
+        let model = firstString(in: data, keys: ["model", "modelId"])
+        guard provider != nil || model != nil else { return nil }
+        let detail = [provider, model]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "/")
+        guard !detail.isEmpty else { return nil }
+        let key = stableActivityKey(prefix: "model", payload: payload, data: data, fallback: detail)
+        return GatewayActivityEvent(kind: .selectedModel, detail: detail, dedupeKey: key)
+    }
+
+    private func sanitizedActivityDetail(for toolName: String?, data: [String: Any]) -> String? {
+        let argumentKeys: [String]
+        switch toolName {
+        case "read", "read_file", "file_read", "write", "create_file", "edit", "patch", "apply_patch", "str_replace", "replace", "write_file":
+            argumentKeys = ["path", "file", "filePath", "target", "resolvedPath"]
+        case "exec", "bash", "shell", "command", "run_command":
+            argumentKeys = ["command", "cmd"]
+        case "grep", "rg", "search", "glob", "find", "list", "ls", "list_dir":
+            argumentKeys = ["query", "pattern", "path", "cwd", "command"]
+        default:
+            argumentKeys = ["path", "command", "query", "name"]
+        }
+
+        if let direct = firstString(in: data, keys: argumentKeys) {
+            return clippedDetail(direct)
+        }
+        if let arguments = data["arguments"] as? [String: Any],
+           let nested = firstString(in: arguments, keys: argumentKeys) {
+            return clippedDetail(nested)
+        }
+        if let input = data["input"] as? [String: Any],
+           let nested = firstString(in: input, keys: argumentKeys) {
+            return clippedDetail(nested)
+        }
+        if let args = data["args"] as? [String: Any],
+           let nested = firstString(in: args, keys: argumentKeys) {
+            return clippedDetail(nested)
+        }
+        return nil
+    }
+
+    private func stableActivityKey(prefix: String, payload: [String: Any], data: [String: Any], fallback: String = "") -> String {
+        let id = firstString(in: data, keys: ["toolCallId", "callId", "id"])
+            ?? firstString(in: payload, keys: ["toolCallId", "callId", "id"])
+        if let id, !id.isEmpty {
+            return "\(prefix):\(id)"
+        }
+        let runId = payload["runId"] as? String ?? ""
+        let seq = payload["seq"].map { String(describing: $0) } ?? ""
+        return "\(prefix):\(runId):\(seq):\(fallback)"
+    }
+
+    private func firstString(in dict: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            if let value = dict[key] as? String,
+               !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return value
+            }
+            if let value = dict[key] {
+                let description = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !description.isEmpty, description != "Optional(nil)" {
+                    return description
+                }
+            }
+        }
+        return nil
+    }
+
+    private func boolValue(_ value: Any?) -> Bool {
+        if let bool = value as? Bool { return bool }
+        if let string = value as? String {
+            return ["true", "yes", "1"].contains(string.lowercased())
+        }
+        return false
+    }
+
+    private func clippedDetail(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.count <= 160 {
+            return trimmed
+        }
+        return String(trimmed.prefix(157)) + "..."
+    }
 
     private func handleChatEventPayload(_ payload: [String: Any]) {
         guard let state = payload["state"] as? String,
