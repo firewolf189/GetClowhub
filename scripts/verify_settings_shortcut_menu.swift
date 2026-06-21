@@ -56,6 +56,11 @@ let providerSettingsContent = slice(
     from: "case .provider:\n            settingsScroll {",
     to: "case .budget:"
 )
+let officialServiceSection = slice(
+    config,
+    from: "struct GetClawHubServiceSection: View",
+    to: "#endif"
+)
 
 require(
     !sidebarMainList.contains("navRow(.status"),
@@ -135,6 +140,13 @@ let customProviderOffset = offset(of: "ModelConfigSection(viewModel: viewModel)"
 require(
     officialProviderOffset < customProviderOffset,
     "Provider settings should keep the official GetClawHub service option before the custom API provider."
+)
+require(
+    officialServiceSection.contains("Available Models") &&
+        officialServiceSection.contains("officialAvailableModels") &&
+        officialServiceSection.contains("activeOfficialModelAllowList") &&
+        officialServiceSection.contains("availableModelsView"),
+    "Official GetClawHub provider settings should show the usable model list."
 )
 
 print("Settings shortcut menu verification passed")

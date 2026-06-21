@@ -496,6 +496,30 @@ struct GetClawHubServiceSection: View {
         viewModel.presetManager.findProvider(byKey: "getclawhub")?.baseUrl ?? "https://ai.getclawhub.com/v1"
     }
 
+    private var officialPresetModels: [PresetModel] {
+        viewModel.presetManager.findProvider(byKey: "getclawhub")?.models ?? []
+    }
+
+    private var activeOfficialModelAllowList: [String] {
+        if let activeKey = membershipManager.apiKeys.last(where: { $0.isActive }), !activeKey.models.isEmpty {
+            return activeKey.models
+        }
+        if let membership = membershipManager.membership, !membership.models.isEmpty {
+            return membership.models
+        }
+        return []
+    }
+
+    private var officialAvailableModels: [PresetModel] {
+        let allowList = activeOfficialModelAllowList
+        guard !allowList.isEmpty else {
+            return officialPresetModels
+        }
+
+        let allowedLowercased = Set(allowList.map { $0.lowercased() })
+        return officialPresetModels.filter { allowedLowercased.contains($0.id.lowercased()) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Radio + Title + Expand/Collapse
@@ -620,6 +644,8 @@ struct GetClawHubServiceSection: View {
                     .foregroundColor(.secondary)
             }
 
+            availableModelsView
+
             // Base URL (readonly) — above API Key
             HStack {
                 Text("API Base URL")
@@ -672,6 +698,78 @@ struct GetClawHubServiceSection: View {
             }
 
         }
+    }
+
+    private var availableModelsView: some View {
+        HStack(alignment: .top) {
+            Text("Available Models")
+                .frame(width: 120, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 8) {
+                if officialAvailableModels.isEmpty {
+                    Text("No matching models found in the official provider preset.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 168), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach(officialAvailableModels) { model in
+                            officialModelPill(model)
+                        }
+                    }
+
+                    Text("\(officialAvailableModels.count) models available")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func officialModelPill(_ model: PresetModel) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(model.name.isEmpty ? model.id : model.name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                if model.input.contains("image") {
+                    Image(systemName: "photo")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.blue)
+                }
+
+                if model.reasoning {
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.purple)
+                }
+            }
+
+            Text("\(formatTokenCount(model.contextWindow)) ctx")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.045))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func formatTokenCount(_ value: Int) -> String {
+        if value >= 1_000_000 {
+            return "\(value / 1_000_000)M"
+        }
+        if value >= 1_000 {
+            return "\(value / 1_000)K"
+        }
+        return "\(value)"
     }
 
     // MARK: - No Key Guidance
