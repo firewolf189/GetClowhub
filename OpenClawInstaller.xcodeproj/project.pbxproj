@@ -50,6 +50,10 @@
 		D2E3F4A5B6C7489901D2E3F4 /* CronTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */; };
 		3564106B2F5802970045A6F7 /* ModelsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564106A2F5802970045A6F7 /* ModelsTabView.swift */; };
 		356410742F5802970045A6F7 /* SkillsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410732F5802970045A6F7 /* SkillsTabView.swift */; };
+		A2C000000000000000000001 /* A2UICardPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C000000000000000000002 /* A2UICardPayload.swift */; };
+		A2C000000000000000000003 /* A2UICardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C000000000000000000004 /* A2UICardView.swift */; };
+		PLCAT0000000000000001 /* PluginCatalogItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLCAT0000000000000002 /* PluginCatalogItem.swift */; };
+		PLCAT0000000000000003 /* PluginCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLCAT0000000000000004 /* PluginCatalogService.swift */; };
 		SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000002 /* SkillCatalogItem.swift */; };
 		SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000004 /* SkillCatalogService.swift */; };
 		SKSRC0000000000000001 /* SkillSourcePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKSRC0000000000000002 /* SkillSourcePresentation.swift */; };
@@ -115,6 +119,10 @@
 		C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronTabView.swift; sourceTree = "<group>"; };
 		3564106A2F5802970045A6F7 /* ModelsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsTabView.swift; sourceTree = "<group>"; };
 		356410732F5802970045A6F7 /* SkillsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsTabView.swift; sourceTree = "<group>"; };
+		A2C000000000000000000002 /* A2UICardPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = A2UICardPayload.swift; sourceTree = "<group>"; };
+		A2C000000000000000000004 /* A2UICardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = A2UICardView.swift; sourceTree = "<group>"; };
+		PLCAT0000000000000002 /* PluginCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCatalogItem.swift; sourceTree = "<group>"; };
+		PLCAT0000000000000004 /* PluginCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCatalogService.swift; sourceTree = "<group>"; };
 		SKCAT0000000000000002 /* SkillCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogItem.swift; sourceTree = "<group>"; };
 		SKCAT0000000000000004 /* SkillCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogService.swift; sourceTree = "<group>"; };
 		3564106C2F5802970045A6F7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -211,12 +219,14 @@
 			children = (
 				356410222F5802970045A6F7 /* AppError.swift */,
 				356410232F5802970045A6F7 /* AppSettings.swift */,
+				A2C000000000000000000002 /* A2UICardPayload.swift */,
 				BD01AA02B1C2D3E4F5A60002 /* BudgetModels.swift */,
 				C011AB02A1B2C3D4E5F60002 /* CollabModels.swift */,
 				C011AB01D1E2F3A4B5C60002 /* CommanderConfig.swift */,
 				B2C3D4E5F6A7491A0B1C2D3E /* HelpFAQ.swift */,
 				356410242F5802970045A6F7 /* InstallationState.swift */,
 				MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */,
+				PLCAT0000000000000002 /* PluginCatalogItem.swift */,
 				3564106E2F5802970045A6F7 /* ProviderPreset.swift */,
 				SKCAT0000000000000002 /* SkillCatalogItem.swift */,
 				SKSRC0000000000000002 /* SkillSourcePresentation.swift */,
@@ -249,6 +259,7 @@
 				3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */,
 				3564102C2F5802970045A6F7 /* OpenClawService.swift */,
 				3564102D2F5802970045A6F7 /* PermissionManager.swift */,
+				PLCAT0000000000000004 /* PluginCatalogService.swift */,
 				SKCAT0000000000000004 /* SkillCatalogService.swift */,
 				3564102E2F5802970045A6F7 /* SparkleUpdater.swift */,
 			
@@ -279,6 +290,7 @@
 				C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */,
 				356410332F5802970045A6F7 /* ConfigTabView.swift */,
 				C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */,
+				A2C000000000000000000004 /* A2UICardView.swift */,
 				356410342F5802970045A6F7 /* DashboardView.swift */,
 				A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */,
 				F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */,
@@ -490,6 +502,10 @@
 				D2E3F4A5B6C7489901D2E3F4 /* CronTabView.swift in Sources */,
 				3564106B2F5802970045A6F7 /* ModelsTabView.swift in Sources */,
 				356410742F5802970045A6F7 /* SkillsTabView.swift in Sources */,
+				A2C000000000000000000001 /* A2UICardPayload.swift in Sources */,
+				A2C000000000000000000003 /* A2UICardView.swift in Sources */,
+				PLCAT0000000000000001 /* PluginCatalogItem.swift in Sources */,
+				PLCAT0000000000000003 /* PluginCatalogService.swift in Sources */,
 				SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */,
 				SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */,
 				356410702F5802970045A6F7 /* ProviderPreset.swift in Sources */,

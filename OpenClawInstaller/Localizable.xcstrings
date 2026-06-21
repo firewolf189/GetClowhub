@@ -173,16 +173,6 @@
     "(%lld)" : {
 
     },
-    "(%lld/%lld loaded)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "(%1$lld/%2$lld loaded)"
-          }
-        }
-      }
-    },
     "(%lld%%)" : {
 
     },
@@ -14167,6 +14157,9 @@
         }
       }
     },
+    "Clear search" : {
+
+    },
     "Click the button below to start WeChat QR login" : {
       "localizations" : {
         "ar" : {
@@ -21785,9 +21778,6 @@
     "Enable word wrap" : {
 
     },
-    "Enter a GitHub repository. The app will install it globally." : {
-
-    },
     "Enter a token for gateway access" : {
       "localizations" : {
         "ar" : {
@@ -28650,6 +28640,12 @@
         }
       }
     },
+    "Install curated OpenClaw plugins from the GetClowHub catalog" : {
+
+    },
+    "Install custom plugin" : {
+
+    },
     "Install Method" : {
       "localizations" : {
         "ar" : {
@@ -28935,6 +28931,7 @@
       }
     },
     "Install Skill" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -29075,9 +29072,6 @@
           }
         }
       }
-    },
-    "Install skill from GitHub repository" : {
-
     },
     "Installation Complete!" : {
       "localizations" : {
@@ -29646,9 +29640,6 @@
           }
         }
       }
-    },
-    "installed" : {
-
     },
     "Installed" : {
       "localizations" : {
@@ -32017,6 +32008,7 @@
       }
     },
     "Loading cron jobs..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -32344,10 +32336,8 @@
         }
       }
     },
-    "Loading plugin info..." : {
-
-    },
     "Loading plugins..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -37602,9 +37592,6 @@
           }
         }
       }
-    },
-    "No detail information available" : {
-
     },
     "No global budget rule configured. Add one below to start tracking." : {
       "extractionState" : "manual",
@@ -43810,9 +43797,6 @@
         }
       }
     },
-    "owner/repo" : {
-
-    },
     "Package Name" : {
       "localizations" : {
         "ar" : {
@@ -48103,7 +48087,13 @@
         }
       }
     },
+    "Refresh plugins" : {
+
+    },
     "Refresh skills" : {
+
+    },
+    "Refreshing..." : {
 
     },
     "Reinstall" : {
@@ -49196,9 +49186,6 @@
           }
         }
       }
-    },
-    "Repository" : {
-
     },
     "Requirements" : {
       "extractionState" : "stale",
@@ -51188,6 +51175,9 @@
           }
         }
       }
+    },
+    "Search plugins" : {
+
     },
     "Search results" : {
       "localizations" : {
@@ -59666,6 +59656,9 @@
         }
       }
     },
+    "Unavailable" : {
+
+    },
     "Uninstall" : {
       "localizations" : {
         "ar" : {
@@ -59974,9 +59967,6 @@
         }
       }
     },
-    "Uninstall plugin" : {
-
-    },
     "Uninstall Plugin" : {
 
     },
@@ -60153,6 +60143,9 @@
         }
       }
     },
+    "Unsupported component: %@" : {
+
+    },
     "Update" : {
       "localizations" : {
         "ar" : {
@@ -60295,9 +60288,6 @@
         }
       }
     },
-    "Update All" : {
-
-    },
     "Update available" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -60315,7 +60305,7 @@
         }
       }
     },
-    "Update plugin" : {
+    "Update installed plugins" : {
 
     },
     "Update to v%@" : {

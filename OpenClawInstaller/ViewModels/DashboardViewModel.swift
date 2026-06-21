@@ -9,6 +9,14 @@ private let chatLog = Logger(subsystem: "com.openclaw.installer", category: "Cha
 
 @MainActor
 class DashboardViewModel: ObservableObject {
+    private static let a2uiDisplayCardInstruction = """
+
+    If a structured visual answer would be clearer than plain text, you may return exactly one fenced `a2ui` JSON block. Use it only for display cards, not for every response. Supported components are Card, Text, Image, Icon, List, Row, Column, and Divider. Do not include interactive form controls. Example:
+    ```a2ui
+    {"version":"0.1","title":"Summary","components":[{"component":"Card","title":"Key point","children":[{"component":"Text","text":"Short display text"}]}]}
+    ```
+    """
+
     @Published var openclawService: OpenClawService
     @Published var settings: AppSettingsManager
     @Published var systemEnvironment: SystemEnvironment
@@ -718,6 +726,12 @@ class DashboardViewModel: ObservableObject {
     // Plugins
     @Published var plugins: [PluginInfo] = []
     @Published var isLoadingPlugins = false
+    @Published var pluginCatalog: [PluginCatalogItem] = []
+    @Published var isLoadingPluginCatalog = false
+    @Published var installingCatalogPluginName: String?
+    @Published var pluginCatalogError: String?
+
+    private var hasLoadedPluginCatalog = false
 
     // Channels
     @Published var channels: [ChannelInfo] = []
@@ -767,6 +781,8 @@ class DashboardViewModel: ObservableObject {
     // Cron Jobs
     @Published var cronJobs: [CronJobInfo] = []
     @Published var isLoadingCronJobs = false
+    @Published var hasLoadedCronJobs = false
+    @Published var cronJobsLoadError: String?
 
     // Sessions Summary (for Status tab monitoring)
     @Published var sessionsSummary: SessionsSummary?
@@ -1153,7 +1169,6 @@ class DashboardViewModel: ObservableObject {
     @Published var skillCatalog: [SkillCatalogItem] = []
     @Published var isLoadingSkillCatalog = false
     @Published var installingCatalogSkillName: String?
-    @Published var isInstallingManualSkill = false
     @Published var skillCatalogError: String?
 
     private var hasLoadedSkillCatalog = false
@@ -1283,33 +1298,6 @@ class DashboardViewModel: ObservableObject {
         } else {
             let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
             showErrorMessage("Failed to install \(item.name): \(trimmed?.isEmpty == false ? trimmed! : "unknown error")")
-        }
-    }
-
-    @discardableResult
-    func installManualSkill(repositoryInput: String) async -> Bool {
-        guard !isInstallingManualSkill else { return false }
-        guard let command = SkillCatalogService.manualInstallCommand(repositoryInput: repositoryInput),
-              let normalizedRepository = SkillCatalogService.normalizedRepositoryURL(from: repositoryInput) else {
-            showErrorMessage("Enter a GitHub repository as owner/repo or https://github.com/owner/repo")
-            return false
-        }
-
-        isInstallingManualSkill = true
-        let output = await openclawService.runCommand(
-            "(\(command) 2>&1 && echo __OPENCLAW_SKILL_INSTALL_OK__) | sed 's/\\x1b\\[[0-9;]*m//g'",
-            timeout: 180
-        )
-        isInstallingManualSkill = false
-
-        if output?.contains("__OPENCLAW_SKILL_INSTALL_OK__") == true {
-            await loadSkills()
-            showSuccessMessage("Installed skills from \(normalizedRepository)")
-            return true
-        } else {
-            let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
-            showErrorMessage("Failed to install from \(normalizedRepository): \(trimmed?.isEmpty == false ? trimmed! : "unknown error")")
-            return false
         }
     }
 
@@ -2987,7 +2975,7 @@ class DashboardViewModel: ObservableObject {
 
         // Process attachments: images → base64 attachments; text files → inline in message
         let processed = processAttachments(attachments)
-        let finalMessage = text + processed.inlineText
+        let finalMessage = text + processed.inlineText + Self.a2uiDisplayCardInstruction
 
         // Subscribe to events BEFORE sending to avoid race condition
         let subscriberId = msgId.uuidString
@@ -3496,6 +3484,68 @@ class DashboardViewModel: ObservableObject {
                 return a.channel.localizedCaseInsensitiveCompare(b.channel) == .orderedAscending
             }
         isLoadingPlugins = false
+    }
+
+    /// Load the curated plugin catalog from the GetClowHub plugin repository.
+    func loadPluginMarket(forceSync: Bool = false) async {
+        if hasLoadedPluginCatalog && !forceSync {
+            await loadPlugins()
+            return
+        }
+
+        guard !isLoadingPluginCatalog else { return }
+
+        isLoadingPluginCatalog = true
+        pluginCatalogError = nil
+
+        let cacheGitURL = PluginCatalogService.defaultCacheURL.appendingPathComponent(".git")
+        let shouldSync = forceSync || !FileManager.default.fileExists(atPath: cacheGitURL.path)
+        let syncOutput: String?
+        if shouldSync {
+            syncOutput = await openclawService.runCommand(
+                "\(PluginCatalogService.syncCommand()) 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'",
+                timeout: 120
+            )
+        } else {
+            syncOutput = nil
+        }
+
+        do {
+            pluginCatalog = try PluginCatalogService.parseCatalog(rootURL: PluginCatalogService.defaultCacheURL)
+            hasLoadedPluginCatalog = true
+        } catch {
+            let detail = syncOutput?.trimmingCharacters(in: .whitespacesAndNewlines)
+            pluginCatalogError = detail?.isEmpty == false ? detail : error.localizedDescription
+            pluginCatalog = []
+            hasLoadedPluginCatalog = false
+        }
+
+        await loadPlugins()
+        isLoadingPluginCatalog = false
+    }
+
+    func installCatalogPlugin(_ item: PluginCatalogItem) async {
+        guard installingCatalogPluginName == nil else { return }
+        guard item.isOpenClawInstallable else {
+            showErrorMessage("\(item.displayName) is not installable by OpenClaw.")
+            return
+        }
+
+        installingCatalogPluginName = item.name
+        let command = PluginCatalogService.installCommand(for: item)
+        let output = await openclawService.runCommand(
+            "(\(command) 2>&1 && echo __OPENCLAW_PLUGIN_INSTALL_OK__) | sed 's/\\x1b\\[[0-9;]*m//g'",
+            timeout: 180
+        )
+        installingCatalogPluginName = nil
+
+        if output?.contains("__OPENCLAW_PLUGIN_INSTALL_OK__") == true {
+            await loadPlugins()
+            showSuccessMessage("Installed plugin \(item.displayName)")
+        } else {
+            let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
+            showErrorMessage("Failed to install \(item.displayName): \(trimmed?.isEmpty == false ? trimmed! : "unknown error")")
+        }
     }
 
     /// Parse `openclaw plugins list` table output.
@@ -4223,18 +4273,50 @@ class DashboardViewModel: ObservableObject {
 
     /// Load cron jobs by running `openclaw cron list --json`
     func loadCronJobs() async {
+        guard !isLoadingCronJobs else { return }
         isLoadingCronJobs = true
+        cronJobsLoadError = nil
+        defer {
+            isLoadingCronJobs = false
+            hasLoadedCronJobs = true
+        }
+
         let output = await openclawService.runCommand(
             "openclaw cron list --all --json 2>&1",
             timeout: 60
         )
+        guard Self.cronJobListOutputContainsJSON(output) else {
+            cronJobsLoadError = Self.cronJobLoadErrorMessage(output: output)
+            return
+        }
+
         cronJobs = Self.parseCronJobList(output: output)
-        isLoadingCronJobs = false
     }
 
     /// Parse `openclaw cron list --json` output
     static func parseCronJobList(output: String?) -> [CronJobInfo] {
-        guard let output = output else { return [] }
+        guard let jsonString = cronJobListJSONString(output: output),
+              let data = jsonString.data(using: .utf8) else { return [] }
+
+        // Try parsing as {"jobs": [...]} or as [...]
+        if let wrapper = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let jobsArray = wrapper["jobs"] as? [[String: Any]] {
+            return jobsArray.compactMap { Self.parseCronJobDict($0) }
+        } else if let jobsArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            return jobsArray.compactMap { Self.parseCronJobDict($0) }
+        }
+
+        return []
+    }
+
+    static func cronJobListOutputContainsJSON(_ output: String?) -> Bool {
+        guard let jsonString = cronJobListJSONString(output: output),
+              let data = jsonString.data(using: .utf8) else { return false }
+        return (try? JSONSerialization.jsonObject(with: data)) != nil
+    }
+
+    private static func cronJobListJSONString(output: String?) -> String? {
+        guard let output = output else { return nil }
 
         // Strip ANSI escape codes
         let ansiPattern = "\\u{1B}\\[[0-9;]*[a-zA-Z]"
@@ -4258,18 +4340,22 @@ class DashboardViewModel: ObservableObject {
             }
         }
 
-        guard !jsonString.isEmpty,
-              let data = jsonString.data(using: .utf8) else { return [] }
+        let trimmed = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
 
-        // Try parsing as {"jobs": [...]} or as [...]
-        if let wrapper = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let jobsArray = wrapper["jobs"] as? [[String: Any]] {
-            return jobsArray.compactMap { Self.parseCronJobDict($0) }
-        } else if let jobsArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            return jobsArray.compactMap { Self.parseCronJobDict($0) }
+    private static func cronJobLoadErrorMessage(output: String?) -> String {
+        let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty else {
+            return "Unable to read cron jobs. The command did not return JSON output."
         }
 
-        return []
+        let firstLines = trimmed
+            .components(separatedBy: .newlines)
+            .prefix(3)
+            .joined(separator: " ")
+        let compact = firstLines.count > 220 ? String(firstLines.prefix(220)) + "..." : firstLines
+        return "Unable to read cron jobs. \(compact)"
     }
 
     /// Parse a single cron job dictionary

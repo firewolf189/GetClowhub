@@ -38,6 +38,16 @@ let thinkingIndicator = slice(
     from: "struct ThinkingIndicator: View",
     to: "private struct WorkStatusHeader: View"
 )
+let workStatusHeader = slice(
+    dashboard,
+    from: "private struct WorkStatusHeader: View",
+    to: "private struct IsolatedElapsedWorkStatusText: View"
+)
+let isolatedElapsedWorkStatusText = slice(
+    dashboard,
+    from: "private struct IsolatedElapsedWorkStatusText: View",
+    to: "private struct ShimmeringWorkStatusText: View"
+)
 
 require(dashboard.contains("private var currentForegroundTaskMessageId: UUID?"), "chat view should expose the current foreground task message id")
 require(dashboard.contains("private var shouldShowStopButton: Bool"), "chat view should decide when the composer becomes a stop button")
@@ -65,6 +75,8 @@ require(dashboard.contains("let onExpansionHeightChange: ((CGFloat) -> Void)?"),
 require(dashboard.contains("@State private var measuredHeight"), "working-status header should measure its actual height")
 require(dashboard.contains("@State private var hasMeasuredHeight"), "working-status header should prime height tracking before reporting deltas")
 require(dashboard.contains("private static let expansionAnimation = Animation.spring(response: 0.28, dampingFraction: 0.86)"), "working-status expansion should reuse the sidebar agent spring timing")
+require(dashboard.contains("private static let measuredHeightDeltaThreshold: CGFloat = 2"), "working-status height reporting should ignore sub-2pt measurement jitter")
+require(dashboard.contains("abs(delta) >= Self.measuredHeightDeltaThreshold"), "working-status height reporting should use the shared jitter threshold")
 require(dashboard.contains("onExpansionHeightChange?(delta)"), "working-status header should report incremental measured height deltas")
 require(dashboard.contains("withAnimation(Self.expansionAnimation)"), "working-status toggle should animate expansion state changes")
 require(dashboard.contains(".transition(.move(edge: .top).combined(with: .opacity))"), "working-status activity rows should slide and fade like the agent sidebar")
@@ -81,7 +93,14 @@ require(chatBubble.contains("message.completedAt != nil"), "assistant completed 
 require(dashboard.contains("Worked for"), "finished English work status should read Worked for")
 require(dashboard.contains("已运行"), "finished Chinese work status should read 已运行")
 require(dashboard.contains("private struct ShimmeringWorkStatusText: View"), "active working status should have a dedicated shimmer text view")
-require(dashboard.contains("ShimmeringWorkStatusText(text: statusText(elapsedSeconds: elapsedSeconds, isFinished: isFinished))"), "active working status should render through the shimmer text view")
+require(dashboard.contains("private struct IsolatedElapsedWorkStatusText: View"), "active seconds display should be isolated into a fixed-size leaf view")
+require(!workStatusHeader.contains("TimelineView(.periodic(from: start, by: 1))"), "working-status header should not refresh its whole layout every second")
+require(isolatedElapsedWorkStatusText.contains("TimelineView(.periodic(from: start, by: 1))"), "isolated seconds text should own the one-second timeline")
+require(isolatedElapsedWorkStatusText.contains("ShimmeringWorkStatusText(")
+        && isolatedElapsedWorkStatusText.contains("text: WorkStatusDurationText.status("),
+        "isolated active seconds should render through the shimmer text view")
+require(isolatedElapsedWorkStatusText.contains(".monospacedDigit()"), "isolated seconds text should use monospaced digits")
+require(isolatedElapsedWorkStatusText.contains(".frame(width: Self.reservedWidth"), "isolated seconds text should reserve a stable width")
 require(dashboard.contains("LinearGradient("), "shimmer text should use a moving linear gradient highlight")
 require(dashboard.contains("withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false))"), "shimmer text should animate the highlight continuously")
 

@@ -25,45 +25,6 @@ enum SkillCatalogService {
         return "npx --yes --prefer-offline skills add \(source) --skill \(shellQuote(item.name)) -g -y"
     }
 
-    static func manualInstallCommand(repositoryInput: String) -> String? {
-        guard let repositoryURL = normalizedRepositoryURL(from: repositoryInput) else {
-            return nil
-        }
-        return "npx --yes --prefer-offline skills add \(shellQuote(repositoryURL)) -g -y"
-    }
-
-    static func normalizedRepositoryURL(from input: String) -> String? {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-
-        let urlCandidate: String
-        if trimmed.hasPrefix("https://github.com/") {
-            urlCandidate = trimmed
-        } else if trimmed.range(
-            of: #"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"#,
-            options: .regularExpression
-        ) != nil {
-            urlCandidate = "https://github.com/\(trimmed)"
-        } else {
-            return nil
-        }
-
-        var normalized = urlCandidate
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        if normalized.hasSuffix(".git") {
-            normalized.removeLast(4)
-        }
-
-        guard normalized.range(
-            of: #"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"#,
-            options: .regularExpression
-        ) != nil else {
-            return nil
-        }
-
-        return normalized
-    }
-
     static func parseCatalog(rootURL: URL) throws -> [SkillCatalogItem] {
         var items: [SkillCatalogItem] = []
         for skillURL in catalogSkillDirectories(rootURL: rootURL) {

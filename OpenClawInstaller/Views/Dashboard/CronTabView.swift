@@ -41,58 +41,79 @@ struct CronTabView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isLoadingCronJobs || viewModel.isPerformingAction)
-                }
 
-                if viewModel.isLoadingCronJobs && viewModel.cronJobs.isEmpty {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Loading cron jobs...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                } else if viewModel.cronJobs.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "clock.badge")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text("No cron jobs configured")
-                            .foregroundColor(.secondary)
-                        Text("Add a cron job to schedule automated tasks")
+                    if viewModel.isLoadingCronJobs && !viewModel.cronJobs.isEmpty {
+                        Text("Refreshing...")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
+                }
+
+                if let error = viewModel.cronJobsLoadError, viewModel.cronJobs.isEmpty {
+                    CronStateView(
+                        systemImage: "exclamationmark.triangle",
+                        title: "Could not load cron jobs",
+                        detail: error,
+                        actionTitle: "Retry",
+                        action: {
+                            Task { await viewModel.loadCronJobs() }
+                        }
+                    )
+                } else if !viewModel.hasLoadedCronJobs && viewModel.cronJobs.isEmpty {
+                    CronStateView(
+                        systemImage: "clock.badge",
+                        title: "Checking cron jobs",
+                        detail: "Reading scheduled automation tasks...",
+                        actionTitle: nil,
+                        action: nil
+                    )
+                } else if viewModel.cronJobs.isEmpty {
+                    CronStateView(
+                        systemImage: "clock.badge",
+                        title: "No cron jobs configured",
+                        detail: "Add a cron job to schedule automated tasks",
+                        actionTitle: nil,
+                        action: nil
+                    )
                 } else {
                     // Cron job list
-                    VStack(spacing: 0) {
-                        ForEach(Array(viewModel.cronJobs.enumerated()), id: \.element.id) { index, job in
-                            CronJobRow(
-                                job: job,
-                                isPerformingAction: viewModel.isPerformingAction,
-                                onToggle: {
-                                    Task {
-                                        if job.enabled {
-                                            await viewModel.disableCronJob(job)
-                                        } else {
-                                            await viewModel.enableCronJob(job)
-                                        }
-                                    }
-                                },
-                                onRemove: {
-                                    Task { await viewModel.removeCronJob(job) }
+                    VStack(spacing: 12) {
+                        if let error = viewModel.cronJobsLoadError {
+                            CronInlineWarning(
+                                message: error,
+                                onRetry: {
+                                    Task { await viewModel.loadCronJobs() }
                                 }
                             )
+                        }
 
-                            if index < viewModel.cronJobs.count - 1 {
-                                Divider()
+                        VStack(spacing: 0) {
+                            ForEach(Array(viewModel.cronJobs.enumerated()), id: \.element.id) { index, job in
+                                CronJobRow(
+                                    job: job,
+                                    isPerformingAction: viewModel.isPerformingAction,
+                                    onToggle: {
+                                        Task {
+                                            if job.enabled {
+                                                await viewModel.disableCronJob(job)
+                                            } else {
+                                                await viewModel.enableCronJob(job)
+                                            }
+                                        }
+                                    },
+                                    onRemove: {
+                                        Task { await viewModel.removeCronJob(job) }
+                                    }
+                                )
+
+                                if index < viewModel.cronJobs.count - 1 {
+                                    Divider()
+                                }
                             }
                         }
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(12)
                     }
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(12)
                 }
             }
             .padding(24)
@@ -107,6 +128,67 @@ struct CronTabView: View {
             )
             .environment(\.locale, locale)
         }
+    }
+}
+
+private struct CronStateView: View {
+    let systemImage: String
+    let title: String
+    let detail: String
+    let actionTitle: String?
+    let action: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 40))
+                .foregroundColor(systemImage == "exclamationmark.triangle" ? .orange : .secondary)
+
+            Text(title)
+                .font(.body)
+                .foregroundColor(.secondary)
+
+            Text(detail)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.bordered)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(40)
+    }
+}
+
+private struct CronInlineWarning: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundColor(.orange)
+
+            Text(message)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+
+            Spacer()
+
+            Button("Retry", action: onRetry)
+                .font(.caption)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.orange.opacity(0.08))
+        .cornerRadius(8)
     }
 }
 

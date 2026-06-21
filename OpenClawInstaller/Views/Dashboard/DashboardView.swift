@@ -55,10 +55,17 @@ struct DashboardView: View {
     @State private var workspaceSearchText = ""
     @State private var selectedSkillDetailItem: SkillDetailPresentationItem?
     @State private var skillPendingRemoval: SkillInfo?
+    @State private var requestedUserMessageJumpId: UUID?
+    @State private var sessionTitleFrame: CGRect = .zero
+    @State private var isSessionTitleHovering = false
+    @State private var isSessionTitleFlyoutHovering = false
+    @State private var isSessionTitleFlyoutPresented = false
+    @State private var sessionTitleFlyoutCloseTask: DispatchWorkItem?
     @FocusState private var isGlobalSessionSearchFocused: Bool
 
     private let workspaceSidebarMinWidth: CGFloat = 240
     private let workspaceSidebarMaxWidth: CGFloat = 420
+    private let sessionTitleFlyoutWidth: CGFloat = 360
     private static let workspaceLayoutMetrics = OutputsSidebarLayoutMetrics()
 
     init(viewModel: DashboardViewModel) {
@@ -80,6 +87,7 @@ struct DashboardView: View {
             DetailContentView(
                 viewModel: viewModel,
                 workspaceSidebarController: workspaceSidebarController,
+                requestedUserMessageJumpId: $requestedUserMessageJumpId,
                 onOpenSkillDetail: presentSkillDetail
             )
         } detail: {
@@ -110,7 +118,10 @@ struct DashboardView: View {
                         sessionId: currentSessionMetadata?.id,
                         title: title,
                         messages: currentSessionUserMessages,
-                        onTapMessage: { _ in }
+                        isFlyoutPresented: $isSessionTitleFlyoutPresented,
+                        isTitleHovering: $isSessionTitleHovering,
+                        onFrameChange: updateSessionTitleFrame,
+                        onHoverChange: updateSessionTitleHover
                     )
                 }
             }
@@ -142,6 +153,9 @@ struct DashboardView: View {
                 skillDetailOverlay(for: selectedSkillDetailItem)
             }
         }
+        .overlay(alignment: .topLeading) {
+            sessionTitleUserMessagesFlyout
+        }
         .animation(.easeInOut, value: viewModel.showSuccess)
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
@@ -156,6 +170,7 @@ struct DashboardView: View {
         }
         .onDisappear {
             viewModel.openclawService.stopMonitoring()
+            closeSessionTitleFlyout()
         }
         .sheet(isPresented: $viewModel.showDiagnostics) {
             DiagnosticsSheet(report: viewModel.diagnosticReport, isPresented: $viewModel.showDiagnostics)
@@ -171,8 +186,17 @@ struct DashboardView: View {
             )
         }
         .onChange(of: viewModel.selectedTab) { newTab in
+            closeSessionTitleFlyout()
             if newTab != .skills {
                 dismissSkillCatalogDetail()
+            }
+        }
+        .onChange(of: currentSessionMetadata?.id) { _ in
+            closeSessionTitleFlyout()
+        }
+        .onChange(of: currentSessionUserMessages.count) { count in
+            if count == 0 {
+                closeSessionTitleFlyout()
             }
         }
     }
@@ -203,6 +227,105 @@ struct DashboardView: View {
         guard isChatTabActive else { return [] }
         return viewModel.chatMessages
             .filter { $0.role == .user }
+    }
+
+    @ViewBuilder
+    private var sessionTitleUserMessagesFlyout: some View {
+        if isSessionTitleFlyoutPresented,
+           isChatTabActive,
+           !currentSessionUserMessages.isEmpty,
+           sessionTitleFrame != .zero {
+            GeometryReader { proxy in
+                let panelX = sessionTitleFlyoutX(in: proxy)
+                let panelY = sessionTitleFlyoutY(in: proxy)
+
+                ZStack(alignment: .topLeading) {
+                    Color.clear
+                        .allowsHitTesting(false)
+
+                    SessionTitleUserMessagesFlyoutContent(
+                        messages: currentSessionUserMessages,
+                        onTapMessage: { message in
+                            jumpToUserMessage(message)
+                            closeSessionTitleFlyout()
+                        }
+                    )
+                    .frame(width: sessionTitleFlyoutWidth)
+                    .offset(x: panelX, y: panelY)
+                    .onHover { hovering in
+                        updateSessionTitleFlyoutHover(hovering)
+                    }
+                    .zIndex(50)
+                }
+            }
+            .zIndex(50)
+        }
+    }
+
+    private func updateSessionTitleHover(_ hovering: Bool) {
+        isSessionTitleHovering = hovering
+        if hovering && !currentSessionUserMessages.isEmpty {
+            openSessionTitleFlyout()
+        } else {
+            scheduleSessionTitleFlyoutClose()
+        }
+    }
+
+    private func updateSessionTitleFlyoutHover(_ hovering: Bool) {
+        isSessionTitleFlyoutHovering = hovering
+        if hovering {
+            sessionTitleFlyoutCloseTask?.cancel()
+            sessionTitleFlyoutCloseTask = nil
+        } else {
+            scheduleSessionTitleFlyoutClose()
+        }
+    }
+
+    private func updateSessionTitleFrame(_ frame: CGRect) {
+        guard frame != .zero, sessionTitleFrame != frame else { return }
+        sessionTitleFrame = frame
+    }
+
+    private func openSessionTitleFlyout() {
+        sessionTitleFlyoutCloseTask?.cancel()
+        sessionTitleFlyoutCloseTask = nil
+        isSessionTitleFlyoutPresented = true
+    }
+
+    private func scheduleSessionTitleFlyoutClose() {
+        sessionTitleFlyoutCloseTask?.cancel()
+        let task = DispatchWorkItem {
+            if !isSessionTitleHovering && !isSessionTitleFlyoutHovering {
+                closeSessionTitleFlyout()
+            }
+        }
+        sessionTitleFlyoutCloseTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: task)
+    }
+
+    private func closeSessionTitleFlyout() {
+        sessionTitleFlyoutCloseTask?.cancel()
+        sessionTitleFlyoutCloseTask = nil
+        isSessionTitleFlyoutPresented = false
+        isSessionTitleFlyoutHovering = false
+    }
+
+    private func sessionTitleFlyoutX(in proxy: GeometryProxy) -> CGFloat {
+        let rootFrame = proxy.frame(in: .global)
+        let desired = sessionTitleFrame.maxX - rootFrame.minX + 8
+        let maxX = max(12, proxy.size.width - sessionTitleFlyoutWidth - 12)
+        return min(max(desired, 12), maxX)
+    }
+
+    private func sessionTitleFlyoutY(in proxy: GeometryProxy) -> CGFloat {
+        let rootFrame = proxy.frame(in: .global)
+        let desired = sessionTitleFrame.maxY - rootFrame.minY + 4
+        let maxY = max(8, proxy.size.height - 340)
+        return min(max(desired, 8), maxY)
+    }
+
+    private func jumpToUserMessage(_ message: ChatMessage) {
+        requestedUserMessageJumpId = message.id
     }
 
     private var isWorkspaceSidebarExpanded: Bool {
@@ -1804,6 +1927,7 @@ private extension EnvironmentValues {
 private struct DetailContentView: View {
     @ObservedObject var viewModel: DashboardViewModel
     let workspaceSidebarController: WorkspaceSidebarController
+    @Binding var requestedUserMessageJumpId: UUID?
     let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     @State private var collabPanelWidth: CGFloat = 320
     @State private var dragStartWidth: CGFloat = 320
@@ -1857,7 +1981,11 @@ private struct DetailContentView: View {
             // ChatView stays alive — hidden when not active to preserve WKWebView instances.
             // sidebarMode is being phased out; selectedTab == .chat is the canonical signal now.
             let showChat = activeTab == .chat
-            ChatView(viewModel: viewModel, hideAgentPicker: false)
+            ChatView(
+                viewModel: viewModel,
+                requestedUserMessageJumpId: $requestedUserMessageJumpId,
+                hideAgentPicker: false
+            )
                 .environment(\.workspaceSidebarController, workspaceSidebarController)
                 .opacity(showChat ? 1 : 0)
                 .allowsHitTesting(showChat)
@@ -2221,6 +2349,7 @@ private struct ChatScrollCompensationApplier: NSViewRepresentable {
 
 struct ChatView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @Binding var requestedUserMessageJumpId: UUID?
     var hideAgentPicker: Bool = false
     @Environment(\.colorScheme) private var colorScheme
     @State private var inputText = ""
@@ -2258,6 +2387,9 @@ struct ChatView: View {
     @State private var chatScrollContentHeight: CGFloat = 1
     // Store ScrollViewProxy so sendMessage() can scroll to bottom
     @State private var chatScrollProxy: ScrollViewProxy?
+    @State private var highlightedMessageId: UUID?
+    @State private var highlightedMessageFlashOn = false
+    @State private var highlightFlashTask: Task<Void, Never>?
     @State private var pendingWorkStatusScrollCompensation: CGFloat = 0
     @State private var workStatusExpansionCompensationRevision = 0
     // Create agent sheet
@@ -2270,8 +2402,13 @@ struct ChatView: View {
     private static let layoutMetrics = OutputsSidebarLayoutMetrics()
     private let composerSuggestionPanelMaxHeight: CGFloat = 184
 
-    init(viewModel: DashboardViewModel, hideAgentPicker: Bool = false) {
+    init(
+        viewModel: DashboardViewModel,
+        requestedUserMessageJumpId: Binding<UUID?> = .constant(nil),
+        hideAgentPicker: Bool = false
+    ) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
+        self._requestedUserMessageJumpId = requestedUserMessageJumpId
         self.hideAgentPicker = hideAgentPicker
         self._createAgentVM = StateObject(wrappedValue: SubAgentsViewModel(openclawService: viewModel.openclawService))
     }
@@ -2340,6 +2477,7 @@ struct ChatView: View {
                                 ChatBubble(
                                     message: message,
                                     allowsRichMarkdown: richMarkdownMessageIds.contains(message.id),
+                                    isJumpHighlighted: highlightedMessageId == message.id && highlightedMessageFlashOn,
                                     onConfirmEditResend: { original, editedText in
                                         viewModel.rewindToMessage(original, replacementText: editedText)
                                     },
@@ -3048,6 +3186,11 @@ struct ChatView: View {
                 composerSelectorOverlay(anchor: anchor)
             }
         .background(Color(NSColor.windowBackgroundColor))
+        .onChange(of: requestedUserMessageJumpId) { messageId in
+            guard let messageId else { return }
+            jumpToUserMessage(messageId)
+            requestedUserMessageJumpId = nil
+        }
         .onAppear {
             viewModel.loadAvailableAgents()
             if viewModel.skills.isEmpty {
@@ -3316,6 +3459,8 @@ struct ChatView: View {
             autoScrollDisableTimer = nil
             chatScrollIndicatorHideTask?.cancel()
             chatScrollIndicatorHideTask = nil
+            highlightFlashTask?.cancel()
+            highlightFlashTask = nil
         }
         .onChange(of: inputText) { _ in
             // Reset slash/skills/agent selection index when input changes
@@ -3687,6 +3832,41 @@ struct ChatView: View {
         guard let proxy = chatScrollProxy else { return }
         withAnimation(.easeOut(duration: 0.25)) {
             proxy.scrollTo("chatBottom", anchor: .bottom)
+        }
+    }
+
+    private func jumpToUserMessage(_ messageId: UUID) {
+        guard viewModel.chatMessages.contains(where: { $0.id == messageId && $0.role == .user }) else { return }
+        shouldAutoScroll = false
+        withAnimation(.easeInOut(duration: 0.24)) {
+            chatScrollProxy?.scrollTo(messageId, anchor: .center)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            triggerUserMessageHighlight(messageId)
+        }
+    }
+
+    private func triggerUserMessageHighlight(_ messageId: UUID) {
+        highlightFlashTask?.cancel()
+        highlightedMessageId = messageId
+        highlightedMessageFlashOn = false
+
+        highlightFlashTask = Task { @MainActor in
+            for step in 0..<6 {
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.13)) {
+                    highlightedMessageFlashOn = step % 2 == 0
+                }
+                try? await Task.sleep(nanoseconds: 170_000_000)
+            }
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.16)) {
+                highlightedMessageFlashOn = false
+            }
+            if highlightedMessageId == messageId {
+                highlightedMessageId = nil
+            }
+            highlightFlashTask = nil
         }
     }
 
@@ -4498,6 +4678,7 @@ struct MessageActionIcon: View {
 /// time so SwiftUI keeps one stable timeline subscription while streaming.
 private struct WorkStatusHeader: View {
     private static let expansionAnimation = Animation.spring(response: 0.28, dampingFraction: 0.86)
+    private static let measuredHeightDeltaThreshold: CGFloat = 2
 
     let start: Date?
     let end: Date?
@@ -4511,10 +4692,19 @@ private struct WorkStatusHeader: View {
         Group {
             if let start = start {
                 if let end = end {
-                    statusBody(elapsedSeconds: max(0, Int(end.timeIntervalSince(start))), isFinished: true)
+                    statusBody {
+                        Text(WorkStatusDurationText.status(
+                            elapsedSeconds: max(0, Int(end.timeIntervalSince(start))),
+                            isFinished: true,
+                            isChinese: isChinese
+                        ))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                    }
                 } else {
-                    TimelineView(.periodic(from: start, by: 1)) { ctx in
-                        statusBody(elapsedSeconds: max(0, Int(ctx.date.timeIntervalSince(start))), isFinished: false)
+                    statusBody {
+                        IsolatedElapsedWorkStatusText(start: start, isChinese: isChinese)
                     }
                 }
             } else {
@@ -4544,23 +4734,16 @@ private struct WorkStatusHeader: View {
 
             let delta = newHeight - measuredHeight
             measuredHeight = newHeight
-            guard abs(delta) > 0.5 else { return }
+            guard abs(delta) >= Self.measuredHeightDeltaThreshold else { return }
             onExpansionHeightChange?(delta)
         }
         .animation(Self.expansionAnimation, value: isExpanded)
     }
 
-    private func statusBody(elapsedSeconds: Int, isFinished: Bool) -> some View {
+    private func statusBody<Label: View>(@ViewBuilder label: () -> Label) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             headerButton {
-                if isFinished {
-                    Text(statusText(elapsedSeconds: elapsedSeconds, isFinished: isFinished))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .monospacedDigit()
-                } else {
-                    ShimmeringWorkStatusText(text: statusText(elapsedSeconds: elapsedSeconds, isFinished: isFinished))
-                }
+                label()
             }
             if isExpanded {
                 activityRows
@@ -4597,8 +4780,10 @@ private struct WorkStatusHeader: View {
     private var isChinese: Bool {
         LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
     }
+}
 
-    private func statusText(elapsedSeconds: Int, isFinished: Bool) -> String {
+private enum WorkStatusDurationText {
+    static func status(elapsedSeconds: Int, isFinished: Bool, isChinese: Bool) -> String {
         if isChinese {
             return "已运行 \(localizedDuration(elapsedSeconds))"
         }
@@ -4607,7 +4792,7 @@ private struct WorkStatusHeader: View {
             : "Working for \(englishDuration(elapsedSeconds))"
     }
 
-    private func englishDuration(_ seconds: Int) -> String {
+    private static func englishDuration(_ seconds: Int) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         if minutes > 0 {
@@ -4616,13 +4801,35 @@ private struct WorkStatusHeader: View {
         return "\(remainingSeconds)s"
     }
 
-    private func localizedDuration(_ seconds: Int) -> String {
+    private static func localizedDuration(_ seconds: Int) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         if minutes > 0 {
             return "\(minutes)分\(remainingSeconds)秒"
         }
         return "\(remainingSeconds)秒"
+    }
+}
+
+private struct IsolatedElapsedWorkStatusText: View {
+    private static let reservedWidth: CGFloat = 156
+
+    let start: Date
+    let isChinese: Bool
+
+    var body: some View {
+        TimelineView(.periodic(from: start, by: 1)) { ctx in
+            ShimmeringWorkStatusText(
+                text: WorkStatusDurationText.status(
+                    elapsedSeconds: max(0, Int(ctx.date.timeIntervalSince(start))),
+                    isFinished: false,
+                    isChinese: isChinese
+                )
+            )
+            .monospacedDigit()
+            .lineLimit(1)
+            .frame(width: Self.reservedWidth, alignment: .leading)
+        }
     }
 }
 
@@ -4706,6 +4913,7 @@ private struct ActivitySummaryRows: View {
 struct ChatBubble: View {
     let message: ChatMessage
     let allowsRichMarkdown: Bool
+    let isJumpHighlighted: Bool
     /// Confirmed edit-resend for a user message. The destructive rewind happens
     /// only after the inline editor's confirm action calls this callback.
     var onConfirmEditResend: ((ChatMessage, String) -> Void)? = nil
@@ -4836,32 +5044,32 @@ struct ChatBubble: View {
                     // click-capturing frame above it.
                     VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 5) {
 	                        Group {
-	                            if message.role == .assistant {
-	                                AssistantMessageContentView(
+		                            if message.role == .assistant {
+		                                AssistantMessageContentView(
                                         content: message.content,
                                         isStreaming: isStreamingState,
                                         allowsRichMarkdown: allowsRichMarkdown || isRichMarkdownActivated
                                     )
 	                                    .fixedSize(horizontal: false, vertical: true)
-	                                    .padding(10)
-                                    .background(bubbleBackgroundColor)
-                                    .cornerRadius(12)
-                            } else if isEditingForResend {
+		                                    .padding(10)
+	                                    .background(isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor)
+	                                    .cornerRadius(12)
+	                            } else if isEditingForResend {
                                 InlineUserMessageEditor(
                                     text: $editDraft,
                                     onCommit: confirmEditResend,
                                     onCancel: cancelEditResend
                                 )
                                 .frame(minHeight: 76)
-                                .padding(8)
-                                .background(bubbleBackgroundColor)
-                                .cornerRadius(12)
-                            } else {
+	                                .padding(8)
+	                                .background(isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor)
+	                                .cornerRadius(12)
+	                            } else {
 		                                Text(message.content)
 		                                    .font(DashboardTypography.userMessage)
-		                                    .padding(10)
-		                                    .background(bubbleBackgroundColor)
-	                                    .foregroundColor(.primary)
+			                                    .padding(10)
+			                                    .background(isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor)
+		                                    .foregroundColor(.primary)
                                     .cornerRadius(12)
                                     .textSelection(.enabled)
                             }
@@ -4978,6 +5186,10 @@ struct ChatBubble: View {
         message.role == .user
             ? Color.gray.opacity(0.14)
             : Color(NSColor.controlBackgroundColor)
+    }
+
+    private var jumpHighlightBackgroundColor: SwiftUI.Color {
+        Color.gray.opacity(0.42)
     }
 
     /// True while the message is still being generated — covers both the
@@ -5855,7 +6067,9 @@ struct AssistantMessageContentView: View {
     }
 
     var body: some View {
-        if MarkdownRenderPolicy.mode(for: content, isStreaming: isStreaming, allowsWebView: allowsRichMarkdown) == .webView {
+        if !isStreaming, let payload = A2UICardParser.parse(content) {
+            A2UICardView(payload: payload)
+        } else if MarkdownRenderPolicy.mode(for: content, isStreaming: isStreaming, allowsWebView: allowsRichMarkdown) == .webView {
             SelectableMarkdownView(content: content)
         } else {
             Markdown(content)
@@ -9868,11 +10082,10 @@ private struct SessionTitlePopoverView: View {
     let sessionId: UUID?
     let title: String
     let messages: [ChatMessage]
-    let onTapMessage: (ChatMessage) -> Void
-
-    @State private var isTitleHovering = false
-    @State private var isPopoverPresented = false
-    @State private var hoverOpenTask: Task<Void, Never>?
+    @Binding var isFlyoutPresented: Bool
+    @Binding var isTitleHovering: Bool
+    let onFrameChange: (CGRect) -> Void
+    let onHoverChange: (Bool) -> Void
 
     var body: some View {
         Text(title)
@@ -9880,56 +10093,51 @@ private struct SessionTitlePopoverView: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .frame(maxWidth: 320, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.secondary.opacity(isTitleHovering || isFlyoutPresented ? 0.14 : 0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.secondary.opacity(isTitleHovering || isFlyoutPresented ? 0.22 : 0.12), lineWidth: 1)
+            )
             .contentShape(Rectangle())
+            .background(
+                SessionTitleFrameReporter(onFrameChange: onFrameChange)
+            )
             .onHover { hovering in
-                updateHover(hovering)
+                isTitleHovering = hovering
+                onHoverChange(hovering)
             }
-            .popover(isPresented: $isPopoverPresented, arrowEdge: .top) {
-                SessionTitleUserMessagesPopoverContent(
-                    messages: messages,
-                    onTapMessage: { message in
-                        onTapMessage(message)
-                        isPopoverPresented = false
-                    }
-                )
-            }
-            .onChange(of: sessionId) { _ in
-                closePopover()
-            }
-            .onChange(of: title) { _ in
-                closePopover()
-            }
-            .onChange(of: messages.count) { count in
-                if count == 0 {
-                    closePopover()
-                }
-            }
-            .onDisappear {
-                closePopover()
-            }
-    }
-
-    private func updateHover(_ hovering: Bool) {
-        isTitleHovering = hovering
-        hoverOpenTask?.cancel()
-
-        guard hovering, !messages.isEmpty else { return }
-
-        hoverOpenTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            guard !Task.isCancelled, isTitleHovering, !messages.isEmpty else { return }
-            isPopoverPresented = true
-        }
-    }
-
-    private func closePopover() {
-        hoverOpenTask?.cancel()
-        hoverOpenTask = nil
-        isPopoverPresented = false
     }
 }
 
-private struct SessionTitleUserMessagesPopoverContent: View {
+private struct SessionTitleFrameReporter: View {
+    let onFrameChange: (CGRect) -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            let frame = proxy.frame(in: .global)
+            Color.clear
+                .onAppear {
+                    report(frame)
+                }
+                .onChange(of: frame) { newFrame in
+                    report(newFrame)
+                }
+        }
+    }
+
+    private func report(_ frame: CGRect) {
+        DispatchQueue.main.async {
+            onFrameChange(frame)
+        }
+    }
+}
+
+private struct SessionTitleUserMessagesFlyoutContent: View {
     let messages: [ChatMessage]
     let onTapMessage: (ChatMessage) -> Void
 
@@ -9953,7 +10161,13 @@ private struct SessionTitleUserMessagesPopoverContent: View {
             .padding(.vertical, 6)
         }
         .frame(maxHeight: 320)
-        .frame(width: 360)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.secondary.opacity(0.16), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.18), radius: 18, x: 0, y: 10)
     }
 }
 

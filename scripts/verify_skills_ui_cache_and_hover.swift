@@ -6,10 +6,12 @@ let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let viewModelPath = root.appendingPathComponent("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
 let skillsViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SkillsTabView.swift")
 let dashboardViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let skillCatalogServicePath = root.appendingPathComponent("OpenClawInstaller/Services/SkillCatalogService.swift")
 
 let viewModel = try String(contentsOf: viewModelPath, encoding: .utf8)
 let skillsView = try String(contentsOf: skillsViewPath, encoding: .utf8)
 let dashboardView = try String(contentsOf: dashboardViewPath, encoding: .utf8)
+let skillCatalogService = try String(contentsOf: skillCatalogServicePath, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     if !condition() {
@@ -36,11 +38,6 @@ let installedRow = slice(
     skillsView,
     from: "private struct InstalledSkillListRow: View",
     to: "private struct InstalledStatusMark: View"
-)
-let manualInstallSheet = slice(
-    skillsView,
-    from: "private struct ManualSkillInstallSheet: View",
-    to: "struct SkillCatalogDetailSheet: View"
 )
 let detailSheet = slice(
     skillsView,
@@ -75,6 +72,53 @@ require(
 require(
     skillsView.contains(".animation(.easeInOut(duration: 0.18), value: isHovered)"),
     "Skill row hover background should fade instead of switching instantly."
+)
+require(
+    skillsView.contains("@State private var skillPointerLocation: CGPoint?"),
+    "Skills UI should track the current pointer location for proximity-based row magnification."
+)
+require(
+    skillsView.contains(".coordinateSpace(name: SkillDockMagnification.coordinateSpace)") &&
+        skillsView.contains(".onContinuousHover"),
+    "Skills UI should expose a named coordinate space and continuously track pointer movement."
+)
+require(
+    skillsView.contains("private enum SkillDockMagnification") &&
+        skillsView.contains("static let radius") &&
+        skillsView.contains("static let maxScale") &&
+        skillsView.contains("hypot("),
+    "Skills UI should compute Dock-style scale from pointer-to-row center distance."
+)
+require(
+    skillsView.contains("private struct SkillMagnifiedRow<Content: View>: View") &&
+        skillsView.contains(".scaleEffect(rowScale, anchor: .center)") &&
+        skillsView.contains("SkillRowFramePreferenceKey"),
+    "Skills UI should apply Dock-style scale to the whole row."
+)
+require(
+    !skillsView.contains("private struct SkillMagnifiedIcon"),
+    "Skills UI should not magnify icons separately."
+)
+require(
+    catalogRow.contains("let pointerLocation: CGPoint?") &&
+        catalogRow.contains("SkillMagnifiedRow(pointerLocation: pointerLocation)") &&
+        !catalogRow.contains("SkillMagnifiedIcon("),
+    "Catalog skill rows should render through the whole-row magnification wrapper."
+)
+require(
+    installedRow.contains("let pointerLocation: CGPoint?") &&
+        installedRow.contains("SkillMagnifiedRow(pointerLocation: pointerLocation)") &&
+        !installedRow.contains("SkillMagnifiedIcon("),
+    "Installed skill rows should render through the whole-row magnification wrapper."
+)
+require(
+    !catalogRow.contains(".clipShape(RoundedRectangle(cornerRadius: 8))") &&
+        !installedRow.contains(".clipShape(RoundedRectangle(cornerRadius: 8))"),
+    "Skill rows should not clip their content because clipping hides row magnification."
+)
+require(
+    skillsView.contains("@Environment(\\.accessibilityReduceMotion)"),
+    "Dock-style skill magnification should respect reduce motion."
 )
 require(
     !skillsView.contains("ProgressView()"),
@@ -214,26 +258,21 @@ require(
     "Skill install controls should not use the system prominent blue button style."
 )
 require(
-    manualInstallSheet.contains(#"Text("Cancel")"#) &&
-        manualInstallSheet.contains(".buttonStyle(SkillPillButtonStyle(tone: .neutral") &&
-        manualInstallSheet.contains(".frame(width: 104, height: 30)") &&
-        !manualInstallSheet.contains(".frame(width: 78)"),
-    "Manual install sheet buttons should use matching fixed frames and pill styles."
+    !skillsView.contains("showManualInstallSheet") &&
+        !skillsView.contains("manualInstallOverlay") &&
+        !skillsView.contains("ManualSkillInstallSheet") &&
+        !skillsView.contains("Install skill from GitHub repository"),
+    "Skills UI should not expose manual GitHub repository skill installation."
 )
 require(
-    !skillsView.contains(".sheet(isPresented: $showManualInstallSheet)"),
-    "Manual install should not use the system sheet because outside-click dismissal needs a custom overlay."
+    !viewModel.contains("isInstallingManualSkill") &&
+        !viewModel.contains("installManualSkill"),
+    "DashboardViewModel should not keep manual repository skill installation state or actions."
 )
 require(
-    skillsView.contains("private var manualInstallOverlay: some View") &&
-        skillsView.contains("if showManualInstallSheet") &&
-        skillsView.contains("Color.black") &&
-        skillsView.contains(".opacity(0.001)") &&
-        skillsView.contains(".contentShape(Rectangle())") &&
-        skillsView.contains("withAnimation(.easeInOut(duration: 0.14))") &&
-        skillsView.contains("showManualInstallSheet = false") &&
-        skillsView.contains(".onTapGesture {}"),
-    "Manual install overlay should use a transparent outside-click layer and keep inner clicks from dismissing."
+    !skillCatalogService.contains("manualInstallCommand") &&
+        !skillCatalogService.contains("normalizedRepositoryURL"),
+    "SkillCatalogService should not build manual repository install commands."
 )
 require(
     dashboardView.contains("onInstall: {") &&

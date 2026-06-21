@@ -53,7 +53,7 @@ struct SkillsTabView: View {
     let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     @State private var searchText = ""
     @State private var displayMode: SkillDisplayMode = .all
-    @State private var showManualInstallSheet = false
+    @State private var skillPointerLocation: CGPoint?
 
     private enum SkillDisplayMode: String, CaseIterable {
         case all = "All"
@@ -139,47 +139,18 @@ struct SkillsTabView: View {
             .padding(.bottom, 44)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(NSColor.windowBackgroundColor))
-        .overlay {
-            manualInstallOverlay
+        .coordinateSpace(name: SkillDockMagnification.coordinateSpace)
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location):
+                skillPointerLocation = location
+            case .ended:
+                skillPointerLocation = nil
+            }
         }
+        .background(Color(NSColor.windowBackgroundColor))
         .task {
             await viewModel.loadSkillMarket()
-        }
-    }
-
-    @ViewBuilder
-    private var manualInstallOverlay: some View {
-        if showManualInstallSheet {
-            ZStack {
-                Color.black
-                    .opacity(0.001)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if !viewModel.isInstallingManualSkill {
-                            withAnimation(.easeInOut(duration: 0.14)) {
-                                showManualInstallSheet = false
-                            }
-                        }
-                    }
-
-                ManualSkillInstallSheet(
-                    viewModel: viewModel,
-                    isPresented: $showManualInstallSheet
-                )
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.36 : 0.16), radius: 28, x: 0, y: 16)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
-                )
-                .padding(28)
-                .onTapGesture {}
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .center)))
         }
     }
 
@@ -228,27 +199,6 @@ struct SkillsTabView: View {
             .frame(height: 36)
             .background(Color(NSColor.controlBackgroundColor))
             .clipShape(Capsule())
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.14)) {
-                    showManualInstallSheet = true
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(SkillInstallPalette.amber)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(SkillInstallPalette.iconBackground(colorScheme: colorScheme, isHovered: false))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(SkillInstallPalette.iconBorder(isHovered: false), lineWidth: 1)
-                    )
-            }
-            .buttonStyle(.plain)
-            .help("Install skill from GitHub repository")
 
             Button {
                 Task { await viewModel.loadSkillMarket(forceSync: true) }
@@ -317,6 +267,7 @@ struct SkillsTabView: View {
                                     item: item,
                                     installedSkill: installedSkillsByName[item.name],
                                     isInstalling: viewModel.installingCatalogSkillName == item.name,
+                                    pointerLocation: skillPointerLocation,
                                     onInstall: {
                                         Task { await viewModel.installCatalogSkill(item) }
                                     },
@@ -343,6 +294,7 @@ struct SkillsTabView: View {
                                 InstalledSkillListRow(
                                     skill: skill,
                                     catalogItem: nil,
+                                    pointerLocation: skillPointerLocation,
                                     onOpen: {
                                         onOpenSkillDetail(SkillDetailPresentationItem.fromInstalled(skill, catalogItem: nil))
                                     }
@@ -381,6 +333,7 @@ struct SkillsTabView: View {
                                 InstalledSkillListRow(
                                     skill: skill,
                                     catalogItem: catalogItemsByName[skill.name],
+                                    pointerLocation: skillPointerLocation,
                                     onOpen: {
                                         onOpenSkillDetail(
                                             SkillDetailPresentationItem.fromInstalled(
@@ -453,70 +406,127 @@ private enum SkillInstallPalette {
     }
 }
 
+private enum SkillDockMagnification {
+    static let coordinateSpace = "skills-dock-magnification"
+    static let radius: CGFloat = 118
+    static let maxScale: CGFloat = 0.08
+
+    static func scale(pointerLocation: CGPoint?, rowFrame: CGRect, reduceMotion: Bool) -> CGFloat {
+        guard !reduceMotion, let pointerLocation, !rowFrame.isEmpty else { return 1 }
+
+        let center = CGPoint(x: rowFrame.midX, y: rowFrame.midY)
+        let distance = hypot(pointerLocation.x - center.x, pointerLocation.y - center.y)
+        let influence = max(0, 1 - distance / radius)
+        return 1 + influence * maxScale
+    }
+}
+
+private struct SkillRowFramePreferenceKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
+    }
+}
+
+private struct SkillMagnifiedRow<Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let pointerLocation: CGPoint?
+    @ViewBuilder let content: () -> Content
+    @State private var rowFrame: CGRect = .zero
+
+    var body: some View {
+        let rowScale = SkillDockMagnification.scale(
+            pointerLocation: pointerLocation,
+            rowFrame: rowFrame,
+            reduceMotion: reduceMotion
+        )
+
+        content()
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: SkillRowFramePreferenceKey.self,
+                        value: proxy.frame(in: .named(SkillDockMagnification.coordinateSpace))
+                    )
+                }
+            )
+            .onPreferenceChange(SkillRowFramePreferenceKey.self) { frame in
+                rowFrame = frame
+            }
+            .scaleEffect(rowScale, anchor: .center)
+            .zIndex(Double(rowScale))
+            .animation(.interactiveSpring(response: 0.16, dampingFraction: 0.86, blendDuration: 0.04), value: rowScale)
+    }
+}
+
 private struct CatalogSkillListRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovered = false
     let item: SkillCatalogItem
     let installedSkill: SkillInfo?
     let isInstalling: Bool
+    let pointerLocation: CGPoint?
     let onInstall: () -> Void
     let onOpen: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
-            SkillCatalogIcon(iconURL: item.iconURL, size: 32)
+        SkillMagnifiedRow(pointerLocation: pointerLocation) {
+            HStack(spacing: 14) {
+                SkillCatalogIcon(iconURL: item.iconURL, size: 32)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.displayName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.displayName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
 
-                Text(item.description)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer(minLength: 16)
-
-            if let installedSkill {
-                InstalledStatusMark(status: installedSkill.status)
-            } else {
-                Button(action: onInstall) {
-                    if isInstalling {
-                        Text("Installing...")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 74, height: 28)
-                    } else {
-                        Image(systemName: "plus")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(SkillInstallPalette.amber)
-                            .frame(width: 28, height: 28)
-                            .background(
-                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .fill(SkillInstallPalette.iconBackground(colorScheme: colorScheme, isHovered: isHovered))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .stroke(SkillInstallPalette.iconBorder(isHovered: isHovered), lineWidth: 1)
-                            )
-                    }
+                    Text(item.description)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
-                .buttonStyle(.plain)
-                .disabled(isInstalling)
-                .help("Install")
+
+                Spacer(minLength: 16)
+
+                if let installedSkill {
+                    InstalledStatusMark(status: installedSkill.status)
+                } else {
+                    Button(action: onInstall) {
+                        if isInstalling {
+                            Text("Installing...")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 74, height: 28)
+                        } else {
+                            Image(systemName: "plus")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(SkillInstallPalette.amber)
+                                .frame(width: 28, height: 28)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                        .fill(SkillInstallPalette.iconBackground(colorScheme: colorScheme, isHovered: isHovered))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                        .stroke(SkillInstallPalette.iconBorder(isHovered: isHovered), lineWidth: 1)
+                                )
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isInstalling)
+                    .help("Install")
+                }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(rowBackground)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(rowBackground)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.18)) {
@@ -538,36 +548,38 @@ private struct InstalledSkillListRow: View {
     @State private var isHovered = false
     let skill: SkillInfo
     let catalogItem: SkillCatalogItem?
+    let pointerLocation: CGPoint?
     let onOpen: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
-            SkillCatalogIcon(iconURL: catalogItem?.iconURL, size: 32)
+        SkillMagnifiedRow(pointerLocation: pointerLocation) {
+            HStack(spacing: 14) {
+                SkillCatalogIcon(iconURL: catalogItem?.iconURL, size: 32)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(catalogItem?.displayName ?? skill.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(catalogItem?.displayName ?? skill.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
 
-                Text(catalogItem?.description.nilIfBlank ?? skill.description.nilIfBlank ?? "Installed skill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    Text(catalogItem?.description.nilIfBlank ?? skill.description.nilIfBlank ?? "Installed skill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 16)
+
+                InstalledStatusMark(status: skill.status)
             }
-
-            Spacer(minLength: 16)
-
-            InstalledStatusMark(status: skill.status)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(rowBackground)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(rowBackground)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.18)) {
@@ -682,85 +694,6 @@ private struct EmptySkillStateView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 56)
-    }
-}
-
-private struct ManualSkillInstallSheet: View {
-    @ObservedObject var viewModel: DashboardViewModel
-    @Binding var isPresented: Bool
-    @State private var repositoryInput = ""
-    @FocusState private var isRepositoryFocused: Bool
-
-    private var canInstall: Bool {
-        SkillCatalogService.manualInstallCommand(repositoryInput: repositoryInput) != nil &&
-        !viewModel.isInstallingManualSkill
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Install Skill")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Text("Enter a GitHub repository. The app will install it globally.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Repository")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                TextField("owner/repo", text: $repositoryInput)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($isRepositoryFocused)
-                    .disabled(viewModel.isInstallingManualSkill)
-            }
-
-            HStack {
-                Spacer()
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.14)) {
-                        isPresented = false
-                    }
-                } label: {
-                    Text("Cancel")
-                        .frame(width: 104, height: 30)
-                }
-                .buttonStyle(SkillPillButtonStyle(tone: .neutral, isDisabled: viewModel.isInstallingManualSkill))
-                .keyboardShortcut(.cancelAction)
-                .disabled(viewModel.isInstallingManualSkill)
-
-                Button {
-                    Task {
-                        let success = await viewModel.installManualSkill(repositoryInput: repositoryInput)
-                        if success {
-                            withAnimation(.easeInOut(duration: 0.14)) {
-                                isPresented = false
-                            }
-                        }
-                    }
-                } label: {
-                    if viewModel.isInstallingManualSkill {
-                        Text("Installing...")
-                            .frame(width: 104, height: 30)
-                    } else {
-                        Text("Install")
-                            .frame(width: 104, height: 30)
-                    }
-                }
-                .buttonStyle(SkillPillButtonStyle(tone: .install, isDisabled: !canInstall))
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canInstall)
-            }
-        }
-        .padding(22)
-        .frame(width: 420)
-        .onAppear {
-            isRepositoryFocused = true
-        }
     }
 }
 

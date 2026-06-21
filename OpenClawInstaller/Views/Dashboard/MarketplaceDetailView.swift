@@ -50,9 +50,14 @@ struct MarketplaceDetailView: View {
 
                 Spacer(minLength: 40)
             }
-            .padding(32)
+            .frame(maxWidth: MarketplacePageLayout.contentMaxWidth, alignment: .leading)
+            .padding(.horizontal, MarketplacePageLayout.horizontalPadding)
+            .padding(.top, MarketplacePageLayout.topPadding)
+            .padding(.bottom, MarketplacePageLayout.bottomPadding)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             checkInstalled()
         }

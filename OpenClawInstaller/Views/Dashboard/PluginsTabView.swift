@@ -1,122 +1,184 @@
 import SwiftUI
+import AppKit
+import MarkdownUI
 import UniformTypeIdentifiers
 
+struct PluginDetailPresentationItem: Identifiable {
+    let id: String
+    let name: String
+    let displayName: String
+    let description: String
+    let documentationMarkdown: String
+    let sourceTitle: String
+    let catalogItem: PluginCatalogItem?
+    let installedPlugin: PluginInfo?
+    let iconURL: URL?
+
+    static func fromCatalog(_ item: PluginCatalogItem, installedPlugin: PluginInfo?) -> PluginDetailPresentationItem {
+        PluginDetailPresentationItem(
+            id: "catalog-\(item.id)",
+            name: item.name,
+            displayName: item.displayName,
+            description: item.description,
+            documentationMarkdown: item.longDescription,
+            sourceTitle: item.source.title,
+            catalogItem: item,
+            installedPlugin: installedPlugin,
+            iconURL: item.iconURL
+        )
+    }
+
+    static func fromInstalled(_ plugin: PluginInfo, catalogItem: PluginCatalogItem?) -> PluginDetailPresentationItem {
+        let section = PluginLibrarySection.section(for: plugin, catalogItem: catalogItem)
+        let description = catalogItem?.description.nilIfBlank
+            ?? "Installed OpenClaw plugin"
+
+        return PluginDetailPresentationItem(
+            id: "installed-\(plugin.pluginId)",
+            name: catalogItem?.name ?? plugin.pluginId,
+            displayName: catalogItem?.displayName ?? plugin.channel,
+            description: description,
+            documentationMarkdown: catalogItem?.longDescription.nilIfBlank ?? Self.installedPluginMarkdown(plugin),
+            sourceTitle: section.title,
+            catalogItem: catalogItem,
+            installedPlugin: plugin,
+            iconURL: catalogItem?.iconURL
+        )
+    }
+
+    private static func installedPluginMarkdown(_ plugin: PluginInfo) -> String {
+        """
+        **Plugin ID:** `\(plugin.pluginId)`
+
+        **Status:** \(plugin.enabled ? "Loaded" : "Disabled")
+
+        **Source:** `\(plugin.source.isEmpty ? "Unknown" : plugin.source)`
+
+        **Version:** \(plugin.version.isEmpty ? "Unknown" : plugin.version)
+        """
+    }
+}
+
 struct PluginsTabView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: DashboardViewModel
+    @Namespace private var pluginDetailNamespace
+    @State private var searchText = ""
+    @State private var displayMode: PluginDisplayMode = .recommend
     @State private var showInstallSheet = false
+    @State private var selectedDetailItem: PluginDetailPresentationItem?
+
+    private let pluginDetailAnimation = Animation.spring(
+        response: 0.34,
+        dampingFraction: 0.86,
+        blendDuration: 0.04
+    )
+
+    private enum PluginDisplayMode: String, CaseIterable {
+        case recommend = "Recommend"
+        case all = "All"
+        case installed = "Installed"
+    }
+
+    private struct InstalledSection: Identifiable {
+        let id: PluginLibrarySection
+        let title: String
+        let items: [PluginInfo]
+    }
 
     private var hasGlobalPlugins: Bool {
         viewModel.plugins.contains { $0.origin == .global }
     }
 
-    var body: some View {
-        SmoothScrollView {
-            VStack(spacing: 16) {
-                // Header
-                HStack {
-                    Text("Plugins")
-                        .font(.headline)
+    private var catalogItemsByName: [String: PluginCatalogItem] {
+        firstCatalogItems { $0.name }
+    }
 
-                    if !viewModel.plugins.isEmpty {
-                        let loaded = viewModel.plugins.filter(\.enabled).count
-                        let total = viewModel.plugins.count
-                        Text("(\(loaded)/\(total) loaded)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+    private var catalogItemsByPluginID: [String: PluginCatalogItem] {
+        firstCatalogItems { $0.openClawPluginID }
+    }
 
-                    Spacer()
+    private var installedPluginsByID: [String: PluginInfo] {
+        firstInstalledPlugins { $0.pluginId }
+    }
 
-                    if hasGlobalPlugins {
-                        Button(action: {
-                            Task { await viewModel.updateAllPlugins() }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                Text("Update All")
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(viewModel.isLoadingPlugins || viewModel.isPerformingAction)
-                    }
+    private var installedPluginsByChannel: [String: PluginInfo] {
+        firstInstalledPlugins { $0.channel }
+    }
 
-                    Button(action: {
-                        showInstallSheet = true
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "plus")
-                            Text("Install")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.isPerformingAction)
+    private var filteredCatalogItems: [PluginCatalogItem] {
+        viewModel.pluginCatalog.filter { item in
+            matchesSearch(
+                name: item.displayName,
+                description: item.description,
+                metadata: [item.name, item.openClawPluginID, item.category] + item.capabilities + item.keywords
+            )
+        }
+    }
 
-                    Button(action: {
-                        Task { await viewModel.loadPlugins() }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.clockwise")
-                            Text("Refresh")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.isLoadingPlugins || viewModel.isPerformingAction)
-                }
+    private var filteredRecommendedCatalogItems: [PluginCatalogItem] {
+        filteredCatalogItems.filter(\.isRecommended)
+    }
 
-                if viewModel.isLoadingPlugins && viewModel.plugins.isEmpty {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Loading plugins...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                } else if viewModel.plugins.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "puzzlepiece")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text("No plugins found")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                } else {
-                    // Plugin list
-                    VStack(spacing: 0) {
-                        ForEach(Array(viewModel.plugins.enumerated()), id: \.element.id) { index, plugin in
-                            PluginRow(
-                                plugin: plugin,
-                                viewModel: viewModel,
-                                isPerformingAction: viewModel.isPerformingAction,
-                                onEnable: {
-                                    Task { await viewModel.enablePlugin(plugin) }
-                                },
-                                onDisable: {
-                                    Task { await viewModel.disablePlugin(plugin) }
-                                },
-                                onUninstall: {
-                                    Task { await viewModel.uninstallPlugin(plugin) }
-                                },
-                                onUpdate: {
-                                    Task { await viewModel.updatePlugin(plugin) }
-                                }
-                            )
+    private var filteredBuiltInCatalogItems: [PluginCatalogItem] {
+        filteredCatalogItems.filter { !$0.isRecommended }
+    }
 
-                            if index < viewModel.plugins.count - 1 {
-                                Divider()
-                            }
-                        }
-                    }
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(12)
-                }
+    private var filteredInstalledPlugins: [PluginInfo] {
+        viewModel.plugins.filter { plugin in
+            let catalogItem = catalogItem(for: plugin)
+            return matchesSearch(
+                name: catalogItem?.displayName ?? plugin.channel,
+                description: catalogItem?.description ?? plugin.pluginId,
+                metadata: [plugin.pluginId, plugin.source, plugin.version, catalogItem?.category ?? ""]
+            )
+        }
+    }
+
+    private var customInstalledPlugins: [PluginInfo] {
+        filteredInstalledPlugins.filter { catalogItem(for: $0) == nil }
+    }
+
+    private var installedSections: [InstalledSection] {
+        PluginLibrarySection.allCases.compactMap { section in
+            let items = filteredInstalledPlugins.filter {
+                PluginLibrarySection.section(for: $0, catalogItem: catalogItem(for: $0)) == section
             }
-            .padding(24)
+            guard !items.isEmpty else { return nil }
+            return InstalledSection(id: section, title: section.title, items: items)
+        }
+    }
+
+    private var detailBackdropOpacity: Double {
+        colorScheme == .dark ? 0.34 : 0.18
+    }
+
+    private var detailCardBackground: Color {
+        colorScheme == .dark
+            ? Color(NSColor.windowBackgroundColor)
+            : Color(NSColor.controlBackgroundColor)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                searchAndActions
+                modePicker
+                content
+            }
+            .frame(maxWidth: 760, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 34)
+            .padding(.bottom, 44)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+        .overlay {
+            detailOverlay
         }
         .task {
-            await viewModel.loadPlugins()
+            await viewModel.loadPluginMarket()
         }
         .sheet(isPresented: $showInstallSheet) {
             InstallPluginSheet(
@@ -125,215 +187,966 @@ struct PluginsTabView: View {
             )
         }
     }
+
+    @ViewBuilder
+    private var detailOverlay: some View {
+        if let selectedDetailItem {
+            let installedPlugin = resolvedInstalledPlugin(for: selectedDetailItem)
+
+            ZStack {
+                Color.black
+                    .opacity(detailBackdropOpacity)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if viewModel.installingCatalogPluginName == nil && !viewModel.isPerformingAction {
+                            closeDetail()
+                        }
+                    }
+
+                PluginCatalogDetailSheet(
+                    item: selectedDetailItem,
+                    installedPlugin: installedPlugin,
+                    namespace: pluginDetailNamespace,
+                    geometryID: selectedDetailItem.id,
+                    isInstalling: selectedDetailItem.catalogItem.map { viewModel.installingCatalogPluginName == $0.name } ?? false,
+                    isPerformingAction: viewModel.isPerformingAction,
+                    onInstall: {
+                        guard let catalogItem = selectedDetailItem.catalogItem else { return }
+                        Task { await viewModel.installCatalogPlugin(catalogItem) }
+                    },
+                    onEnable: {
+                        guard let installedPlugin else { return }
+                        Task { await viewModel.enablePlugin(installedPlugin) }
+                    },
+                    onDisable: {
+                        guard let installedPlugin else { return }
+                        Task { await viewModel.disablePlugin(installedPlugin) }
+                    },
+                    onUpdate: {
+                        guard let installedPlugin else { return }
+                        Task { await viewModel.updatePlugin(installedPlugin) }
+                    },
+                    onUninstall: {
+                        guard let installedPlugin else { return }
+                        Task { await viewModel.uninstallPlugin(installedPlugin) }
+                    },
+                    onClose: {
+                        closeDetail()
+                    }
+                )
+                .background {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(detailCardBackground)
+                        .matchedGeometryEffect(
+                            id: "plugin-card-\(selectedDetailItem.id)",
+                            in: pluginDetailNamespace,
+                            isSource: false
+                        )
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.36 : 0.16), radius: 28, x: 0, y: 16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
+                )
+                .padding(28)
+                .onTapGesture {}
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .center)))
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Plugins")
+                    .font(.system(size: 24, weight: .semibold))
+                Text("Install curated OpenClaw plugins from the GetClowHub catalog")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if !viewModel.pluginCatalog.isEmpty || !viewModel.plugins.isEmpty {
+                Text("\(viewModel.plugins.count) installed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var searchAndActions: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 9) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+
+                TextField("Search plugins", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 15))
+
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear search")
+                }
+            }
+            .padding(.horizontal, 11)
+            .frame(height: 34)
+            .background(Color(NSColor.controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)
+            )
+
+            if hasGlobalPlugins {
+                Button {
+                    Task { await viewModel.updateAllPlugins() }
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isLoadingPlugins || viewModel.isPerformingAction)
+                .help("Update installed plugins")
+            }
+
+            Button {
+                showInstallSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 15, weight: .medium))
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isPerformingAction)
+            .help("Install custom plugin")
+
+            Button {
+                Task { await viewModel.loadPluginMarket(forceSync: true) }
+            } label: {
+                if viewModel.isLoadingPluginCatalog {
+                    Text("...")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 30, height: 30)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(width: 30, height: 30)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isLoadingPluginCatalog || viewModel.isLoadingPlugins)
+            .help("Refresh plugins")
+        }
+    }
+
+    private var modePicker: some View {
+        Picker("", selection: $displayMode) {
+            ForEach(PluginDisplayMode.allCases, id: \.self) { mode in
+                Text(mode.rawValue).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 284)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch displayMode {
+        case .recommend:
+            recommendedPluginsContent
+        case .all:
+            allPluginsContent
+        case .installed:
+            installedPluginsContent
+        }
+    }
+
+    @ViewBuilder
+    private var recommendedPluginsContent: some View {
+        if viewModel.isLoadingPluginCatalog && viewModel.pluginCatalog.isEmpty {
+            PluginLoadingStateView(text: "Loading plugin catalog...")
+        } else if let error = viewModel.pluginCatalogError, viewModel.pluginCatalog.isEmpty {
+            EmptyPluginStateView(
+                systemImage: "exclamationmark.triangle",
+                title: "Could not load plugin catalog",
+                detail: error
+            )
+        } else if filteredRecommendedCatalogItems.isEmpty {
+            EmptyPluginStateView(
+                systemImage: "puzzlepiece",
+                title: viewModel.pluginCatalog.isEmpty ? "No recommended plugins" : "No matching recommended plugins",
+                detail: nil
+            )
+        } else {
+            catalogSection(
+                title: PluginLibrarySection.recommend.title,
+                items: filteredRecommendedCatalogItems
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var allPluginsContent: some View {
+        if viewModel.isLoadingPluginCatalog && viewModel.pluginCatalog.isEmpty {
+            PluginLoadingStateView(text: "Loading plugin catalog...")
+        } else if let error = viewModel.pluginCatalogError,
+                  viewModel.pluginCatalog.isEmpty,
+                  customInstalledPlugins.isEmpty {
+            EmptyPluginStateView(
+                systemImage: "exclamationmark.triangle",
+                title: "Could not load plugin catalog",
+                detail: error
+            )
+        } else if filteredCatalogItems.isEmpty && customInstalledPlugins.isEmpty {
+            EmptyPluginStateView(
+                systemImage: "puzzlepiece",
+                title: viewModel.pluginCatalog.isEmpty && viewModel.plugins.isEmpty ? "No plugins found" : "No matching plugins",
+                detail: nil
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 26) {
+                if !filteredRecommendedCatalogItems.isEmpty {
+                    catalogSection(
+                        title: PluginLibrarySection.recommend.title,
+                        items: filteredRecommendedCatalogItems
+                    )
+                }
+
+                if !filteredBuiltInCatalogItems.isEmpty {
+                    catalogSection(
+                        title: PluginLibrarySection.builtIn.title,
+                        items: filteredBuiltInCatalogItems
+                    )
+                }
+
+                if !customInstalledPlugins.isEmpty {
+                    installedSection(
+                        title: PluginLibrarySection.custom.title,
+                        items: customInstalledPlugins
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var installedPluginsContent: some View {
+        if viewModel.isLoadingPlugins && viewModel.plugins.isEmpty {
+            PluginLoadingStateView(text: "Loading installed plugins...")
+        } else if installedSections.isEmpty {
+            EmptyPluginStateView(
+                systemImage: "checkmark.circle",
+                title: viewModel.plugins.isEmpty ? "No installed plugins" : "No matching installed plugins",
+                detail: nil
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 26) {
+                ForEach(installedSections) { section in
+                    installedSection(title: section.title, items: section.items)
+                }
+            }
+        }
+    }
+
+    private func catalogSection(title: String, items: [PluginCatalogItem]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            PluginSectionHeader(title: title, count: items.count)
+
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    let installedPlugin = installedPlugin(for: item)
+
+                    CatalogPluginListRow(
+                        item: item,
+                        installedPlugin: installedPlugin,
+                        namespace: pluginDetailNamespace,
+                        geometryID: "catalog-\(item.id)",
+                        isInstalling: viewModel.installingCatalogPluginName == item.name,
+                        onInstall: {
+                            Task { await viewModel.installCatalogPlugin(item) }
+                        },
+                        onOpen: {
+                            openDetail(PluginDetailPresentationItem.fromCatalog(item, installedPlugin: installedPlugin))
+                        }
+                    )
+
+                    if index < items.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+        }
+    }
+
+    private func installedSection(title: String, items: [PluginInfo]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            PluginSectionHeader(title: title, count: items.count)
+
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, plugin in
+                    let catalogItem = catalogItem(for: plugin)
+
+                    InstalledPluginListRow(
+                        plugin: plugin,
+                        catalogItem: catalogItem,
+                        namespace: pluginDetailNamespace,
+                        geometryID: "installed-\(plugin.pluginId)",
+                        onOpen: {
+                            openDetail(PluginDetailPresentationItem.fromInstalled(plugin, catalogItem: catalogItem))
+                        }
+                    )
+
+                    if index < items.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+        }
+    }
+
+    private func resolvedInstalledPlugin(for detailItem: PluginDetailPresentationItem) -> PluginInfo? {
+        if let catalogItem = detailItem.catalogItem {
+            return installedPlugin(for: catalogItem)
+        }
+        if let installedPlugin = detailItem.installedPlugin {
+            return installedPluginsByID[lookupKey(installedPlugin.pluginId)] ?? installedPlugin
+        }
+        return nil
+    }
+
+    private func installedPlugin(for item: PluginCatalogItem) -> PluginInfo? {
+        installedPluginsByID[lookupKey(item.openClawPluginID)]
+            ?? installedPluginsByID[lookupKey(item.name)]
+            ?? installedPluginsByChannel[lookupKey(item.name)]
+    }
+
+    private func catalogItem(for plugin: PluginInfo) -> PluginCatalogItem? {
+        catalogItemsByPluginID[lookupKey(plugin.pluginId)]
+            ?? catalogItemsByName[lookupKey(plugin.pluginId)]
+            ?? catalogItemsByName[lookupKey(plugin.channel)]
+    }
+
+    private func firstCatalogItems(key: (PluginCatalogItem) -> String) -> [String: PluginCatalogItem] {
+        var result: [String: PluginCatalogItem] = [:]
+        for item in viewModel.pluginCatalog where result[lookupKey(key(item))] == nil {
+            result[lookupKey(key(item))] = item
+        }
+        return result
+    }
+
+    private func firstInstalledPlugins(key: (PluginInfo) -> String) -> [String: PluginInfo] {
+        var result: [String: PluginInfo] = [:]
+        for plugin in viewModel.plugins where result[lookupKey(key(plugin))] == nil {
+            result[lookupKey(key(plugin))] = plugin
+        }
+        return result
+    }
+
+    private func lookupKey(_ value: String) -> String {
+        let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let slashIndex = lower.lastIndex(of: "/") else { return lower }
+        return String(lower[lower.index(after: slashIndex)...])
+    }
+
+    private func openDetail(_ item: PluginDetailPresentationItem) {
+        withAnimation(pluginDetailAnimation) {
+            selectedDetailItem = item
+        }
+    }
+
+    private func closeDetail() {
+        withAnimation(pluginDetailAnimation) {
+            selectedDetailItem = nil
+        }
+    }
+
+    private func matchesSearch(name: String, description: String, metadata: [String]) -> Bool {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return true }
+
+        let haystack = ([name, description] + metadata)
+            .joined(separator: " ")
+            .lowercased()
+        return haystack.contains(query)
+    }
 }
 
-// MARK: - Plugin Row
+private enum PluginLibrarySection: CaseIterable, Identifiable {
+    case recommend
+    case builtIn
+    case custom
 
-struct PluginRow: View {
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .recommend:
+            return "Recommend"
+        case .builtIn:
+            return "Built-in"
+        case .custom:
+            return "Custom"
+        }
+    }
+
+    static func section(for plugin: PluginInfo, catalogItem: PluginCatalogItem?) -> PluginLibrarySection {
+        guard let catalogItem else { return .custom }
+        return catalogItem.isRecommended ? .recommend : .builtIn
+    }
+}
+
+private struct PluginSectionHeader: View {
+    let title: String
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text("\(count)")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.secondary.opacity(0.10))
+                .clipShape(Capsule())
+        }
+    }
+}
+
+private struct CatalogPluginListRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+    let item: PluginCatalogItem
+    let installedPlugin: PluginInfo?
+    let namespace: Namespace.ID
+    let geometryID: String
+    let isInstalling: Bool
+    let onInstall: () -> Void
+    let onOpen: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            PluginCatalogIcon(iconURL: item.iconURL, size: 32)
+                .matchedGeometryEffect(id: "plugin-icon-\(geometryID)", in: namespace)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.displayName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "plugin-title-\(geometryID)", in: namespace)
+
+                Text(item.description)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 16)
+
+            if let installedPlugin {
+                PluginStatusMark(plugin: installedPlugin)
+            } else if !item.isOpenClawInstallable {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.orange)
+                    .frame(width: 28, height: 28)
+                    .help("Unavailable")
+            } else {
+                Button(action: onInstall) {
+                    if isInstalling {
+                        Text("Installing...")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 74, height: 28)
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(PluginInstallPalette.amber)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .fill(PluginInstallPalette.iconBackground(colorScheme: colorScheme, isHovered: isHovered))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .stroke(PluginInstallPalette.iconBorder(isHovered: isHovered), lineWidth: 1)
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(isInstalling)
+                .help("Install")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(rowBackground)
+                .matchedGeometryEffect(id: "plugin-card-\(geometryID)", in: namespace)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpen)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.18)) {
+                isHovered = hovering
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: isHovered)
+    }
+
+    private var rowBackground: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(isHovered ? 0.075 : 0)
+            : Color.black.opacity(isHovered ? 0.065 : 0)
+    }
+}
+
+private struct InstalledPluginListRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
     let plugin: PluginInfo
-    @ObservedObject var viewModel: DashboardViewModel
+    let catalogItem: PluginCatalogItem?
+    let namespace: Namespace.ID
+    let geometryID: String
+    let onOpen: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            PluginCatalogIcon(iconURL: catalogItem?.iconURL, size: 32)
+                .matchedGeometryEffect(id: "plugin-icon-\(geometryID)", in: namespace)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(catalogItem?.displayName ?? plugin.channel)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "plugin-title-\(geometryID)", in: namespace)
+
+                Text(catalogItem?.description.nilIfBlank ?? plugin.pluginId)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 16)
+
+            PluginStatusMark(plugin: plugin)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(rowBackground)
+                .matchedGeometryEffect(id: "plugin-card-\(geometryID)", in: namespace)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpen)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.18)) {
+                isHovered = hovering
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: isHovered)
+    }
+
+    private var rowBackground: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(isHovered ? 0.075 : 0)
+            : Color.black.opacity(isHovered ? 0.065 : 0)
+    }
+}
+
+private struct PluginStatusMark: View {
+    let plugin: PluginInfo
+
+    var body: some View {
+        Image(systemName: plugin.enabled ? "checkmark" : "minus.circle.fill")
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(plugin.enabled ? .primary : .secondary)
+            .frame(width: 28, height: 28)
+            .help(plugin.enabled ? "Loaded" : "Disabled")
+    }
+}
+
+private struct PluginCatalogIcon: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let iconURL: URL?
+    let size: CGFloat
+
+    var body: some View {
+        let customImage = resolvedCustomImage
+        let isUsingDefaultIcon = customImage == nil
+
+        Group {
+            if let image = customImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image("PluginIcon")
+                    .resizable()
+                    .scaledToFit()
+            }
+        }
+        .frame(width: size, height: size)
+        .padding(6)
+        .background(isUsingDefaultIcon ? pluginDefaultIconBackground : Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var resolvedCustomImage: NSImage? {
+        guard let iconURL else { return nil }
+        return NSImage(contentsOf: iconURL)
+    }
+
+    private var pluginDefaultIconBackground: Color {
+        colorScheme == .dark
+            ? Color.black.opacity(0.32)
+            : Color(NSColor.controlBackgroundColor)
+    }
+}
+
+private struct PluginLoadingStateView: View {
+    let text: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .scaleEffect(1.1)
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 46)
+    }
+}
+
+private struct EmptyPluginStateView: View {
+    let systemImage: String
+    let title: String
+    let detail: String?
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            if let detail, !detail.isEmpty {
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(4)
+                    .frame(maxWidth: 420)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 46)
+    }
+}
+
+struct PluginCatalogDetailSheet: View {
+    let item: PluginDetailPresentationItem
+    let installedPlugin: PluginInfo?
+    let namespace: Namespace.ID
+    let geometryID: String
+    let isInstalling: Bool
     let isPerformingAction: Bool
+    let onInstall: () -> Void
     let onEnable: () -> Void
     let onDisable: () -> Void
-    let onUninstall: () -> Void
     let onUpdate: () -> Void
+    let onUninstall: () -> Void
+    let onClose: () -> Void
 
-    @State private var isExpanded = false
-    @State private var detailInfo: String?
-    @State private var isLoadingDetail = false
     @State private var showUninstallConfirm = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Main row
-            HStack(spacing: 12) {
-                // Channel icon
-                Image(systemName: channelIcon)
-                    .font(.system(size: 20))
-                    .foregroundColor(plugin.enabled ? .blue : .secondary)
-                    .frame(width: 32)
+            HStack(alignment: .top, spacing: 14) {
+                PluginCatalogIcon(iconURL: item.iconURL, size: 44)
+                    .matchedGeometryEffect(
+                        id: "plugin-icon-\(geometryID)",
+                        in: namespace,
+                        isSource: false
+                    )
 
-                // Plugin info
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(plugin.channel)
-                            .font(.body)
-                            .fontWeight(.medium)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(item.displayName)
+                        .font(.system(size: 22, weight: .semibold))
+                        .lineLimit(1)
+                        .matchedGeometryEffect(
+                            id: "plugin-title-\(geometryID)",
+                            in: namespace,
+                            isSource: false
+                        )
 
-                        if !plugin.version.isEmpty {
-                            Text("v\(plugin.version)")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(Color(NSColor.quaternaryLabelColor).opacity(0.3))
-                                .cornerRadius(4)
+                    HStack(spacing: 8) {
+                        PluginDetailChip(title: item.sourceTitle)
+                        PluginDetailChip(title: installedPlugin == nil ? "Not installed" : "Installed")
+                        if let installedPlugin {
+                            PluginDetailChip(title: installedPlugin.enabled ? "Loaded" : "Disabled")
                         }
-                    }
-
-                    HStack(spacing: 6) {
-                        Text(plugin.pluginId)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .fontDesign(.monospaced)
-
-                        if plugin.origin == .bundled {
-                            Text("built-in")
-                                .font(.caption2)
-                                .foregroundColor(.blue)
-                        } else if plugin.origin == .global {
-                            Text("installed")
-                                .font(.caption2)
-                                .foregroundColor(.purple)
+                        if let catalogItem = item.catalogItem, !catalogItem.version.isEmpty {
+                            PluginDetailChip(title: "v\(catalogItem.version)")
                         }
                     }
                 }
 
-                Spacer()
+                Spacer(minLength: 16)
 
-                // Status badge
-                if plugin.enabled {
-                    Label("Loaded", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                } else {
-                    Label("Disabled", systemImage: "minus.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                HStack(spacing: 8) {
+                    actionControls
 
-                // Action buttons for global plugins
-                if plugin.origin == .global {
-                    Button(action: onUpdate) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .frame(width: 24, height: 24)
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(isPerformingAction)
-                    .help("Update plugin")
-
-                    Button(action: {
-                        showUninstallConfirm = true
-                    }) {
-                        Image(systemName: "trash")
-                            .foregroundColor(.red)
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(isPerformingAction)
-                    .help("Uninstall plugin")
-                }
-
-                // Enable/Disable button
-                Button(action: plugin.enabled ? onDisable : onEnable) {
-                    Text(plugin.enabled ? "Disable" : "Enable")
-                        .frame(width: 60)
-                }
-                .buttonStyle(.bordered)
-                .tint(plugin.enabled ? .orange : .green)
-                .disabled(isPerformingAction)
-
-                // Expand chevron
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isExpanded.toggle()
-                    }
-                    if isExpanded && detailInfo == nil {
-                        loadDetail()
-                    }
-                }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.borderless)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            // Expanded detail section
-            if isExpanded {
-                Divider()
-                    .padding(.horizontal, 16)
-
-                if isLoadingDetail {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Loading plugin info...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(16)
-                } else if let detail = detailInfo {
-                    Text(detail)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                        .padding(16)
-                } else {
-                    Text("No detail information available")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(16)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Close")
                 }
             }
+            .padding(.bottom, 16)
+
+            Text(item.description)
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(.secondary)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .padding(.bottom, 20)
+
+            Text("Description")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 8)
+
+            ScrollView {
+                Markdown(detailMarkdown)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 34)
+                    .padding(.vertical, 28)
+            }
+            .frame(height: 344)
+            .background(Color(NSColor.textBackgroundColor).opacity(0.38))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+            )
         }
+        .padding(28)
+        .frame(width: 640)
         .alert("Uninstall Plugin", isPresented: $showUninstallConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Uninstall", role: .destructive) {
                 onUninstall()
             }
         } message: {
-            Text("Are you sure you want to uninstall '\(plugin.channel)'?")
+            Text("Are you sure you want to uninstall '\(installedPlugin?.channel ?? item.displayName)'?")
         }
     }
 
-    private func loadDetail() {
-        isLoadingDetail = true
-        Task {
-            let info = await viewModel.getPluginInfo(plugin)
-            await MainActor.run {
-                detailInfo = info
-                isLoadingDetail = false
+    private var detailMarkdown: String {
+        let lines = item.documentationMarkdown.components(separatedBy: .newlines)
+        var firstContentIndex = 0
+        var hasTrimmedHeading = false
+
+        while firstContentIndex < lines.count {
+            let trimmed = lines[firstContentIndex].trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                firstContentIndex += 1
+                continue
             }
+            if trimmed.hasPrefix("#") {
+                firstContentIndex += 1
+                hasTrimmedHeading = true
+                continue
+            }
+            break
+        }
+
+        let body = lines
+            .dropFirst(firstContentIndex)
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return body.isEmpty && hasTrimmedHeading ? item.description : (body.isEmpty ? item.description : body)
+    }
+
+    @ViewBuilder
+    private var actionControls: some View {
+        if installedPlugin == nil {
+            Button(action: onInstall) {
+                if isInstalling {
+                    Text("Installing...")
+                        .frame(width: 92, height: 30)
+                } else if item.catalogItem?.isOpenClawInstallable == false {
+                    Text("Unavailable")
+                        .frame(width: 92, height: 30)
+                } else {
+                    Text("Install")
+                        .frame(width: 92, height: 30)
+                }
+            }
+            .buttonStyle(PluginPillButtonStyle(tone: .install, isDisabled: isInstalling || item.catalogItem?.isOpenClawInstallable == false))
+            .disabled(isInstalling || item.catalogItem?.isOpenClawInstallable == false)
+        } else if let installedPlugin {
+            if installedPlugin.origin == .global {
+                Button(action: onUpdate) {
+                    Text("Update")
+                        .frame(width: 76, height: 30)
+                }
+                .buttonStyle(PluginPillButtonStyle(tone: .neutral, isDisabled: isPerformingAction))
+                .disabled(isPerformingAction)
+
+                Button(role: .destructive) {
+                    showUninstallConfirm = true
+                } label: {
+                    Text("Uninstall")
+                        .frame(width: 86, height: 30)
+                }
+                .buttonStyle(PluginPillButtonStyle(tone: .destructive, isDisabled: isPerformingAction))
+                .disabled(isPerformingAction)
+            }
+
+            Button(action: installedPlugin.enabled ? onDisable : onEnable) {
+                Text(installedPlugin.enabled ? "Disable" : "Enable")
+                    .frame(width: 82, height: 30)
+            }
+            .buttonStyle(PluginPillButtonStyle(tone: installedPlugin.enabled ? .neutral : .install, isDisabled: isPerformingAction))
+            .disabled(isPerformingAction)
+        }
+    }
+}
+
+private struct PluginDetailChip: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(.green)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.green.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
+private enum PluginInstallPalette {
+    static let amber = Color(red: 0.82, green: 0.50, blue: 0.12)
+
+    static func iconBackground(colorScheme: ColorScheme, isHovered: Bool) -> Color {
+        if colorScheme == .dark {
+            return Color.white.opacity(isHovered ? 0.13 : 0.08)
+        }
+        return amber.opacity(isHovered ? 0.16 : 0.11)
+    }
+
+    static func iconBorder(isHovered: Bool) -> Color {
+        amber.opacity(isHovered ? 0.42 : 0.24)
+    }
+}
+
+private struct PluginPillButtonStyle: ButtonStyle {
+    enum Tone {
+        case install
+        case neutral
+        case destructive
+    }
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    let tone: Tone
+    let isDisabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(foregroundColor)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(backgroundColor.opacity(configuration.isPressed ? 0.78 : 1))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .opacity(isDisabled ? 0.58 : 1)
+    }
+
+    private var foregroundColor: Color {
+        switch tone {
+        case .install:
+            return colorScheme == .dark ? Color(red: 0.98, green: 0.78, blue: 0.45) : Color(red: 0.55, green: 0.32, blue: 0.04)
+        case .neutral:
+            return .primary
+        case .destructive:
+            return .red
         }
     }
 
-    private var channelIcon: String {
-        // Match by pluginId (short form from openclaw plugins list)
-        switch plugin.pluginId {
-        case "whatsapp": return "message.fill"
-        case "telegram": return "paperplane.fill"
-        case "discord": return "gamecontroller.fill"
-        case "imessage", "bluebubbles": return "bubble.left.fill"
-        case "slack": return "number"
-        case "signal": return "lock.shield.fill"
-        case "mattermost": return "bubble.left.and.bubble.right.fill"
-        case "googlechat": return "ellipsis.bubble.fill"
-        case "msteams": return "person.3.fill"
-        case "irc": return "terminal.fill"
-        case "matrix": return "square.grid.3x3.fill"
-        case "line": return "bubble.right.fill"
-        case "nextcloud-talk": return "cloud.fill"
-        case "synology-chat": return "server.rack"
-        case "zalo", "zalouser": return "bubble.left.and.text.bubble.right.fill"
-        case "dingtalk": return "bell.fill"
-        case "feishu": return "bird.fill"
-        case "nostr": return "antenna.radiowaves.left.and.right"
-        case "twitch": return "play.tv.fill"
-        case "voice-call", "talk-voice": return "phone.fill"
-        case "memory-core", "memory-lancedb": return "brain"
-        case "diffs": return "doc.text.magnifyingglass"
-        case "acpx": return "cpu"
-        case "device-pair": return "link"
-        case "phone-control": return "iphone"
-        case "copilot-proxy": return "arrow.triangle.branch"
-        case "diagnostics-otel": return "waveform.path.ecg"
-        case "lobster": return "flowchart"
-        case "llm-task": return "text.bubble"
-        case "open-prose": return "doc.richtext"
-        case "thread-ownership": return "bubble.left.and.exclamationmark.bubble.right"
-        case "tlon": return "globe"
-        default: return "puzzlepiece.fill"
+    private var backgroundColor: Color {
+        switch tone {
+        case .install:
+            return PluginInstallPalette.amber.opacity(colorScheme == .dark ? 0.20 : 0.13)
+        case .neutral:
+            return Color.secondary.opacity(colorScheme == .dark ? 0.15 : 0.10)
+        case .destructive:
+            return Color.red.opacity(colorScheme == .dark ? 0.18 : 0.10)
         }
+    }
+
+    private var borderColor: Color {
+        switch tone {
+        case .install:
+            return PluginInstallPalette.amber.opacity(colorScheme == .dark ? 0.38 : 0.28)
+        case .neutral:
+            return Color.primary.opacity(0.10)
+        case .destructive:
+            return Color.red.opacity(0.24)
+        }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

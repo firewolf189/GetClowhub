@@ -1,5 +1,12 @@
 import SwiftUI
 
+enum MarketplacePageLayout {
+    static let contentMaxWidth: CGFloat = 760
+    static let horizontalPadding: CGFloat = 24
+    static let topPadding: CGFloat = 34
+    static let bottomPadding: CGFloat = 44
+}
+
 struct MarketplaceOverviewView: View {
     let onSelect: (MarketplaceAgent) -> Void
 
@@ -47,7 +54,7 @@ struct MarketplaceOverviewView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 16) {
             // Search bar
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
@@ -70,9 +77,7 @@ struct MarketplaceOverviewView: View {
             .padding(10)
             .background(Color(nsColor: .controlBackgroundColor))
             .cornerRadius(8)
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity)
 
             // Content
             SmoothScrollView {
@@ -93,12 +98,17 @@ struct MarketplaceOverviewView: View {
                             divisionSection(group)
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: MarketplacePageLayout.contentMaxWidth, alignment: .leading)
+        .padding(.horizontal, MarketplacePageLayout.horizontalPadding)
+        .padding(.top, MarketplacePageLayout.topPadding)
+        .padding(.bottom, MarketplacePageLayout.bottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(NSColor.windowBackgroundColor))
     }
 
     // MARK: - Division Section
