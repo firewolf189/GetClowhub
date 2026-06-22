@@ -62,6 +62,7 @@ struct ConfigTabView: View {
     @Binding var selectedSection: SettingsPageSection
     @EnvironmentObject var languageManager: LanguageManager
     @AppStorage("appAppearance") private var appAppearance: String = "system"
+    @AppStorage("appAccent") private var appAccent: String = "green"
     let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     let onOpenPluginDetail: (PluginDetailPresentationItem) -> Void
     #if REQUIRE_LOGIN
@@ -116,7 +117,7 @@ struct ConfigTabView: View {
             }
         case .preferences:
             settingsScroll {
-                PreferencesSettingsCard(appAppearance: $appAppearance)
+                PreferencesSettingsCard(appAppearance: $appAppearance, appAccent: $appAccent)
                     .environmentObject(languageManager)
             }
         case .persona:
@@ -346,21 +347,234 @@ private struct ProfileSettingsCard: View {
 
 private struct PreferencesSettingsCard: View {
     @EnvironmentObject var languageManager: LanguageManager
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var appAppearance: String
+    @Binding var appAccent: String
+
+    private var selectedAppearance: AppAppearanceMode {
+        AppAppearanceMode.storedValue(appAppearance)
+    }
+
+    private var selectedAccent: AppAccentPalette {
+        AppAccentPalette.storedValue(appAccent)
+    }
 
     var body: some View {
         SettingsCard(title: "Preferences", systemImage: "slider.horizontal.3") {
-            Picker("Language", selection: $languageManager.selectedLanguage) {
-                ForEach(languageManager.supportedLanguages) { lang in
-                    Text(lang.name).tag(lang.id)
+            VStack(alignment: .leading, spacing: 18) {
+                preferenceRow(title: "Language", subtitle: "Use your preferred app language.") {
+                    Picker("Language", selection: $languageManager.selectedLanguage) {
+                        ForEach(languageManager.supportedLanguages) { lang in
+                            Text(lang.name).tag(lang.id)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 220)
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 14) {
+                    preferenceRow(title: "Appearance", subtitle: "Choose a mode and preview how the workspace will feel.") {
+                        Picker("Appearance", selection: $appAppearance) {
+                            ForEach(AppAppearanceMode.allCases) { mode in
+                                Label(mode.title, systemImage: mode.systemImage)
+                                    .tag(mode.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(width: 330)
+                    }
+
+                    AppearancePreview(
+                        mode: selectedAppearance,
+                        accent: selectedAccent,
+                        systemScheme: colorScheme
+                    )
+
+                    preferenceRow(title: "Accent", subtitle: "Applies to controls and selected states.") {
+                        HStack(spacing: 8) {
+                            ForEach(AppAccentPalette.allCases) { accent in
+                                Button {
+                                    appAccent = accent.rawValue
+                                } label: {
+                                    AccentSwatch(accent: accent, isSelected: selectedAccent == accent)
+                                }
+                                .buttonStyle(.plain)
+                                .help(accent.title)
+                            }
+                        }
+                    }
                 }
             }
-            Picker("Appearance", selection: $appAppearance) {
-                Text("System").tag("system")
-                Text("Light").tag("light")
-                Text("Dark").tag("dark")
+        }
+    }
+
+    private func preferenceRow<Content: View>(
+        title: String,
+        subtitle: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .center, spacing: 18) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.primary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer(minLength: 16)
+            content()
+        }
+    }
+}
+
+private struct AccentSwatch: View {
+    let accent: AppAccentPalette
+    let isSelected: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(accent.color)
+                .frame(width: 24, height: 24)
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.white)
             }
         }
+        .frame(width: 30, height: 30)
+        .background(
+            Circle()
+                .stroke(isSelected ? accent.color.opacity(0.90) : Color.primary.opacity(0.10), lineWidth: isSelected ? 2 : 1)
+        )
+        .contentShape(Circle())
+    }
+}
+
+private struct AppearancePreview: View {
+    let mode: AppAppearanceMode
+    let accent: AppAccentPalette
+    let systemScheme: ColorScheme
+
+    private var isDark: Bool {
+        mode.resolvesDark(using: systemScheme)
+    }
+
+    private var surfaceColor: Color {
+        isDark ? Color(red: 0.13, green: 0.14, blue: 0.14) : Color(red: 0.96, green: 0.95, blue: 0.92)
+    }
+
+    private var sidebarColor: Color {
+        isDark ? Color.white.opacity(0.06) : Color.white.opacity(0.62)
+    }
+
+    private var panelColor: Color {
+        isDark ? Color.white.opacity(0.09) : Color.white.opacity(0.86)
+    }
+
+    private var codeColor: Color {
+        isDark ? Color.black.opacity(0.22) : Color.black.opacity(0.055)
+    }
+
+    private var textColor: Color {
+        isDark ? Color.white.opacity(0.92) : Color.black.opacity(0.82)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(accent.color)
+                        .frame(width: 8, height: 8)
+                    Text("GetClawHub")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(textColor)
+                }
+
+                previewSidebarRow(icon: "bolt.fill", title: "Skills", active: true)
+                previewSidebarRow(icon: "puzzlepiece.fill", title: "Plugins", active: false)
+                previewSidebarRow(icon: "gearshape", title: "Settings", active: false)
+
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(width: 154)
+            .background(sidebarColor)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(mode.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(textColor)
+                        Text("Accent \(accent.title)")
+                            .font(.caption)
+                            .foregroundColor(textColor.opacity(0.58))
+                    }
+                    Spacer()
+                    Text("Aa")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(accent.color)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(accent.color.opacity(isDark ? 0.18 : 0.12), in: Capsule())
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(textColor.opacity(0.58))
+                        .frame(width: 124, height: 6)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(textColor.opacity(0.26))
+                        .frame(width: 190, height: 6)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(textColor.opacity(0.18))
+                        .frame(width: 152, height: 6)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(panelColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                HStack(spacing: 8) {
+                    ForEach(0..<3, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(index == 0 ? accent.color.opacity(0.82) : codeColor)
+                            .frame(height: 18)
+                    }
+                }
+            }
+            .padding(12)
+        }
+        .frame(height: 150)
+        .background(surfaceColor)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(isDark ? 0.12 : 0.08), lineWidth: 1)
+        )
+    }
+
+    private func previewSidebarRow(icon: String, title: String, active: Bool) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+                .frame(width: 12)
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+            Spacer()
+        }
+        .foregroundColor(active ? textColor : textColor.opacity(0.62))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(active ? accent.color.opacity(isDark ? 0.28 : 0.16) : Color.clear)
+        )
     }
 }
 

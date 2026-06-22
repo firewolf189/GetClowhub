@@ -15,6 +15,7 @@
 		3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410282F5802970045A6F7 /* CommandExecutor.swift */; };
 		3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410252F5802970045A6F7 /* SystemEnvironment.swift */; };
 		3564104F2F5802970045A6F7 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410232F5802970045A6F7 /* AppSettings.swift */; };
+		APPA0000000000000001 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPA0000000000000002 /* AppAppearance.swift */; };
 		356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102A2F5802970045A6F7 /* NodeInstaller.swift */; };
 		356410512F5802970045A6F7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410432F5802970045A6F7 /* ContentView.swift */; };
 		356410522F5802970045A6F7 /* DiagnosticService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410292F5802970045A6F7 /* DiagnosticService.swift */; };
@@ -98,6 +99,7 @@
 		356410142F58023C0045A6F7 /* OpenClawInstaller.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenClawInstaller.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		356410222F5802970045A6F7 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		356410232F5802970045A6F7 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		APPA0000000000000002 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
 		356410242F5802970045A6F7 /* InstallationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationState.swift; sourceTree = "<group>"; };
 		356410252F5802970045A6F7 /* SystemEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemEnvironment.swift; sourceTree = "<group>"; };
 		356410282F5802970045A6F7 /* CommandExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandExecutor.swift; sourceTree = "<group>"; };
@@ -222,10 +224,11 @@
 		};
 		356410262F5802970045A6F7 /* Models */ = {
 			isa = PBXGroup;
-			children = (
-				356410222F5802970045A6F7 /* AppError.swift */,
-				356410232F5802970045A6F7 /* AppSettings.swift */,
-				A2C000000000000000000002 /* A2UICardPayload.swift */,
+				children = (
+					356410222F5802970045A6F7 /* AppError.swift */,
+					APPA0000000000000002 /* AppAppearance.swift */,
+					356410232F5802970045A6F7 /* AppSettings.swift */,
+					A2C000000000000000000002 /* A2UICardPayload.swift */,
 				BD01AA02B1C2D3E4F5A60002 /* BudgetModels.swift */,
 				C011AB02A1B2C3D4E5F60002 /* CollabModels.swift */,
 				C011AB01D1E2F3A4B5C60002 /* CommanderConfig.swift */,
@@ -478,9 +481,10 @@
 				3564104B2F5802970045A6F7 /* ConfigTabView.swift in Sources */,
 				3564104C2F5802970045A6F7 /* AppDelegate.swift in Sources */,
 				3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */,
-				3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */,
-				3564104F2F5802970045A6F7 /* AppSettings.swift in Sources */,
-				356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */,
+					3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */,
+					3564104F2F5802970045A6F7 /* AppSettings.swift in Sources */,
+					APPA0000000000000001 /* AppAppearance.swift in Sources */,
+					356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */,
 				356410512F5802970045A6F7 /* ContentView.swift in Sources */,
 				356410522F5802970045A6F7 /* DiagnosticService.swift in Sources */,
 				356410532F5802970045A6F7 /* OpenClawInstallerApp.swift in Sources */,

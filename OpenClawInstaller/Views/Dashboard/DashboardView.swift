@@ -41,6 +41,7 @@ struct DashboardView: View {
     #endif
     @EnvironmentObject var languageManager: LanguageManager
     @AppStorage("appAppearance") private var appAppearance: String = "system"
+    @AppStorage("appAccent") private var appAccent: String = "green"
     @Environment(\.colorScheme) private var colorScheme
     @State private var isGlobalSessionSearchPresented = false
     @State private var globalSessionSearchText: String = ""
@@ -108,6 +109,7 @@ struct DashboardView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(colorSchemeForAppearance)
+        .tint(AppAccentPalette.storedValue(appAccent).color)
         .background(TitlebarSeparatorSuppressor())
         .background(
             DashboardTitlebarAccessoryInstaller(
@@ -493,17 +495,11 @@ struct DashboardView: View {
     }
 
     private var isDark: Bool {
-        if appAppearance == "dark" { return true }
-        if appAppearance == "light" { return false }
-        return colorScheme == .dark
+        AppAppearanceMode.storedValue(appAppearance).resolvesDark(using: colorScheme)
     }
 
     private var colorSchemeForAppearance: ColorScheme? {
-        switch appAppearance {
-        case "light": return .light
-        case "dark": return .dark
-        default: return nil
-        }
+        AppAppearanceMode.storedValue(appAppearance).preferredColorScheme
     }
 
     private func openGlobalSessionSearch() {
@@ -965,6 +961,7 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
     private var currentIsSidebarExpanded = false
     private var hasInstalledSplitItems = false
     private var hasAppliedInitialLayout = false
+    private var isAnimatingSidebar = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -1050,6 +1047,7 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
             return
         }
 
+        isAnimatingSidebar = true
         if isSidebarExpanded {
             sidebarItem.isCollapsed = false
             setSidebarWidth(0)
@@ -1084,6 +1082,7 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
         let totalWidth = splitView.bounds.width
         guard totalWidth > 0 else {
             setSidebarWidth(width)
+            isAnimatingSidebar = false
             completion?()
             return
         }
@@ -1096,12 +1095,13 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
             splitView.animator().setPosition(totalWidth - max(0, width), ofDividerAt: 0)
         } completionHandler: {
             self.sidebarHost.view.isHidden = width <= 0.5
+            self.isAnimatingSidebar = false
             completion?()
         }
     }
 
     private func applySidebarWidth() {
-        guard hasInstalledSplitItems, hasAppliedInitialLayout else { return }
+        guard hasInstalledSplitItems, hasAppliedInitialLayout, !isAnimatingSidebar else { return }
         if currentIsSidebarExpanded {
             sidebarItem.isCollapsed = false
             setSidebarWidth(resolvedSidebarWidth())
@@ -1378,9 +1378,7 @@ struct SidebarView: View {
     }
 
     private var isDark: Bool {
-        if appAppearance == "dark" { return true }
-        if appAppearance == "light" { return false }
-        return colorScheme == .dark
+        AppAppearanceMode.storedValue(appAppearance).resolvesDark(using: colorScheme)
     }
 
     var body: some View {

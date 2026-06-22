@@ -158,6 +158,8 @@ assertContains(dashboard, "DashboardWorkspaceSplitView(", "Outputs sidebar must 
 assertContains(dashboard, "private final class DashboardWorkspaceSplitController: NSSplitViewController", "Outputs sidebar split must be owned by AppKit")
 assertContains(dashboard, "private let sidebarAnimationDuration: TimeInterval = 0.22", "right split and titlebar accessory must share one animation duration")
 assertContains(dashboard, "splitView.animator().setPosition", "Outputs sidebar must animate the AppKit split divider")
+assertContains(dashboard, "private var isAnimatingSidebar = false", "Outputs sidebar animation should be tracked inside the AppKit split controller")
+assertContains(dashboard, "guard hasInstalledSplitItems, hasAppliedInitialLayout, !isAnimatingSidebar else { return }", "layout passes during Outputs animation must not snap the middle pane to the final width")
 assertContains(dashboard, "sidebarItem.canCollapse = true", "Outputs sidebar split item must be allowed to fully collapse")
 assertContains(dashboard, "sidebarItem.isCollapsed = true", "Outputs sidebar split item must fully collapse without leaving a trailing strip")
 assertNotContains(dashboard, ".inspector(isPresented:", "Outputs sidebar must not use SwiftUI inspector in AppKit split mode")

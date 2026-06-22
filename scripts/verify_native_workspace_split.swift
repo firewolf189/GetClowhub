@@ -92,6 +92,26 @@ assertContains(
 )
 assertContains(
     dashboard,
+    "private var isAnimatingSidebar = false",
+    "right AppKit split controller should track sidebar animation state"
+)
+assertContains(
+    dashboard,
+    "guard hasInstalledSplitItems, hasAppliedInitialLayout, !isAnimatingSidebar else { return }",
+    "layout passes during sidebar animation should not force the divider to its final width"
+)
+assertContains(
+    dashboard,
+    "isAnimatingSidebar = true",
+    "right AppKit split controller should mark animated transitions before uncollapsing"
+)
+assertContains(
+    dashboard,
+    "self.isAnimatingSidebar = false",
+    "right AppKit split controller should clear animation state after divider animation completes"
+)
+assertContains(
+    dashboard,
     "sidebarItem.canCollapse = true",
     "right AppKit split item should be allowed to fully collapse after the divider animation"
 )
