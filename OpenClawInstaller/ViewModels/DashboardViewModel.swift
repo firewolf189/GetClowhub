@@ -4000,16 +4000,29 @@ class DashboardViewModel: ObservableObject {
             return
         }
         isPerformingAction = true
+        defer { isPerformingAction = false }
+
         let output = await openclawService.runCommand(
-            "openclaw plugins uninstall \(plugin.pluginId) --force 2>&1"
+            "openclaw plugins uninstall \(Self.shellQuote(plugin.pluginId)) --force 2>&1 && echo __OPENCLAW_PLUGIN_UNINSTALL_OK__"
         )
-        if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to uninstall \(plugin.channel): \(output)")
-        } else {
-            showSuccessMessage("\(plugin.channel) uninstalled")
+        guard output?.contains("__OPENCLAW_PLUGIN_UNINSTALL_OK__") == true else {
+            let detail = output?.trimmingCharacters(in: .whitespacesAndNewlines)
+            showErrorMessage("Failed to uninstall \(plugin.channel): \(detail?.isEmpty == false ? detail! : "unknown error")")
+            await loadPlugins()
+            return
         }
+
+        do {
+            _ = try PluginUninstallCleanup.removeGlobalInstallDirectory(
+                pluginID: plugin.pluginId,
+                source: plugin.source
+            )
+            showSuccessMessage("\(plugin.channel) uninstalled")
+        } catch {
+            showErrorMessage("Failed to remove \(plugin.channel) files: \(error.localizedDescription)")
+        }
+
         await loadPlugins()
-        isPerformingAction = false
     }
 
     /// Update a single plugin

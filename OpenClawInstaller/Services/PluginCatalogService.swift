@@ -340,6 +340,74 @@ enum PluginCatalogService {
     }
 }
 
+enum PluginUninstallCleanup {
+    static var defaultExtensionsRoot: URL {
+        URL(fileURLWithPath: NSString("~/.openclaw/extensions").expandingTildeInPath)
+    }
+
+    static func globalInstallURL(
+        pluginID: String,
+        source: String,
+        extensionsRoot: URL = defaultExtensionsRoot
+    ) -> URL? {
+        guard source.hasPrefix("global:") else {
+            return nil
+        }
+
+        let relativeSource = String(source.dropFirst("global:".count))
+        let sourceDirectory = relativeSource
+            .split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true)
+            .first
+            .map(String.init)
+            .flatMap(\.nilIfBlank)
+        let directoryName = sourceDirectory ?? pluginID.nilIfBlank
+
+        guard let directoryName,
+              directoryName != ".",
+              directoryName != "..",
+              !directoryName.contains("/"),
+              !directoryName.contains("\\") else {
+            return nil
+        }
+
+        let rootURL = extensionsRoot.standardizedFileURL
+        let candidateURL = rootURL
+            .appendingPathComponent(directoryName, isDirectory: true)
+            .standardizedFileURL
+        guard candidateURL.path.hasPrefix(rootURL.path + "/") else {
+            return nil
+        }
+        return candidateURL
+    }
+
+    @discardableResult
+    static func removeGlobalInstallDirectory(
+        pluginID: String,
+        source: String,
+        extensionsRoot: URL = defaultExtensionsRoot,
+        fileManager: FileManager = .default
+    ) throws -> URL? {
+        guard let installURL = globalInstallURL(
+            pluginID: pluginID,
+            source: source,
+            extensionsRoot: extensionsRoot
+        ) else {
+            return nil
+        }
+
+        var isDirectory = ObjCBool(false)
+        guard fileManager.fileExists(atPath: installURL.path, isDirectory: &isDirectory) else {
+            return nil
+        }
+        guard isDirectory.boolValue else {
+            throw CocoaError(.fileReadUnknown)
+        }
+
+        try fileManager.removeItem(at: installURL)
+        return installURL
+    }
+}
+
 private struct CatalogEntry {
     let item: PluginCatalogItem
     let order: Int?
