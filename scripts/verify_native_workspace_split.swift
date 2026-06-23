@@ -66,6 +66,51 @@ assertContains(
     "workspaceSidebarPane(width:",
     "DashboardView should pass the unified Outputs pane into the AppKit split container"
 )
+assertContains(
+    dashboardView,
+    "@State private var isWorkspaceSidebarClosing = false",
+    "DashboardView should keep Outputs content mounted while a close animation is in progress"
+)
+assertContains(
+    dashboardView,
+    "@State private var workspaceSidebarCollapseRequestID = 0",
+    "DashboardView should request an AppKit collapse animation before committing collapsed state"
+)
+assertContains(
+    dashboardView,
+    "@State private var isWorkspaceSidebarOpening = false",
+    "DashboardView should track opening animation before committing expanded state"
+)
+assertContains(
+    dashboardView,
+    "@State private var workspaceSidebarExpandRequestID = 0",
+    "DashboardView should request an AppKit expand animation before committing expanded state"
+)
+assertContains(
+    dashboardView,
+    "@State private var pendingWorkspaceSidebarCloseReset = false",
+    "DashboardView should defer destructive Outputs sidebar reset until the close animation finishes"
+)
+assertContains(
+    dashboardView,
+    "collapseRequestID: workspaceSidebarCollapseRequestID",
+    "right Outputs split should receive direct collapse requests from the titlebar button"
+)
+assertContains(
+    dashboardView,
+    "expandRequestID: workspaceSidebarExpandRequestID",
+    "right Outputs split should receive direct expand requests from the titlebar button"
+)
+assertContains(
+    dashboardView,
+    "onSidebarExpandFinished: completeWorkspaceSidebarOpen",
+    "right Outputs split should notify DashboardView after the open animation finishes"
+)
+assertContains(
+    dashboardView,
+    "onSidebarCollapseFinished: completeWorkspaceSidebarClose",
+    "right Outputs split should notify DashboardView after the close animation finishes"
+)
 assertNotContains(
     dashboardView,
     ".inspector(isPresented:",
@@ -130,6 +175,71 @@ assertContains(
     dashboardWorkspaceSplitController,
     "private var sidebarAnimationGeneration = 0",
     "right AppKit inspector controller should invalidate stale animation completions"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "private var onSidebarCollapseFinished: (() -> Void)?",
+    "right AppKit inspector controller should own a collapse completion callback"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "private var onSidebarExpandFinished: (() -> Void)?",
+    "right AppKit inspector controller should own an expand completion callback"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "private var lastExpandRequestID = 0",
+    "right AppKit inspector controller should track the latest direct expand request"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "private var lastCollapseRequestID = 0",
+    "right AppKit inspector controller should track the latest direct collapse request"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "let shouldCollapseFromRequest = collapseRequestID != lastCollapseRequestID",
+    "right sidebar should start closing from a direct AppKit request before SwiftUI commits collapsed state"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "let shouldExpandFromRequest = expandRequestID != lastExpandRequestID",
+    "right sidebar should start opening from a direct AppKit request before SwiftUI commits expanded state"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "let isCollapsingSidebar = (shouldAnimate && currentIsSidebarExpanded && !isSidebarExpanded && hasAppliedInitialLayout) || (shouldCollapseFromRequest && hasAppliedInitialLayout)",
+    "right sidebar collapse should be detected before replacing the SwiftUI sidebar root"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "let shouldDeferSidebarRootUpdate = isCollapsingSidebar || (isAnimatingSidebar && !currentIsSidebarExpanded)",
+    "right sidebar should keep its existing content during follow-up updates while closing"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "if !shouldDeferSidebarRootUpdate {\n            sidebarHost.rootView = sidebar\n        }",
+    "right sidebar should keep its existing content mounted while closing"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "self.sidebarHost.rootView = sidebar\n                self.onSidebarCollapseFinished?()",
+    "right sidebar should update its root and clear state only after the close animation finishes"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "if isAnimatingSidebar && !currentIsSidebarExpanded && isSidebarExpanded {\n            return\n        }",
+    "right sidebar should not reverse a requested close if SwiftUI still reports the business state as expanded"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "if isAnimatingSidebar && currentIsSidebarExpanded && !isSidebarExpanded {\n            return\n        }",
+    "right sidebar should not reverse a requested open if SwiftUI still reports the business state as collapsed"
+)
+assertContains(
+    dashboardWorkspaceSplitController,
+    "self.sidebarHost.rootView = sidebar\n                    self.onSidebarExpandFinished?()",
+    "right sidebar should commit expanded state only after the open animation finishes"
 )
 assertContains(
     dashboardWorkspaceSplitController,
@@ -302,7 +412,20 @@ assertNotContains(
     "right sidebar editor-width changes should be animated by the AppKit split controller only"
 )
 let revealWorkspaceSidebar = slice(dashboardView, from: "private func revealWorkspaceSidebar()", to: "    private func hideWorkspaceSidebar")
-let hideWorkspaceSidebar = slice(dashboardView, from: "private func hideWorkspaceSidebar", to: "    private func toggleWorkspaceSearch")
+let hideWorkspaceSidebar = slice(dashboardView, from: "private func hideWorkspaceSidebar", to: "    private func completeWorkspaceSidebarClose")
+let completeWorkspaceSidebarOpen = slice(dashboardView, from: "private func completeWorkspaceSidebarOpen()", to: "    private func completeWorkspaceSidebarClose")
+let completeWorkspaceSidebarClose = slice(dashboardView, from: "private func completeWorkspaceSidebarClose()", to: "    private func clearWorkspaceSidebarTransientState")
+let isWorkspaceSidebarExpanded = slice(dashboardView, from: "private var isWorkspaceSidebarExpanded: Bool", to: "    private var shouldRetainWorkspaceSidebarContent")
+assertNotContains(
+    isWorkspaceSidebarExpanded,
+    "!isWorkspaceSidebarClosing",
+    "right sidebar close should not commit the visual expanded state before the AppKit collapse animation starts"
+)
+assertContains(
+    dashboardView,
+    "workspaceSidebarExpanded || workspaceEditingFilePath != nil || isWorkspaceSidebarOpening || isWorkspaceSidebarClosing",
+    "right sidebar content should stay mounted while opening or closing animations run"
+)
 assertNotContains(
     revealWorkspaceSidebar,
     "withAnimation(",
@@ -312,6 +435,61 @@ assertNotContains(
     hideWorkspaceSidebar,
     "withAnimation(",
     "right sidebar hide should not wrap the AppKit split transition in a second SwiftUI animation"
+)
+assertContains(
+    revealWorkspaceSidebar,
+    "isWorkspaceSidebarOpening = true",
+    "right sidebar reveal should start a visual open before committing expanded state"
+)
+assertContains(
+    revealWorkspaceSidebar,
+    "workspaceSidebarExpandRequestID += 1",
+    "right sidebar reveal should request AppKit expand without first committing expanded state"
+)
+assertNotContains(
+    revealWorkspaceSidebar,
+    "workspaceSidebarExpanded = true",
+    "right sidebar reveal should not commit expanded state before the open animation finishes"
+)
+assertContains(
+    completeWorkspaceSidebarOpen,
+    "workspaceSidebarExpanded = true",
+    "right sidebar open completion should commit expanded state after animation"
+)
+assertContains(
+    completeWorkspaceSidebarOpen,
+    "isWorkspaceSidebarOpening = false",
+    "right sidebar open completion should clear opening animation state"
+)
+assertContains(
+    hideWorkspaceSidebar,
+    "isWorkspaceSidebarClosing = true",
+    "right sidebar hide should start a visual close before clearing sidebar content"
+)
+assertContains(
+    hideWorkspaceSidebar,
+    "workspaceSidebarCollapseRequestID += 1",
+    "right sidebar hide should request AppKit collapse without first committing collapsed state"
+)
+assertNotContains(
+    hideWorkspaceSidebar,
+    "workspaceSidebarExpanded = false",
+    "right sidebar hide should not commit collapsed state before the close animation finishes"
+)
+assertNotContains(
+    hideWorkspaceSidebar,
+    "workspaceEditingFilePath = nil",
+    "right sidebar hide should not clear editor content before the close animation finishes"
+)
+assertContains(
+    completeWorkspaceSidebarClose,
+    "workspaceSidebarExpanded = false",
+    "right sidebar close completion should commit the collapsed state after animation"
+)
+assertContains(
+    completeWorkspaceSidebarClose,
+    "clearWorkspaceSidebarTransientState()",
+    "right sidebar close completion should clear editor/search state after animation"
 )
 assertNotContains(
     dashboardView,

@@ -48,6 +48,11 @@ struct DashboardView: View {
     @State private var isCreateAgentOverlayPresented = false
     @State private var expandedAgentIds: Set<String> = []
     @State private var workspaceSidebarExpanded = false
+    @State private var isWorkspaceSidebarOpening = false
+    @State private var isWorkspaceSidebarClosing = false
+    @State private var workspaceSidebarExpandRequestID = 0
+    @State private var workspaceSidebarCollapseRequestID = 0
+    @State private var pendingWorkspaceSidebarCloseReset = false
     @State private var workspaceEditingFilePath: String?
     @State private var workspaceEditingFileDirty = false
     @State private var workspaceEditorFullscreen = false
@@ -95,7 +100,11 @@ struct DashboardView: View {
                 isSidebarExpanded: isWorkspaceSidebarExpanded,
                 sidebarWidth: max(workspaceColumnIdealWidth, Self.workspaceLayoutMetrics.browserWidth),
                 minSidebarWidth: workspaceSidebarMinWidth,
-                maxSidebarWidth: workspaceColumnMaxWidth
+                maxSidebarWidth: workspaceColumnMaxWidth,
+                expandRequestID: workspaceSidebarExpandRequestID,
+                collapseRequestID: workspaceSidebarCollapseRequestID,
+                onSidebarExpandFinished: completeWorkspaceSidebarOpen,
+                onSidebarCollapseFinished: completeWorkspaceSidebarClose
             ) {
                 DetailContentView(
                     viewModel: viewModel,
@@ -369,8 +378,12 @@ struct DashboardView: View {
         isChatTabActive && (workspaceSidebarExpanded || workspaceEditingFilePath != nil)
     }
 
+    private var shouldRetainWorkspaceSidebarContent: Bool {
+        isChatTabActive && (workspaceSidebarExpanded || workspaceEditingFilePath != nil || isWorkspaceSidebarOpening || isWorkspaceSidebarClosing)
+    }
+
     private var workspaceColumnIdealWidth: CGFloat {
-        guard isWorkspaceSidebarExpanded else { return 0 }
+        guard shouldRetainWorkspaceSidebarContent else { return 0 }
         return workspaceBrowserWidth + (workspaceEditingFilePath != nil ? Self.workspaceLayoutMetrics.editorWidth : 0)
     }
 
@@ -462,17 +475,60 @@ struct DashboardView: View {
 
     private func revealWorkspaceSidebar() {
         guard isChatTabActive else { return }
-        workspaceSidebarExpanded = true
+        guard !workspaceSidebarExpanded, !isWorkspaceSidebarOpening else { return }
+
+        isWorkspaceSidebarClosing = false
+        isWorkspaceSidebarOpening = true
+        pendingWorkspaceSidebarCloseReset = false
+        workspaceSidebarExpandRequestID += 1
     }
 
     private func hideWorkspaceSidebar(resetEditor: Bool) {
-        workspaceSidebarExpanded = false
-        if resetEditor {
-            workspaceEditingFilePath = nil
-            workspaceEditingFileDirty = false
-            workspaceSearchActive = false
-            workspaceSearchText = ""
+        guard shouldRetainWorkspaceSidebarContent else {
+            if resetEditor {
+                clearWorkspaceSidebarTransientState()
+            }
+            isWorkspaceSidebarOpening = false
+            isWorkspaceSidebarClosing = false
+            pendingWorkspaceSidebarCloseReset = false
+            return
         }
+
+        pendingWorkspaceSidebarCloseReset = pendingWorkspaceSidebarCloseReset || resetEditor
+        if !isWorkspaceSidebarClosing {
+            isWorkspaceSidebarOpening = false
+            isWorkspaceSidebarClosing = true
+            workspaceSidebarCollapseRequestID += 1
+        }
+    }
+
+    private func completeWorkspaceSidebarOpen() {
+        guard isWorkspaceSidebarOpening else { return }
+
+        workspaceSidebarExpanded = true
+        isWorkspaceSidebarOpening = false
+        isWorkspaceSidebarClosing = false
+        pendingWorkspaceSidebarCloseReset = false
+    }
+
+    private func completeWorkspaceSidebarClose() {
+        guard isWorkspaceSidebarClosing else { return }
+
+        let shouldReset = pendingWorkspaceSidebarCloseReset
+        workspaceSidebarExpanded = false
+        if shouldReset {
+            clearWorkspaceSidebarTransientState()
+        }
+        pendingWorkspaceSidebarCloseReset = false
+        isWorkspaceSidebarOpening = false
+        isWorkspaceSidebarClosing = false
+    }
+
+    private func clearWorkspaceSidebarTransientState() {
+        workspaceEditingFileDirty = false
+        workspaceSearchActive = false
+        workspaceSearchText = ""
+        workspaceEditingFilePath = nil
     }
 
     private func toggleWorkspaceSearch() {
@@ -907,6 +963,10 @@ private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSView
     let sidebarWidth: CGFloat
     let minSidebarWidth: CGFloat
     let maxSidebarWidth: CGFloat
+    let expandRequestID: Int
+    let collapseRequestID: Int
+    let onSidebarExpandFinished: () -> Void
+    let onSidebarCollapseFinished: () -> Void
     let content: Content
     let sidebar: Sidebar
 
@@ -915,6 +975,10 @@ private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSView
         sidebarWidth: CGFloat,
         minSidebarWidth: CGFloat,
         maxSidebarWidth: CGFloat,
+        expandRequestID: Int,
+        collapseRequestID: Int,
+        onSidebarExpandFinished: @escaping () -> Void,
+        onSidebarCollapseFinished: @escaping () -> Void,
         @ViewBuilder content: () -> Content,
         @ViewBuilder sidebar: () -> Sidebar
     ) {
@@ -922,6 +986,10 @@ private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSView
         self.sidebarWidth = sidebarWidth
         self.minSidebarWidth = minSidebarWidth
         self.maxSidebarWidth = maxSidebarWidth
+        self.expandRequestID = expandRequestID
+        self.collapseRequestID = collapseRequestID
+        self.onSidebarExpandFinished = onSidebarExpandFinished
+        self.onSidebarCollapseFinished = onSidebarCollapseFinished
         self.content = content()
         self.sidebar = sidebar()
     }
@@ -939,7 +1007,11 @@ private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSView
             isSidebarExpanded: isSidebarExpanded,
             sidebarWidth: sidebarWidth,
             minSidebarWidth: minSidebarWidth,
-            maxSidebarWidth: maxSidebarWidth
+            maxSidebarWidth: maxSidebarWidth,
+            expandRequestID: expandRequestID,
+            collapseRequestID: collapseRequestID,
+            onSidebarExpandFinished: onSidebarExpandFinished,
+            onSidebarCollapseFinished: onSidebarCollapseFinished
         )
     }
 }
@@ -962,6 +1034,10 @@ private final class DashboardWorkspaceSplitController: NSViewController {
     private var hasAppliedInitialLayout = false
     private var isAnimatingSidebar = false
     private var sidebarAnimationGeneration = 0
+    private var onSidebarExpandFinished: (() -> Void)?
+    private var onSidebarCollapseFinished: (() -> Void)?
+    private var lastExpandRequestID = 0
+    private var lastCollapseRequestID = 0
 
     override func loadView() {
         view = NSView()
@@ -983,21 +1059,80 @@ private final class DashboardWorkspaceSplitController: NSViewController {
         isSidebarExpanded: Bool,
         sidebarWidth: CGFloat,
         minSidebarWidth: CGFloat,
-        maxSidebarWidth: CGFloat
+        maxSidebarWidth: CGFloat,
+        expandRequestID: Int,
+        collapseRequestID: Int,
+        onSidebarExpandFinished: @escaping () -> Void,
+        onSidebarCollapseFinished: @escaping () -> Void
     ) {
         loadViewIfNeeded()
         installLayoutIfNeeded()
 
         contentHost.rootView = content
-        sidebarHost.rootView = sidebar
         let previousTargetWidth = resolvedSidebarWidth()
+        let shouldAnimate = currentIsSidebarExpanded != isSidebarExpanded
+        let shouldExpandFromRequest = expandRequestID != lastExpandRequestID
+        if shouldExpandFromRequest {
+            lastExpandRequestID = expandRequestID
+        }
+        let shouldCollapseFromRequest = collapseRequestID != lastCollapseRequestID
+        if shouldCollapseFromRequest {
+            lastCollapseRequestID = collapseRequestID
+        }
+        let isCollapsingSidebar = (shouldAnimate && currentIsSidebarExpanded && !isSidebarExpanded && hasAppliedInitialLayout) || (shouldCollapseFromRequest && hasAppliedInitialLayout)
+        let shouldDeferSidebarRootUpdate = isCollapsingSidebar || (isAnimatingSidebar && !currentIsSidebarExpanded)
+        if !shouldDeferSidebarRootUpdate {
+            sidebarHost.rootView = sidebar
+        }
+        self.onSidebarExpandFinished = onSidebarExpandFinished
+        self.onSidebarCollapseFinished = onSidebarCollapseFinished
         currentSidebarWidth = sidebarWidth
         currentMinSidebarWidth = minSidebarWidth
         currentMaxSidebarWidth = maxSidebarWidth
 
-        let shouldAnimate = currentIsSidebarExpanded != isSidebarExpanded
+        if shouldExpandFromRequest {
+            currentIsSidebarExpanded = true
+            setSidebarExpanded(
+                true,
+                animated: true,
+                completion: {
+                    self.sidebarHost.rootView = sidebar
+                    self.onSidebarExpandFinished?()
+                }
+            )
+            return
+        }
+
+        if isAnimatingSidebar && !currentIsSidebarExpanded && isSidebarExpanded {
+            return
+        }
+
+        if isAnimatingSidebar && currentIsSidebarExpanded && !isSidebarExpanded {
+            return
+        }
+
+        if shouldCollapseFromRequest {
+            currentIsSidebarExpanded = false
+            setSidebarExpanded(
+                false,
+                animated: true,
+                completion: {
+                    self.sidebarHost.rootView = sidebar
+                    self.onSidebarCollapseFinished?()
+                }
+            )
+            return
+        }
+
         currentIsSidebarExpanded = isSidebarExpanded
-        setSidebarExpanded(isSidebarExpanded, animated: shouldAnimate)
+        setSidebarExpanded(
+            isSidebarExpanded,
+            animated: shouldAnimate,
+            completion: isCollapsingSidebar ? {
+                self.sidebarHost.rootView = sidebar
+                self.onSidebarCollapseFinished?()
+            } : nil
+        )
         if isSidebarExpanded, !shouldAnimate {
             let targetWidth = resolvedSidebarWidth()
             if hasAppliedInitialLayout, abs(previousTargetWidth - targetWidth) > 0.5 {
@@ -1068,7 +1203,7 @@ private final class DashboardWorkspaceSplitController: NSViewController {
         hasInstalledLayout = true
     }
 
-    private func setSidebarExpanded(_ isSidebarExpanded: Bool, animated: Bool) {
+    private func setSidebarExpanded(_ isSidebarExpanded: Bool, animated: Bool, completion: (() -> Void)? = nil) {
         guard hasInstalledLayout else { return }
 
         if !hasAppliedInitialLayout {
@@ -1078,6 +1213,7 @@ private final class DashboardWorkspaceSplitController: NSViewController {
                 setSidebarWidth(0)
             }
             hasAppliedInitialLayout = true
+            completion?()
             return
         }
 
@@ -1085,10 +1221,11 @@ private final class DashboardWorkspaceSplitController: NSViewController {
         guard animated else {
             invalidateSidebarAnimation()
             setSidebarWidth(targetWidth)
+            completion?()
             return
         }
 
-        animateSidebarWidth(to: targetWidth)
+        animateSidebarWidth(to: targetWidth, completion: completion)
     }
 
     private func resolvedSidebarWidth() -> CGFloat {
