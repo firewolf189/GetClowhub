@@ -1021,18 +1021,19 @@ struct InstallPluginSheet: View {
     @State private var selectedPreset: PluginPreset = .custom
     @State private var packageName = ""
     @State private var filePath = ""
-    @State private var dirPath = ""
+    @State private var linkSpec = ""
     @State private var isInstalling = false
 
     private var currentSpec: String {
         switch installMethod {
         case .npm: return packageName.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .file: return filePath
-        case .link: return dirPath
+        case .file: return filePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .link: return linkSpec.trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
 
     private var isPresetAlreadyInstalled: Bool {
+        guard installMethod == .npm else { return false }
         guard selectedPreset != .custom else { return false }
         let keywords = selectedPreset.matchKeywords
         return viewModel.plugins.contains { plugin in
@@ -1143,21 +1144,14 @@ struct InstallPluginSheet: View {
 
                     case .link:
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(String(localized: "Plugin Directory", bundle: LanguageManager.shared.localizedBundle))
+                            Text(String(localized: "Plugin Link", bundle: LanguageManager.shared.localizedBundle))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
 
-                            HStack {
-                                TextField(String(localized: "Select a plugin directory...", bundle: LanguageManager.shared.localizedBundle), text: $dirPath)
-                                    .textFieldStyle(.roundedBorder)
-                                    .disabled(true)
+                            TextField(String(localized: "https://github.com/owner/repo", bundle: LanguageManager.shared.localizedBundle), text: $linkSpec)
+                                .textFieldStyle(.roundedBorder)
 
-                                Button(String(localized: "Browse", bundle: LanguageManager.shared.localizedBundle)) {
-                                    browseDirectory()
-                                }
-                            }
-
-                            Text(String(localized: "Select a local plugin directory for development linking", bundle: LanguageManager.shared.localizedBundle))
+                            Text(String(localized: "Enter a plugin URL, GitHub repository, archive URL, or remote package spec", bundle: LanguageManager.shared.localizedBundle))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -1209,27 +1203,15 @@ struct InstallPluginSheet: View {
         }
     }
 
-    private func browseDirectory() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-
-        if panel.runModal() == .OK, let url = panel.url {
-            dirPath = url.path
-        }
-    }
-
     private func performInstall() {
         isInstalling = true
         let spec = currentSpec
-        let isLink = installMethod == .link
-        let isWeixin = selectedPreset == .weixin
+        let isWeixin = installMethod == .npm && selectedPreset == .weixin
         Task {
             if isWeixin {
                 await viewModel.installWeixinPlugin()
             } else {
-                await viewModel.installPlugin(spec: spec, link: isLink)
+                await viewModel.installPlugin(spec: spec)
             }
             await MainActor.run {
                 isInstalling = false

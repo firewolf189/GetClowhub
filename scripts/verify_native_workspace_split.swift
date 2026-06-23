@@ -40,25 +40,32 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
+func sliceFrom(_ haystack: String, from start: String) -> String {
+    guard let startRange = haystack.range(of: start) else {
+        fatalError("Could not slice source from \(start)")
+    }
+    return String(haystack[startRange.lowerBound...])
+}
+
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let rightInspectorSplit = read("OpenClawInstaller/Views/Dashboard/Inspector/RightInspectorSplitView.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 let dashboardView = slice(dashboard, from: "struct DashboardView: View", to: "// MARK: - Sidebar")
 let detailContentView = slice(dashboard, from: "struct DetailContentView: View", to: "// MARK: - Collab Drag Handle")
 let chatView = slice(dashboard, from: "struct ChatView: View", to: "// MARK: - Chat Welcome View")
-let dashboardWorkspaceSplitController = slice(
-    dashboard,
-    from: "private final class DashboardWorkspaceSplitController: NSViewController",
-    to: "private let rightOutputsTitlebarAccessoryID"
+let rightInspectorSplitController = sliceFrom(
+    rightInspectorSplit,
+    from: "private final class RightInspectorSplitController: NSViewController"
 )
 
 assertContains(
     dashboardView,
-    "} detail: {\n            DashboardWorkspaceSplitView(",
+    "} detail: {\n            RightInspectorSplitView(",
     "root DashboardView should still use the left system NavigationSplitView sidebar and place an AppKit split in detail"
 )
 assertContains(
     dashboardView,
-    "DashboardWorkspaceSplitView(",
+    "RightInspectorSplitView(",
     "right Outputs column should be owned by an AppKit split container"
 )
 assertContains(
@@ -133,256 +140,276 @@ assertNotContains(
 )
 assertContains(
     dashboard,
-    "private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSViewControllerRepresentable",
-    "right Outputs column should be bridged through an AppKit inspector shell"
+    "RightInspectorSplitView(",
+    "DashboardView should compose the reusable right inspector shell"
 )
 assertContains(
+    rightInspectorSplit,
+    "struct RightInspectorSplitView<Content: View, Sidebar: View>: NSViewControllerRepresentable",
+    "right Outputs column should be bridged through a reusable AppKit inspector shell"
+)
+assertContains(
+    rightInspectorSplit,
+    "private final class RightInspectorSplitController: NSViewController",
+    "right Outputs column should be managed by a reusable constraint-driven AppKit controller"
+)
+assertNotContains(
     dashboard,
     "private final class DashboardWorkspaceSplitController: NSViewController",
-    "right Outputs column should be managed by a constraint-driven AppKit controller"
+    "DashboardView should not inline the reusable AppKit inspector controller"
+)
+assertNotContains(
+    dashboard,
+    "private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSViewControllerRepresentable",
+    "DashboardView should not inline the reusable AppKit inspector shell"
 )
 assertContains(
-    dashboard,
-    "private let sidebarAnimationDuration: TimeInterval = 0.30",
+    rightInspectorSplit,
+    "enum RightInspectorSplitMetrics",
+    "right split should expose shared metrics for the titlebar accessory"
+)
+assertContains(
+    rightInspectorSplit,
+    "static let animationDuration: TimeInterval = 0.30",
     "right split and titlebar accessory should share one smoother animation duration"
 )
 assertContains(
-    dashboard,
+    rightInspectorSplit,
     "sidebarWidthConstraint?.animator().constant",
     "AppKit inspector shell should animate the sidebar width constraint instead of jumping visible state"
 )
 assertContains(
-    dashboard,
+    rightInspectorSplit,
     "private var isAnimatingSidebar = false",
     "right AppKit inspector controller should track sidebar animation state"
 )
 assertContains(
-    dashboard,
+    rightInspectorSplit,
     "guard hasInstalledLayout, hasAppliedInitialLayout, !isAnimatingSidebar else { return }",
     "layout passes during sidebar animation should not force the inspector to its final width"
 )
 assertContains(
-    dashboard,
+    rightInspectorSplit,
     "isAnimatingSidebar = true",
     "right AppKit inspector controller should mark animated transitions before changing width"
 )
 assertContains(
-    dashboard,
+    rightInspectorSplit,
     "self.isAnimatingSidebar = false",
     "right AppKit inspector controller should clear animation state after width animation completes"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private var sidebarAnimationGeneration = 0",
     "right AppKit inspector controller should invalidate stale animation completions"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private var onSidebarCollapseFinished: (() -> Void)?",
     "right AppKit inspector controller should own a collapse completion callback"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private var onSidebarExpandFinished: (() -> Void)?",
     "right AppKit inspector controller should own an expand completion callback"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private var lastExpandRequestID = 0",
     "right AppKit inspector controller should track the latest direct expand request"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private var lastCollapseRequestID = 0",
     "right AppKit inspector controller should track the latest direct collapse request"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "let shouldCollapseFromRequest = collapseRequestID != lastCollapseRequestID",
     "right sidebar should start closing from a direct AppKit request before SwiftUI commits collapsed state"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "let shouldExpandFromRequest = expandRequestID != lastExpandRequestID",
     "right sidebar should start opening from a direct AppKit request before SwiftUI commits expanded state"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "let isCollapsingSidebar = (shouldAnimate && currentIsSidebarExpanded && !isSidebarExpanded && hasAppliedInitialLayout) || (shouldCollapseFromRequest && hasAppliedInitialLayout)",
     "right sidebar collapse should be detected before replacing the SwiftUI sidebar root"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "let shouldDeferSidebarRootUpdate = isCollapsingSidebar || (isAnimatingSidebar && !currentIsSidebarExpanded)",
     "right sidebar should keep its existing content during follow-up updates while closing"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "if !shouldDeferSidebarRootUpdate {\n            sidebarHost.rootView = sidebar\n        }",
     "right sidebar should keep its existing content mounted while closing"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "self.sidebarHost.rootView = sidebar\n                self.onSidebarCollapseFinished?()",
     "right sidebar should update its root and clear state only after the close animation finishes"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "if isAnimatingSidebar && !currentIsSidebarExpanded && isSidebarExpanded {\n            return\n        }",
     "right sidebar should not reverse a requested close if SwiftUI still reports the business state as expanded"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "if isAnimatingSidebar && currentIsSidebarExpanded && !isSidebarExpanded {\n            return\n        }",
     "right sidebar should not reverse a requested open if SwiftUI still reports the business state as collapsed"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "self.sidebarHost.rootView = sidebar\n                    self.onSidebarExpandFinished?()",
     "right sidebar should commit expanded state only after the open animation finishes"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "let animationID = sidebarAnimationGeneration",
     "right AppKit inspector controller should tag each sidebar animation"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "guard self.sidebarAnimationGeneration == animationID else { return }",
     "stale sidebar animation completions should not collapse or hide the current sidebar state"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "view.layoutSubtreeIfNeeded()",
     "right AppKit inspector controller should flush layout before animating the width constraint"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "animateSidebarWidth(to: targetWidth)",
     "right AppKit inspector controller should animate width changes while already expanded"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private let sidebarRail = NSView()",
     "right sidebar should use an AppKit rail like an Xcode inspector"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private let sidebarSeparator = NSBox()",
     "right sidebar rail should own a native separator line"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "private let sidebarClipView = NSView()",
     "right sidebar rail should own a dedicated clipping view for SwiftUI content"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarRail.clipsToBounds = true",
     "right sidebar rail should clip separator and content during width animation"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarClipView.clipsToBounds = true",
     "right sidebar clip view should prevent SwiftUI content from flashing outside the rail"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarRail.addSubview(sidebarSeparator)",
     "right sidebar separator should be installed inside the rail"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarRail.addSubview(sidebarClipView)",
     "right sidebar clip view should be installed inside the rail"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarClipView.addSubview(sidebarHost.view)",
     "right sidebar SwiftUI host should live inside the clipping view"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarRail.widthAnchor.constraint(equalToConstant: 0)",
     "right sidebar width animation should target the whole inspector rail"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "contentHost.view.trailingAnchor.constraint(equalTo: sidebarRail.leadingAnchor)",
     "middle content and right inspector rail should share the same moving boundary"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarRail.trailingAnchor.constraint(equalTo: view.trailingAnchor)",
     "right inspector rail should stay pinned to the window edge"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarSeparator.leadingAnchor.constraint(equalTo: sidebarRail.leadingAnchor)",
     "right inspector separator should sit on the moving boundary"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarClipView.leadingAnchor.constraint(equalTo: sidebarSeparator.trailingAnchor)",
     "right inspector content should start after the separator"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarHost.view.leadingAnchor.constraint(equalTo: sidebarClipView.leadingAnchor)",
     "right sidebar SwiftUI host should be anchored inside the clip view"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarContentWidthConstraint?.constant",
     "right sidebar SwiftUI host width should be pre-sized separately from the animated rail"
 )
 assertContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "separatorWidthConstraint.priority = .fittingSizeCompression",
     "right inspector separator width should yield when the rail animates down to zero width"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarRail.isHidden",
     "right inspector rail should stay mounted at zero width so width animation remains smooth"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarHost.view.isHidden",
     "right sidebar should not toggle the SwiftUI host visibility during titlebar button animation"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "sidebarContainer",
     "right sidebar should use the fuller rail/clip/separator structure rather than the simpler B container"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "NSSplitViewItem",
     "right inspector shell should not use resident NSSplitViewItem state"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "splitView.setPosition",
     "right inspector shell should not jump the NSSplitView divider position"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "splitView.animator().setPosition",
     "right inspector shell should animate one width constraint instead of the split divider"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "canCollapse",
     "right inspector shell should not rely on split-item collapse behavior"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     "prepareSidebarForExpansion",
     "right AppKit inspector should not relayout in a separate pre-expansion phase"
 )
 assertNotContains(
-    dashboardWorkspaceSplitController,
+    rightInspectorSplitController,
     ".isCollapsed",
     "right AppKit inspector should use zero width instead of collapsed state for opening and closing"
 )

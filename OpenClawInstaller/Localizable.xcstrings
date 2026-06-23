@@ -22006,6 +22006,9 @@
     "Enable word wrap" : {
 
     },
+    "Enter a plugin URL, GitHub repository, archive URL, or remote package spec" : {
+
+    },
     "Enter a token for gateway access" : {
       "localizations" : {
         "ar" : {
@@ -27967,6 +27970,9 @@
 
     },
     "https://api.example.com/v1" : {
+
+    },
+    "https://github.com/owner/repo" : {
 
     },
     "Hub" : {
@@ -45430,6 +45436,7 @@
       }
     },
     "Plugin Directory" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -45854,6 +45861,9 @@
           }
         }
       }
+    },
+    "Plugin Link" : {
+
     },
     "Plugins" : {
       "localizations" : {
@@ -51760,6 +51770,7 @@
       }
     },
     "Select a local plugin directory for development linking" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -51902,6 +51913,7 @@
       }
     },
     "Select a plugin directory..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

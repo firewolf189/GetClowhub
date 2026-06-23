@@ -28,6 +28,7 @@
 		356410762F5802970045A6F7 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 356410752F5802970045A6F7 /* Sparkle */; };
 		35641A012F6E02970045A6F7 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 35641A002F6E02970045A6F7 /* MarkdownUI */; };
 		356410592F5802970045A6F7 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410342F5802970045A6F7 /* DashboardView.swift */; };
+		RI01AB01C2D3E4F5A6B70001 /* RightInspectorSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */; };
 		A0B1C2D3E4F5061728394052 /* OutputsSidebarLayoutMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */; };
 		3564105A2F5802970045A6F7 /* CompletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410382F5802970045A6F7 /* CompletionView.swift */; };
 		3564105B2F5802970045A6F7 /* LogsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410352F5802970045A6F7 /* LogsTabView.swift */; };
@@ -116,6 +117,7 @@
 		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationViewModel.swift; sourceTree = "<group>"; };
 		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigTabView.swift; sourceTree = "<group>"; };
 		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightInspectorSplitView.swift; sourceTree = "<group>"; };
 		A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputsSidebarLayoutMetrics.swift; sourceTree = "<group>"; };
 		356410352F5802970045A6F7 /* LogsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsTabView.swift; sourceTree = "<group>"; };
 		356410362F5802970045A6F7 /* StatusTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusTabView.swift; sourceTree = "<group>"; };
@@ -311,8 +313,17 @@
 				356410662F5802970045A6F7 /* PluginsTabView.swift */,
 				356410732F5802970045A6F7 /* SkillsTabView.swift */,
 				356410362F5802970045A6F7 /* StatusTabView.swift */,
+				RI01AB03C2D3E4F5A6B70003 /* Inspector */,
 			);
 			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		RI01AB03C2D3E4F5A6B70003 /* Inspector */ = {
+			isa = PBXGroup;
+			children = (
+				RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */,
+			);
+			path = Inspector;
 			sourceTree = "<group>";
 		};
 		3564103F2F5802970045A6F7 /* Installation */ = {
@@ -494,6 +505,7 @@
 				356410572F5802970045A6F7 /* WelcomeView.swift in Sources */,
 				356410582F5802970045A6F7 /* SparkleUpdater.swift in Sources */,
 				356410592F5802970045A6F7 /* DashboardView.swift in Sources */,
+				RI01AB01C2D3E4F5A6B70001 /* RightInspectorSplitView.swift in Sources */,
 				A0B1C2D3E4F5061728394052 /* OutputsSidebarLayoutMetrics.swift in Sources */,
 				3564105A2F5802970045A6F7 /* CompletionView.swift in Sources */,
 				3564105B2F5802970045A6F7 /* LogsTabView.swift in Sources */,
