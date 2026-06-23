@@ -27954,6 +27954,9 @@
     "Hide Outputs" : {
 
     },
+    "Hide Terminal" : {
+
+    },
     "History" : {
 
     },
@@ -53762,6 +53765,9 @@
       }
     },
     "Show Outputs" : {
+
+    },
+    "Show Terminal" : {
 
     },
     "Signed in" : {

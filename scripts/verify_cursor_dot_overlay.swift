@@ -44,6 +44,16 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let overlay = read(overlayPath)
 let dashboard = read(dashboardPath)
 let project = read(projectPath)
+let dashboardRoot = slice(
+    dashboard,
+    from: "struct DashboardView: View",
+    to: "private struct TitlebarSeparatorSuppressor"
+)
+let sidebarView = slice(
+    dashboard,
+    from: "struct SidebarView: View",
+    to: "private struct AgentListRow"
+)
 let chatScrollContent = slice(
     dashboard,
     from: "private func chatScrollContent(proxy: ScrollViewProxy) -> some View",
@@ -104,16 +114,20 @@ require(
     "Cursor visuals should not intercept clicks, should animate smoothly, and should stay hidden from accessibility."
 )
 require(
-    dashboard.contains(".cursorDotOverlay(isEnabled: true)"),
-    "Dashboard should install the cursor-dot overlay."
+    !dashboardRoot.contains(".cursorDotOverlay(isEnabled: true)"),
+    "Dashboard root should not install the cursor-dot overlay globally."
+)
+require(
+    sidebarView.contains(".cursorDotOverlay(isEnabled: true)"),
+    "SidebarView should be the only dashboard surface that installs the cursor-dot overlay."
 )
 require(
     !dashboard.contains(".cursorDotHoverTarget()"),
     "Dashboard controls should not request cursor-dot hover expansion."
 )
 require(
-    chatScrollContent.contains(".cursorDotDisabledRegion()"),
-    "The central chat message scroll region should use the normal system cursor."
+    !chatScrollContent.contains(".cursorDotDisabledRegion()"),
+    "The central chat message scroll region should not need cursor-dot opt-out when the overlay is sidebar-scoped."
 )
 require(
     !chatBubble.contains(".cursorDotDisabledRegion()"),

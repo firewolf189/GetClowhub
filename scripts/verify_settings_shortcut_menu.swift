@@ -130,10 +130,19 @@ require(
         config.contains("case .status") &&
         config.contains("StatusTabView(viewModel: viewModel)") &&
         config.contains("case .budget") &&
-        config.contains("case .skills") &&
-        config.contains("case .plugins") &&
+        config.contains("case .models") &&
+        config.contains("case .channels") &&
         config.contains("case .logs"),
-    "ConfigTabView should become an independent Settings page with section navigation."
+    "ConfigTabView should keep account, system, configuration, models, channels, and logs Settings sections."
+)
+require(
+    !config.contains("case .skills") &&
+        !config.contains("case .plugins") &&
+        !config.contains("case .cron") &&
+        !config.contains("SkillsTabView(viewModel: viewModel") &&
+        !config.contains("PluginsTabView(") &&
+        !config.contains("CronTabView(viewModel: viewModel"),
+    "Settings should not duplicate main sidebar entries for Skills, Plugins, or Automation/Cron."
 )
 let officialProviderOffset = offset(of: "GetClawHubServiceSection(viewModel: viewModel)", in: providerSettingsContent)
 let customProviderOffset = offset(of: "ModelConfigSection(viewModel: viewModel)", in: providerSettingsContent)

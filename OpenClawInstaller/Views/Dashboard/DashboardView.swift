@@ -64,6 +64,8 @@ struct DashboardView: View {
     @State private var isSessionTitleFlyoutHovering = false
     @State private var isSessionTitleFlyoutPresented = false
     @State private var sessionTitleFlyoutCloseTask: DispatchWorkItem?
+    @State private var terminalOpen = false
+    @State private var terminalHeight: CGFloat = 120
     @FocusState private var isGlobalSessionSearchFocused: Bool
 
     private let workspaceSidebarMinWidth: CGFloat = 240
@@ -100,6 +102,8 @@ struct DashboardView: View {
                     workspaceSidebarController: workspaceSidebarController,
                     requestedUserMessageJumpId: $requestedUserMessageJumpId,
                     selectedSettingsSection: $selectedSettingsSection,
+                    terminalOpen: $terminalOpen,
+                    terminalHeight: $terminalHeight,
                     onOpenSkillDetail: presentSkillDetail,
                     onOpenPluginDetail: presentPluginDetail
                 )
@@ -117,7 +121,13 @@ struct DashboardView: View {
                 width: rightTitlebarAccessoryWidth
             ) {
                 RightOutputsTitlebarAccessory(
+                    isTerminalOpen: terminalOpen,
                     isExpanded: isWorkspaceSidebarExpanded,
+                    toggleTerminal: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            terminalOpen.toggle()
+                        }
+                    },
                     toggle: toggleWorkspaceSidebar,
                     close: { hideWorkspaceSidebar(resetEditor: true) }
                 )
@@ -173,14 +183,11 @@ struct DashboardView: View {
         .overlay(alignment: .topLeading) {
             sessionTitleUserMessagesFlyout
         }
-        .cursorDotOverlay(isEnabled: true)
         .animation(.easeInOut, value: viewModel.showSuccess)
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
         .animation(.spring(response: 0.24, dampingFraction: 0.9), value: selectedSkillDetailItem?.id)
         .animation(pluginDetailAnimation, value: selectedPluginDetailItem?.id)
-        .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceSidebarExpanded)
-        .animation(.spring(response: 0.36, dampingFraction: 0.88), value: workspaceEditingFilePath)
         .onAppear {
             viewModel.openclawService.startMonitoring()
             Task {
@@ -213,14 +220,6 @@ struct DashboardView: View {
                 dismissPluginCatalogDetail()
             }
         }
-        .onChange(of: selectedSettingsSection) { section in
-            if section != .skills {
-                dismissSkillCatalogDetail()
-            }
-            if section != .plugins {
-                dismissPluginCatalogDetail()
-            }
-        }
         .onChange(of: currentSessionMetadata?.id) { _ in
             closeSessionTitleFlyout()
         }
@@ -240,11 +239,11 @@ struct DashboardView: View {
     }
 
     private var shouldShowSkillDetailOverlay: Bool {
-        activeTab == .skills || (activeTab == .config && selectedSettingsSection == .skills)
+        activeTab == .skills
     }
 
     private var shouldShowPluginDetailOverlay: Bool {
-        activeTab == .plugins || (activeTab == .config && selectedSettingsSection == .plugins)
+        activeTab == .plugins
     }
 
     private var currentSessionMetadata: ChatSessionMetadata? {
@@ -381,7 +380,7 @@ struct DashboardView: View {
 
     private var rightTitlebarAccessoryWidth: CGFloat {
         guard isChatTabActive else { return 0 }
-        return 44
+        return 78
     }
 
     private var selectedWorkspacePath: String {
@@ -463,20 +462,16 @@ struct DashboardView: View {
 
     private func revealWorkspaceSidebar() {
         guard isChatTabActive else { return }
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-            workspaceSidebarExpanded = true
-        }
+        workspaceSidebarExpanded = true
     }
 
     private func hideWorkspaceSidebar(resetEditor: Bool) {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-            workspaceSidebarExpanded = false
-            if resetEditor {
-                workspaceEditingFilePath = nil
-                workspaceEditingFileDirty = false
-                workspaceSearchActive = false
-                workspaceSearchText = ""
-            }
+        workspaceSidebarExpanded = false
+        if resetEditor {
+            workspaceEditingFilePath = nil
+            workspaceEditingFileDirty = false
+            workspaceSearchActive = false
+            workspaceSearchText = ""
         }
     }
 
@@ -905,7 +900,7 @@ private struct TitlebarSeparatorSuppressor: NSViewRepresentable {
     }
 }
 
-private let sidebarAnimationDuration: TimeInterval = 0.22
+private let sidebarAnimationDuration: TimeInterval = 0.30
 
 private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSViewControllerRepresentable {
     let isSidebarExpanded: Bool
@@ -949,23 +944,32 @@ private struct DashboardWorkspaceSplitView<Content: View, Sidebar: View>: NSView
     }
 }
 
-private final class DashboardWorkspaceSplitController: NSSplitViewController {
+private final class DashboardWorkspaceSplitController: NSViewController {
     private let contentHost = NSHostingController(rootView: AnyView(EmptyView()))
+    private let sidebarRail = NSView()
+    private let sidebarSeparator = NSBox()
+    private let sidebarClipView = NSView()
     private let sidebarHost = NSHostingController(rootView: AnyView(EmptyView()))
-    private lazy var contentItem = NSSplitViewItem(viewController: contentHost)
-    private lazy var sidebarItem = NSSplitViewItem(viewController: sidebarHost)
 
+    private var sidebarWidthConstraint: NSLayoutConstraint?
+    private var sidebarContentWidthConstraint: NSLayoutConstraint?
+    private var contentMinWidthConstraint: NSLayoutConstraint?
     private var currentSidebarWidth: CGFloat = 0
     private var currentMinSidebarWidth: CGFloat = 240
     private var currentMaxSidebarWidth: CGFloat = 420
     private var currentIsSidebarExpanded = false
-    private var hasInstalledSplitItems = false
+    private var hasInstalledLayout = false
     private var hasAppliedInitialLayout = false
     private var isAnimatingSidebar = false
+    private var sidebarAnimationGeneration = 0
+
+    override func loadView() {
+        view = NSView()
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        installSplitItemsIfNeeded()
+        installLayoutIfNeeded()
     }
 
     override func viewDidLayout() {
@@ -982,53 +986,96 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
         maxSidebarWidth: CGFloat
     ) {
         loadViewIfNeeded()
-        installSplitItemsIfNeeded()
+        installLayoutIfNeeded()
 
         contentHost.rootView = content
         sidebarHost.rootView = sidebar
+        let previousTargetWidth = resolvedSidebarWidth()
         currentSidebarWidth = sidebarWidth
         currentMinSidebarWidth = minSidebarWidth
         currentMaxSidebarWidth = maxSidebarWidth
-        sidebarItem.minimumThickness = 0
-        sidebarItem.maximumThickness = maxSidebarWidth
 
         let shouldAnimate = currentIsSidebarExpanded != isSidebarExpanded
         currentIsSidebarExpanded = isSidebarExpanded
         setSidebarExpanded(isSidebarExpanded, animated: shouldAnimate)
         if isSidebarExpanded, !shouldAnimate {
-            applySidebarWidth()
+            let targetWidth = resolvedSidebarWidth()
+            if hasAppliedInitialLayout, abs(previousTargetWidth - targetWidth) > 0.5 {
+                animateSidebarWidth(to: targetWidth)
+            } else {
+                applySidebarWidth()
+            }
         }
     }
 
-    private func installSplitItemsIfNeeded() {
-        guard !hasInstalledSplitItems else { return }
+    private func installLayoutIfNeeded() {
+        guard !hasInstalledLayout else { return }
 
-        splitView.isVertical = true
-        splitView.dividerStyle = .thin
-        splitView.autosaveName = nil
+        addChild(contentHost)
+        addChild(sidebarHost)
 
-        contentItem.canCollapse = false
-        contentItem.minimumThickness = 360
-        sidebarItem.canCollapse = true
-        sidebarItem.holdingPriority = NSLayoutConstraint.Priority(240)
+        contentHost.view.translatesAutoresizingMaskIntoConstraints = false
+        sidebarRail.translatesAutoresizingMaskIntoConstraints = false
+        sidebarRail.clipsToBounds = true
+        sidebarSeparator.translatesAutoresizingMaskIntoConstraints = false
+        sidebarSeparator.boxType = .custom
+        sidebarSeparator.wantsLayer = true
+        sidebarSeparator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        sidebarClipView.translatesAutoresizingMaskIntoConstraints = false
+        sidebarClipView.clipsToBounds = true
+        sidebarHost.view.translatesAutoresizingMaskIntoConstraints = false
 
-        addSplitViewItem(contentItem)
-        addSplitViewItem(sidebarItem)
-        sidebarItem.minimumThickness = 0
-        sidebarItem.isCollapsed = true
-        hasInstalledSplitItems = true
+        view.addSubview(contentHost.view)
+        view.addSubview(sidebarRail)
+        sidebarRail.addSubview(sidebarSeparator)
+        sidebarRail.addSubview(sidebarClipView)
+        sidebarClipView.addSubview(sidebarHost.view)
+
+        let sidebarWidthConstraint = sidebarRail.widthAnchor.constraint(equalToConstant: 0)
+        let sidebarContentWidthConstraint = sidebarHost.view.widthAnchor.constraint(equalToConstant: 0)
+        let contentMinWidthConstraint = contentHost.view.widthAnchor.constraint(greaterThanOrEqualToConstant: 360)
+        contentMinWidthConstraint.priority = .defaultHigh
+        let separatorWidthConstraint = sidebarSeparator.widthAnchor.constraint(equalToConstant: 1)
+        separatorWidthConstraint.priority = .fittingSizeCompression
+
+        NSLayoutConstraint.activate([
+            contentHost.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            contentHost.view.topAnchor.constraint(equalTo: view.topAnchor),
+            contentHost.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            contentHost.view.trailingAnchor.constraint(equalTo: sidebarRail.leadingAnchor),
+            sidebarRail.topAnchor.constraint(equalTo: view.topAnchor),
+            sidebarRail.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            sidebarRail.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            sidebarSeparator.leadingAnchor.constraint(equalTo: sidebarRail.leadingAnchor),
+            sidebarSeparator.topAnchor.constraint(equalTo: sidebarRail.topAnchor),
+            sidebarSeparator.bottomAnchor.constraint(equalTo: sidebarRail.bottomAnchor),
+            separatorWidthConstraint,
+            sidebarClipView.leadingAnchor.constraint(equalTo: sidebarSeparator.trailingAnchor),
+            sidebarClipView.topAnchor.constraint(equalTo: sidebarRail.topAnchor),
+            sidebarClipView.bottomAnchor.constraint(equalTo: sidebarRail.bottomAnchor),
+            sidebarClipView.trailingAnchor.constraint(equalTo: sidebarRail.trailingAnchor),
+            sidebarHost.view.leadingAnchor.constraint(equalTo: sidebarClipView.leadingAnchor),
+            sidebarHost.view.topAnchor.constraint(equalTo: sidebarClipView.topAnchor),
+            sidebarHost.view.bottomAnchor.constraint(equalTo: sidebarClipView.bottomAnchor),
+            sidebarContentWidthConstraint,
+            sidebarWidthConstraint,
+            contentMinWidthConstraint
+        ])
+
+        self.sidebarWidthConstraint = sidebarWidthConstraint
+        self.sidebarContentWidthConstraint = sidebarContentWidthConstraint
+        self.contentMinWidthConstraint = contentMinWidthConstraint
+        hasInstalledLayout = true
     }
 
     private func setSidebarExpanded(_ isSidebarExpanded: Bool, animated: Bool) {
-        guard hasInstalledSplitItems else { return }
+        guard hasInstalledLayout else { return }
 
         if !hasAppliedInitialLayout {
             if isSidebarExpanded {
-                sidebarItem.isCollapsed = false
                 setSidebarWidth(resolvedSidebarWidth())
             } else {
-                sidebarItem.isCollapsed = true
-                sidebarHost.view.isHidden = true
+                setSidebarWidth(0)
             }
             hasAppliedInitialLayout = true
             return
@@ -1036,35 +1083,20 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
 
         let targetWidth = isSidebarExpanded ? resolvedSidebarWidth() : 0
         guard animated else {
-            if isSidebarExpanded {
-                sidebarItem.isCollapsed = false
-                setSidebarWidth(targetWidth)
-            } else {
-                setSidebarWidth(0)
-                sidebarItem.isCollapsed = true
-                sidebarHost.view.isHidden = true
-            }
+            invalidateSidebarAnimation()
+            setSidebarWidth(targetWidth)
             return
         }
 
-        isAnimatingSidebar = true
-        if isSidebarExpanded {
-            sidebarItem.isCollapsed = false
-            setSidebarWidth(0)
-            animateSidebarWidth(to: targetWidth)
-        } else {
-            animateSidebarWidth(to: 0) {
-                self.sidebarItem.isCollapsed = true
-                self.sidebarHost.view.isHidden = true
-            }
-        }
+        animateSidebarWidth(to: targetWidth)
     }
 
     private func resolvedSidebarWidth() -> CGFloat {
-        let totalWidth = splitView.bounds.width
+        let totalWidth = view.bounds.width
         guard totalWidth > 0 else { return currentSidebarWidth }
 
-        let availableSidebarWidth = max(0, totalWidth - contentItem.minimumThickness)
+        let contentMinimumWidth = contentMinWidthConstraint?.constant ?? 360
+        let availableSidebarWidth = max(0, totalWidth - contentMinimumWidth)
         let upperBound = min(currentMaxSidebarWidth, availableSidebarWidth)
         guard upperBound >= currentMinSidebarWidth else { return 0 }
 
@@ -1072,42 +1104,58 @@ private final class DashboardWorkspaceSplitController: NSSplitViewController {
     }
 
     private func setSidebarWidth(_ width: CGFloat) {
-        let totalWidth = splitView.bounds.width
-        guard totalWidth > 0 else { return }
-        splitView.setPosition(totalWidth - max(0, width), ofDividerAt: 0)
-        sidebarHost.view.isHidden = width <= 0.5
+        let clampedWidth = max(0, width)
+        sidebarWidthConstraint?.constant = clampedWidth
+        if clampedWidth > 0 {
+            sidebarContentWidthConstraint?.constant = clampedWidth
+        }
+        view.layoutSubtreeIfNeeded()
+    }
+
+    private func invalidateSidebarAnimation() {
+        sidebarAnimationGeneration += 1
+        isAnimatingSidebar = false
     }
 
     private func animateSidebarWidth(to width: CGFloat, completion: (() -> Void)? = nil) {
-        let totalWidth = splitView.bounds.width
-        guard totalWidth > 0 else {
-            setSidebarWidth(width)
+        let targetWidth = max(0, width)
+        sidebarAnimationGeneration += 1
+        let animationID = sidebarAnimationGeneration
+
+        guard view.bounds.width > 0 else {
+            setSidebarWidth(targetWidth)
             isAnimatingSidebar = false
             completion?()
             return
         }
 
-        sidebarHost.view.isHidden = false
+        isAnimatingSidebar = true
+        if targetWidth > 0 {
+            sidebarContentWidthConstraint?.constant = targetWidth
+        } else if (sidebarContentWidthConstraint?.constant ?? 0) <= 0 {
+            sidebarContentWidthConstraint?.constant = max(currentSidebarWidth, currentMinSidebarWidth)
+        }
+        view.layoutSubtreeIfNeeded()
         NSAnimationContext.runAnimationGroup { context in
             context.duration = sidebarAnimationDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             context.allowsImplicitAnimation = true
-            splitView.animator().setPosition(totalWidth - max(0, width), ofDividerAt: 0)
+            self.sidebarWidthConstraint?.animator().constant = targetWidth
+            self.view.layoutSubtreeIfNeeded()
         } completionHandler: {
-            self.sidebarHost.view.isHidden = width <= 0.5
+            guard self.sidebarAnimationGeneration == animationID else { return }
+            self.sidebarWidthConstraint?.constant = targetWidth
             self.isAnimatingSidebar = false
             completion?()
         }
     }
 
     private func applySidebarWidth() {
-        guard hasInstalledSplitItems, hasAppliedInitialLayout, !isAnimatingSidebar else { return }
+        guard hasInstalledLayout, hasAppliedInitialLayout, !isAnimatingSidebar else { return }
         if currentIsSidebarExpanded {
-            sidebarItem.isCollapsed = false
             setSidebarWidth(resolvedSidebarWidth())
         } else {
-            sidebarItem.isCollapsed = true
-            sidebarHost.view.isHidden = true
+            setSidebarWidth(0)
         }
     }
 }
@@ -1296,12 +1344,23 @@ private struct WorkspaceOutputsPaneHeader: View {
 }
 
 private struct RightOutputsTitlebarAccessory: View {
+    let isTerminalOpen: Bool
     let isExpanded: Bool
+    let toggleTerminal: () -> Void
     let toggle: () -> Void
     let close: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
+            Button(action: toggleTerminal) {
+                Image(systemName: "terminal")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(isTerminalOpen ? .accentColor : .secondary)
+                    .frame(width: 34, height: 34)
+            }
+            .buttonStyle(.plain)
+            .help(isTerminalOpen ? "Hide Terminal" : "Show Terminal")
+
             Button(action: isExpanded ? close : toggle) {
                 Image(systemName: "sidebar.right")
                     .font(.system(size: 18, weight: .medium))
@@ -1438,6 +1497,7 @@ struct SidebarView: View {
                 Text("Are you sure you want to remove \"\(agent.name)\"? This will delete the agent and its workspace.")
             }
         }
+        .cursorDotOverlay(isEnabled: true)
     }
 
     // MARK: - Sidebar Top Header
@@ -2199,6 +2259,15 @@ struct SidebarView: View {
                     }
                 }
             }
+            .contextMenu {
+                if agent.id != "main" && agent.id != "commander" {
+                    Button(role: .destructive) {
+                        deleteAgentConfirmId = agent.id
+                    } label: {
+                        Label("Remove Agent", systemImage: "trash")
+                    }
+                }
+            }
             .padding(.vertical, 3)
     }
 
@@ -2594,6 +2663,8 @@ private struct DetailContentView: View {
     let workspaceSidebarController: WorkspaceSidebarController
     @Binding var requestedUserMessageJumpId: UUID?
     @Binding var selectedSettingsSection: SettingsPageSection
+    @Binding var terminalOpen: Bool
+    @Binding var terminalHeight: CGFloat
     let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     let onOpenPluginDetail: (PluginDetailPresentationItem) -> Void
     @State private var collabPanelWidth: CGFloat = 320
@@ -2651,6 +2722,8 @@ private struct DetailContentView: View {
             ChatView(
                 viewModel: viewModel,
                 requestedUserMessageJumpId: $requestedUserMessageJumpId,
+                terminalOpen: $terminalOpen,
+                terminalHeight: $terminalHeight,
                 hideAgentPicker: false
             )
                 .environment(\.workspaceSidebarController, workspaceSidebarController)
@@ -3025,6 +3098,8 @@ private struct ChatScrollCompensationApplier: NSViewRepresentable {
 struct ChatView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @Binding var requestedUserMessageJumpId: UUID?
+    @Binding var terminalOpen: Bool
+    @Binding var terminalHeight: CGFloat
     var hideAgentPicker: Bool = false
     @Environment(\.colorScheme) private var colorScheme
     @State private var inputText = ""
@@ -3071,19 +3146,21 @@ struct ChatView: View {
     @State private var showCreateAgentSheet = false
     @StateObject private var createAgentVM: SubAgentsViewModel
     @State private var pendingComposerMessagesBySession: [UUID: [PendingComposerMessage]] = [:]
-    // Built-in terminal
-    @State private var terminalOpen = false
-    @State private var terminalHeight: CGFloat = 120
     private static let layoutMetrics = OutputsSidebarLayoutMetrics()
+    private static let emptyChatContentYOffset: CGFloat = -48
     private let composerSuggestionPanelMaxHeight: CGFloat = 184
 
     init(
         viewModel: DashboardViewModel,
         requestedUserMessageJumpId: Binding<UUID?> = .constant(nil),
+        terminalOpen: Binding<Bool> = .constant(false),
+        terminalHeight: Binding<CGFloat> = .constant(120),
         hideAgentPicker: Bool = false
     ) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
         self._requestedUserMessageJumpId = requestedUserMessageJumpId
+        self._terminalOpen = terminalOpen
+        self._terminalHeight = terminalHeight
         self.hideAgentPicker = hideAgentPicker
         self._createAgentVM = StateObject(wrappedValue: SubAgentsViewModel(openclawService: viewModel.openclawService))
     }
@@ -3205,7 +3282,6 @@ struct ChatView: View {
                 .allowsHitTesting(false)
             )
         }
-        .cursorDotDisabledRegion()
         .coordinateSpace(name: "chatScrollSpace")
         .background(
             GeometryReader { viewportProxy in
@@ -3351,6 +3427,7 @@ struct ChatView: View {
 
                 composerArea(maxWidth: Self.layoutMetrics.chatColumnMaxWidth, horizontalPadding: 0, bottomPadding: 0)
             }
+            .offset(y: Self.emptyChatContentYOffset)
 
             Spacer(minLength: 0)
         }
@@ -3380,10 +3457,6 @@ struct ChatView: View {
             .id("chatScrollView")
 
             composerArea(maxWidth: Self.layoutMetrics.chatColumnMaxWidth, horizontalPadding: 16, bottomPadding: 16)
-
-            if terminalOpen {
-                terminalPanel
-            }
         }
     }
 
@@ -3849,7 +3922,13 @@ struct ChatView: View {
             } else {
                 timelineChatSurface
             }
+
+            if terminalOpen {
+                terminalPanel
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.18), value: terminalOpen)
     }
 
     var body: some View {

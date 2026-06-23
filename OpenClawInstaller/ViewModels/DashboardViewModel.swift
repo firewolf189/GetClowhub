@@ -1261,9 +1261,16 @@ class DashboardViewModel: ObservableObject {
         let syncOutput: String?
         if shouldSync {
             syncOutput = await openclawService.runCommand(
-                "\(SkillCatalogService.syncCommand()) 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'",
+                "(\(SkillCatalogService.syncCommand()) && echo __OPENCLAW_SKILL_SYNC_OK__) 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'",
                 timeout: 120
             )
+            if syncOutput?.contains("__OPENCLAW_SKILL_SYNC_OK__") != true {
+                let detail = syncOutput?.trimmingCharacters(in: .whitespacesAndNewlines)
+                skillCatalogError = detail?.isEmpty == false ? detail : "Failed to refresh skills"
+                await loadSkills()
+                isLoadingSkillCatalog = false
+                return
+            }
         } else {
             syncOutput = nil
         }
@@ -1280,6 +1287,10 @@ class DashboardViewModel: ObservableObject {
 
         await loadSkills()
         isLoadingSkillCatalog = false
+
+        if forceSync && skillCatalogError == nil {
+            showSuccessMessage("Skills updated successfully")
+        }
     }
 
     func installCatalogSkill(_ item: SkillCatalogItem) async {
@@ -1578,14 +1589,26 @@ class DashboardViewModel: ObservableObject {
     /// The currently visible session for each agent. Switching this swaps
     /// chatMessagesByAgent[agentId] to the loaded session's messages.
     @Published var selectedSessionIdByAgent: [String: UUID] = [:]
+    /// Empty sessions created by the sidebar plus button before the user sends
+    /// a first message. They should be visible/clickable in the sidebar, but
+    /// should not be persisted unless the user actually types into them.
+    private var pendingSessionMetadataByAgent: [String: ChatSessionMetadata] = [:]
 
     /// Refresh `sessionsByAgent` from the store's index. Pinned-first then
     /// newest-first within each agent. Archived sessions are excluded so the
     /// sidebar list stays clean; the underlying file remains on disk.
     func rebuildSessionsMirror() {
+        let persistedSessionIds = Set(chatSessionStore.index.map(\.id))
+        pendingSessionMetadataByAgent = pendingSessionMetadataByAgent.filter {
+            !persistedSessionIds.contains($0.value.id)
+        }
+
         var grouped: [String: [ChatSessionMetadata]] = [:]
         for meta in chatSessionStore.index where !meta.isArchived {
             grouped[meta.agentId, default: []].append(meta)
+        }
+        for pending in pendingSessionMetadataByAgent.values where !pending.isArchived {
+            grouped[pending.agentId, default: []].append(pending)
         }
         for key in grouped.keys {
             grouped[key]?.sort { lhs, rhs in
@@ -1615,6 +1638,7 @@ class DashboardViewModel: ObservableObject {
 
         chatMessagesByAgent.removeValue(forKey: agentId)
         selectedSessionIdByAgent.removeValue(forKey: agentId)
+        pendingSessionMetadataByAgent.removeValue(forKey: agentId)
         sessionsByAgent.removeValue(forKey: agentId)
 
         if selectedAgentId == agentId {
@@ -1806,6 +1830,7 @@ class DashboardViewModel: ObservableObject {
         }
 
         flushActiveSession(forAgent: agentId)
+        discardEmptyPendingSessionIfNeeded(forAgent: agentId)
         selectedSessionIdByAgent[agentId] = sessionId
 
         // Source-of-truth precedence on a session switch:
@@ -2063,7 +2088,7 @@ class DashboardViewModel: ObservableObject {
     /// the active session, automatically promote the next-newest session, or
     /// mint an empty one if none remain — never leave the chat view broken.
     func deleteSession(_ sessionId: UUID) {
-        let agentId = selectedAgentId
+        let agentId = pendingSessionMetadataByAgent.first(where: { $0.value.id == sessionId })?.key ?? selectedAgentId
         let wasActive = selectedSessionIdByAgent[agentId] == sessionId
         // Cancel any in-flight task tied to this session BEFORE we drop the
         // file — without this, the run keeps streaming on the gateway with
@@ -2077,6 +2102,9 @@ class DashboardViewModel: ObservableObject {
         // calls loadSession, gets nil (file is gone), skips. Wasted CPU and
         // memory for a session the user explicitly removed.
         chatMessagesByInactiveSession.removeValue(forKey: sessionId)
+        if pendingSessionMetadataByAgent[agentId]?.id == sessionId {
+            pendingSessionMetadataByAgent.removeValue(forKey: agentId)
+        }
         if wasActive {
             promoteNextSession(forAgent: agentId)
         }
@@ -2193,8 +2221,20 @@ class DashboardViewModel: ObservableObject {
         let new = ChatSession(agentId: agentId)
         selectedSessionIdByAgent[agentId] = new.id
         chatMessagesByAgent[agentId] = []
+        pendingSessionMetadataByAgent[agentId] = ChatSessionMetadata(from: new)
+        rebuildSessionsMirror()
         recomputeIsSendingMessage()
         return new.id
+    }
+
+    private func discardEmptyPendingSessionIfNeeded(forAgent agentId: String) {
+        guard let sid = selectedSessionIdByAgent[agentId],
+              pendingSessionMetadataByAgent[agentId]?.id == sid,
+              (chatMessagesByAgent[agentId] ?? []).isEmpty,
+              chatSessionStore.loadSession(id: sid) == nil else {
+            return
+        }
+        pendingSessionMetadataByAgent.removeValue(forKey: agentId)
     }
 
     /// Cancel any pending debounced write for the agent's current session and
@@ -2216,6 +2256,7 @@ class DashboardViewModel: ObservableObject {
         // Pending session that was minted in memory but never received any
         // input — discard.
         if loaded == nil && messages.isEmpty {
+            discardEmptyPendingSessionIfNeeded(forAgent: agentId)
             return
         }
 

@@ -9,11 +9,8 @@ enum SettingsPageSection: String, CaseIterable, Identifiable {
     case apiKey
     case provider
     case budget
-    case skills
     case models
     case channels
-    case plugins
-    case cron
     case logs
 
     var id: Self { self }
@@ -28,11 +25,8 @@ enum SettingsPageSection: String, CaseIterable, Identifiable {
         case .apiKey: return "API Key"
         case .provider: return "Provider"
         case .budget: return "Budget"
-        case .skills: return "Skills"
         case .models: return "Models"
         case .channels: return "Channels"
-        case .plugins: return "Plugins"
-        case .cron: return "Cron"
         case .logs: return "Logs"
         }
     }
@@ -47,11 +41,8 @@ enum SettingsPageSection: String, CaseIterable, Identifiable {
         case .apiKey: return "key"
         case .provider: return "cpu"
         case .budget: return "dollarsign.gauge.chart.lefthalf.righthalf"
-        case .skills: return "bolt.fill"
         case .models: return "cube.fill"
         case .channels: return "bubble.left.and.bubble.right.fill"
-        case .plugins: return "puzzlepiece.fill"
-        case .cron: return "clock.badge"
         case .logs: return "doc.text.magnifyingglass"
         }
     }
@@ -160,19 +151,10 @@ struct ConfigTabView: View {
             }
         case .budget:
             BudgetTabView(viewModel: viewModel)
-        case .skills:
-            SkillsTabView(viewModel: viewModel, onOpenSkillDetail: onOpenSkillDetail)
         case .models:
             ModelsTabView(viewModel: viewModel)
         case .channels:
             ChannelsTabView(viewModel: viewModel)
-        case .plugins:
-            PluginsTabView(
-                viewModel: viewModel,
-                onOpenPluginDetail: onOpenPluginDetail
-            )
-        case .cron:
-            CronTabView(viewModel: viewModel)
         case .logs:
             LogsTabView(viewModel: viewModel)
         }
@@ -200,7 +182,7 @@ private struct SettingsSectionSidebar: View {
         ("Account", [.profile, .preferences, .persona]),
         ("System", [.status]),
         ("Configuration", [.gateway, .apiKey, .provider, .budget]),
-        ("Manage", [.skills, .models, .channels, .plugins, .cron, .logs])
+        ("Advanced", [.models, .channels, .logs])
     ]
 
     var body: some View {

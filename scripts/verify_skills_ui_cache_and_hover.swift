@@ -70,6 +70,10 @@ require(
     "Refresh action should force catalog sync."
 )
 require(
+    viewModel.contains(#"showSuccessMessage("Skills updated successfully")"#),
+    "Forced skill catalog refresh should show a success toast after updating."
+)
+require(
     skillsView.contains("UnifiedSearchField(placeholder: \"Search skills\", text: $searchText)") &&
         unifiedSearchField.contains("RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)") &&
         unifiedSearchField.contains(".stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)") &&

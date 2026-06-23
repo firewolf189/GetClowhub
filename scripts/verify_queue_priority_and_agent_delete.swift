@@ -46,6 +46,11 @@ let agentContextMenu = slice(
     from: "private func agentRowWithContextMenu(_ agent: AgentOption) -> some View",
     to: "private func agentSidebarRow(_ agent: AgentOption) -> some View"
 )
+let agentSidebarRow = slice(
+    dashboard,
+    from: "private func agentSidebarRow(_ agent: AgentOption) -> some View",
+    to: "private func sidebarItemHighlightColor"
+)
 let sidebarViewBody = slice(
     dashboard,
     from: "struct SidebarView: View",
@@ -75,6 +80,9 @@ require(dashboard.contains("if viewModel.isSendingMessage {\n            promote
 require(!agentContextMenu.contains("New Agent"), "agent row context menu should not contain New Agent")
 require(!agentContextMenu.contains("onRequestCreateAgent()"), "agent row context menu should not open create-agent")
 require(agentContextMenu.contains("Remove Agent"), "agent row context menu should still expose remove for custom agents")
+require(agentSidebarRow.contains(".contentShape(Rectangle())"), "agent sidebar row should define a full-row hit area")
+require(agentSidebarRow.contains(".contextMenu"), "agent sidebar row should own the context menu on the full row")
+require(agentSidebarRow.contains("Remove Agent"), "agent sidebar row context menu should expose remove for custom agents")
 
 require(deleteAgent.contains("func deleteAgent(agentId: String) async -> Bool"), "deleteAgent should return success/failure")
 require(deleteAgent.contains("@discardableResult"), "deleteAgent result may be ignored by existing callers")
