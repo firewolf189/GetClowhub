@@ -57,7 +57,6 @@ struct SkillsTabView: View {
     let onOpenSkillDetail: (SkillDetailPresentationItem) -> Void
     @State private var searchText = ""
     @State private var displayMode: SkillDisplayMode = .recommend
-    @State private var skillPointerLocation: CGPoint?
     @State private var showManualInstallSheet = false
 
     private enum SkillDisplayMode: String, CaseIterable {
@@ -135,15 +134,6 @@ struct SkillsTabView: View {
             if showManualInstallSheet {
                 manualInstallOverlay
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
-            }
-        }
-        .coordinateSpace(name: SkillDockMagnification.coordinateSpace)
-        .onContinuousHover { phase in
-            switch phase {
-            case .active(let location):
-                skillPointerLocation = location
-            case .ended:
-                skillPointerLocation = nil
             }
         }
         .background(Color(NSColor.windowBackgroundColor))
@@ -324,13 +314,12 @@ struct SkillsTabView: View {
         VStack(alignment: .leading, spacing: 10) {
             SkillSectionHeader(title: "All", count: catalogItems.count + customSkills.count)
 
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(Array(catalogItems.enumerated()), id: \.element.id) { index, item in
                     CatalogSkillListRow(
                         item: item,
                         installedSkill: installedSkillsByName[item.name],
                         isInstalling: viewModel.installingCatalogSkillName == item.name,
-                        pointerLocation: skillPointerLocation,
                         onInstall: {
                             Task { await viewModel.installCatalogSkill(item) }
                         },
@@ -349,7 +338,6 @@ struct SkillsTabView: View {
                     InstalledSkillListRow(
                         skill: skill,
                         catalogItem: nil,
-                        pointerLocation: skillPointerLocation,
                         onOpen: {
                             onOpenSkillDetail(
                                 SkillDetailPresentationItem.fromInstalled(
@@ -373,13 +361,12 @@ struct SkillsTabView: View {
         VStack(alignment: .leading, spacing: 10) {
             SkillSectionHeader(title: title, count: items.count)
 
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     CatalogSkillListRow(
                         item: item,
                         installedSkill: installedSkillsByName[item.name],
                         isInstalling: viewModel.installingCatalogSkillName == item.name,
-                        pointerLocation: skillPointerLocation,
                         onInstall: {
                             Task { await viewModel.installCatalogSkill(item) }
                         },
@@ -411,12 +398,11 @@ struct SkillsTabView: View {
             VStack(alignment: .leading, spacing: 10) {
                 SkillSectionHeader(title: "Installed", count: filteredInstalledSkills.count)
 
-                VStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(filteredInstalledSkills.enumerated()), id: \.offset) { index, skill in
                         InstalledSkillListRow(
                             skill: skill,
                             catalogItem: catalogItemsByName[skill.name],
-                            pointerLocation: skillPointerLocation,
                             onOpen: {
                                 onOpenSkillDetail(
                                     SkillDetailPresentationItem.fromInstalled(
@@ -558,134 +544,73 @@ private enum SkillInstallPalette {
     }
 }
 
-private enum SkillDockMagnification {
-    static let coordinateSpace = "skills-dock-magnification"
-    static let radius: CGFloat = 118
-    static let maxScale: CGFloat = 0.08
-
-    static func scale(pointerLocation: CGPoint?, rowFrame: CGRect, reduceMotion: Bool) -> CGFloat {
-        guard !reduceMotion, let pointerLocation, !rowFrame.isEmpty else { return 1 }
-
-        let center = CGPoint(x: rowFrame.midX, y: rowFrame.midY)
-        let distance = hypot(pointerLocation.x - center.x, pointerLocation.y - center.y)
-        let influence = max(0, 1 - distance / radius)
-        return 1 + influence * maxScale
-    }
-}
-
-private struct SkillRowFramePreferenceKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
-    }
-}
-
-private struct SkillMagnifiedRow<Content: View>: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    let pointerLocation: CGPoint?
-    @ViewBuilder let content: () -> Content
-    @State private var rowFrame: CGRect = .zero
-
-    var body: some View {
-        let rowScale = SkillDockMagnification.scale(
-            pointerLocation: pointerLocation,
-            rowFrame: rowFrame,
-            reduceMotion: reduceMotion
-        )
-
-        content()
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: SkillRowFramePreferenceKey.self,
-                        value: proxy.frame(in: .named(SkillDockMagnification.coordinateSpace))
-                    )
-                }
-            )
-            .onPreferenceChange(SkillRowFramePreferenceKey.self) { frame in
-                rowFrame = frame
-            }
-            .scaleEffect(rowScale, anchor: .center)
-            .zIndex(Double(rowScale))
-            .animation(.interactiveSpring(response: 0.16, dampingFraction: 0.86, blendDuration: 0.04), value: rowScale)
-    }
-}
-
 private struct CatalogSkillListRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovered = false
     let item: SkillCatalogItem
     let installedSkill: SkillInfo?
     let isInstalling: Bool
-    let pointerLocation: CGPoint?
     let onInstall: () -> Void
     let onOpen: () -> Void
 
     var body: some View {
-        SkillMagnifiedRow(pointerLocation: pointerLocation) {
-            HStack(spacing: 14) {
-                SkillCatalogIcon(iconURL: item.iconURL, size: 32)
+        HStack(spacing: 14) {
+            SkillCatalogIcon(iconURL: item.iconURL, size: 32)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.displayName)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.displayName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-                    Text(item.description)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 16)
-
-                if let installedSkill {
-                    InstalledStatusMark(status: installedSkill.status)
-                } else {
-                    Button(action: onInstall) {
-                        if isInstalling {
-                            Text("Installing...")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 74, height: 28)
-                        } else {
-                            Image(systemName: "plus")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(SkillInstallPalette.amber)
-                                .frame(width: 28, height: 28)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                        .fill(SkillInstallPalette.iconBackground(colorScheme: colorScheme, isHovered: isHovered))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                        .stroke(SkillInstallPalette.iconBorder(isHovered: isHovered), lineWidth: 1)
-                                )
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isInstalling)
-                    .help("Install")
-                }
+                Text(item.description)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 9)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(rowBackground)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            Spacer(minLength: 16)
+
+            if let installedSkill {
+                InstalledStatusMark(status: installedSkill.status)
+            } else {
+                Button(action: onInstall) {
+                    if isInstalling {
+                        Text("Installing...")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 74, height: 28)
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(SkillInstallPalette.amber)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .fill(SkillInstallPalette.iconBackground(colorScheme: colorScheme, isHovered: isHovered))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .stroke(SkillInstallPalette.iconBorder(isHovered: isHovered), lineWidth: 1)
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(isInstalling)
+                .help("Install")
+            }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(rowBackground)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.18)) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
-        .animation(.easeInOut(duration: 0.18), value: isHovered)
     }
 
     private var rowBackground: Color {
@@ -700,45 +625,39 @@ private struct InstalledSkillListRow: View {
     @State private var isHovered = false
     let skill: SkillInfo
     let catalogItem: SkillCatalogItem?
-    let pointerLocation: CGPoint?
     let onOpen: () -> Void
 
     var body: some View {
-        SkillMagnifiedRow(pointerLocation: pointerLocation) {
-            HStack(spacing: 14) {
-                SkillCatalogIcon(iconURL: catalogItem?.iconURL, size: 32)
+        HStack(spacing: 14) {
+            SkillCatalogIcon(iconURL: catalogItem?.iconURL, size: 32)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(catalogItem?.displayName ?? skill.name)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(catalogItem?.displayName ?? skill.name)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-                    Text(catalogItem?.description.nilIfBlank ?? skill.description.nilIfBlank ?? "Installed skill")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 16)
-
-                InstalledStatusMark(status: skill.status)
+                Text(catalogItem?.description.nilIfBlank ?? skill.description.nilIfBlank ?? "Installed skill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 9)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(rowBackground)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            Spacer(minLength: 16)
+
+            InstalledStatusMark(status: skill.status)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(rowBackground)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.18)) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
-        .animation(.easeInOut(duration: 0.18), value: isHovered)
     }
 
     private var rowBackground: Color {
@@ -797,13 +716,33 @@ private struct SkillCatalogIcon: View {
 
     private var resolvedCustomImage: NSImage? {
         guard let iconURL else { return nil }
-        return NSImage(contentsOf: iconURL)
+        return SkillIconImageCache.shared.image(for: iconURL)
     }
 
     private var skillDefaultIconBackground: Color {
         colorScheme == .dark
             ? Color.black.opacity(0.32)
             : Color(NSColor.controlBackgroundColor)
+    }
+}
+
+private final class SkillIconImageCache {
+    static let shared = SkillIconImageCache()
+
+    private let cache = NSCache<NSURL, NSImage>()
+
+    private init() {}
+
+    func image(for url: URL) -> NSImage? {
+        let key = url as NSURL
+        if let cached = cache.object(forKey: key) {
+            return cached
+        }
+        guard let image = NSImage(contentsOf: url) else {
+            return nil
+        }
+        cache.setObject(image, forKey: key)
+        return image
     }
 }
 

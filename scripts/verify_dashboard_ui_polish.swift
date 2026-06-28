@@ -31,6 +31,8 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let selectableMarkdown = read("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
+let markdownHTML = read("OpenClawInstaller/Views/Dashboard/MarkdownHTML.swift")
 let agentListRow = slice(
     dashboard,
     from: "private struct AgentListRow: View",
@@ -51,20 +53,10 @@ let chatBubble = slice(
     from: "struct ChatBubble: View",
     to: "// MARK: - Typewriter Text for Streaming"
 )
-let markdownWebView = slice(
-    dashboard,
-    from: "private struct _MarkdownWebView: NSViewRepresentable",
-    to: "enum MarkdownHTML"
-)
-let markdownHTML = slice(
-    dashboard,
-    from: "enum MarkdownHTML",
-    to: "#Preview"
-)
 
 assertContains(
     dashboard,
-    "private enum DashboardTypography",
+    "enum DashboardTypography",
     "dashboard should centralize scoped chat/sidebar typography"
 )
 assertContains(
@@ -110,32 +102,32 @@ assertContains(
 )
 assertContains(
     agentSidebarRow,
-    "sidebarAgentHighlightColor(isActive: isActive, isHovering: isHovering)",
+    "sidebarItemHighlightColor(isActive: isActive, isHovering: isHovering)",
     "agent hover/selected background must use the high-grade gray helper"
 )
 assertContains(
     dashboard,
-    "private func sidebarAgentHighlightColor",
+    "private func sidebarItemHighlightColor",
     "sidebar must centralize agent hover gray color selection"
 )
 
 assertContains(
-    markdownWebView,
+    selectableMarkdown,
     "lastRenderedNonEmptySource",
     "WKWebView renderer must track the last non-empty source to avoid blank frames"
 )
 assertContains(
-    markdownWebView,
+    selectableMarkdown,
     "shouldPreserveRenderedContent",
     "WKWebView renderer must guard against replacing rendered content with an empty body"
 )
 assertContains(
-    markdownWebView,
+    selectableMarkdown,
     "if shouldPreserveRenderedContent",
     "WKWebView renderer must skip blank-body injection when preserving content"
 )
 assertNotContains(
-    markdownWebView,
+    selectableMarkdown,
     "webView.loadHTMLString(html, baseURL: nil)\n        context.coordinator.lastSource = content",
     "WKWebView initial load should record rendered source before returning"
 )

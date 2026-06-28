@@ -21,7 +21,7 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
 
 let payload = read("OpenClawInstaller/Models/A2UICardPayload.swift")
 let renderer = read("OpenClawInstaller/Views/Dashboard/A2UICardView.swift")
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 expect(payload.contains("struct A2UICardPayload"), "A2UI payload model should be defined")
@@ -49,9 +49,9 @@ expect(renderer.contains("innerCardBackground"), "Nested card panels should use 
 expect(!renderer.contains("controlBackgroundColor"), "Outer A2UI card should not use the default control background")
 expect(!renderer.contains("textBackgroundColor"), "Nested A2UI cards should not use the default text background")
 
-expect(dashboard.contains("A2UICardParser.parse(content)"), "Assistant messages should try A2UI parsing before Markdown")
-expect(dashboard.contains("A2UICardView(payload:"), "Assistant messages should render A2UI cards")
-expect(dashboard.contains("MarkdownRenderPolicy.mode"), "Existing Markdown render policy should remain available")
+expect(assistantRenderer.contains("A2UICardParser.parse(content)"), "Assistant messages should try A2UI parsing before Markdown")
+expect(assistantRenderer.contains("A2UICardView(payload:"), "Assistant messages should render A2UI cards")
+expect(assistantRenderer.contains("MarkdownRenderPolicy.mode"), "Existing Markdown render policy should remain available")
 
 expect(project.contains("A2UICardPayload.swift in Sources"), "A2UI payload file should be in Xcode sources")
 expect(project.contains("A2UICardView.swift in Sources"), "A2UI renderer file should be in Xcode sources")

@@ -19,6 +19,7 @@ import os.log
 @MainActor
 final class ChatSessionStore: ObservableObject {
     private let log = Logger(subsystem: "com.openclaw.installer", category: "ChatSessionStore")
+    private let perfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")
 
     private let legacyBaseDir: URL
     private let legacyIndexURL: URL
@@ -149,11 +150,17 @@ final class ChatSessionStore: ObservableObject {
     /// Result populates the same LRU cache used by `loadSession`, so the
     /// next sync call returns instantly.
     func loadSessionAsync(id: UUID) async -> ChatSession? {
+        let loadStart = ContinuousClock.now
         if let cached = sessionCache[id] {
             touchCache(id: id)
+            perfLog.info("loadSessionAsync finish source=cache session=\(id.uuidString, privacy: .public) messages=\(cached.messages.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: loadStart), privacy: .public)")
             return cached
         }
-        guard let url = sessionURL(for: id) else { return nil }
+        guard let url = sessionURL(for: id) else {
+            perfLog.info("loadSessionAsync finish source=missing_url session=\(id.uuidString, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: loadStart), privacy: .public)")
+            return nil
+        }
+        perfLog.info("loadSessionAsync start session=\(id.uuidString, privacy: .public)")
         // Detached so we yield the main actor for the decode.
         let session = await Task.detached(priority: .userInitiated) { () -> ChatSession? in
             guard let data = try? Data(contentsOf: url) else { return nil }
@@ -168,6 +175,7 @@ final class ChatSessionStore: ObservableObject {
         if let session = session {
             insertCache(id: id, session: session)
         }
+        perfLog.info("loadSessionAsync finish source=disk session=\(id.uuidString, privacy: .public) messages=\(session?.messages.count ?? 0, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: loadStart), privacy: .public)")
         return session
     }
 
@@ -199,6 +207,14 @@ final class ChatSessionStore: ObservableObject {
     }
 
     // MARK: - Cache
+
+    private static func elapsedMillisecondsText(since start: ContinuousClock.Instant) -> String {
+        let duration = start.duration(to: ContinuousClock.now)
+        let components = duration.components
+        let milliseconds = Double(components.seconds) * 1_000
+            + Double(components.attoseconds) / 1_000_000_000_000_000
+        return String(format: "%.1f", milliseconds)
+    }
 
     /// Move `id` to the most-recently-used end of the eviction order.
     private func touchCache(id: UUID) {

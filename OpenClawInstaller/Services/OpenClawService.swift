@@ -599,7 +599,7 @@ class OpenClawService: ObservableObject {
     func fetchVersion() async {
         if let cmd = await openclawCmd("--version 2>/dev/null"),
            let output = await runShellQuietly(cmd) {
-            let ver = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            let ver = OpenClawVersionComparator.extractVersionString(output)
             if !ver.isEmpty {
                 version = ver
             }

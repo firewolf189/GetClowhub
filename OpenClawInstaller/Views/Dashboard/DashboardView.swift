@@ -4,10 +4,11 @@ import UniformTypeIdentifiers
 import AVKit
 import Combine
 import Quartz
-import MarkdownUI
 import AppKit
+import WebKit
+import os.log
 
-private enum DashboardTypography {
+enum DashboardTypography {
     static let sidebarRow = Font.system(size: 14, weight: .regular)
     static let sidebarSectionTitle = Font.system(size: 14, weight: .regular)
     static let sidebarAgentName = Font.system(size: 14, weight: .regular)
@@ -27,6 +28,8 @@ private enum DashboardTypography {
 private enum DashboardSidebarMetrics {
     static let agentAvatarSize: CGFloat = 22
     static let agentTitleSpacing: CGFloat = 10
+    static let disclosureChevronWidth: CGFloat = 12
+    static let disclosureChevronHeight: CGFloat = 20
     static let sessionTitleLeadingSpacer: CGFloat = agentAvatarSize + agentTitleSpacing
     static let sessionRowContentHeight: CGFloat = 20
     static let sessionRowActionSize: CGFloat = 20
@@ -71,11 +74,6 @@ struct DashboardView: View {
     @State private var sessionRenamePresentation: SessionRenamePresentation?
     @State private var sessionRenameDraft: String = ""
     @State private var requestedUserMessageJumpId: UUID?
-    @State private var sessionTitleFrame: CGRect = .zero
-    @State private var isSessionTitleHovering = false
-    @State private var isSessionTitleFlyoutHovering = false
-    @State private var isSessionTitleFlyoutPresented = false
-    @State private var sessionTitleFlyoutCloseTask: DispatchWorkItem?
     @State private var terminalOpen = false
     @State private var terminalHeight: CGFloat = 120
     @FocusState private var isGlobalSessionSearchFocused: Bool
@@ -83,7 +81,6 @@ struct DashboardView: View {
 
     private let workspaceSidebarMinWidth: CGFloat = 240
     private let workspaceSidebarMaxWidth: CGFloat = 420
-    private let sessionTitleFlyoutWidth: CGFloat = 360
     private let pluginDetailAnimation = Animation.spring(response: 0.34, dampingFraction: 0.86, blendDuration: 0.04)
     private let marketplaceDetailAnimation = Animation.spring(response: 0.26, dampingFraction: 0.86)
     private static let workspaceLayoutMetrics = OutputsSidebarLayoutMetrics()
@@ -157,14 +154,10 @@ struct DashboardView: View {
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 if let title = currentSessionTitle {
-                    SessionTitlePopoverView(
-                        sessionId: currentSessionMetadata?.id,
+                    SessionTitleUserMessagesPopover(
                         title: title,
                         messages: currentSessionUserMessages,
-                        isFlyoutPresented: $isSessionTitleFlyoutPresented,
-                        isTitleHovering: $isSessionTitleHovering,
-                        onFrameChange: updateSessionTitleFrame,
-                        onHoverChange: updateSessionTitleHover
+                        onTapMessage: jumpToUserMessage
                     )
                 }
             }
@@ -211,9 +204,6 @@ struct DashboardView: View {
                 marketplaceDetailOverlay(for: agent)
             }
         }
-        .overlay(alignment: .topLeading) {
-            sessionTitleUserMessagesFlyout
-        }
         .animation(.easeInOut, value: viewModel.showSuccess)
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
@@ -229,7 +219,6 @@ struct DashboardView: View {
         }
         .onDisappear {
             viewModel.openclawService.stopMonitoring()
-            closeSessionTitleFlyout()
         }
         .sheet(isPresented: $viewModel.showDiagnostics) {
             DiagnosticsSheet(report: viewModel.diagnosticReport, isPresented: $viewModel.showDiagnostics)
@@ -245,20 +234,11 @@ struct DashboardView: View {
             )
         }
         .onChange(of: viewModel.selectedTab) { newTab in
-            closeSessionTitleFlyout()
             if newTab != .skills {
                 dismissSkillCatalogDetail()
             }
             if newTab != .plugins {
                 dismissPluginCatalogDetail()
-            }
-        }
-        .onChange(of: currentSessionMetadata?.id) { _ in
-            closeSessionTitleFlyout()
-        }
-        .onChange(of: currentSessionUserMessages.count) { count in
-            if count == 0 {
-                closeSessionTitleFlyout()
             }
         }
     }
@@ -297,101 +277,6 @@ struct DashboardView: View {
         guard isChatTabActive else { return [] }
         return viewModel.chatMessages
             .filter { $0.role == .user }
-    }
-
-    @ViewBuilder
-    private var sessionTitleUserMessagesFlyout: some View {
-        if isSessionTitleFlyoutPresented,
-           isChatTabActive,
-           !currentSessionUserMessages.isEmpty,
-           sessionTitleFrame != .zero {
-            GeometryReader { proxy in
-                let panelX = sessionTitleFlyoutX(in: proxy)
-                let panelY = sessionTitleFlyoutY(in: proxy)
-
-                ZStack(alignment: .topLeading) {
-                    Color.clear
-                        .allowsHitTesting(false)
-
-                    SessionTitleUserMessagesFlyoutContent(
-                        messages: currentSessionUserMessages,
-                        onTapMessage: { message in
-                            jumpToUserMessage(message)
-                            closeSessionTitleFlyout()
-                        }
-                    )
-                    .frame(width: sessionTitleFlyoutWidth)
-                    .offset(x: panelX, y: panelY)
-                    .onHover { hovering in
-                        updateSessionTitleFlyoutHover(hovering)
-                    }
-                    .zIndex(50)
-                }
-            }
-            .zIndex(50)
-        }
-    }
-
-    private func updateSessionTitleHover(_ hovering: Bool) {
-        isSessionTitleHovering = hovering
-        if hovering && !currentSessionUserMessages.isEmpty {
-            openSessionTitleFlyout()
-        } else {
-            scheduleSessionTitleFlyoutClose()
-        }
-    }
-
-    private func updateSessionTitleFlyoutHover(_ hovering: Bool) {
-        isSessionTitleFlyoutHovering = hovering
-        if hovering {
-            sessionTitleFlyoutCloseTask?.cancel()
-            sessionTitleFlyoutCloseTask = nil
-        } else {
-            scheduleSessionTitleFlyoutClose()
-        }
-    }
-
-    private func updateSessionTitleFrame(_ frame: CGRect) {
-        guard frame != .zero, sessionTitleFrame != frame else { return }
-        sessionTitleFrame = frame
-    }
-
-    private func openSessionTitleFlyout() {
-        sessionTitleFlyoutCloseTask?.cancel()
-        sessionTitleFlyoutCloseTask = nil
-        isSessionTitleFlyoutPresented = true
-    }
-
-    private func scheduleSessionTitleFlyoutClose() {
-        sessionTitleFlyoutCloseTask?.cancel()
-        let task = DispatchWorkItem {
-            if !isSessionTitleHovering && !isSessionTitleFlyoutHovering {
-                closeSessionTitleFlyout()
-            }
-        }
-        sessionTitleFlyoutCloseTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: task)
-    }
-
-    private func closeSessionTitleFlyout() {
-        sessionTitleFlyoutCloseTask?.cancel()
-        sessionTitleFlyoutCloseTask = nil
-        isSessionTitleFlyoutPresented = false
-        isSessionTitleFlyoutHovering = false
-    }
-
-    private func sessionTitleFlyoutX(in proxy: GeometryProxy) -> CGFloat {
-        let rootFrame = proxy.frame(in: .global)
-        let desired = sessionTitleFrame.maxX - rootFrame.minX + 8
-        let maxX = max(12, proxy.size.width - sessionTitleFlyoutWidth - 12)
-        return min(max(desired, 12), maxX)
-    }
-
-    private func sessionTitleFlyoutY(in proxy: GeometryProxy) -> CGFloat {
-        let rootFrame = proxy.frame(in: .global)
-        let desired = sessionTitleFrame.maxY - rootFrame.minY + 4
-        let maxY = max(8, proxy.size.height - 340)
-        return min(max(desired, 8), maxY)
     }
 
     private func jumpToUserMessage(_ message: ChatMessage) {
@@ -653,7 +538,6 @@ struct DashboardView: View {
     }
 
     private func beginSessionRename(_ meta: ChatSessionMetadata) {
-        closeSessionTitleFlyout()
         viewModel.switchSessionGlobally(to: meta.id)
         viewModel.selectedTab = .chat
         sessionRenameDraft = meta.title
@@ -1390,7 +1274,6 @@ struct SidebarView: View {
     @State private var marketplaceSearchText = ""
     @State private var expandedDivisions: Set<String> = []
     @State private var expandedAgentDivisions: Set<String> = []
-    @State private var hoveredAgentId: String?
     @State private var hoveredSessionId: UUID?
     @State private var hoveredSidebarTab: DashboardViewModel.DashboardTab?
     @State private var hoveredSidebarAction: SidebarChromeAction?
@@ -1420,6 +1303,13 @@ struct SidebarView: View {
 
     private var isDark: Bool {
         AppAppearanceMode.storedValue(appAppearance).resolvesDark(using: colorScheme)
+    }
+
+    private var sidebarCursorDotConfiguration: CursorDotConfiguration {
+        CursorDotConfiguration(
+            dotColor: isDark ? .white : .black,
+            ringColor: isDark ? .white.opacity(0.74) : .black.opacity(0.62)
+        )
     }
 
     var body: some View {
@@ -1461,7 +1351,10 @@ struct SidebarView: View {
                 Text("Are you sure you want to remove \"\(agent.name)\"? This will delete the agent and its workspace.")
             }
         }
-        .cursorDotOverlay(isEnabled: true)
+        .cursorDotOverlay(
+            isEnabled: true,
+            configuration: sidebarCursorDotConfiguration
+        )
     }
 
     // MARK: - Sidebar Top Header
@@ -1621,91 +1514,169 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func sessionsSectionContent(for agent: AgentOption) -> some View {
-        let agentSessions = viewModel.sessionsByAgent[agent.id] ?? []
-        let activeId = viewModel.selectedSessionIdByAgent[agent.id]
-        let isVisibleAgent = viewModel.selectedAgentId == agent.id && selectedTab == .chat
+        let projectGroups = viewModel.projectSessionsByAgent[agent.id] ?? []
+        let generalSessions = viewModel.generalSessionsByAgent[agent.id] ?? []
 
-        if agentSessions.isEmpty {
+        if projectGroups.isEmpty && generalSessions.isEmpty {
             Text(String(localized: "No sessions yet", bundle: languageManager.localizedBundle))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.top, 8)
         } else {
-            ForEach(agentSessions) { meta in
-                let isSessionActive = isVisibleAgent && activeId == meta.id
-                let isSessionHovering = hoveredSessionId == meta.id
+            projectFoldersSectionContent(for: agent)
+            generalSessionsSectionContent(for: agent)
+        }
+    }
 
-                ChatSessionRow(
-                    meta: meta,
-                    isActive: isSessionActive,
-                    isExecuting: viewModel.hasInflightTask(inSession: meta.id),
-                    isHovering: isSessionHovering,
-                    isDeleteConfirming: confirmingDeleteSessionId == meta.id,
-                    onDeleteIntent: {
-                        confirmingDeleteSessionId = meta.id
-                    },
-                    onDeleteConfirm: {
-                        viewModel.deleteSession(meta.id)
-                        confirmingDeleteSessionId = nil
+    @ViewBuilder
+    private func projectFoldersSectionContent(for agent: AgentOption) -> some View {
+        let projectGroups = viewModel.projectSessionsByAgent[agent.id] ?? []
+
+        ForEach(projectGroups) { group in
+            projectFolderRow(group: group, agent: agent)
+        }
+    }
+
+    @ViewBuilder
+    private func generalSessionsSectionContent(for agent: AgentOption) -> some View {
+        let generalSessions = viewModel.generalSessionsByAgent[agent.id] ?? []
+        sessionRows(generalSessions, for: agent)
+    }
+
+    @ViewBuilder
+    private func sessionRows(_ agentSessions: [ChatSessionMetadata], for agent: AgentOption) -> some View {
+        let activeId = viewModel.selectedSessionIdByAgent[agent.id]
+        let isVisibleAgent = viewModel.selectedAgentId == agent.id && selectedTab == .chat
+
+        ForEach(agentSessions) { meta in
+            let isSessionActive = isVisibleAgent && activeId == meta.id
+            let isSessionHovering = hoveredSessionId == meta.id
+
+            ChatSessionRow(
+                meta: meta,
+                isActive: isSessionActive,
+                isExecuting: viewModel.hasInflightTask(inSession: meta.id),
+                isHovering: isSessionHovering,
+                isDeleteConfirming: confirmingDeleteSessionId == meta.id,
+                onDeleteIntent: {
+                    confirmingDeleteSessionId = meta.id
+                },
+                onDeleteConfirm: {
+                    viewModel.deleteSession(meta.id)
+                    confirmingDeleteSessionId = nil
+                }
+            )
+            .padding(.horizontal, 8)
+            .padding(.vertical, DashboardSidebarMetrics.sessionRowVerticalPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(sessionRowHighlightColor(isActive: isVisibleAgent && activeId == meta.id, isHovering: isSessionHovering))
+            )
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                cancelSessionDeleteConfirmation()
+                onRequestRenameSession(meta)
+            }
+            .onTapGesture {
+                cancelSessionDeleteConfirmation()
+                viewModel.switchSession(to: meta.id)
+                selectedTab = .chat
+            }
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    if hovering {
+                        hoveredSessionId = meta.id
+                    } else if hoveredSessionId == meta.id {
+                        hoveredSessionId = nil
                     }
-                )
-                .padding(.horizontal, 8)
-                .padding(.vertical, DashboardSidebarMetrics.sessionRowVerticalPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(sessionRowHighlightColor(isActive: isVisibleAgent && activeId == meta.id, isHovering: isSessionHovering))
-                )
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) {
+                }
+            }
+            .contextMenu {
+                Button {
                     cancelSessionDeleteConfirmation()
                     onRequestRenameSession(meta)
+                } label: {
+                    Label("Rename", systemImage: "pencil")
                 }
-                .onTapGesture {
+                Button {
+                    viewModel.togglePinSession(meta.id)
+                } label: {
+                    Label(meta.isPinned ? "Unpin" : "Pin",
+                          systemImage: meta.isPinned ? "pin.slash" : "pin")
+                }
+                Button {
+                    viewModel.exportSession(meta.id)
+                } label: {
+                    Label("Export…", systemImage: "square.and.arrow.up")
+                }
+                Divider()
+                Button {
+                    viewModel.archiveSession(meta.id)
+                } label: {
+                    Label("Archive", systemImage: "archivebox")
+                }
+                Button(role: .destructive) {
+                    confirmingDeleteSessionId = meta.id
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    private func projectFolderRow(group: ProjectSessionGroup, agent: AgentOption) -> some View {
+        SidebarCollapsibleRow(
+            title: group.project.displayName,
+            titleFont: .system(size: 13.5, weight: .regular),
+            isExpanded: !group.binding.isCollapsed,
+            rowHeight: 24,
+            verticalPadding: 5,
+            backgroundColor: { isHovering in
+                sidebarItemHighlightColor(isActive: false, isHovering: isHovering)
+            },
+            onToggle: {
+                cancelSessionDeleteConfirmation()
+                viewModel.toggleProjectCollapse(agentId: agent.id, projectId: group.project.id)
+            },
+            icon: {
+                WorkspaceFolderIcon(isExpanded: !group.binding.isCollapsed, size: 18)
+            },
+            actions: {
+                Button {
                     cancelSessionDeleteConfirmation()
-                    viewModel.switchSession(to: meta.id)
+                    viewModel.createNewSession(forAgent: agent.id, projectId: group.project.id)
                     selectedTab = .chat
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .semibold))
+                        .frame(width: 18, height: 18)
                 }
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.12)) {
-                        if hovering {
-                            hoveredSessionId = meta.id
-                        } else if hoveredSessionId == meta.id {
-                            hoveredSessionId = nil
-                        }
-                    }
-                }
-                .contextMenu {
-                    Button {
-                        cancelSessionDeleteConfirmation()
-                        onRequestRenameSession(meta)
-                    } label: {
-                        Label("Rename", systemImage: "pencil")
-                    }
-                    Button {
-                        viewModel.togglePinSession(meta.id)
-                    } label: {
-                        Label(meta.isPinned ? "Unpin" : "Pin",
-                              systemImage: meta.isPinned ? "pin.slash" : "pin")
-                    }
-                    Button {
-                        viewModel.exportSession(meta.id)
-                    } label: {
-                        Label("Export…", systemImage: "square.and.arrow.up")
-                    }
-                    Divider()
-                    Button {
-                        viewModel.archiveSession(meta.id)
-                    } label: {
-                        Label("Archive", systemImage: "archivebox")
-                    }
-                    Button(role: .destructive) {
-                        confirmingDeleteSessionId = meta.id
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                }
+                .buttonStyle(.plain)
+                .help("New chat in project")
+            },
+            children: {
+                sessionRows(group.sessions, for: agent)
+            }
+        )
+        .contextMenu {
+            Button {
+                viewModel.createNewSession(forAgent: agent.id, projectId: group.project.id)
+                selectedTab = .chat
+            } label: {
+                Label("New chat in project", systemImage: "plus")
+            }
+            Button {
+                viewModel.revealProjectInFinder(group.project.id)
+            } label: {
+                Label("Reveal in Finder", systemImage: "folder")
+            }
+            Divider()
+            Button(role: .destructive) {
+                viewModel.removeProject(group.project.id, fromAgent: agent.id)
+            } label: {
+                Label("Remove from Agent", systemImage: "minus.circle")
             }
         }
     }
@@ -1778,15 +1749,7 @@ struct SidebarView: View {
                     } else {
                         ForEach(visibleAgents) { agent in
                             agentSidebarRow(agent)
-                            if expandedAgentIds.contains(agent.id) {
-                                VStack(alignment: .leading, spacing: 0) {
-                                    sessionsSectionContent(for: agent)
-                                }
-                                    .transition(.asymmetric(insertion: .opacity, removal: .identity))
-                                    .clipped()
-                            }
                         }
-                        .animation(.spring(response: 0.28, dampingFraction: 0.86), value: expandedAgentIds)
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -2180,63 +2143,125 @@ struct SidebarView: View {
         }
     }
 
-	    private func agentRowWithContextMenu(_ agent: AgentOption) -> some View {
-	        let isExecuting = viewModel.isAgentExecuting(agent.id)
-	        let isHovering = hoveredAgentId == agent.id
-	        return AgentListRow(
-	            agent: agent,
-	            isActive: viewModel.selectedAgentId == agent.id,
-	            isExpanded: expandedAgentIds.contains(agent.id),
-	            isExecuting: isExecuting,
-	            isHovering: isHovering,
-	            onCreateSession: { createSession(for: agent) }
-	        )
-            .tag(agent.id)
-            .contextMenu {
-                if agent.id != "main" && agent.id != "commander" {
-                    Button(role: .destructive) {
-                        deleteAgentConfirmId = agent.id
-                    } label: {
-                        Label("Remove Agent", systemImage: "trash")
-                    }
-                }
-            }
-    }
-
     private func agentSidebarRow(_ agent: AgentOption) -> some View {
         let isActive = viewModel.selectedAgentId == agent.id && selectedTab == .chat
-        let isHovering = hoveredAgentId == agent.id
 
-        return agentRowWithContextMenu(agent)
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(sidebarItemHighlightColor(isActive: isActive, isHovering: isHovering))
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
+        return SidebarCollapsibleRow(
+            title: agent.name,
+            titleFont: DashboardTypography.sidebarAgent(active: isActive),
+            isExpanded: expandedAgentIds.contains(agent.id),
+            rowHeight: 24,
+            verticalPadding: 4,
+            backgroundColor: { isHovering in
+                sidebarItemHighlightColor(isActive: isActive, isHovering: isHovering)
+            },
+            onToggle: {
                 toggleAgentSelection(agent)
+            },
+            icon: {
+                AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize)
+            },
+            actions: {
+                Button {
+                    cancelSessionDeleteConfirmation()
+                    viewModel.openProject(forAgent: agent.id)
+                } label: {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 20, height: 20)
+                }
+                .buttonStyle(.plain)
+                .help("Add Work Folder...")
+
+                Button {
+                    createSession(for: agent)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 20, height: 20)
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle))
+            },
+            children: {
+                sessionsSectionContent(for: agent)
             }
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.12)) {
-                    if hovering {
-                        hoveredAgentId = agent.id
-                    } else if hoveredAgentId == agent.id {
-                        hoveredAgentId = nil
-                    }
+        )
+        .contextMenu {
+            Button {
+                viewModel.openProject(forAgent: agent.id)
+            } label: {
+                Label("Add Work Folder...", systemImage: "folder.badge.plus")
+            }
+            Divider()
+            if agent.id != "main" && agent.id != "commander" {
+                Button(role: .destructive) {
+                    deleteAgentConfirmId = agent.id
+                } label: {
+                    Label("Remove Agent", systemImage: "trash")
                 }
             }
-            .contextMenu {
-                if agent.id != "main" && agent.id != "commander" {
-                    Button(role: .destructive) {
-                        deleteAgentConfirmId = agent.id
-                    } label: {
-                        Label("Remove Agent", systemImage: "trash")
-                    }
+        }
+    }
+
+    private func agentRowWithContextMenu(_ agent: AgentOption) -> some View {
+        SidebarCollapsibleRow(
+            title: agent.name,
+            titleFont: DashboardTypography.sidebarAgent(active: viewModel.selectedAgentId == agent.id),
+            isExpanded: false,
+            rowHeight: 24,
+            verticalPadding: 4,
+            backgroundColor: { _ in SwiftUI.Color.clear },
+            onToggle: {},
+            icon: {
+                AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize)
+            },
+            actions: {
+                Button {
+                    cancelSessionDeleteConfirmation()
+                    viewModel.openProject(forAgent: agent.id)
+                } label: {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 20, height: 20)
+                }
+                .buttonStyle(.plain)
+                .help("Add Work Folder...")
+
+                Button {
+                    createSession(for: agent)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 20, height: 20)
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle))
+            },
+            children: {
+                EmptyView()
+            }
+        )
+        .tag(agent.id)
+        .contextMenu {
+            Button {
+                viewModel.openProject(forAgent: agent.id)
+            } label: {
+                Label("Add Work Folder...", systemImage: "folder.badge.plus")
+            }
+            Divider()
+            if agent.id != "main" && agent.id != "commander" {
+                Button(role: .destructive) {
+                    deleteAgentConfirmId = agent.id
+                } label: {
+                    Label("Remove Agent", systemImage: "trash")
                 }
             }
-            .padding(.vertical, 3)
+        }
     }
 
     private func sidebarItemHighlightColor(isActive: Bool, isHovering: Bool) -> SwiftUI.Color {
@@ -2288,9 +2313,6 @@ struct SidebarView: View {
 
         withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
             areAgentsCollapsed.toggle()
-            if areAgentsCollapsed {
-                hoveredAgentId = nil
-            }
         }
     }
 
@@ -2469,51 +2491,101 @@ struct SidebarView: View {
     }
 }
 
-private struct AgentListRow: View {
-    let agent: AgentOption
-    let isActive: Bool
+private struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
+    private static var expansionAnimation: Animation {
+        .spring(response: 0.28, dampingFraction: 0.86)
+    }
+
+    private static var hoverAnimation: Animation {
+        .easeInOut(duration: 0.12)
+    }
+
+    private static var childTransition: AnyTransition {
+        .move(edge: .top).combined(with: .opacity)
+    }
+
+    let title: String
+    let titleFont: Font
     let isExpanded: Bool
-    let isExecuting: Bool
-    let isHovering: Bool
-    let onCreateSession: () -> Void
+    let rowHeight: CGFloat
+    let verticalPadding: CGFloat
+    let backgroundColor: (Bool) -> SwiftUI.Color
+    let onToggle: () -> Void
+    @ViewBuilder let icon: () -> Icon
+    @ViewBuilder let actions: () -> Actions
+    @ViewBuilder let children: () -> Children
+
+    @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: DashboardSidebarMetrics.agentTitleSpacing) {
-            AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize)
+        VStack(alignment: .leading, spacing: 0) {
+            rowContent
 
-            Text(agent.name)
-                .font(DashboardTypography.sidebarAgent(active: isActive))
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    children()
+                }
+                .transition(Self.childTransition)
+                .clipped()
+            }
+        }
+        .animation(Self.expansionAnimation, value: isExpanded)
+        .clipped()
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: DashboardSidebarMetrics.agentTitleSpacing) {
+            icon()
+                .frame(width: DashboardSidebarMetrics.agentAvatarSize, height: DashboardSidebarMetrics.agentAvatarSize)
+
+            Text(title)
+                .font(titleFont)
                 .lineLimit(1)
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.secondary)
-                .frame(width: 12, height: 20)
-                .opacity(isHovering || isExpanded ? 1 : 0)
-                .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                .animation(.easeInOut(duration: 0.16), value: isExpanded)
+            chevron
 
             Spacer(minLength: 8)
-
         }
-        .frame(height: 24)
+        .frame(height: rowHeight)
         .overlay(alignment: .trailing) {
-            Button(action: onCreateSession) {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .frame(width: 20, height: 20)
+            HStack(spacing: 2) {
+                actions()
             }
-            .buttonStyle(.plain)
             .opacity(isHovering ? 1 : 0)
             .disabled(!isHovering)
-            .help(String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle))
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .padding(.vertical, verticalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .help(isExecuting
-              ? String(localized: "Task running", bundle: LanguageManager.shared.localizedBundle)
-              : agent.name)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(backgroundColor(isHovering))
+        )
+        .onTapGesture {
+            withAnimation(Self.expansionAnimation) {
+                onToggle()
+            }
+        }
+        .onHover { hovering in
+            withAnimation(Self.hoverAnimation) {
+                isHovering = hovering
+            }
+        }
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundColor(.secondary)
+            .frame(
+                width: DashboardSidebarMetrics.disclosureChevronWidth,
+                height: DashboardSidebarMetrics.disclosureChevronHeight
+            )
+            .opacity(isHovering || isExpanded ? 1 : 0)
+            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+            .animation(.easeInOut(duration: 0.16), value: isExpanded)
+            .animation(Self.hoverAnimation, value: isHovering)
     }
 }
 
@@ -2939,27 +3011,6 @@ struct PendingComposerMessage: Identifiable, Equatable {
     }
 }
 
-private struct ChatScrollContentMetrics: Equatable {
-    var offsetY: CGFloat = 0
-    var contentHeight: CGFloat = 1
-}
-
-private struct ChatScrollContentMetricsKey: PreferenceKey {
-    static var defaultValue = ChatScrollContentMetrics()
-
-    static func reduce(value: inout ChatScrollContentMetrics, nextValue: () -> ChatScrollContentMetrics) {
-        value = nextValue()
-    }
-}
-
-private struct ChatScrollViewportHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 1
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 private struct WorkStatusHeaderHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
 
@@ -3054,6 +3105,117 @@ private struct ChatScrollCompensationApplier: NSViewRepresentable {
     }
 }
 
+private enum ChatAutoScrollMode: Equatable {
+    case followingBottom
+    case userDetached
+    case sessionJumping
+}
+
+private struct ChatScrollIntentObserver: NSViewRepresentable {
+    let onScrollPositionChange: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onScrollPositionChange: onScrollPositionChange)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onScrollPositionChange = onScrollPositionChange
+
+        DispatchQueue.main.async {
+            guard let scrollView = Self.nearestScrollView(from: nsView) else { return }
+            context.coordinator.attach(to: scrollView)
+        }
+    }
+
+    private static func nearestScrollView(from view: NSView) -> NSScrollView? {
+        var current: NSView? = view
+        while let candidate = current {
+            if let scrollView = candidate as? NSScrollView {
+                return scrollView
+            }
+            if let scrollView = candidate.enclosingScrollView {
+                return scrollView
+            }
+            current = candidate.superview
+        }
+        return nil
+    }
+
+    final class Coordinator {
+        var onScrollPositionChange: (Bool) -> Void
+        private weak var scrollView: NSScrollView?
+        private var observer: NSObjectProtocol?
+
+        init(onScrollPositionChange: @escaping (Bool) -> Void) {
+            self.onScrollPositionChange = onScrollPositionChange
+        }
+
+        deinit {
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
+
+        func attach(to scrollView: NSScrollView) {
+            guard self.scrollView !== scrollView else {
+                reportPosition(in: scrollView)
+                return
+            }
+
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+            }
+
+            self.scrollView = scrollView
+            let clipView = scrollView.contentView
+            clipView.postsBoundsChangedNotifications = true
+            observer = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: clipView,
+                queue: .main
+            ) { [weak self, weak scrollView] _ in
+                guard let scrollView else { return }
+                self?.reportPosition(in: scrollView)
+            }
+
+            reportPosition(in: scrollView)
+        }
+
+        private func reportPosition(in scrollView: NSScrollView) {
+            guard let documentView = scrollView.documentView else {
+                onScrollPositionChange(true)
+                return
+            }
+
+            scrollView.layoutSubtreeIfNeeded()
+            documentView.layoutSubtreeIfNeeded()
+
+            let clipView = scrollView.contentView
+            let documentHeight = documentView.bounds.height
+            let viewportHeight = clipView.bounds.height
+            guard documentHeight > viewportHeight + 1 else {
+                onScrollPositionChange(true)
+                return
+            }
+
+            let offsetY = clipView.bounds.origin.y
+            let distanceToBottom: CGFloat
+            if documentView.isFlipped {
+                let maxOffset = max(0, documentHeight - viewportHeight)
+                distanceToBottom = maxOffset - offsetY
+            } else {
+                distanceToBottom = offsetY
+            }
+
+            onScrollPositionChange(distanceToBottom <= 24)
+        }
+    }
+}
+
 // MARK: - Chat View
 
 struct ChatView: View {
@@ -3087,15 +3249,13 @@ struct ChatView: View {
     @State private var attachedFiles: [URL] = []
     // Scroll debounce for streaming content
     @State private var scrollDebounceWork: DispatchWorkItem?
-    // Smart scroll: only auto-scroll if user is at bottom
-    @State private var shouldAutoScroll: Bool = true
-    @State private var autoScrollDisableTimer: Timer?
+    // Smart scroll: follow only while the user is reading the latest messages.
+    @State private var chatAutoScrollMode: ChatAutoScrollMode = .followingBottom
+    @State private var chatScrollIsAtBottom = true
+    @State private var scheduledBottomScrollGeneration = 0
     @State private var scrollEventMonitor: Any?
     @State private var showChatScrollIndicator = false
     @State private var chatScrollIndicatorHideTask: DispatchWorkItem?
-    @State private var chatScrollOffset: CGFloat = 0
-    @State private var chatScrollViewportHeight: CGFloat = 1
-    @State private var chatScrollContentHeight: CGFloat = 1
     // Store ScrollViewProxy so sendMessage() can scroll to bottom
     @State private var chatScrollProxy: ScrollViewProxy?
     @State private var highlightedMessageId: UUID?
@@ -3107,6 +3267,7 @@ struct ChatView: View {
     @State private var showCreateAgentSheet = false
     @StateObject private var createAgentVM: SubAgentsViewModel
     @State private var pendingComposerMessagesBySession: [UUID: [PendingComposerMessage]] = [:]
+    @State private var renderObservationStartBySession: [UUID: ContinuousClock.Instant] = [:]
     private static let layoutMetrics = OutputsSidebarLayoutMetrics()
     private static let emptyChatContentYOffset: CGFloat = -48
     private let composerSuggestionPanelMaxHeight: CGFloat = 184
@@ -3157,6 +3318,10 @@ struct ChatView: View {
             && inputText.trimmingCharacters(in: .whitespaces).isEmpty
             && attachedFiles.isEmpty
             && currentForegroundTaskMessageId != nil
+    }
+
+    private var shouldFollowChatBottom: Bool {
+        chatAutoScrollMode == .followingBottom || chatAutoScrollMode == .sessionJumping
     }
 
     // MARK: - Chat Message List (extracted for compiler performance)
@@ -3223,18 +3388,6 @@ struct ChatView: View {
             .padding(.top, 8)
             .padding(.bottom, 20)
             .background(
-                GeometryReader { contentProxy in
-                    let rawOffset = -contentProxy.frame(in: .named("chatScrollSpace")).minY
-                    Color.clear.preference(
-                        key: ChatScrollContentMetricsKey.self,
-                        value: ChatScrollContentMetrics(
-                            offsetY: max(0, rawOffset),
-                            contentHeight: max(1, contentProxy.size.height)
-                        )
-                    )
-                }
-            )
-            .background(
                 ChatScrollCompensationApplier(
                     delta: pendingWorkStatusScrollCompensation,
                     revision: workStatusExpansionCompensationRevision
@@ -3242,22 +3395,6 @@ struct ChatView: View {
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
             )
-        }
-        .coordinateSpace(name: "chatScrollSpace")
-        .background(
-            GeometryReader { viewportProxy in
-                Color.clear.preference(
-                    key: ChatScrollViewportHeightKey.self,
-                    value: max(1, viewportProxy.size.height)
-                )
-            }
-        )
-        .onPreferenceChange(ChatScrollContentMetricsKey.self) { metrics in
-            chatScrollOffset = metrics.offsetY
-            chatScrollContentHeight = metrics.contentHeight
-        }
-        .onPreferenceChange(ChatScrollViewportHeightKey.self) { height in
-            chatScrollViewportHeight = height
         }
         .alert(
             "回滚失败",
@@ -3275,35 +3412,33 @@ struct ChatView: View {
             scrollView
                 .defaultScrollAnchor(.bottom)
                 .onChange(of: viewModel.chatMessages.count) { _ in
-                    // Only auto-scroll if user hasn't disabled it by scrolling up
-                    if shouldAutoScroll {
+                    logChatMessagesCountChanged()
+                    // Only auto-scroll while the user is following the latest message.
+                    if shouldFollowChatBottom {
                         // Use animated scroll so LazyVStack can progressively create views
                         // during the scroll animation, avoiding white flash from instant jump
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                proxy.scrollTo("chatBottom", anchor: .bottom)
-                            }
+                            scrollToBottomIfAllowed()
                         }
                     }
                 }
         } else {
             scrollView
                 .onChange(of: viewModel.chatMessages.count) { _ in
-                    if shouldAutoScroll {
+                    logChatMessagesCountChanged()
+                    if shouldFollowChatBottom {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                proxy.scrollTo("chatBottom", anchor: .bottom)
-                            }
+                            scrollToBottomIfAllowed()
                         }
                     }
                 }
                 .onAppear {
                     if !viewModel.chatMessages.isEmpty {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            proxy.scrollTo("chatBottom", anchor: .bottom)
+                            scrollToBottomIfAllowed()
                         }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            proxy.scrollTo("chatBottom", anchor: .bottom)
+                            scrollToBottomIfAllowed()
                         }
                     }
                 }
@@ -3403,15 +3538,20 @@ struct ChatView: View {
                     chatScrollContent(proxy: proxy)
                         .onAppear {
                             chatScrollProxy = proxy
-                            if !viewModel.chatMessages.isEmpty && shouldAutoScroll {
+                            if !viewModel.chatMessages.isEmpty && shouldFollowChatBottom {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    proxy.scrollTo("chatBottom", anchor: .bottom)
+                                    scrollToBottomIfAllowed()
                                 }
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    proxy.scrollTo("chatBottom", anchor: .bottom)
+                                    scrollToBottomIfAllowed()
                                 }
                             }
                         }
+                    ChatScrollIntentObserver(onScrollPositionChange: { isAtBottom in
+                        handleChatScrollPositionChange(isAtBottom: isAtBottom)
+                    })
+                    .frame(width: 0, height: 0)
+                    .allowsHitTesting(false)
                     chatScrollIndicator
                 }
             }
@@ -3422,28 +3562,17 @@ struct ChatView: View {
     }
 
     private var chatScrollIndicator: some View {
-        GeometryReader { proxy in
-            let indicatorHeight: CGFloat = 38
-            let verticalInset: CGFloat = 12
-            let maxScrollableOffset = max(1, chatScrollContentHeight - chatScrollViewportHeight)
-            let progress = min(max(chatScrollOffset / maxScrollableOffset, 0), 1)
-            let availableTravel = max(0, proxy.size.height - indicatorHeight - verticalInset * 2)
-            let y = verticalInset + indicatorHeight / 2 + availableTravel * progress
-
-            Capsule(style: .continuous)
-                .fill(Color.primary.opacity(colorScheme == .dark ? 0.30 : 0.22))
-                .frame(width: 3, height: indicatorHeight)
-                .position(x: proxy.size.width - 8, y: y)
-                .opacity(showChatScrollIndicator && chatScrollContentHeight > chatScrollViewportHeight + 8 ? 1 : 0)
-        }
+        Capsule(style: .continuous)
+            .fill(Color.primary.opacity(colorScheme == .dark ? 0.30 : 0.22))
+            .frame(width: 3, height: 38)
+            .padding(.top, 12)
+            .padding(.trailing, 8)
+            .opacity(showChatScrollIndicator ? 1 : 0)
         .allowsHitTesting(false)
         .animation(.easeInOut(duration: 0.16), value: showChatScrollIndicator)
-        .animation(.easeOut(duration: 0.08), value: chatScrollOffset)
     }
 
     private func showTransientChatScrollIndicator() {
-        guard chatScrollContentHeight > chatScrollViewportHeight + 8 else { return }
-
         chatScrollIndicatorHideTask?.cancel()
         withAnimation(.easeInOut(duration: 0.12)) {
             showChatScrollIndicator = true
@@ -3456,6 +3585,15 @@ struct ChatView: View {
         }
         chatScrollIndicatorHideTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: task)
+    }
+
+    private func handleChatScrollPositionChange(isAtBottom: Bool) {
+        guard chatScrollIsAtBottom != isAtBottom else { return }
+        chatScrollIsAtBottom = isAtBottom
+
+        if isAtBottom && chatAutoScrollMode == .userDetached {
+            chatAutoScrollMode = .followingBottom
+        }
     }
 
     private func composerArea(maxWidth: CGFloat, horizontalPadding: CGFloat, bottomPadding: CGFloat) -> some View {
@@ -3919,20 +4057,20 @@ struct ChatView: View {
                 scrollEventMonitor = nil
             }
             scrollEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
-                // User scrolled, disable auto-scroll temporarily
-                shouldAutoScroll = false
-                showTransientChatScrollIndicator()
-
-                // Re-enable auto-scroll after user stops scrolling for 3 seconds
-                autoScrollDisableTimer?.invalidate()
-                autoScrollDisableTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-                    shouldAutoScroll = true
+                if event.scrollingDeltaY < 0 {
+                    chatAutoScrollMode = .userDetached
+                    scheduledBottomScrollGeneration += 1
                 }
+                showTransientChatScrollIndicator()
 
                 return event
             }
 
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if handleCopyShortcut(event) {
+                    return nil
+                }
+
                 guard let responder = event.window?.firstResponder, responder is NSTextView else {
                     return event
                 }
@@ -4170,9 +4308,6 @@ struct ChatView: View {
                 NSEvent.removeMonitor(monitor)
                 scrollEventMonitor = nil
             }
-            // Clean up timer
-            autoScrollDisableTimer?.invalidate()
-            autoScrollDisableTimer = nil
             chatScrollIndicatorHideTask?.cancel()
             chatScrollIndicatorHideTask = nil
             highlightFlashTask?.cancel()
@@ -4215,6 +4350,8 @@ struct ChatView: View {
         }
         .onChange(of: currentActiveSessionId) { _ in
             drainPendingComposerQueueIfPossible()
+            beginRenderObservationForCurrentSession()
+            scheduleSessionSwitchScrollToBottom()
         }
         .overlay(alignment: .trailing) {
             if viewModel.agentSettingsOpen, let detail = viewModel.selectedAgentDetail {
@@ -4254,6 +4391,20 @@ struct ChatView: View {
         let hasText = !inputText.trimmingCharacters(in: .whitespaces).isEmpty
         let hasFiles = !attachedFiles.isEmpty
         return hasText || hasFiles
+    }
+
+    private func handleCopyShortcut(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown,
+              event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command),
+              event.charactersIgnoringModifiers?.lowercased() == "c" else {
+            return false
+        }
+
+        if NativeSelectableTextSelectionRegistry.copySelectedTextFromFirstResponder(nil) {
+            return true
+        }
+
+        return NativeSelectableTextSelectionRegistry.copyActiveSelection()
     }
 
     private var sendButtonFillColor: SwiftUI.Color {
@@ -4462,7 +4613,7 @@ struct ChatView: View {
         let isResetCommand = (lower == "/new" || lower == "/reset")
 
         // Ensure scroll to bottom when user sends a message
-        shouldAutoScroll = true
+        followChatBottomFromUserAction()
 
         Task {
             await viewModel.sendChatMessage(text, attachments: files)
@@ -4505,7 +4656,7 @@ struct ChatView: View {
         deletePendingComposerMessage(message)
         inputText = message.text
         attachedFiles = message.attachments
-        shouldAutoScroll = true
+        followChatBottomFromUserAction()
         sendMessage()
     }
 
@@ -4537,21 +4688,78 @@ struct ChatView: View {
 
         inputText = next.text
         attachedFiles = next.attachments
-        shouldAutoScroll = true
+        followChatBottomFromUserAction()
         sendMessage()
     }
 
     /// Scroll chat to the latest message with animation.
-    private func scrollToBottom() {
+    private func scheduleSessionSwitchScrollToBottom() {
+        chatAutoScrollMode = .sessionJumping
+        scheduledBottomScrollGeneration += 1
+        let generation = scheduledBottomScrollGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            logScheduledBottomScroll(checkpoint: "0.05")
+            scrollToBottomIfAllowed(generation: generation)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            logScheduledBottomScroll(checkpoint: "0.25")
+            scrollToBottomIfAllowed(generation: generation)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.70) {
+            logScheduledBottomScroll(checkpoint: "0.70")
+            scrollToBottomIfAllowed(generation: generation)
+            if scheduledBottomScrollGeneration == generation,
+               chatAutoScrollMode == .sessionJumping {
+                chatAutoScrollMode = .followingBottom
+            }
+        }
+    }
+
+    private func scrollToBottomIfAllowed(generation: Int? = nil) {
+        if let generation, scheduledBottomScrollGeneration != generation { return }
+        guard chatAutoScrollMode != .userDetached else { return }
         guard let proxy = chatScrollProxy else { return }
         withAnimation(.easeOut(duration: 0.25)) {
             proxy.scrollTo("chatBottom", anchor: .bottom)
         }
     }
 
+    private func followChatBottomFromUserAction() {
+        chatAutoScrollMode = .followingBottom
+        scheduledBottomScrollGeneration += 1
+        scrollToBottomIfAllowed()
+    }
+
+    private func beginRenderObservationForCurrentSession() {
+        guard let sessionId = currentActiveSessionId else { return }
+        renderObservationStartBySession[sessionId] = ContinuousClock.now
+        chatRenderPerfLog.info("phase=session_changed session=\(sessionId.uuidString, privacy: .public) message_count=\(viewModel.chatMessages.count, privacy: .public)")
+    }
+
+    private func logChatMessagesCountChanged() {
+        guard let sessionId = currentActiveSessionId else { return }
+        if renderObservationStartBySession[sessionId] == nil {
+            renderObservationStartBySession[sessionId] = ContinuousClock.now
+        }
+        let elapsedText = renderElapsedMillisecondsText(for: sessionId)
+        chatRenderPerfLog.info("phase=messages_count_changed session=\(sessionId.uuidString, privacy: .public) message_count=\(viewModel.chatMessages.count, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
+    }
+
+    private func logScheduledBottomScroll(checkpoint: String) {
+        guard let sessionId = currentActiveSessionId else { return }
+        let elapsedText = renderElapsedMillisecondsText(for: sessionId)
+        chatRenderPerfLog.info("phase=scheduled_bottom_scroll checkpoint=\(checkpoint, privacy: .public) session=\(sessionId.uuidString, privacy: .public) message_count=\(viewModel.chatMessages.count, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
+    }
+
+    private func renderElapsedMillisecondsText(for sessionId: UUID) -> String {
+        guard let start = renderObservationStartBySession[sessionId] else { return "n/a" }
+        return dashboardElapsedMillisecondsText(since: start)
+    }
+
     private func jumpToUserMessage(_ messageId: UUID) {
         guard viewModel.chatMessages.contains(where: { $0.id == messageId && $0.role == .user }) else { return }
-        shouldAutoScroll = false
+        chatAutoScrollMode = .userDetached
+        scheduledBottomScrollGeneration += 1
         withAnimation(.easeInOut(duration: 0.24)) {
             chatScrollProxy?.scrollTo(messageId, anchor: .center)
         }
@@ -5586,29 +5794,39 @@ private struct ActivitySummaryRows: View {
         if !events.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(events) { event in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Image(systemName: event.kind.systemImage)
-                                .font(.system(size: 12, weight: .medium))
-                                .frame(width: 14)
-                            Text(event.kind.title(count: event.count))
-                                .font(.system(size: 13, weight: .regular))
-                                .lineLimit(1)
-                        }
-                        if !event.details.isEmpty {
-                            VStack(alignment: .leading, spacing: 3) {
-                                ForEach(Array(event.details.enumerated()), id: \.offset) { _, detail in
-                                    Text(detail)
-                                        .font(.system(size: 12, weight: .regular, design: .monospaced))
-                                        .lineLimit(nil)
-                                        .textSelection(.enabled)
-                                }
+                    if event.kind == .progressUpdate {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(Array(event.details.enumerated()), id: \.offset) { _, detail in
+                                Text(detail)
+                                    .font(.system(size: 14, weight: .regular))
+                                    .foregroundColor(.primary)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
-                            .padding(.leading, 22)
-                            .foregroundColor(.secondary.opacity(0.66))
                         }
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 8) {
+                                Image(systemName: event.kind.systemImage)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .frame(width: 14)
+                                Text(event.kind.title(count: event.count))
+                                    .font(.system(size: 13, weight: .regular))
+                                    .lineLimit(1)
+                            }
+                            if !event.details.isEmpty {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    ForEach(Array(event.details.enumerated()), id: \.offset) { _, detail in
+                                        Text(detail)
+                                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                                            .lineLimit(nil)
+                                    }
+                                }
+                                .padding(.leading, 22)
+                                .foregroundColor(.secondary.opacity(0.66))
+                            }
+                        }
+                        .foregroundColor(.secondary.opacity(0.72))
                     }
-                    .foregroundColor(.secondary.opacity(0.72))
                 }
             }
         }
@@ -5750,7 +5968,7 @@ struct ChatBubble: View {
                     VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 5) {
 	                        Group {
 		                            if message.role == .assistant {
-		                                AssistantMessageContentView(
+                                    AssistantMessageContentView(
                                         content: message.content,
                                         isStreaming: isStreamingState,
                                         allowsRichMarkdown: allowsRichMarkdown || isRichMarkdownActivated
@@ -5768,15 +5986,20 @@ struct ChatBubble: View {
                                 .frame(minHeight: 76)
 	                                .padding(8)
 	                                .background(isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor)
-	                                .cornerRadius(12)
+		                                .cornerRadius(12)
 	                            } else {
-		                                Text(message.content)
-		                                    .font(DashboardTypography.userMessage)
+                                    NativeSelectableMarkdownView(
+                                        content: message.content,
+                                        fullTextCopyFallback: message.content,
+                                        parsesMarkdown: false,
+                                        fontSize: 14,
+                                        lineSpacing: 2,
+                                        paragraphSpacing: 0
+                                    )
+                                        .fixedSize(horizontal: false, vertical: true)
 			                                    .padding(10)
 			                                    .background(isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor)
-		                                    .foregroundColor(.primary)
-                                    .cornerRadius(12)
-                                    .textSelection(.enabled)
+                                        .cornerRadius(12)
                             }
                         }
                         .contextMenu {
@@ -5799,7 +6022,7 @@ struct ChatBubble: View {
                                     tint: copied ? .green : .secondary,
                                     help: copied ? "已复制" : "复制",
                                     action: { performCopy(message.content) }
-                                )
+	                                )
                                 if canActivateRichMarkdown {
                                     MessageActionIcon(
                                         systemName: "doc.richtext",
@@ -5873,6 +6096,7 @@ struct ChatBubble: View {
             if message.role == .assistant { Spacer(minLength: 60) }
         }
         .onAppear {
+            logBubbleAppear()
             // Initial scan for media URLs when bubble first appears
             if message.role == .assistant && lastMediaScanContent != message.content {
                 lastMediaScanContent = message.content
@@ -5885,6 +6109,10 @@ struct ChatBubble: View {
             lastMediaScanContent = newContent
             cachedMediaURLs = ChatBubble.scanMediaURLs(in: newContent)
         }
+    }
+
+    private func logBubbleAppear() {
+        chatRenderPerfLog.info("phase=bubble_appear message=\(message.id.uuidString, privacy: .public) role=\(message.role.rawValue, privacy: .public) status=\(message.taskStatus.rawValue, privacy: .public) content_length=\(message.content.count, privacy: .public) attachment_count=\(message.attachments.count, privacy: .public) activity_count=\(message.activityEvents.count, privacy: .public) allows_rich_markdown=\(allowsRichMarkdown || isRichMarkdownActivated, privacy: .public)")
     }
 
     private var bubbleBackgroundColor: SwiftUI.Color {
@@ -6660,1120 +6888,6 @@ struct BrandTextView: View {
         }
         .font(.title2)
         .fontWeight(.bold)
-    }
-}
-
-// MARK: - Assistant Markdown Rendering
-
-private enum MarkdownRenderMode {
-    case native
-    case webView
-}
-
-private enum MarkdownRenderPolicy {
-    static let heightUpdateThreshold: CGFloat = 4
-    static let recentRichMessageLimit = 6
-
-    static func mode(for content: String, isStreaming: Bool, allowsWebView: Bool = true) -> MarkdownRenderMode {
-        if isStreaming { return .native }
-        if !allowsWebView { return .native }
-        return requiresWebView(content) ? .webView : .native
-    }
-
-    static func shouldApplyMeasuredHeight(current: CGFloat, measured: CGFloat) -> Bool {
-        abs(current - measured) >= heightUpdateThreshold
-    }
-
-    static func isComplexMarkdown(_ content: String) -> Bool {
-        requiresWebView(content)
-    }
-
-    static func recentRichMessageIds(in messages: [ChatMessage]) -> Set<UUID> {
-        var ids: Set<UUID> = []
-
-        for message in messages.reversed() {
-            guard ids.count < recentRichMessageLimit else { break }
-            guard message.role == .assistant,
-                  message.taskStatus == .completed,
-                  requiresWebView(message.content) else {
-                continue
-            }
-            ids.insert(message.id)
-        }
-
-        return ids
-    }
-
-    private static func requiresWebView(_ content: String) -> Bool {
-        containsMarkdownTable(content)
-            || containsMathSyntax(content)
-            || containsHTMLBlock(content)
-    }
-
-    private static func containsMarkdownTable(_ content: String) -> Bool {
-        let lines = content
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-
-        guard lines.count >= 2 else { return false }
-
-        for index in 0..<(lines.count - 1) {
-            let header = lines[index]
-            let separator = lines[index + 1]
-                .trimmingCharacters(in: .whitespaces)
-
-            if header.contains("|"),
-               separator.contains("|"),
-               separator.contains("-"),
-               separator.allSatisfy({ char in
-                   char == "|" || char == "-" || char == ":" || char == " "
-               }) {
-                return true
-            }
-        }
-        return false
-    }
-
-    private static func containsMathSyntax(_ content: String) -> Bool {
-        if content.contains("$$")
-            || content.contains(#"\("#)
-            || content.contains(#"\["#)
-            || content.contains(#"\begin{"#) {
-            return true
-        }
-
-        let pattern = #"(?<![A-Za-z0-9])\$[^\n$]{1,160}\$(?![A-Za-z0-9])"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return false
-        }
-        let range = NSRange(content.startIndex..<content.endIndex, in: content)
-        return regex.firstMatch(in: content, range: range) != nil
-    }
-
-    private static func containsHTMLBlock(_ content: String) -> Bool {
-        let pattern = #"<\s*(table|thead|tbody|tr|td|th|div|details|summary|img|video|audio|iframe|style|script|br|hr)\b"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
-            return false
-        }
-        let range = NSRange(content.startIndex..<content.endIndex, in: content)
-        return regex.firstMatch(in: content, range: range) != nil
-    }
-}
-
-struct AssistantMessageContentView: View {
-    let content: String
-    let isStreaming: Bool
-    let allowsRichMarkdown: Bool
-
-    init(content: String, isStreaming: Bool, allowsRichMarkdown: Bool = true) {
-        self.content = content
-        self.isStreaming = isStreaming
-        self.allowsRichMarkdown = allowsRichMarkdown
-    }
-
-    var body: some View {
-        if !isStreaming, let payload = A2UICardParser.parse(content) {
-            A2UICardView(payload: payload)
-        } else if MarkdownRenderPolicy.mode(for: content, isStreaming: isStreaming, allowsWebView: allowsRichMarkdown) == .webView {
-            SelectableMarkdownView(content: content)
-        } else {
-            Markdown(content)
-                .font(DashboardTypography.message)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-// MARK: - Native Markdown View (lightweight, no WKWebView)
-
-/// Renders markdown using SwiftUI's native AttributedString.
-/// Zero WKWebView overhead — no process spawn, no HTML parsing, no height measurement.
-struct NativeMarkdownView: View {
-    let content: String
-
-    var body: some View {
-        Text(attributedContent)
-            .font(DashboardTypography.message)
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var attributedContent: AttributedString {
-        (try? AttributedString(markdown: content, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(content)
-    }
-}
-
-// MARK: - Selectable Markdown View (WKWebView-based, used by HelpAssistantWindow)
-
-import WebKit
-
-/// Cache for rendered Markdown HTML to avoid repeated parsing during SwiftUI layout cycles.
-private let markdownHTMLCache = NSCache<NSString, NSString>()
-/// Cache for measured heights to avoid 22pt → actual height jump when LazyVStack recreates views.
-private let markdownHeightCache = NSCache<NSString, NSNumber>()
-
-/// Renders markdown as selectable rich text via WKWebView. Supports
-/// free multi-line drag-selection across paragraphs, lists and tables
-/// (HTML body carries `-webkit-user-select: text` and WebKit's native
-/// selection model handles cross-block ranges).
-///
-/// Streaming updates: `_MarkdownWebView` mutates `document.body.innerHTML`
-/// via JS on every content delta — no `loadHTMLString` reload, no flash.
-/// The 500 ms throttle the previous version had was a workaround for
-/// the reload-flash; with DOM mutations the per-update cost is small
-/// (~5–30 ms for markdown→HTML build + a single JS bridge call), so we
-/// just pipe `content` straight through and let SwiftUI's natural body
-/// re-eval rate (bounded by the upstream `sendChatMessage` throttle of
-/// ~100 ms) drive updates.
-struct SelectableMarkdownView: View {
-    let content: String
-    var onReady: (() -> Void)? = nil
-    @State private var height: CGFloat
-    @State private var isWebViewReady = false
-    @State private var pendingWebViewReadyTask: DispatchWorkItem?
-
-    init(content: String, onReady: (() -> Void)? = nil) {
-        self.content = content
-        self.onReady = onReady
-        // Use cached height to prevent 22pt → actual height jump on LazyVStack recreation
-        let heightKey = "\(content.hashValue)" as NSString
-        if let cached = markdownHeightCache.object(forKey: heightKey) {
-            _height = State(initialValue: CGFloat(cached.doubleValue))
-        } else {
-            // Estimate initial height from content length so the frame is
-            // roughly the right size before WKWebView reports its measured
-            // height. Without this estimate, the frame is locked at 22pt
-            // (one line) until the WebView's JS callback fires — and on
-            // macOS 26 we've observed that callback can stall for several
-            // seconds (or never arrive), leaving content visibly clipped
-            // to a sliver and the bubble appearing empty.
-            //
-            // Heuristic: ~60 chars per visual line, ~18pt line height,
-            // 20pt total padding. Newlines count for an extra line each.
-            // Capped at 600pt so we don't reserve a huge frame for a
-            // message that turns out to be short.
-            let lineCount = max(1, content.split(separator: "\n").count)
-            let estimatedLines = max(Double(lineCount),
-                                     ceil(Double(content.count) / 60.0))
-            // Line-height only (≈13px × 1.6 ≈ 21pt). The bubble's 10pt padding
-            // is applied OUTSIDE this view (in ChatBubble), so DON'T add it
-            // here — the old `+ 20` double-counted the padding, and when the
-            // async JS height measurement is delayed (LazyVStack rows mount at
-            // width 0), that too-tall estimate stuck and left ~16pt of phantom
-            // space below the text, pushing the action icons far away. A small
-            // +4 guards single-line wraps from a 1px clip before measurement.
-            let estimatedHeight = min(600.0, estimatedLines * 21.0 + 4.0)
-            _height = State(initialValue: CGFloat(max(21.0, estimatedHeight)))
-        }
-    }
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            if !isWebViewReady && !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                NativeMarkdownView(content: content)
-                    .opacity(0.94)
-                    .transition(.opacity)
-            }
-
-            _MarkdownWebView(
-                content: content,
-                dynamicHeight: $height,
-                onRendered: {
-                    markWebViewReadyAfterPaint()
-                    onReady?()
-                }
-            )
-            .opacity(isWebViewReady ? 1 : 0.01)
-        }
-        .frame(height: max(height, 22))
-        .onChange(of: content) { _ in
-            if !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                pendingWebViewReadyTask?.cancel()
-                isWebViewReady = false
-            }
-        }
-        .onDisappear {
-            pendingWebViewReadyTask?.cancel()
-            pendingWebViewReadyTask = nil
-        }
-            .onChange(of: height) { newHeight in
-                if newHeight > 22 {
-                    onReady?()
-                }
-            }
-    }
-
-    private func markWebViewReadyAfterPaint() {
-        pendingWebViewReadyTask?.cancel()
-        let task = DispatchWorkItem {
-            if !isWebViewReady {
-                withAnimation(.easeInOut(duration: 0.12)) {
-                    isWebViewReady = true
-                }
-            }
-        }
-        pendingWebViewReadyTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03, execute: task)
-    }
-}
-
-/// WKWebView subclass that forwards scroll events to the parent view,
-/// allowing the outer SwiftUI ScrollView to handle page scrolling.
-private class ScrollThroughWebView: WKWebView {
-    /// Called when the view's width changes (throttled), for height re-measurement.
-    var onResize: (() -> Void)?
-    private var resizeWorkItem: DispatchWorkItem?
-
-    override func scrollWheel(with event: NSEvent) {
-        nextResponder?.scrollWheel(with: event)
-    }
-
-    override func setFrameSize(_ newSize: NSSize) {
-        let oldWidth = frame.size.width
-        super.setFrameSize(newSize)
-        // Only trigger on width changes (height is managed by dynamicHeight binding)
-        if abs(newSize.width - oldWidth) > 1 {
-            resizeWorkItem?.cancel()
-            let item = DispatchWorkItem { [weak self] in
-                self?.onResize?()
-            }
-            resizeWorkItem = item
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: item)
-        }
-    }
-}
-
-private struct _MarkdownWebView: NSViewRepresentable {
-    let content: String
-    @Binding var dynamicHeight: CGFloat
-    var onRendered: (() -> Void)? = nil
-    @Environment(\.colorScheme) private var colorScheme
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(dynamicHeight: $dynamicHeight, onRendered: onRendered)
-    }
-
-    func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.userContentController.add(context.coordinator, name: "rendered")
-        let webView = ScrollThroughWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = context.coordinator
-        webView.setValue(false, forKey: "drawsBackground")
-
-        // Wire resize callback to re-measure height when window width changes
-        webView.onResize = { [weak webView, weak coordinator = context.coordinator] in
-            guard let webView = webView, let coordinator = coordinator else { return }
-            coordinator.remeasureHeight(webView: webView)
-        }
-
-        let isDark = (colorScheme == .dark)
-
-        // Always paint the full HTML envelope (CSS + MathJax + body) on
-        // first mount — synchronously, no transparent shell, no async
-        // round trip. This gives the WKWebView a complete styled
-        // document immediately. Every subsequent content delta updates
-        // the body via JS DOM mutation (see `updateNSView` →
-        // `Coordinator.injectBodyHTML`), so we never reload the page,
-        // never flash, and never see the "blank then re-render" the
-        // previous loadHTMLString-on-every-update path produced.
-        //
-        // For empty starting content (streaming placeholder before the
-        // first delta), `MarkdownHTML.buildHTML("")` is essentially the
-        // envelope alone — cheap to build, fine to display as an empty
-        // bubble for the brief moment before the first delta arrives.
-        let contentHash = content.hashValue
-        let cacheKey = "\(isDark ? "d" : "l"):\(contentHash)" as NSString
-        let html: String
-        if let cachedHTML = markdownHTMLCache.object(forKey: cacheKey) {
-            html = cachedHTML as String
-        } else {
-            html = MarkdownHTML.buildHTML(content, isDark: isDark)
-            markdownHTMLCache.setObject(html as NSString, forKey: cacheKey)
-        }
-        context.coordinator.lastSource = content
-        if !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            context.coordinator.lastRenderedNonEmptySource = content
-        }
-        context.coordinator.lastIsDark = isDark
-        webView.loadHTMLString(html, baseURL: nil)
-        return webView
-    }
-
-    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
-        nsView.configuration.userContentController.removeScriptMessageHandler(forName: "rendered")
-    }
-
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        let isDark = (colorScheme == .dark)
-        let coordinator = context.coordinator
-        coordinator.onRendered = onRendered
-
-        // Bail when nothing meaningful changed (SwiftUI re-evaluates
-        // bodies aggressively).
-        guard content != coordinator.lastSource || isDark != coordinator.lastIsDark else { return }
-
-        // Theme change requires a full reload — the CSS (text color,
-        // borders, code background) is embedded in the HTML <style>
-        // block, not driven by CSS variables. Rare event (user toggling
-        // system appearance); a momentary reload-flash is acceptable.
-        let isThemeChange = (isDark != coordinator.lastIsDark)
-        coordinator.lastSource = content
-        coordinator.lastIsDark = isDark
-        coordinator.buildGeneration += 1
-        let myGen = coordinator.buildGeneration
-        let currentContent = content
-
-        coordinator.buildQueue.async { [weak coordinator] in
-            guard let coordinator = coordinator else { return }
-            if myGen != coordinator.buildGeneration { return }
-
-            let contentHash = currentContent.hashValue
-            let cacheKey = "\(isDark ? "d" : "l"):\(contentHash)" as NSString
-
-            if isThemeChange {
-                // Build (or fetch) full HTML, reload entire page.
-                let html: String
-                if let cached = markdownHTMLCache.object(forKey: cacheKey) {
-                    html = cached as String
-                } else {
-                    html = MarkdownHTML.buildHTML(currentContent, isDark: isDark)
-                    markdownHTMLCache.setObject(html as NSString, forKey: cacheKey)
-                }
-                DispatchQueue.main.async {
-                    if myGen != coordinator.buildGeneration { return }
-                    coordinator.isPageLoaded = false
-                    coordinator.pendingBodyHTML = nil
-                    webView.loadHTMLString(html, baseURL: nil)
-                }
-                return
-            }
-
-            let shouldPreserveRenderedContent = currentContent
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .isEmpty && !coordinator.lastRenderedNonEmptySource.isEmpty
-            if shouldPreserveRenderedContent {
-                return
-            }
-
-            // Content-only delta. Build just the <body> innards and
-            // poke them into the live document via JS. No navigation,
-            // no parse-from-scratch, no flash. CSS / MathJax / scripts
-            // stay loaded.
-            let bodyHTML = MarkdownHTML.convertMarkdown(currentContent)
-
-            // Keep the full-HTML cache warm too, so a future cold mount
-            // (LazyVStack recycling, theme toggle and back, etc.) hits
-            // the sync path in `makeNSView`.
-            if markdownHTMLCache.object(forKey: cacheKey) == nil {
-                let fullHTML = MarkdownHTML.buildHTML(currentContent, isDark: isDark)
-                markdownHTMLCache.setObject(fullHTML as NSString, forKey: cacheKey)
-            }
-
-            DispatchQueue.main.async { [weak coordinator] in
-                guard let coordinator = coordinator else { return }
-                if myGen != coordinator.buildGeneration { return }
-
-                if !coordinator.isPageLoaded {
-                    // Initial navigation from makeNSView still in flight.
-                    // Stash; `didFinish` will inject when ready.
-                    coordinator.pendingBodyHTML = bodyHTML
-                    return
-                }
-                coordinator.injectBodyHTML(bodyHTML, into: webView) {
-                    coordinator.remeasureHeight(webView: webView)
-                }
-            }
-        }
-    }
-
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        var lastSource: String = ""
-        var lastIsDark: Bool = false
-        /// Serial queue ensures only one buildHTML runs at a time
-        let buildQueue = DispatchQueue(label: "markdown.build", qos: .utility)
-        /// Incremented on each loadHTML call; stale builds check this to skip work
-        var buildGeneration: Int = 0
-        /// Last non-empty markdown source that reached the WebView. Used to
-        /// avoid replacing visible content with a transient empty body while
-        /// SwiftUI is recycling rows or a session switch is still loading.
-        var lastRenderedNonEmptySource: String = ""
-        /// True once the WKWebView has finished its initial navigation —
-        /// only then are JS DOM mutations safe to evaluate. Updates that
-        /// arrive before this flips are stashed in `pendingBodyHTML` and
-        /// flushed by `webView(_:didFinish:)`.
-        var isPageLoaded: Bool = false
-        /// Latest body-HTML waiting on the first navigation to finish.
-        /// Always holds the freshest value; older stashes are overwritten.
-        var pendingBodyHTML: String?
-        var onRendered: (() -> Void)?
-        private var paintNotificationGeneration = 0
-        private var dynamicHeight: Binding<CGFloat>
-
-        init(dynamicHeight: Binding<CGFloat>, onRendered: (() -> Void)?) {
-            self.dynamicHeight = dynamicHeight
-            self.onRendered = onRendered
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            isPageLoaded = true
-            if let pending = pendingBodyHTML {
-                pendingBodyHTML = nil
-                injectBodyHTML(pending, into: webView) { [weak self] in
-                    self?.measureHeight(webView: webView, attempt: 0)
-                }
-            } else {
-                measureHeight(webView: webView, attempt: 0)
-            }
-        }
-
-        /// Replace `document.body.innerHTML` with `bodyHTML` and re-run
-        /// MathJax typesetting. Body HTML is shipped over the JS bridge
-        /// as a JSON-encoded array element so all escaping (quotes,
-        /// backslashes, newlines, unicode) is handled by Foundation —
-        /// no fragile manual string mangling.
-        func injectBodyHTML(_ bodyHTML: String, into webView: WKWebView, completion: (() -> Void)? = nil) {
-            guard let data = try? JSONSerialization.data(withJSONObject: [bodyHTML]),
-                  let jsonStr = String(data: data, encoding: .utf8) else {
-                completion?()
-                return
-            }
-            let js = """
-            (function() {
-                var arr = \(jsonStr);
-                document.body.innerHTML = arr[0];
-                if (window.MathJax && window.MathJax.typesetPromise) {
-                    window.MathJax.typesetPromise([document.body]).catch(function(){});
-                }
-            })();
-            """
-            webView.evaluateJavaScript(js) { _, _ in
-                completion?()
-            }
-        }
-
-        /// Measure content height, retrying if the WKWebView hasn't received
-        /// its layout width yet (which would produce an inflated height).
-        private func measureHeight(webView: WKWebView, attempt: Int) {
-            // Retry until the WebView reports a real layout width. LazyVStack
-            // rows can mount at width 0, and WebKit's body.clientWidth lags the
-            // native frame by a few runloop ticks. The old code gave up after
-            // 2 tries — if width was still 0 then, the (too-tall) estimate
-            // stuck forever, leaving phantom space below the text and pushing
-            // the action icons far from the message. Retry ~12× over ~2.4s so a
-            // freshly-scrolled-in bubble always converges to its true height.
-            let maxAttempts = 12
-            guard attempt < maxAttempts else { return }
-            let delay: TimeInterval = attempt == 0 ? 0.05 : 0.2
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                guard let self = self else { return }
-                self.evaluateHeight(webView: webView) { newHeight, width in
-                    if width > 10 {
-                        self.applyHeight(newHeight)
-                        self.notifyRenderedAfterPaint(webView: webView)
-                    } else {
-                        // Width still ~0, layout not ready — keep retrying.
-                        self.measureHeight(webView: webView, attempt: attempt + 1)
-                    }
-                }
-            }
-        }
-
-        /// Re-measure height (called on width change / scroll-in). Delegates to
-        /// the retrying measureHeight so a width-0 mount still converges.
-        func remeasureHeight(webView: WKWebView) {
-            measureHeight(webView: webView, attempt: 0)
-        }
-
-        private func evaluateHeight(webView: WKWebView, completion: @escaping (CGFloat, CGFloat) -> Void) {
-            let js = "JSON.stringify({h:Math.ceil(document.body.scrollHeight),w:document.body.clientWidth})"
-            webView.evaluateJavaScript(js) { result, _ in
-                guard let jsonStr = result as? String,
-                      let data = jsonStr.data(using: .utf8),
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let h = json["h"] as? CGFloat,
-                      let w = json["w"] as? CGFloat, h > 0 else { return }
-                DispatchQueue.main.async {
-                    // +1 guards against sub-pixel scrollHeight under-report
-                    // without leaving a visible gap below the text (was +4).
-                    completion(h + 1, w)
-                }
-            }
-        }
-
-        private func applyHeight(_ newHeight: CGFloat) {
-            // Only update if height actually changed to avoid SwiftUI re-render loop
-            if MarkdownRenderPolicy.shouldApplyMeasuredHeight(current: dynamicHeight.wrappedValue, measured: newHeight) {
-                dynamicHeight.wrappedValue = newHeight
-            }
-            if !lastSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                lastRenderedNonEmptySource = lastSource
-            }
-            // Cache height for LazyVStack recreation
-            let heightKey = "\(lastSource.hashValue)" as NSString
-            markdownHeightCache.setObject(NSNumber(value: Double(newHeight)), forKey: heightKey)
-        }
-
-        func notifyRenderedAfterPaint(webView: WKWebView) {
-            paintNotificationGeneration += 1
-            let generation = paintNotificationGeneration
-            let js = """
-            (function() {
-                var generation = \(generation);
-                var notify = function() {
-                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.rendered) {
-                        window.webkit.messageHandlers.rendered.postMessage(generation);
-                    }
-                };
-                if (window.requestAnimationFrame) {
-                    window.requestAnimationFrame(function() {
-                        window.requestAnimationFrame(notify);
-                    });
-                } else {
-                    window.setTimeout(notify, 32);
-                }
-            })();
-            """
-            webView.evaluateJavaScript(js, completionHandler: nil)
-        }
-
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.name == "rendered",
-                  let generation = message.body as? NSNumber,
-                  generation.intValue == paintNotificationGeneration else {
-                return
-            }
-            onRendered?()
-        }
-
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            if navigationAction.navigationType == .linkActivated, let url = navigationAction.request.url {
-                NSWorkspace.shared.open(url)
-                decisionHandler(.cancel)
-            } else {
-                decisionHandler(.allow)
-            }
-        }
-    }
-}
-
-// MARK: - Markdown → HTML
-
-enum MarkdownHTML {
-    // MARK: - Cached Regex Patterns (Performance optimization)
-
-    /// Cached regex for display math patterns ($$...$$)
-    private static let displayMathRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "\\$\\$([\\s\\S]*?)\\$\\$")
-    }()
-
-    /// Cached regex for image markdown ![alt](url)
-    private static let imageRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)")
-    }()
-
-    /// Cached regex for link markdown [text](url)
-    private static let linkRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "\\[([^\\]]+)\\]\\(([^)]+)\\)")
-    }()
-
-    /// Cached regex for bold **text** or __text__
-    private static let boldAsteriskRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*")
-    }()
-
-    private static let boldUnderscoreRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "__(.+?)__")
-    }()
-
-    /// Cached regex for italic *text* or _text_
-    private static let italicAsteriskRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)")
-    }()
-
-    private static let italicUnderscoreRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "(?<![\\w])_(.+?)_(?![\\w])")
-    }()
-
-    /// Cached regex for strikethrough ~~text~~
-    private static let strikethroughRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "~~(.+?)~~")
-    }()
-
-    /// Cached regex for inline code `text`
-    private static let inlineCodeRegex: NSRegularExpression? = {
-        try? NSRegularExpression(pattern: "`([^`]+)`")
-    }()
-
-    static func buildHTML(_ markdown: String, isDark: Bool) -> String {
-        let textColor = isDark ? "#e0e0e0" : "#1d1d1f"
-        let codeBg = isDark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.10)"
-        let borderColor = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"
-        let tableBg = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"
-        let blockquoteBorder = isDark ? "#555" : "#ccc"
-        let blockquoteColor = isDark ? "#aaa" : "#666"
-        let linkColor = isDark ? "#6cb6ff" : "#0366d6"
-
-        let body = convertMarkdown(markdown)
-
-        return """
-        <html><head><meta charset='utf-8'>
-        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-        <script>
-        window.MathJax = {
-            tex: {
-                // Inline math uses LaTeX-style \\( ... \\) ONLY — never single
-                // '$'. Customer-support content is full of currency ("$5",
-                // "$5 ... $10 discount"), and treating '$' as an inline-math
-                // delimiter made MathJax parse the text between two dollar
-                // signs as a formula — e.g. it hit a literal '#' and rendered
-                // the red error "You can't use 'macro parameter character #'
-                // in math mode" right in the chat bubble. \\( ... \\) never
-                // collides with natural text.
-                inlineMath: [['\\\\(', '\\\\)']],
-                displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-                processEscapes: true
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
-        </script>
-        <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { background: transparent; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-            font-size: 15px; color: \(textColor); line-height: 1.55;
-            -webkit-user-select: text; cursor: text;
-            word-wrap: break-word; overflow-wrap: break-word;
-            overflow: hidden;
-        }
-        /* Hug the content: strip the first/last block's outer margins so the
-           measured WebView height matches the text exactly. Without this the
-           leading/trailing <p> margins (+ body padding) left phantom whitespace
-           inside the bubble, pushing the action icons far below the message. */
-        body > :first-child { margin-top: 0 !important; }
-        body > :last-child { margin-bottom: 0 !important; }
-        h1 { font-size: 20px; font-weight: 700; margin: 12px 0 6px; }
-        h2 { font-size: 17px; font-weight: 700; margin: 10px 0 5px; }
-        h3 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }
-        h4, h5, h6 { font-size: 14px; font-weight: 600; margin: 6px 0 3px; }
-        p { margin: 6px 0; }
-        code {
-            font-family: Menlo, Monaco, monospace; font-size: 13px;
-            background: \(codeBg); padding: 1px 4px; border-radius: 3px;
-        }
-        pre {
-            background: \(codeBg); padding: 10px; border-radius: 6px;
-            overflow-x: auto; margin: 8px 0;
-        }
-        pre code { background: none; padding: 0; }
-        table { border-collapse: collapse; margin: 8px 0; }
-        th, td { border: 1px solid \(borderColor); padding: 5px 10px; text-align: left; font-size: 15px; line-height: 1.55; }
-        th { font-weight: 600; }
-        tr:nth-child(even) { background: \(tableBg); }
-        blockquote {
-            border-left: 3px solid \(blockquoteBorder);
-            margin: 6px 0; padding: 2px 10px; color: \(blockquoteColor);
-        }
-        a { color: \(linkColor); text-decoration: none; }
-        ul, ol { padding-left: 20px; margin: 4px 0; }
-        li { margin: 2px 0; }
-        hr { border: none; border-top: 1px solid \(borderColor); margin: 10px 0; }
-        img { max-width: 100%; }
-        .math-formula { margin: 8px 0; }
-        </style></head><body>\(body)</body></html>
-        """
-    }
-
-    // MARK: - Markdown → HTML conversion
-
-    static func convertMarkdown(_ markdown: String) -> String {
-        // Extract & preserve display-math blocks ($$...$$) so markdown
-        // inline processing doesn't mangle their contents (e.g. `a_b`
-        // becoming italic). We deliberately DO NOT extract single-'$'
-        // inline math — '$' is currency in customer-support content, and
-        // protecting/round-tripping "$5 ... $10" as a formula is exactly
-        // what produced the MathJax "macro parameter character #" error.
-        // Real inline math is delimited \\( ... \\) (see the MathJax
-        // config in buildHTML) and needs no markdown protection.
-        var processedMarkdown = markdown
-        var mathPlaceholders: [String: String] = [:]
-        var mathCounter = 0
-
-        // Extract display math blocks ($$...$$) first
-        if let regex = displayMathRegex {
-            let nsString = processedMarkdown as NSString
-            let matches = regex.matches(in: processedMarkdown, range: NSRange(location: 0, length: nsString.length))
-            for match in matches.reversed() {
-                if let mathRange = Range(match.range, in: processedMarkdown) {
-                    let placeholder = ":MATHDISPLAY\(mathCounter):"
-                    let formula = String(processedMarkdown[mathRange])
-                    mathPlaceholders[placeholder] = formula
-                    processedMarkdown.replaceSubrange(mathRange, with: placeholder)
-                    mathCounter += 1
-                }
-            }
-        }
-
-        let lines = processedMarkdown.components(separatedBy: "\n")
-        // Pre-trim all lines once to avoid repeated trimming in inner loops
-        let trimmedLines = lines.map { fastTrim($0) }
-        var html = ""
-        var i = 0
-
-        while i < lines.count {
-            let line = lines[i]
-            let trimmed = trimmedLines[i]
-
-            // Code block
-            if startsWithBytes(trimmed, 0x60, 0x60, 0x60) { // ```
-                var codeContent = ""
-                var closed = false
-                i += 1
-                while i < lines.count {
-                    let codeLine = lines[i]
-                    if startsWithBytes(trimmedLines[i], 0x60, 0x60, 0x60) { // ```
-                        i += 1
-                        closed = true
-                        break
-                    }
-                    if !codeContent.isEmpty { codeContent += "\n" }
-                    codeContent += codeLine
-                    i += 1
-                }
-                html += "<pre><code>\(escapeHTML(codeContent))</code></pre>"
-                // If unclosed, remaining lines were consumed — content is already in codeContent
-                continue
-            }
-
-            // Empty line
-            if trimmed.isEmpty {
-                i += 1
-                continue
-            }
-
-            // Table: starts with | and contains |
-            if startsWithByte(trimmed, 0x7C) && trimmed.contains("|") { // |
-                var tableLines: [String] = []
-                while i < lines.count {
-                    let tl = trimmedLines[i]
-                    if startsWithByte(tl, 0x7C) && tl.contains("|") {
-                        tableLines.append(tl)
-                        i += 1
-                    } else {
-                        break
-                    }
-                }
-                html += renderTable(tableLines)
-                continue
-            }
-
-            // Heading: # to ######
-            if startsWithByte(trimmed, 0x23) { // #
-                // Fast UTF-8 scan: count '#' then expect space
-                var hashCount = 0
-                let tUtf8 = trimmed.utf8
-                var hIdx = tUtf8.startIndex
-                while hIdx < tUtf8.endIndex && tUtf8[hIdx] == 0x23 { // '#'
-                    hashCount += 1
-                    hIdx = tUtf8.index(after: hIdx)
-                }
-                if hashCount >= 1 && hashCount <= 6 && hIdx < tUtf8.endIndex && tUtf8[hIdx] == 0x20 {
-                    let headingText = String(trimmed[trimmed.index(trimmed.startIndex, offsetBy: hashCount + 1)...])
-                    html += "<h\(hashCount)>\(processInline(headingText, mathPlaceholders: mathPlaceholders))</h\(hashCount)>"
-                    i += 1
-                    continue
-                }
-            }
-
-            // Horizontal rule — require only dashes/stars/underscores + spaces, at least 3 chars
-            if trimmed.utf8.count >= 3 && isHorizontalRule(trimmed) {
-                html += "<hr>"
-                i += 1
-                continue
-            }
-
-            // Blockquote
-            if startsWithByte(trimmed, 0x3E) { // >
-                var quoteLines: [String] = []
-                while i < lines.count {
-                    let ql = trimmedLines[i]
-                    if ql.hasPrefix("> ") {
-                        quoteLines.append(String(ql.dropFirst(2)))
-                        i += 1
-                    } else if ql == ">" {
-                        quoteLines.append("")
-                        i += 1
-                    } else if ql.hasPrefix(">") {
-                        // Handle >text without space after >
-                        quoteLines.append(String(ql.dropFirst(1)))
-                        i += 1
-                    } else {
-                        break
-                    }
-                }
-                html += "<blockquote>\(quoteLines.map { processInline($0, mathPlaceholders: mathPlaceholders) }.joined(separator: "<br>"))</blockquote>"
-                continue
-            }
-
-            // Unordered list
-            if isUnorderedListItem(trimmed) {
-                html += "<ul>"
-                while i < lines.count {
-                    let li = trimmedLines[i]
-                    if isUnorderedListItem(li) {
-                        html += "<li>\(processInline(String(li.dropFirst(2)), mathPlaceholders: mathPlaceholders))</li>"
-                        i += 1
-                    } else {
-                        break
-                    }
-                }
-                html += "</ul>"
-                continue
-            }
-
-            // Ordered list
-            if isOrderedListItem(trimmed) {
-                html += "<ol>"
-                while i < lines.count {
-                    let li = trimmedLines[i]
-                    if let content = orderedListContent(li) {
-                        html += "<li>\(processInline(content, mathPlaceholders: mathPlaceholders))</li>"
-                        i += 1
-                    } else {
-                        break
-                    }
-                }
-                html += "</ol>"
-                continue
-            }
-
-            // Regular paragraph — collect consecutive non-special lines
-            var paraLines: [String] = []
-            while i < lines.count {
-                let pl = trimmedLines[i]
-                if pl.isEmpty || startsWithBytes(pl, 0x60, 0x60, 0x60) || startsWithByte(pl, 0x23)
-                    || startsWithByte(pl, 0x7C) || startsWithByte(pl, 0x3E)
-                    || isUnorderedListItem(pl) || isOrderedListItem(pl)
-                    || isHorizontalRule(pl) {
-                    break
-                }
-                paraLines.append(processInline(pl, mathPlaceholders: mathPlaceholders))
-                i += 1
-            }
-            if !paraLines.isEmpty {
-                html += "<p>\(paraLines.joined(separator: "<br>"))</p>"
-            } else {
-                // Safety: if no pattern matched and paragraph collector didn't consume the line,
-                // skip it to prevent infinite loop (e.g., a lone "#" without heading text)
-                i += 1
-            }
-        }
-
-        // Restore all math placeholders
-        for (placeholder, formula) in mathPlaceholders {
-            html = html.replacingOccurrences(of: placeholder, with: formula)
-        }
-
-        return html
-    }
-
-    // MARK: - Helpers
-
-    /// Fast check if string starts with given ASCII byte. Uses withCString for zero generic overhead.
-    @inline(__always)
-    private static func startsWithByte(_ s: String, _ byte: UInt8) -> Bool {
-        return s.withCString { ptr in
-            UInt8(bitPattern: ptr[0]) == byte
-        }
-    }
-
-    /// Fast check if string starts with given ASCII bytes. Uses withCString for zero generic overhead.
-    @inline(__always)
-    private static func startsWithBytes(_ s: String, _ b0: UInt8, _ b1: UInt8, _ b2: UInt8) -> Bool {
-        return s.withCString { ptr in
-            UInt8(bitPattern: ptr[0]) == b0 && UInt8(bitPattern: ptr[1]) == b1 && UInt8(bitPattern: ptr[2]) == b2
-        }
-    }
-
-    /// Fast whitespace trim using direct UTF-8 byte access.
-    /// Avoids CFCharacterSetIsLongCharacterMember and generic iterator/subscript overhead in -Onone.
-    /// Only trims ASCII whitespace which matches Markdown semantics.
-    private static func fastTrim(_ s: String) -> String {
-        // Use withUTF8 for direct pointer access — zero overhead, no generic dispatch
-        return s.withCString { cstr -> String in
-            var len = 0
-            while cstr[len] != 0 { len += 1 }
-            guard len > 0 else { return "" }
-            var lo = 0
-            var hi = len - 1
-            while lo <= hi {
-                let b = UInt8(bitPattern: cstr[lo])
-                if b == 0x20 || b == 0x09 || b == 0x0A || b == 0x0D { lo += 1 }
-                else { break }
-            }
-            guard lo <= hi else { return "" }
-            while hi > lo {
-                let b = UInt8(bitPattern: cstr[hi])
-                if b == 0x20 || b == 0x09 || b == 0x0A || b == 0x0D { hi -= 1 }
-                else { break }
-            }
-            if lo == 0 && hi == len - 1 { return s }
-            let buf = UnsafeBufferPointer(
-                start: UnsafeRawPointer(cstr.advanced(by: lo))
-                    .assumingMemoryBound(to: UInt8.self),
-                count: hi - lo + 1
-            )
-            return String(decoding: buf, as: UTF8.self)
-        }
-    }
-
-    private static func isHorizontalRule(_ s: String) -> Bool {
-        return s.withCString { ptr in
-            var dashes = 0, stars = 0, underscores = 0
-            var i = 0
-            while ptr[i] != 0 {
-                let b = UInt8(bitPattern: ptr[i])
-                switch b {
-                case 0x2D: dashes += 1
-                case 0x2A: stars += 1
-                case 0x5F: underscores += 1
-                case 0x20: break
-                default: return false
-                }
-                i += 1
-            }
-            let total = dashes + stars + underscores
-            return total >= 3 && (dashes == total || stars == total || underscores == total)
-        }
-    }
-
-    private static func isUnorderedListItem(_ s: String) -> Bool {
-        return s.withCString { ptr in
-            let first = UInt8(bitPattern: ptr[0])
-            let second = UInt8(bitPattern: ptr[1])
-            return second == 0x20 && (first == 0x2D || first == 0x2A || first == 0x2B)
-        }
-    }
-
-    private static func isOrderedListItem(_ s: String) -> Bool {
-        return s.withCString { ptr in
-            var i = 0
-            var digitCount = 0
-            while ptr[i] != 0 {
-                let b = UInt8(bitPattern: ptr[i])
-                if b >= 0x30 && b <= 0x39 {
-                    digitCount += 1; i += 1
-                } else if b == 0x2E && digitCount > 0 {
-                    return UInt8(bitPattern: ptr[i + 1]) == 0x20
-                } else {
-                    return false
-                }
-            }
-            return false
-        }
-    }
-
-    private static func orderedListContent(_ s: String) -> String? {
-        return s.withCString { ptr in
-            var i = 0
-            var digitCount = 0
-            while ptr[i] != 0 {
-                let b = UInt8(bitPattern: ptr[i])
-                if b >= 0x30 && b <= 0x39 {
-                    digitCount += 1; i += 1
-                } else if b == 0x2E && digitCount > 0 {
-                    guard UInt8(bitPattern: ptr[i + 1]) == 0x20 else { return nil }
-                    // Return content after "N. "
-                    return String(cString: ptr.advanced(by: i + 2))
-                } else {
-                    return nil
-                }
-            }
-            return nil
-        }
-    }
-
-    private static func renderTable(_ lines: [String]) -> String {
-        guard !lines.isEmpty else { return "" }
-        var html = "<table>"
-        var headerDone = false
-        for line in lines {
-            let inner = line.trimmingCharacters(in: CharacterSet(charactersIn: "|"))
-            let cells = inner.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
-            // Check if separator row
-            let isSeparator = cells.allSatisfy { cell in
-                let stripped = cell.trimmingCharacters(in: CharacterSet(charactersIn: ":- "))
-                return stripped.isEmpty && !cell.isEmpty
-            }
-            if isSeparator {
-                headerDone = true
-                continue
-            }
-            let tag = !headerDone ? "th" : "td"
-            html += "<tr>" + cells.map { "<\(tag)>\(processInline($0))</\(tag)>" }.joined() + "</tr>"
-        }
-        html += "</table>"
-        return html
-    }
-
-    // MARK: - Inline markdown processing
-
-    private static func processInline(_ text: String, mathPlaceholders: [String: String] = [:]) -> String {
-        var result = escapeHTML(text)
-        // Fast path: skip regex if no markdown-related characters present
-        let hasMarkdownChars = result.utf8.contains(where: { byte in
-            byte == 0x5B    // '['  (links/images)
-            || byte == 0x2A // '*'  (bold/italic)
-            || byte == 0x5F // '_'  (bold/italic)
-            || byte == 0x7E // '~'  (strikethrough)
-            || byte == 0x60 // '`'  (inline code)
-            || byte == 0x21 // '!'  (images)
-        })
-        guard hasMarkdownChars else { return result }
-        // Images ![alt](url)
-        if let regex = imageRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<img src=\"$2\" alt=\"$1\">")
-        }
-        // Links [text](url)
-        if let regex = linkRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<a href=\"$2\">$1</a>")
-        }
-        // Bold **text**
-        if let regex = boldAsteriskRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<strong>$1</strong>")
-        }
-        // Bold __text__
-        if let regex = boldUnderscoreRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<strong>$1</strong>")
-        }
-        // Italic *text*
-        if let regex = italicAsteriskRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<em>$1</em>")
-        }
-        // Italic _text_
-        if let regex = italicUnderscoreRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<em>$1</em>")
-        }
-        // Strikethrough ~~text~~
-        if let regex = strikethroughRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<s>$1</s>")
-        }
-        // Inline code `text`
-        if let regex = inlineCodeRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "<code>$1</code>")
-        }
-        return result
-    }
-
-    private static func escapeHTML(_ text: String) -> String {
-        text.replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
     }
 }
 
@@ -10781,136 +9895,6 @@ struct SessionDetailsPanel: View {
         let s = Int(seconds) % 60
         return String(format: "%02d:%02d:%02d", h, m, s)
     }
-}
-
-private struct SessionTitlePopoverView: View {
-    let sessionId: UUID?
-    let title: String
-    let messages: [ChatMessage]
-    @Binding var isFlyoutPresented: Bool
-    @Binding var isTitleHovering: Bool
-    let onFrameChange: (CGRect) -> Void
-    let onHoverChange: (Bool) -> Void
-
-    var body: some View {
-        Text(title)
-            .font(.system(size: 16, weight: .semibold))
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .frame(maxWidth: 320, alignment: .leading)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.secondary.opacity(isTitleHovering || isFlyoutPresented ? 0.14 : 0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.secondary.opacity(isTitleHovering || isFlyoutPresented ? 0.22 : 0.12), lineWidth: 1)
-            )
-            .contentShape(Rectangle())
-            .background(
-                SessionTitleFrameReporter(onFrameChange: onFrameChange)
-            )
-            .onHover { hovering in
-                isTitleHovering = hovering
-                onHoverChange(hovering)
-            }
-    }
-}
-
-private struct SessionTitleFrameReporter: View {
-    let onFrameChange: (CGRect) -> Void
-
-    var body: some View {
-        GeometryReader { proxy in
-            let frame = proxy.frame(in: .global)
-            Color.clear
-                .onAppear {
-                    report(frame)
-                }
-                .onChange(of: frame) { newFrame in
-                    report(newFrame)
-                }
-        }
-    }
-
-    private func report(_ frame: CGRect) {
-        DispatchQueue.main.async {
-            onFrameChange(frame)
-        }
-    }
-}
-
-private struct SessionTitleUserMessagesFlyoutContent: View {
-    let messages: [ChatMessage]
-    let onTapMessage: (ChatMessage) -> Void
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(messages) { message in
-                    Button {
-                        onTapMessage(message)
-                    } label: {
-                        SessionTitleUserMessageRow(message: message)
-                    }
-                    .buttonStyle(.plain)
-
-                    if message.id != messages.last?.id {
-                        Divider()
-                            .padding(.leading, 12)
-                    }
-                }
-            }
-            .padding(.vertical, 6)
-        }
-        .frame(maxHeight: 320)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.secondary.opacity(0.16), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.18), radius: 18, x: 0, y: 10)
-    }
-}
-
-private struct SessionTitleUserMessageRow: View {
-    let message: ChatMessage
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let timestamp = message.timestamp {
-                Text(Self.timestampFormatter.string(from: timestamp))
-                    .font(DashboardTypography.messageMeta)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(messagePreview)
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-    }
-
-    private var messagePreview: String {
-        let trimmed = message.content
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Empty message" : trimmed
-    }
-
-    private static let timestampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        return formatter
-    }()
 }
 
 // MARK: - Input Mode Picker (above the chat input area)

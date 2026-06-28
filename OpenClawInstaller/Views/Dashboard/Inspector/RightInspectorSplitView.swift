@@ -87,6 +87,7 @@ private final class RightInspectorSplitController: NSViewController {
     private var onSidebarCollapseFinished: (() -> Void)?
     private var lastExpandRequestID = 0
     private var lastCollapseRequestID = 0
+    private let layoutEpsilon: CGFloat = 0.5
 
     override func loadView() {
         view = NSView()
@@ -269,7 +270,9 @@ private final class RightInspectorSplitController: NSViewController {
         let targetWidth = isSidebarExpanded ? resolvedSidebarWidth() : 0
         guard animated else {
             invalidateSidebarAnimation()
-            setSidebarWidth(targetWidth)
+            if !isSidebarWidthApplied(targetWidth) {
+                setSidebarWidth(targetWidth)
+            }
             completion?()
             return
         }
@@ -291,11 +294,25 @@ private final class RightInspectorSplitController: NSViewController {
 
     private func setSidebarWidth(_ width: CGFloat) {
         let clampedWidth = max(0, width)
+        guard !isSidebarWidthApplied(clampedWidth) else { return }
         sidebarWidthConstraint?.constant = clampedWidth
         if clampedWidth > 0 {
             sidebarContentWidthConstraint?.constant = clampedWidth
         }
         view.layoutSubtreeIfNeeded()
+    }
+
+    private func isSidebarWidthApplied(_ width: CGFloat) -> Bool {
+        let targetWidth = max(0, width)
+        let railWidth = sidebarWidthConstraint?.constant ?? 0
+        guard abs(railWidth - targetWidth) <= layoutEpsilon else { return false }
+
+        if targetWidth > 0 {
+            let contentWidth = sidebarContentWidthConstraint?.constant ?? 0
+            return abs(contentWidth - targetWidth) <= layoutEpsilon
+        }
+
+        return true
     }
 
     private func invalidateSidebarAnimation() {

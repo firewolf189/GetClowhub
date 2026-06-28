@@ -679,25 +679,11 @@ class GatewayClient: ObservableObject {
             "operator.pairing",
         ]
 
-        // Build auth payload — match reference client's `selectConnectAuth`
-        // (client-CqZRDXHX.js:585-610) precedence exactly. Critical detail
-        // discovered after preview-58 crashed with "device signature invalid":
-        //
-        //   The persisted per-device token goes into `auth.token`, NOT into
-        //   `auth.deviceToken` (which is reserved for a specific retry case).
-        //
-        // Server-side signature verification (message-handler-BQfKyLEV.js:402
-        // `resolveSignatureToken`) reconstructs the verify payload using:
-        //   `auth.token ?? auth.deviceToken ?? auth.bootstrapToken`
-        // — i.e. whichever slot has a value, in that order. So whatever we
-        // put in `auth.token` is what we MUST sign with. To keep this trivially
-        // correct, we resolve to a single `signatureToken` and place it in
-        // `auth.token` only — no other slot.
-        let storedToken = tokenStore.load(role: connectRole,
-                                          currentDeviceId: deviceIdentity.deviceId)
-        // Precedence: stored device-token (preserves paired record's
-        // `approvedScopes`) > shared bootstrap token (first-ever connect).
-        let signatureToken: String? = storedToken?.token ?? (authToken.isEmpty ? nil : authToken)
+        // Build auth payload from the gateway bootstrap token in
+        // ~/.openclaw/openclaw.json. We intentionally do not prefer
+        // device-auth.json here: a stale low-scope device token can block the
+        // operator UI from reconnecting with the admin/write scopes it needs.
+        let signatureToken: String? = authToken.isEmpty ? nil : authToken
         var auth: [String: Any] = [:]
         if let tok = signatureToken {
             auth["token"] = tok
@@ -738,7 +724,7 @@ class GatewayClient: ObservableObject {
                     "signedAt": signedAtMs,
                     "nonce": nonce,
                 ]
-                gwLog.info("Connect: signing v3 device payload deviceId=\(self.deviceIdentity.deviceId.prefix(12), privacy: .public)… hasStoredToken=\(storedToken != nil)")
+                gwLog.info("Connect: signing v3 device payload deviceId=\(self.deviceIdentity.deviceId.prefix(12), privacy: .public)… usingBootstrapToken=\(signatureToken != nil)")
             } else {
                 gwLog.warning("Connect: device payload could not be signed — falling back to non-device connect")
             }

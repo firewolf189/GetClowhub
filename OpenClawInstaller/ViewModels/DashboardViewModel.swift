@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 import os.log
 
 private let chatLog = Logger(subsystem: "com.openclaw.installer", category: "Chat")
+private let sessionSwitchPerfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")
 
 @MainActor
 class DashboardViewModel: ObservableObject {
@@ -92,6 +93,7 @@ class DashboardViewModel: ObservableObject {
     private var budgetMonitorTimer: Timer?
 
     private let _commandExecutor: CommandExecutor
+    private let semanticRepoMapService = SemanticRepoMapService()
     private var cancellables = Set<AnyCancellable>()
 
     #if REQUIRE_LOGIN
@@ -193,6 +195,7 @@ class DashboardViewModel: ObservableObject {
             .store(in: &cancellables)
 
         // ─── Chat session persistence ───
+        loadProjectRegistry()
         // 1. Build the metadata mirror from disk so the sidebar can render
         //    history immediately, before the user ever opens chat.
         rebuildSessionsMirror()
@@ -1587,13 +1590,28 @@ class DashboardViewModel: ObservableObject {
     /// Per-agent metadata of every session, sorted (pinned first, then newest).
     /// Filtered to exclude archived sessions; archived ones live in the store.
     @Published var sessionsByAgent: [String: [ChatSessionMetadata]] = [:]
+    @Published var projectBindingsByAgent: [String: [AgentProjectBinding]] = [:]
+    @Published var projectSessionsByAgent: [String: [ProjectSessionGroup]] = [:]
+    @Published var generalSessionsByAgent: [String: [ChatSessionMetadata]] = [:]
+    @Published var projectsById: [String: ProjectRecord] = [:]
     /// The currently visible session for each agent. Switching this swaps
     /// chatMessagesByAgent[agentId] to the loaded session's messages.
     @Published var selectedSessionIdByAgent: [String: UUID] = [:]
+    private var activeProjectIdByAgent: [String: String?] = [:]
     /// Empty sessions created by the sidebar plus button before the user sends
     /// a first message. They should be visible/clickable in the sidebar, but
     /// should not be persisted unless the user actually types into them.
     private var pendingSessionMetadataByAgent: [String: ChatSessionMetadata] = [:]
+
+    private var projectRegistryURL: URL {
+        let appSupport = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first!
+        return appSupport
+            .appendingPathComponent("GetClowHub", isDirectory: true)
+            .appendingPathComponent("ProjectRegistry", isDirectory: true)
+            .appendingPathComponent("projects.json")
+    }
 
     /// Refresh `sessionsByAgent` from the store's index. Pinned-first then
     /// newest-first within each agent. Archived sessions are excluded so the
@@ -1618,6 +1636,48 @@ class DashboardViewModel: ObservableObject {
             }
         }
         sessionsByAgent = grouped
+        rebuildProjectSessionGroups(from: grouped)
+    }
+
+    private func rebuildProjectSessionGroups(from grouped: [String: [ChatSessionMetadata]]) {
+        var projectGroups: [String: [ProjectSessionGroup]] = [:]
+        var generalGroups: [String: [ChatSessionMetadata]] = [:]
+
+        for (agentId, sessions) in grouped {
+            let general = sessions.filter { $0.projectId == nil }
+            if !general.isEmpty {
+                generalGroups[agentId] = general
+            }
+
+            let projectSessions = Dictionary(grouping: sessions.filter { $0.projectId != nil }) {
+                $0.projectId ?? ""
+            }
+            var groups: [ProjectSessionGroup] = []
+            for (projectId, metas) in projectSessions where !projectId.isEmpty {
+                guard let project = projectsById[projectId] else { continue }
+                let binding = projectBindingsByAgent[agentId]?.first { $0.projectId == projectId }
+                    ?? AgentProjectBinding(agentId: agentId, projectId: projectId)
+                groups.append(ProjectSessionGroup(project: project, binding: binding, sessions: metas))
+            }
+
+            for binding in projectBindingsByAgent[agentId] ?? [] where groups.allSatisfy({ $0.project.id != binding.projectId }) {
+                guard let project = projectsById[binding.projectId] else { continue }
+                groups.append(ProjectSessionGroup(project: project, binding: binding, sessions: []))
+            }
+
+            groups.sort { lhs, rhs in
+                if lhs.binding.sortOrder != rhs.binding.sortOrder {
+                    return lhs.binding.sortOrder < rhs.binding.sortOrder
+                }
+                return lhs.project.sortKey < rhs.project.sortKey
+            }
+            if !groups.isEmpty {
+                projectGroups[agentId] = groups
+            }
+        }
+
+        projectSessionsByAgent = projectGroups
+        generalSessionsByAgent = generalGroups
     }
 
     /// Remove in-memory UI state that belonged to an agent after the CLI has
@@ -1672,6 +1732,120 @@ class DashboardViewModel: ObservableObject {
             !(($0.taskStatus == .loading || $0.taskStatus == .background)
               && $0.content.isEmpty)
         }
+    }
+
+    private struct ProjectRegistrySnapshot: Codable {
+        var projects: [ProjectRecord]
+        var bindings: [AgentProjectBinding]
+    }
+
+    private func loadProjectRegistry() {
+        guard let data = try? Data(contentsOf: projectRegistryURL) else { return }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let snapshot = try? decoder.decode(ProjectRegistrySnapshot.self, from: data) else { return }
+
+        projectsById = Dictionary(uniqueKeysWithValues: snapshot.projects.map { ($0.id, $0) })
+        projectBindingsByAgent = Dictionary(grouping: snapshot.bindings, by: \.agentId)
+    }
+
+    private func saveProjectRegistry() {
+        let snapshot = ProjectRegistrySnapshot(
+            projects: Array(projectsById.values).sorted { $0.sortKey < $1.sortKey },
+            bindings: projectBindingsByAgent.values.flatMap { $0 }
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        do {
+            try FileManager.default.createDirectory(
+                at: projectRegistryURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let data = try encoder.encode(snapshot)
+            try data.write(to: projectRegistryURL, options: .atomic)
+        } catch {
+            logChat("PROJECT_REGISTRY_SAVE_FAILED: \(error.localizedDescription)")
+        }
+    }
+
+    func openProject(forAgent agentId: String) {
+        let agentName = agentDisplayName(for: agentId)
+        let panel = NSOpenPanel()
+        panel.title = "Choose Work Folder for \(agentName)"
+        panel.message = "Select the local folder this agent should work in. GetClowHub will remember it under this agent. Files stay local and are only read when needed."
+        panel.prompt = "Use as Work Folder"
+        panel.nameFieldLabel = "Work Folder:"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                self?.attachProject(url, toAgent: agentId)
+            }
+        }
+    }
+
+    private func attachProject(_ url: URL, toAgent agentId: String) {
+        let standardized = url.standardizedFileURL
+        let rootPath = standardized.path
+        let displayName = standardized.lastPathComponent.isEmpty ? rootPath : standardized.lastPathComponent
+        let existing = projectsById.values.first { $0.rootPath == rootPath }
+        var project = existing ?? ProjectRecord(displayName: displayName, rootPath: rootPath)
+        project.displayName = displayName
+        project.rootPath = rootPath
+        project.lastOpenedAt = Date()
+        project.indexStatus = .ready
+        projectsById[project.id] = project
+
+        var bindings = projectBindingsByAgent[agentId] ?? []
+        if let idx = bindings.firstIndex(where: { $0.projectId == project.id }) {
+            bindings[idx].lastOpenedAt = Date()
+        } else {
+            bindings.append(AgentProjectBinding(agentId: agentId, projectId: project.id, sortOrder: bindings.count))
+        }
+        projectBindingsByAgent[agentId] = bindings
+
+        saveProjectRegistry()
+        rebuildSessionsMirror()
+        createNewSession(forAgent: agentId, projectId: project.id)
+
+        Task { [semanticRepoMapService] in
+            await semanticRepoMapService.bootstrapProject(project)
+        }
+
+        showSuccessMessage("\(agentDisplayName(for: agentId)) is now working in \(displayName)")
+    }
+
+    private func agentDisplayName(for agentId: String) -> String {
+        availableAgents.first(where: { $0.id == agentId })?.name ?? agentId
+    }
+
+    func toggleProjectCollapse(agentId: String, projectId: String) {
+        guard var bindings = projectBindingsByAgent[agentId],
+              let idx = bindings.firstIndex(where: { $0.projectId == projectId }) else {
+            return
+        }
+        bindings[idx].isCollapsed.toggle()
+        projectBindingsByAgent[agentId] = bindings
+        saveProjectRegistry()
+        rebuildSessionsMirror()
+    }
+
+    func revealProjectInFinder(_ projectId: String) {
+        guard let project = projectsById[projectId] else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: project.rootPath)])
+    }
+
+    func removeProject(_ projectId: String, fromAgent agentId: String) {
+        projectBindingsByAgent[agentId]?.removeAll { $0.projectId == projectId }
+        if activeProjectIdByAgent[agentId] == projectId {
+            activeProjectIdByAgent.removeValue(forKey: agentId)
+        }
+        saveProjectRegistry()
+        rebuildSessionsMirror()
     }
 
     /// Load `agentId`'s active session messages into `chatMessagesByAgent`
@@ -1751,10 +1925,18 @@ class DashboardViewModel: ObservableObject {
     private func persistChangedSessions(from dict: [String: [ChatMessage]]) {
         for (agentId, messages) in dict where !messages.isEmpty {
             let sessionId = ensureActiveSessionId(forAgent: agentId, seedMessages: messages)
+            let project = activeProject(forAgent: agentId)
             // Start from the on-disk copy when one exists (preserves
             // pin/archive state) or mint a fresh in-memory shell otherwise.
             let loaded = chatSessionStore.loadSession(id: sessionId)
-            var session = loaded ?? ChatSession(id: sessionId, agentId: agentId, messages: messages)
+            var session = loaded ?? ChatSession(
+                id: sessionId,
+                agentId: agentId,
+                messages: messages,
+                projectId: project?.id,
+                projectRoot: project?.rootPath,
+                projectDisplayName: project?.displayName
+            )
 
             // Strip stale .loading + empty placeholders before comparing
             // to disk. We never want to persist a placeholder — and the
@@ -1789,6 +1971,11 @@ class DashboardViewModel: ObservableObject {
 
             session.messages = memMessages
             session.updatedAt = Date()
+            if let project {
+                session.projectId = project.id
+                session.projectRoot = project.rootPath
+                session.projectDisplayName = project.displayName
+            }
             // Auto-derive title once, only while still on the placeholder.
             if session.title == ChatSession.defaultTitle {
                 session.title = ChatSession.deriveTitle(from: memMessages)
@@ -1804,14 +1991,31 @@ class DashboardViewModel: ObservableObject {
         (lhs?.activityEvents ?? []) == (rhs?.activityEvents ?? [])
     }
 
+    private static func elapsedMillisecondsText(since start: ContinuousClock.Instant) -> String {
+        let duration = start.duration(to: ContinuousClock.now)
+        let components = duration.components
+        let milliseconds = Double(components.seconds) * 1_000
+            + Double(components.attoseconds) / 1_000_000_000_000_000
+        return String(format: "%.1f", milliseconds)
+    }
+
     // MARK: - Session UI Actions
 
     /// Switch the current agent's active session to `sessionId`. Flushes the
     /// in-memory thread of the previous session to disk first so partial
     /// state isn't lost when the user clicks back.
     func switchSession(to sessionId: UUID) {
+        let switchStart = ContinuousClock.now
         let agentId = selectedAgentId
         let oldSid = selectedSessionIdByAgent[agentId]
+        if let meta = sessionMetadata(for: sessionId) {
+            activeProjectIdByAgent[agentId] = meta.projectId
+        }
+        sessionSwitchPerfLog.info("switchSession start agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) previous_session=\(oldSid?.uuidString ?? "none", privacy: .public)")
+        if oldSid == sessionId {
+            sessionSwitchPerfLog.info("switchSession skipped reason=same_session agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
+            return
+        }
 
         // If the session we're LEAVING has an in-flight task (foreground
         // OR background), we can't just overwrite `chatMessagesByAgent[agentId]`
@@ -1854,14 +2058,18 @@ class DashboardViewModel: ObservableObject {
         if let stashed = chatMessagesByInactiveSession.removeValue(forKey: sessionId) {
             chatMessagesByAgent[agentId] = stashed
             loadingSessionIds.remove(sessionId)
+            sessionSwitchPerfLog.info("switchSession source=inactive_stash agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) messages=\(stashed.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
         } else if let target = chatSessionStore.cachedSession(id: sessionId) {
-            chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(target.messages)
+            let messages = Self.stripStaleLoadingPlaceholders(target.messages)
+            chatMessagesByAgent[agentId] = messages
             loadingSessionIds.remove(sessionId)
+            sessionSwitchPerfLog.info("switchSession source=memory_cache agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) messages=\(messages.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
         } else {
             // Cold load — render a loading placeholder while we decode
             // the JSON off the main thread.
             chatMessagesByAgent[agentId] = []
             loadingSessionIds.insert(sessionId)
+            sessionSwitchPerfLog.info("switchSession source=cold_disk_start agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
             Task { [weak self] in
                 guard let self = self else { return }
                 let target = await self.chatSessionStore.loadSessionAsync(id: sessionId)
@@ -1874,7 +2082,11 @@ class DashboardViewModel: ObservableObject {
                         return
                     }
                     if let target = target {
-                        self.chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(target.messages)
+                        let messages = Self.stripStaleLoadingPlaceholders(target.messages)
+                        self.chatMessagesByAgent[agentId] = messages
+                        sessionSwitchPerfLog.info("switchSession source=cold_disk_finish status=loaded agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) messages=\(messages.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
+                    } else {
+                        sessionSwitchPerfLog.info("switchSession source=cold_disk_finish status=missing agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
                     }
                     self.loadingSessionIds.remove(sessionId)
                 }
@@ -1892,6 +2104,7 @@ class DashboardViewModel: ObservableObject {
         if selectedAgentId != meta.agentId {
             selectedAgentId = meta.agentId
         }
+        activeProjectIdByAgent[meta.agentId] = meta.projectId
         switchSession(to: sessionId)
     }
 
@@ -2158,7 +2371,9 @@ class DashboardViewModel: ObservableObject {
     /// After delete/archive of the active session, pick a successor from the
     /// remaining list, or mint a new empty session when nothing's left.
     private func promoteNextSession(forAgent agentId: String) {
-        if let next = chatSessionStore.sessions(forAgent: agentId).first {
+        let projectId = activeProjectIdByAgent[agentId] ?? nil
+        let candidates = chatSessionStore.sessions(forAgent: agentId).filter { $0.projectId == projectId }
+        if let next = candidates.first {
             selectedSessionIdByAgent[agentId] = next.id
             if let loaded = chatSessionStore.loadSession(id: next.id) {
                 chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(loaded.messages)
@@ -2168,7 +2383,13 @@ class DashboardViewModel: ObservableObject {
             // only. Match createNewSession() in deferring the disk write
             // until the user actually types, so an immediately-discarded
             // empty session leaves no trace in the sidebar.
-            let new = ChatSession(agentId: agentId)
+            let project = activeProject(forAgent: agentId)
+            let new = ChatSession(
+                agentId: agentId,
+                projectId: project?.id,
+                projectRoot: project?.rootPath,
+                projectDisplayName: project?.displayName
+            )
             selectedSessionIdByAgent[agentId] = new.id
             chatMessagesByAgent[agentId] = []
         }
@@ -2198,17 +2419,23 @@ class DashboardViewModel: ObservableObject {
     /// in the sidebar.
     @discardableResult
     func createNewSession() -> UUID {
-        createNewSession(forAgent: selectedAgentId)
+        createNewSession(forAgent: selectedAgentId, projectId: nil)
     }
 
     /// Mint a fresh empty session for a specific agent and switch the UI to it.
     /// Used by per-agent sidebar hover actions.
     @discardableResult
     func createNewSession(forAgent agentId: String) -> UUID {
+        createNewSession(forAgent: agentId, projectId: nil)
+    }
+
+    @discardableResult
+    func createNewSession(forAgent agentId: String, projectId: String?) -> UUID {
         if selectedAgentId != agentId {
             flushActiveSession(forAgent: selectedAgentId)
             selectedAgentId = agentId
         }
+        activeProjectIdByAgent[agentId] = projectId
 
         let oldSid = selectedSessionIdByAgent[agentId]
         // Symmetric with switchSession: if a task is streaming in the old
@@ -2219,7 +2446,13 @@ class DashboardViewModel: ObservableObject {
             chatMessagesByInactiveSession[oldSid] = chatMessagesByAgent[agentId]
         }
         flushActiveSession(forAgent: agentId)
-        let new = ChatSession(agentId: agentId)
+        let project = projectId.flatMap { projectsById[$0] }
+        let new = ChatSession(
+            agentId: agentId,
+            projectId: project?.id,
+            projectRoot: project?.rootPath,
+            projectDisplayName: project?.displayName
+        )
         selectedSessionIdByAgent[agentId] = new.id
         chatMessagesByAgent[agentId] = []
         pendingSessionMetadataByAgent[agentId] = ChatSessionMetadata(from: new)
@@ -2289,9 +2522,22 @@ class DashboardViewModel: ObservableObject {
             return
         }
 
-        var current = loaded ?? ChatSession(id: sid, agentId: agentId, messages: memMessages)
+        let project = activeProject(forAgent: agentId)
+        var current = loaded ?? ChatSession(
+            id: sid,
+            agentId: agentId,
+            messages: memMessages,
+            projectId: project?.id,
+            projectRoot: project?.rootPath,
+            projectDisplayName: project?.displayName
+        )
         current.messages = memMessages
         current.updatedAt = Date()
+        if let project {
+            current.projectId = project.id
+            current.projectRoot = project.rootPath
+            current.projectDisplayName = project.displayName
+        }
         if current.title == ChatSession.defaultTitle {
             current.title = ChatSession.deriveTitle(from: memMessages)
         }
@@ -2306,16 +2552,25 @@ class DashboardViewModel: ObservableObject {
         if let existing = selectedSessionIdByAgent[agentId] {
             return existing
         }
+        let projectId = activeProjectId(forAgent: agentId)
         // Reuse the newest non-archived session for this agent if one exists
         // (e.g. the picker pointed at a known agent but selection wasn't seeded).
-        if let recent = chatSessionStore.sessions(forAgent: agentId).first {
+        if let recent = chatSessionStore.sessions(forAgent: agentId).first(where: { $0.projectId == projectId }) {
             selectedSessionIdByAgent[agentId] = recent.id
             return recent.id
         }
         // Mint a new session and persist it immediately so subsequent
         // lookups see it in the index.
         let title = ChatSession.deriveTitle(from: seedMessages)
-        let new = ChatSession(agentId: agentId, title: title, messages: seedMessages)
+        let project = activeProject(forAgent: agentId)
+        let new = ChatSession(
+            agentId: agentId,
+            title: title,
+            messages: seedMessages,
+            projectId: project?.id,
+            projectRoot: project?.rootPath,
+            projectDisplayName: project?.displayName
+        )
         chatSessionStore.saveSession(new)
         selectedSessionIdByAgent[agentId] = new.id
         return new.id
@@ -2791,7 +3046,41 @@ class DashboardViewModel: ObservableObject {
     /// "remember" X). Including the sessionId in the key isolates each UI
     /// session into its own gateway thread.
     private func sessionKeyForAgent(_ agentId: String, sessionId: UUID) -> String {
+        if let projectId = activeProjectId(forAgent: agentId) {
+            return "agent:\(agentId):project:\(projectId):\(sessionId.uuidString)"
+        }
         return "agent:\(agentId):\(sessionId.uuidString)"
+    }
+
+    private func activeProjectId(forAgent agentId: String) -> String? {
+        if let sessionId = selectedSessionIdByAgent[agentId],
+           let meta = sessionMetadata(for: sessionId) {
+            return meta.projectId
+        }
+        return activeProjectIdByAgent[agentId] ?? nil
+    }
+
+    private func activeProject(forAgent agentId: String) -> ProjectRecord? {
+        guard let projectId = activeProjectId(forAgent: agentId) else { return nil }
+        return projectsById[projectId]
+    }
+
+    private func sessionMetadata(for sessionId: UUID) -> ChatSessionMetadata? {
+        if let pending = pendingSessionMetadataByAgent.values.first(where: { $0.id == sessionId }) {
+            return pending
+        }
+        return chatSessionStore.index.first { $0.id == sessionId }
+    }
+
+    private func projectContextMessage(for project: ProjectRecord?) -> String {
+        guard let project else { return "" }
+        return """
+
+        [Project Context]
+        Current project: \(project.displayName)
+        Project root: \(project.rootPath)
+        Use local project tools or local file paths to inspect source. Do not assume stale paths are correct.
+        """
     }
 
     /// Extensions that the gateway accepts as image attachments (via base64 in `content` field).
@@ -3143,10 +3432,10 @@ class DashboardViewModel: ObservableObject {
         status: ChatMessage.TaskStatus,
         agentId: String,
         agentEmoji: String?,
-        activityEvents: [ChatActivityEvent] = []
+        activityEvents: [ChatActivityEvent]? = nil
     ) {
         let existing = findMessage(byId: msgId)
-        let resolvedActivityEvents = activityEvents.isEmpty ? (existing?.activityEvents ?? []) : activityEvents
+        let resolvedActivityEvents = activityEvents ?? (existing?.activityEvents ?? [])
         let resolvedCompletedAt = status.isTerminal ? (existing?.completedAt ?? Date()) : nil
         let newMsg = ChatMessage(
             role: .assistant, content: content,
@@ -3198,6 +3487,71 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
+    private func appendProgressActivityText(_ text: String, into events: inout [ChatActivityEvent]) {
+        let normalized = Self.normalizedWorkingProgressText(text)
+        guard !normalized.isEmpty else { return }
+        if events.last?.kind == .progressUpdate, events.last?.detail == normalized {
+            return
+        }
+        events.append(ChatActivityEvent(
+            kind: .progressUpdate,
+            count: 1,
+            details: [normalized],
+            ordinal: events.count
+        ))
+    }
+
+    private func activityEventsForDisplay(
+        committedEvents: [ChatActivityEvent],
+        accumulatedText: String,
+        committedWorkingText: String
+    ) -> [ChatActivityEvent] {
+        var displayEvents = committedEvents
+        appendProgressActivityText(
+            Self.uncommittedWorkingProgressText(
+                accumulatedText: accumulatedText,
+                committedWorkingText: committedWorkingText
+            ),
+            into: &displayEvents
+        )
+        return displayEvents
+    }
+
+    /// Treat text that appears before the next structured activity as working
+    /// transcript. This preserves the model's own progress wording without
+    /// parsing language or asking the model for a second summary.
+    private static func uncommittedWorkingProgressText(
+        accumulatedText: String,
+        committedWorkingText: String
+    ) -> String {
+        guard !accumulatedText.isEmpty else { return "" }
+        guard !committedWorkingText.isEmpty else {
+            return normalizedWorkingProgressText(accumulatedText)
+        }
+        if accumulatedText.hasPrefix(committedWorkingText) {
+            return normalizedWorkingProgressText(String(accumulatedText.dropFirst(committedWorkingText.count)))
+        }
+        let commonPrefix = accumulatedText.commonPrefix(with: committedWorkingText)
+        guard !commonPrefix.isEmpty else {
+            return normalizedWorkingProgressText(accumulatedText)
+        }
+        return normalizedWorkingProgressText(String(accumulatedText.dropFirst(commonPrefix.count)))
+    }
+
+    private static func visibleAssistantText(from text: String, committedWorkingText: String) -> String {
+        guard !committedWorkingText.isEmpty, text.hasPrefix(committedWorkingText) else {
+            return text
+        }
+        return String(text.dropFirst(committedWorkingText.count))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func normalizedWorkingProgressText(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func appendBackgroundNotification(agentId: String, agentEmoji: String?, completed: Bool, msgId: UUID) {
         let agentName = availableAgents.first(where: { $0.id == agentId })?.name ?? agentId
         if completed {
@@ -3239,6 +3593,7 @@ class DashboardViewModel: ObservableObject {
         let currentSessionId = ensureActiveSessionId(forAgent: currentAgentId,
                                                      seedMessages: chatMessagesByAgent[currentAgentId] ?? [])
         let sessionKey = sessionKeyForAgent(currentAgentId, sessionId: currentSessionId)
+        let currentProject = activeProject(forAgent: currentAgentId)
 
         // Insert a placeholder assistant message for streaming updates
         let msgId = UUID()
@@ -3292,7 +3647,10 @@ class DashboardViewModel: ObservableObject {
 
         // Process attachments: images → base64 attachments; text files → inline in message
         let processed = processAttachments(attachments)
-        let finalMessage = text + processed.inlineText + Self.a2uiDisplayCardInstruction
+        let finalMessage = text
+            + projectContextMessage(for: currentProject)
+            + processed.inlineText
+            + Self.a2uiDisplayCardInstruction
 
         // Subscribe to events BEFORE sending to avoid race condition
         let subscriberId = msgId.uuidString
@@ -3408,6 +3766,7 @@ class DashboardViewModel: ObservableObject {
 
         // Stream events
         var accumulatedText = ""
+        var committedWorkingText = ""
         var accumulatedActivityEvents: [ChatActivityEvent] = []
         var seenActivityEventKeys = Set<String>()
         var receivedTerminalEvent = false
@@ -3421,10 +3780,18 @@ class DashboardViewModel: ObservableObject {
             case .activity(let eventRunId, _, let event):
                 guard eventRunId == runId else { continue }
                 guard seenActivityEventKeys.insert(event.dedupeKey).inserted else { continue }
+                let progressText = Self.uncommittedWorkingProgressText(
+                    accumulatedText: accumulatedText,
+                    committedWorkingText: committedWorkingText
+                )
+                if !progressText.isEmpty {
+                    appendProgressActivityText(progressText, into: &accumulatedActivityEvents)
+                    committedWorkingText = accumulatedText
+                }
                 mergeActivityEvent(event, into: &accumulatedActivityEvents)
                 if let current = findMessage(byId: msgId),
                    current.taskStatus != .cancelled {
-                    updateMessage(msgId: msgId, content: accumulatedText, status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    updateMessage(msgId: msgId, content: "", status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 }
 
             case .delta(let eventRunId, _, let text):
@@ -3451,21 +3818,32 @@ class DashboardViewModel: ObservableObject {
                     // findMessage handles both.
                     if let current = findMessage(byId: msgId),
                        current.taskStatus != .cancelled {
-                        updateMessage(msgId: msgId, content: accumulatedText, status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                        let displayEvents = activityEventsForDisplay(
+                            committedEvents: accumulatedActivityEvents,
+                            accumulatedText: accumulatedText,
+                            committedWorkingText: committedWorkingText
+                        )
+                        updateMessage(msgId: msgId, content: "", status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: displayEvents)
                     }
                 }
 
             case .final_(let eventRunId, let eventSessionKey, let text):
                 guard eventRunId == runId else { continue }
                 chatLog.info("chat final: runId=\(eventRunId), textLen=\(text.count), accumulatedLen=\(accumulatedText.count)")
-                var finalText = text.isEmpty ? accumulatedText : text
+                var finalText = Self.visibleAssistantText(
+                    from: text.isEmpty ? accumulatedText : text,
+                    committedWorkingText: committedWorkingText
+                )
                 // Fallback: when gateway final has no content (e.g. tool-heavy responses where
                 // stripInlineDirectiveTagsForDisplay filtered all text), fetch from chat history
                 if finalText.isEmpty {
                     chatLog.info("chat final empty — fetching chat.history as fallback")
                     if let historyText = await gatewayClient.fetchLastAssistantMessage(sessionKey: eventSessionKey) {
                         chatLog.info("chat.history fallback: got \(historyText.count) chars")
-                        finalText = historyText
+                        finalText = Self.visibleAssistantText(
+                            from: historyText,
+                            committedWorkingText: committedWorkingText
+                        )
                     }
                 }
                 // If still no content, the gateway may have sent a premature final
@@ -3480,7 +3858,7 @@ class DashboardViewModel: ObservableObject {
                     }
                     chatLog.warning("chat final has no content — accepting after \(emptyFinalCount) empty finals")
                     let doneMsg = String(localized: "Task completed.", bundle: LanguageManager.shared.localizedBundle)
-                    finalText = accumulatedText.isEmpty ? doneMsg : accumulatedText
+                    finalText = doneMsg
                 }
                 receivedTerminalEvent = true
                 let wasBackground = backgroundTaskIds.contains(msgId)
@@ -3507,7 +3885,7 @@ class DashboardViewModel: ObservableObject {
                 receivedTerminalEvent = true
                 if let current = findMessage(byId: msgId),
                    current.taskStatus != .cancelled {
-                    updateMessage(msgId: msgId, content: accumulatedText, status: .cancelled, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    updateMessage(msgId: msgId, content: "", status: .cancelled, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 }
                 break streamLoop
 
@@ -3573,14 +3951,15 @@ class DashboardViewModel: ObservableObject {
                 // covers the "system slept while LLM finished" case.
                 if let recoveredText = recovered, recoveredText.count > accumulatedText.count {
                     chatLog.info("chat.history recovered \(recoveredText.count) chars (streamed only \(accumulatedText.count))")
-                    updateMessage(msgId: msgId, content: recoveredText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    let recoveredVisibleText = Self.visibleAssistantText(
+                        from: recoveredText,
+                        committedWorkingText: committedWorkingText
+                    )
+                    updateMessage(msgId: msgId, content: recoveredVisibleText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 } else {
                     chatLog.warning("chat.history recovery failed or shorter than stream — marking interrupted")
                     let disconnectNote = String(localized: "Connection was interrupted. The response may be incomplete.", bundle: LanguageManager.shared.localizedBundle)
-                    let content = accumulatedText.isEmpty
-                        ? disconnectNote
-                        : accumulatedText + "\n\n---\n> ⚠️ " + disconnectNote
-                    updateMessage(msgId: msgId, content: content, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    updateMessage(msgId: msgId, content: disconnectNote, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
                 }
             }
         }
@@ -3865,111 +4244,8 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
-    /// Parse `openclaw plugins list` table output.
-    /// Table format: │ Name │ ID │ Status │ Source │ Version │
-    /// Status values: "loaded", "disabled"
-    /// A new row starts when the Status cell is non-empty.
-    /// Continuation lines (Status empty) may carry overflow text for Name or ID.
     static func parsePluginList(output: String?) -> [PluginInfo] {
-        guard let output = output else { return [] }
-
-        var results: [PluginInfo] = []
-        var currentName: String?
-        var currentId: String?
-        var currentStatus: String?
-        var currentSource: String?
-        var currentVersion: String?
-
-        func flushRow() {
-            guard var name = currentName, let status = currentStatus else { return }
-            var id = currentId ?? ""
-            let source = currentSource ?? ""
-            let version = currentVersion ?? ""
-
-            // If ID is empty, try to extract from Source ("stock:plugin-id/..." or "global:plugin-id/...")
-            if id.isEmpty, !source.isEmpty,
-               let colonIdx = source.firstIndex(of: ":"),
-               let slashIdx = source[source.index(after: colonIdx)...].firstIndex(of: "/") {
-                id = String(source[source.index(after: colonIdx)..<slashIdx])
-            }
-
-            // Last resort: derive ID from name
-            if id.isEmpty {
-                id = name.replacingOccurrences(of: "@openclaw/", with: "")
-            }
-
-            if name.isEmpty { name = id }
-
-            let enabled = status == "loaded"
-
-            // Determine origin from source prefix
-            let origin: PluginOrigin
-            if source.hasPrefix("stock:") {
-                origin = .bundled
-            } else if source.hasPrefix("global:") {
-                origin = .global
-            } else {
-                origin = .unknown
-            }
-
-            results.append(PluginInfo(
-                channel: name,
-                pluginId: id,
-                installed: true,
-                enabled: enabled,
-                source: source,
-                version: version,
-                origin: origin
-            ))
-        }
-
-        for line in output.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard trimmed.hasPrefix("│") else { continue }
-            if trimmed.contains("Name") && trimmed.contains("Status") && trimmed.contains("Source") {
-                continue
-            }
-
-            let cells = trimmed.components(separatedBy: "│")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-            guard cells.count >= 4 else { continue }
-
-            let name = cells[1]
-            let pluginId = cells[2]
-            let status = cells[3]
-            let source = cells.count >= 5 ? cells[4] : ""
-            let version = cells.count >= 6 ? cells[5] : ""
-
-            if !status.isEmpty {
-                // New row — flush previous
-                flushRow()
-                currentName = name
-                currentId = pluginId
-                currentStatus = status
-                currentSource = source
-                currentVersion = version
-            } else {
-                // Continuation line — append Name overflow
-                if !name.isEmpty, let existing = currentName {
-                    if existing.hasSuffix("/") || existing.hasSuffix("-") {
-                        currentName = existing + name
-                    } else {
-                        currentName = existing + " " + name
-                    }
-                }
-                // Append ID overflow (IDs never contain spaces, always direct concat)
-                if !pluginId.isEmpty {
-                    if let existing = currentId, !existing.isEmpty {
-                        currentId = existing + pluginId
-                    } else {
-                        currentId = pluginId
-                    }
-                }
-            }
-        }
-        flushRow()
-
-        return results
+        PluginListParser.parse(output: output)
     }
 
     /// Enable a plugin
@@ -4114,6 +4390,7 @@ class DashboardViewModel: ObservableObject {
         "nextcloud-talk", "matrix", "dingtalk", "bluebubbles", "line",
         "zalo", "synology-chat", "tlon", "weixin"
     ]
+    private nonisolated static let defaultChannelAccountId = "default"
 
     /// Load channels by running `openclaw channels status`
     func loadChannels() async {
@@ -4211,25 +4488,40 @@ class DashboardViewModel: ObservableObject {
     }
 
     /// Add a channel with token
-    func addChannel(channelType: String, token: String) async {
+    func addChannel(channelType: String, token: String, accountId: String = "default", displayName: String = "") async {
         isPerformingAction = true
+        let normalizedAccountId = Self.normalizedChannelAccountId(accountId)
+        let trimmedDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        var command = "openclaw channels add --channel \(Self.shellQuote(channelType)) --token \(Self.shellQuote(token)) --account \(Self.shellQuote(normalizedAccountId))"
+        if !trimmedDisplayName.isEmpty {
+            command += " --name \(Self.shellQuote(trimmedDisplayName))"
+        }
+        command += " 2>&1"
         let output = await openclawService.runCommand(
-            "openclaw channels add --channel \(channelType) --token '\(token)' 2>&1"
+            command
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to add \(channelType): \(output)")
+            showErrorMessage("Failed to add \(channelType) \(normalizedAccountId): \(output)")
         } else {
-            showSuccessMessage("\(channelType) channel added")
+            showSuccessMessage("\(channelType) \(normalizedAccountId) channel added")
         }
         await loadChannels()
         isPerformingAction = false
     }
 
-    func addChannel(channelType: String, appKey: String, appSecret: String) async {
+    func addChannel(
+        channelType: String,
+        appKey: String,
+        appSecret: String,
+        accountId: String = "default",
+        displayName: String = ""
+    ) async {
         isPerformingAction = true
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let configPath = "\(homeDir)/.openclaw/openclaw.json"
         let fm = FileManager.default
+        let normalizedAccountId = Self.normalizedChannelAccountId(accountId)
+        let trimmedDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
             guard let data = fm.contents(atPath: configPath),
@@ -4240,7 +4532,7 @@ class DashboardViewModel: ObservableObject {
             }
 
             var channels = root["channels"] as? [String: Any] ?? [:]
-            let channelConfig: [String: Any]
+            var channelConfig: [String: Any]
             if channelType == "feishu" {
                 channelConfig = [
                     "connectionMode": "websocket",
@@ -4263,7 +4555,30 @@ class DashboardViewModel: ObservableObject {
                     "requireMention": true
                 ]
             }
-            channels[channelType] = channelConfig
+            if !trimmedDisplayName.isEmpty {
+                channelConfig["name"] = trimmedDisplayName
+            }
+
+            let channelRoot = channels[channelType] as? [String: Any] ?? [:]
+            if normalizedAccountId == Self.defaultChannelAccountId {
+                var mergedConfig = channelRoot
+                let existingAccounts = channelRoot["accounts"]
+                for (key, value) in channelConfig {
+                    mergedConfig[key] = value
+                }
+                if let existingAccounts {
+                    mergedConfig["accounts"] = existingAccounts
+                }
+                channels[channelType] = mergedConfig
+            } else {
+                let defaultSeed = Self.channelDefaultConfig(from: channelRoot)
+                var accounts = channelRoot["accounts"] as? [String: Any] ?? [:]
+                accounts[normalizedAccountId] = channelConfig
+                var mergedRoot = defaultSeed
+                mergedRoot["enabled"] = true
+                mergedRoot["accounts"] = accounts
+                channels[channelType] = mergedRoot
+            }
             root["channels"] = channels
 
             let updatedData = try JSONSerialization.data(
@@ -4271,9 +4586,9 @@ class DashboardViewModel: ObservableObject {
                 options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
             )
             try updatedData.write(to: URL(fileURLWithPath: configPath))
-            showSuccessMessage("\(channelType) channel added")
+            showSuccessMessage("\(channelType) \(normalizedAccountId) channel added")
         } catch {
-            showErrorMessage("Failed to add \(channelType): \(error.localizedDescription)")
+            showErrorMessage("Failed to add \(channelType) \(normalizedAccountId): \(error.localizedDescription)")
         }
 
         await loadChannels()
@@ -4285,13 +4600,13 @@ class DashboardViewModel: ObservableObject {
         isPerformingAction = true
         let channelType = channel.name.lowercased()
         let output = await openclawService.runCommand(
-            "openclaw channels remove --channel \(channelType) --account \(channel.account) --delete 2>&1"
+            "openclaw channels remove --channel \(Self.shellQuote(channelType)) --account \(Self.shellQuote(channel.account)) --delete 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
             showErrorMessage("Failed to remove \(channel.name): \(output)")
         } else {
             // Also disable the channel so it won't reappear in status list
-            disableChannelInConfig(channelType)
+            disableChannelInConfig(channelType, accountId: channel.account)
             showSuccessMessage("\(channel.name) channel removed")
         }
         await loadChannels()
@@ -4299,7 +4614,7 @@ class DashboardViewModel: ObservableObject {
     }
 
     /// Set enabled=false for a channel in openclaw.json
-    private func disableChannelInConfig(_ channelType: String) {
+    private func disableChannelInConfig(_ channelType: String, accountId: String) {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let configPath = "\(homeDir)/.openclaw/openclaw.json"
         let fm = FileManager.default
@@ -4307,12 +4622,31 @@ class DashboardViewModel: ObservableObject {
               var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         var channels = root["channels"] as? [String: Any] ?? [:]
         var chConfig = channels[channelType] as? [String: Any] ?? [:]
-        chConfig["enabled"] = false
+        if accountId == Self.defaultChannelAccountId {
+            chConfig["enabled"] = false
+        } else {
+            var accounts = chConfig["accounts"] as? [String: Any] ?? [:]
+            var accountConfig = accounts[accountId] as? [String: Any] ?? [:]
+            accountConfig["enabled"] = false
+            accounts[accountId] = accountConfig
+            chConfig["accounts"] = accounts
+        }
         channels[channelType] = chConfig
         root["channels"] = channels
         if let updatedData = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
             try? updatedData.write(to: URL(fileURLWithPath: configPath))
         }
+    }
+
+    private nonisolated static func normalizedChannelAccountId(_ accountId: String) -> String {
+        let trimmed = accountId.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? defaultChannelAccountId : trimmed
+    }
+
+    private nonisolated static func channelDefaultConfig(from channelRoot: [String: Any]) -> [String: Any] {
+        var defaultConfig = channelRoot
+        defaultConfig.removeValue(forKey: "accounts")
+        return defaultConfig
     }
 
     // MARK: - Weixin QR Login
@@ -5540,27 +5874,6 @@ class DashboardViewModel: ObservableObject {
     }
 }
 
-// MARK: - Plugin Origin
-
-enum PluginOrigin: String {
-    case bundled   // stock: prefix — built-in plugin
-    case global    // global: prefix — user-installed (npm or local)
-    case unknown
-}
-
-// MARK: - Plugin Info Model
-
-struct PluginInfo: Identifiable {
-    let id = UUID()
-    let channel: String
-    let pluginId: String
-    var installed: Bool
-    var enabled: Bool
-    var source: String         // raw source string from CLI output
-    var version: String        // version string from CLI output
-    var origin: PluginOrigin   // derived from source prefix
-}
-
 // MARK: - Channel Info Model
 
 struct ChannelInfo: Identifiable {
@@ -5755,6 +6068,7 @@ struct ChatActivityEvent: Identifiable, Codable, Equatable {
         case agentUsed
         case agentRecruited
         case toolFailed
+        case progressUpdate
 
         init(gatewayKind: GatewayActivityEvent.Kind) {
             switch gatewayKind {
@@ -5803,6 +6117,8 @@ struct ChatActivityEvent: Identifiable, Codable, Equatable {
                 return "Recruited \(count) \(count == 1 ? "agent" : "agents")"
             case .toolFailed:
                 return count == 1 ? "Tool failed" : "\(count) tools failed"
+            case .progressUpdate:
+                return "Progress update"
             }
         }
 
@@ -5818,6 +6134,7 @@ struct ChatActivityEvent: Identifiable, Codable, Equatable {
             case .agentUsed: return "person.2"
             case .agentRecruited: return "person.crop.circle.badge.plus"
             case .toolFailed: return "exclamationmark.triangle"
+            case .progressUpdate: return "text.alignleft"
             }
         }
     }

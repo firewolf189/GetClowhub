@@ -189,6 +189,26 @@ assertContains(
     "layout passes during sidebar animation should not force the inspector to its final width"
 )
 assertContains(
+    rightInspectorSplitController,
+    "private let layoutEpsilon: CGFloat = 0.5",
+    "right AppKit inspector should tolerate sub-point layout differences before relayout"
+)
+assertContains(
+    rightInspectorSplitController,
+    "private func isSidebarWidthApplied(_ width: CGFloat) -> Bool",
+    "right AppKit inspector should detect when the target width is already applied"
+)
+assertContains(
+    rightInspectorSplitController,
+    "guard !isSidebarWidthApplied(clampedWidth) else { return }",
+    "right AppKit inspector should not force AppKit layout when sidebar width has not changed"
+)
+assertContains(
+    rightInspectorSplitController,
+    "if !isSidebarWidthApplied(targetWidth) {\n                setSidebarWidth(targetWidth)\n            }",
+    "right AppKit inspector should avoid no-op non-animated layout flushes"
+)
+assertContains(
     rightInspectorSplit,
     "isAnimatingSidebar = true",
     "right AppKit inspector controller should mark animated transitions before changing width"

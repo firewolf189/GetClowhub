@@ -36,7 +36,7 @@ enum MembershipLevel: String, Codable {
                 "ernie-x1.1-preview",
                 "gemini-2.5-flash-lite", "gemini-3.1-pro-preview",
                 "grok-4.1-fast",
-                "claude-opus-4.6", "claude-sonnet-4.6", "claude-haiku-4.5",
+                "claude-sonnet-4.6", "claude-haiku-4.5",
                 // 2026-06 catalog upgrade (additive; mirrors server pro plan)
                 "qwen3.7-plus", "gemini-3.1-flash-lite", "gemini-3.5-flash",
                 "grok-4.3", "minimax-m3",

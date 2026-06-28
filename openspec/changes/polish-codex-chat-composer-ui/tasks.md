@@ -151,3 +151,57 @@
 - [x] 21.2 Run `git diff --check`.
 - [x] 21.3 Build the macOS app with the `build-macos-apps` Xcode build flow.
 - [ ] 21.4 Visually smoke-check existing conversation header placement, empty new-chat no-header behavior, click-only right sidebar behavior, and Outputs filtering.
+
+## 22. Agent Project Workspace
+
+- [x] 22.1 Add `ProjectRecord`, `AgentProjectBinding`, and project session grouping models.
+- [x] 22.2 Extend chat session metadata with optional project id, project root, and project display name.
+- [x] 22.3 Add per-agent project folders in the sidebar before project-less general sessions.
+- [x] 22.4 Add an agent work-folder action that uses a local folder picker and explains that files stay local.
+- [x] 22.5 Add a lightweight `SemanticRepoMapService` bootstrap manifest in app-owned storage without recursive scanning, watchers, or language-server indexing.
+- [x] 22.6 Add compact project orientation for project-scoped chat without injecting full project contents.
+
+## 23. Session Storage And Search
+
+- [x] 23.1 Store agent sessions under the main workspace or `workspace-<agentId>` session directories.
+- [x] 23.2 Keep project metadata with session metadata while preserving one owning agent per session.
+- [x] 23.3 Keep legacy global session loading compatible.
+- [x] 23.4 Keep global session search across agent workspaces separate from right-sidebar file search.
+
+## 24. Assistant Rendering And Title Navigation
+
+- [x] 24.1 Add an assistant render policy for native selectable markdown, WebView fallback, and A2UI cards.
+- [x] 24.2 Cache WebView markdown HTML and measured heights with limits.
+- [x] 24.3 Guard measured-height writeback so tiny height deltas do not churn the timeline.
+- [x] 24.4 Add the named-session title popover that lists user messages and can jump to a selected message.
+
+## 25. Marketplace Utility Pages
+
+- [x] 25.1 Keep Skills and Plugins pages on the shared centered utility column.
+- [x] 25.2 Add search, refresh, and segmented Recommend/All/Installed modes for Skills and Plugins.
+- [x] 25.3 Resolve installed Skills and Plugins back to catalog metadata when possible while preserving custom installed items.
+- [x] 25.4 Preserve manual/custom install entry points.
+
+## 26. Channel Account Configuration
+
+- [x] 26.1 Add account id and display name fields for account-capable channel providers.
+- [x] 26.2 Store non-default channel accounts under provider-specific `accounts` data instead of overwriting the provider.
+- [x] 26.3 Remove or disable the selected channel account without removing other accounts for the same provider.
+
+## 27. Bundled OpenClaw Core Upgrade
+
+- [x] 27.1 Add bundled OpenClaw core manifest loading and version comparison.
+- [x] 27.2 Add startup coordinator that runs the bundled core check once after OpenClaw is detected.
+- [x] 27.3 Stage and verify the bundled core before swapping the installed package and bin link.
+- [x] 27.4 Reinstall or repair the gateway and restart OpenClaw after a successful swap.
+- [x] 27.5 Roll back from backup on failure and keep upgrade status out of dashboard chrome.
+
+## 28. Expanded Scope Verification
+
+- [x] 28.1 Run `scripts/verify_agent_project_workspace_mvp.swift`.
+- [x] 28.2 Run `scripts/verify_assistant_message_render_model.swift`.
+- [x] 28.3 Run `scripts/verify_markdown_webview_cache_limits.swift`.
+- [x] 28.4 Run `scripts/verify_dingtalk_multi_account_channels.swift`.
+- [x] 28.5 Run `scripts/verify_openclaw_core_upgrade.swift`.
+- [x] 28.6 Run `scripts/verify_plugins_lookup_index_cache.swift`.
+- [x] 28.7 Run `scripts/verify_skills_ui_cache_and_hover.swift`.

@@ -139,59 +139,54 @@ require(
     "Installed skills should render as one list instead of preserving Catalog/Custom sub-sections."
 )
 require(
-    skillsView.contains("withAnimation(.easeInOut(duration: 0.18))"),
-    "Skill row hover state should animate."
+    !catalogRow.contains("withAnimation(.easeInOut(duration: 0.18))") &&
+        !installedRow.contains("withAnimation(.easeInOut(duration: 0.18))"),
+    "Skill row hover should avoid row-local animation churn while scrolling."
 )
 require(
-    skillsView.contains(".animation(.easeInOut(duration: 0.18), value: isHovered)"),
-    "Skill row hover background should fade instead of switching instantly."
+    !catalogRow.contains(".animation(.easeInOut(duration: 0.18), value: isHovered)") &&
+        !installedRow.contains(".animation(.easeInOut(duration: 0.18), value: isHovered)"),
+    "Skill row hover should not attach per-row implicit animations."
 )
 require(
-    skillsView.contains("@State private var skillPointerLocation: CGPoint?"),
-    "Skills UI should track the current pointer location for proximity-based row magnification."
+    !skillsView.contains("@State private var skillPointerLocation: CGPoint?"),
+    "Skills UI should not track continuous pointer location while scrolling."
 )
 require(
-    skillsView.contains(".coordinateSpace(name: SkillDockMagnification.coordinateSpace)") &&
-        skillsView.contains(".onContinuousHover"),
-    "Skills UI should expose a named coordinate space and continuously track pointer movement."
+    !skillsView.contains(".coordinateSpace(name: SkillDockMagnification.coordinateSpace)") &&
+        !skillsView.contains(".onContinuousHover"),
+    "Skills UI should not continuously track pointer movement for row magnification."
 )
 require(
-    skillsView.contains("private enum SkillDockMagnification") &&
-        skillsView.contains("static let radius") &&
-        skillsView.contains("static let maxScale") &&
-        skillsView.contains("hypot("),
-    "Skills UI should compute Dock-style scale from pointer-to-row center distance."
+    !skillsView.contains("private enum SkillDockMagnification") &&
+        !skillsView.contains("hypot("),
+    "Skills UI should not compute Dock-style scale from pointer-to-row center distance."
 )
 require(
-    skillsView.contains("private struct SkillMagnifiedRow<Content: View>: View") &&
-        skillsView.contains(".scaleEffect(rowScale, anchor: .center)") &&
-        skillsView.contains("SkillRowFramePreferenceKey"),
-    "Skills UI should apply Dock-style scale to the whole row."
+    !skillsView.contains("private struct SkillMagnifiedRow<Content: View>: View") &&
+        !skillsView.contains(".scaleEffect(rowScale, anchor: .center)") &&
+        !skillsView.contains("SkillRowFramePreferenceKey"),
+    "Skills UI should not apply Dock-style scale to whole rows."
 )
 require(
     !skillsView.contains("private struct SkillMagnifiedIcon"),
     "Skills UI should not magnify icons separately."
 )
 require(
-    catalogRow.contains("let pointerLocation: CGPoint?") &&
-        catalogRow.contains("SkillMagnifiedRow(pointerLocation: pointerLocation)") &&
+    !catalogRow.contains("let pointerLocation: CGPoint?") &&
+        !catalogRow.contains("SkillMagnifiedRow(pointerLocation: pointerLocation)") &&
         !catalogRow.contains("SkillMagnifiedIcon("),
-    "Catalog skill rows should render through the whole-row magnification wrapper."
+    "Catalog skill rows should render without pointer-location magnification."
 )
 require(
-    installedRow.contains("let pointerLocation: CGPoint?") &&
-        installedRow.contains("SkillMagnifiedRow(pointerLocation: pointerLocation)") &&
+    !installedRow.contains("let pointerLocation: CGPoint?") &&
+        !installedRow.contains("SkillMagnifiedRow(pointerLocation: pointerLocation)") &&
         !installedRow.contains("SkillMagnifiedIcon("),
-    "Installed skill rows should render through the whole-row magnification wrapper."
+    "Installed skill rows should render without pointer-location magnification."
 )
 require(
-    !catalogRow.contains(".clipShape(RoundedRectangle(cornerRadius: 8))") &&
-        !installedRow.contains(".clipShape(RoundedRectangle(cornerRadius: 8))"),
-    "Skill rows should not clip their content because clipping hides row magnification."
-)
-require(
-    skillsView.contains("@Environment(\\.accessibilityReduceMotion)"),
-    "Dock-style skill magnification should respect reduce motion."
+    !skillsView.contains("@Environment(\\.accessibilityReduceMotion)"),
+    "Skills list no longer needs reduce-motion handling for removed magnification."
 )
 require(
     !skillsView.contains("ProgressView()"),

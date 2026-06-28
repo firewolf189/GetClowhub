@@ -104,13 +104,15 @@ gh auth status   # 应显示 "Logged in to github.com account <你>"
 
 ### 1.6 必需的 bundled tar.gz 资源（**最容易翻车的一项**）
 
-`OpenClawInstaller/Resources/` 下必须有这三个文件，**它们被 .gitignore 屏蔽**（GitHub 单文件 100 MB 限制），新发版机要么从老机器拷贝，要么按 [§ 7.2](#72-重建-openclaw-bundletargz) 重建。
+`OpenClawInstaller/Resources/` 下必须有这三个大文件，**它们被 .gitignore 屏蔽**（GitHub 单文件 100 MB 限制），新发版机要么从老机器拷贝，要么按 [§ 7.2](#72-重建-openclaw-bundletargz) 重建。
 
 | 文件 | 大小 | 用途 |
 |---|---|---|
 | `openclaw-bundle.tar.gz` | ~152 MB | openclaw npm 包 + 所有 deps（包含原生模块） |
 | `node-v24.14.0-darwin-arm64.tar.gz` | ~49 MB | bundled Node.js（Apple Silicon） |
 | `node-v24.14.0-darwin-x64.tar.gz` | ~50 MB | bundled Node.js（Intel） |
+
+另外，`OpenClawInstaller/Resources/openclaw-core-version.json` 必须提交到 git。它声明当前 App 内置的 OpenClaw core 目标版本，App 自动更新后会用它判断是否要把用户本机的 `~/.npm-global` 升级到随包版本。
 
 ```bash
 ls -lh OpenClawInstaller/Resources/*.tar.gz
@@ -442,13 +444,19 @@ tar -czf /tmp/openclaw-bundle.tar.gz \
 tar -tzf /tmp/openclaw-bundle.tar.gz | head -5
 # 应看到 bin/openclaw, lib/node_modules/openclaw/...
 
-# 5. 替换到仓库
+# 5. 记录 bundle 对应版本，并同步 openclaw-core-version.json
+openclaw --version
+# 把输出版本写入 <repo>/OpenClawInstaller/Resources/openclaw-core-version.json 的 openclawVersion
+
+# 6. 替换到仓库
 mv /tmp/openclaw-bundle.tar.gz <repo>/OpenClawInstaller/Resources/
 
-# 6. 体积 sanity check
+# 7. 体积 sanity check
 ls -lh <repo>/OpenClawInstaller/Resources/openclaw-bundle.tar.gz
 # 应在 100-200 MB 范围
 ```
+
+发版前还要确认 `openclaw-core-version.json` 的 `bundleName` 是 `openclaw-bundle.tar.gz`，并且 `openclawVersion` 与上面的 `openclaw --version` 完全一致。否则用户升级 App 后可能不会触发 core 升级，或升级器会因为 staged core 版本校验失败而回滚。
 
 ### 7.3 查看历史版本与变化
 

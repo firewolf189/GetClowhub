@@ -24,8 +24,17 @@ let i18nPath = "OpenClawInstaller/Resources/marketplace_agents.i18n.json"
 let i18nText = read(i18nPath)
 let i18nData = Data(i18nText.utf8)
 
+let agentsPath = "OpenClawInstaller/Resources/marketplace_agents.json"
+let agentsText = read(agentsPath)
+let agentsData = Data(agentsText.utf8)
+
 guard let overlay = try JSONSerialization.jsonObject(with: i18nData) as? [String: Any] else {
     fputs("FAIL: \(i18nPath) must be a JSON object\n", stderr)
+    exit(1)
+}
+
+guard let agents = try JSONSerialization.jsonObject(with: agentsData) as? [[String: Any]] else {
+    fputs("FAIL: \(agentsPath) must be a JSON array\n", stderr)
     exit(1)
 }
 
@@ -46,6 +55,38 @@ for (agentID, localeValue) in overlay {
 
         for key in fields.keys {
             require(allowedFields.contains(key), "\(agentID).\(localeID) contains unsupported field \(key); runtime content must not be localized")
+        }
+    }
+}
+
+let requiredLocales = ["zh-Hans", "zh-Hant"]
+let requiredFields = ["name", "division", "description", "vibe", "specialty", "whenToUse"]
+
+for agent in agents {
+    guard let agentID = agent["id"] as? String else {
+        fputs("FAIL: every marketplace agent must have an id\n", stderr)
+        exit(1)
+    }
+    guard let locales = overlay[agentID] as? [String: Any] else {
+        fputs("FAIL: \(agentID) is missing marketplace i18n translations\n", stderr)
+        exit(1)
+    }
+
+    for localeID in requiredLocales {
+        guard let fields = locales[localeID] as? [String: Any] else {
+            fputs("FAIL: \(agentID) is missing \(localeID) marketplace i18n translations\n", stderr)
+            exit(1)
+        }
+
+        for field in requiredFields {
+            guard let sourceValue = agent[field] as? String, !sourceValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                continue
+            }
+            guard let localizedValue = fields[field] as? String, !localizedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                fputs("FAIL: \(agentID).\(localeID).\(field) is missing localized display text\n", stderr)
+                exit(1)
+            }
+            require(localizedValue != sourceValue, "\(agentID).\(localeID).\(field) still matches the English source text")
         }
     }
 }

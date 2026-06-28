@@ -25,6 +25,7 @@ The active chat UI is partway through a Codex-style redesign. The prior OpenSpec
 - Agent creation already exists in the codebase, but it is not surfaced as a first-class left-sidebar category the way the user expects.
 - Persisted chat sessions are still stored in one global app-support location rather than under each agent's own workspace directory.
 - The UI currently has overlapping search affordances; the requested behavior is to keep only the session-search entry point and remove the redundant one.
+- The staged implementation also includes project workspaces, local runtime upgrade, assistant render-policy, Skills/Plugins marketplace, and channel-account changes that must be recorded so future agents do not treat them as unrelated or accidental.
 
 The change should treat the reference screenshots as the visual target: quiet sidebar, contained main panel, centered empty composer, visible gray bubbles, existing-conversation shell header control, smooth animated expansion/collapse, localized sidebar chrome, and grouped Gateway settings.
 
@@ -57,14 +58,24 @@ The change should treat the reference screenshots as the visual target: quiet si
 - Add a left-sidebar `Agent` category that exposes existing agent selection and creation behavior directly in the primary navigation area.
 - Store each agent's chat sessions under that agent's own workspace directory instead of one global chat-session directory.
 - Keep only the session-search affordance in the chat sidebar and make clicking search focus the session search field for global session search.
+- Add local project workspaces under each agent, with project folders before general sessions and app-owned project metadata/index manifests.
+- Keep project context lightweight and tool-oriented; do not scan or inject full project contents as prompt text.
+- Preserve the assistant message rendering split between native selectable markdown, WebView fallback for complex rich markdown, and A2UI card rendering.
+- Add a hover popover from the named-session title that lists user messages and can jump to a selected message.
+- Preserve Skills and Plugins marketplace pages with centered columns, segmented modes, search, refresh, catalog lookup, detail views, and custom/manual install paths.
+- Preserve account-specific Channels configuration for providers such as DingTalk and Feishu.
+- Upgrade bundled OpenClaw core silently and transactionally at startup when the app ships a newer core than the installed one.
 
 **Non-Goals:**
-- Do not change backend chat APIs, session storage, or gateway behavior.
+- Do not change backend chat APIs, gateway behavior, or the stored conversation payload format.
 - Do not redesign non-chat tabs.
 - Do not add new image assets or decorative empty-state branding.
 - Do not remove the underlying scroll-to-bottom behavior for active conversations.
 - Do not replace the existing Outputs/workspace content implementation beyond the requested entry/control behavior.
 - Do not expose agent persona/configuration markdown through the workspace output browser once dedicated agent-management surfaces already cover those files.
+- Do not implement full semantic indexing, file watchers, language-server integration, or recursive project scans as part of the project-workspace MVP.
+- Do not store GetClowHub project metadata, repo-map cache, or chat history inside the user's selected project folder.
+- Do not expose OpenClaw core upgrade progress as new dashboard chrome or user-facing success toasts.
 
 ## Decisions
 
@@ -182,6 +193,50 @@ The change should treat the reference screenshots as the visual target: quiet si
    - Activating search should focus the session search field and filter sessions globally across all available chat history.
    - This change applies to chat-session search only; it does not remove the separate workspace-file search within the right sidebar.
 
+22. **Add agent project workspaces without polluting user repos.**
+   - Rationale: agents need project-scoped conversations, but GetClowHub must not write app metadata into the user's source tree.
+   - The left sidebar keeps `Agent` as the primary hierarchy. Each agent can contain project folders, and project sessions render under those folders before project-less general sessions.
+   - `ProjectRecord`, `AgentProjectBinding`, and project metadata live in app-owned storage. Chat sessions carry optional `projectId`, `projectRoot`, and `projectDisplayName` metadata.
+   - The repo-map MVP writes only an app-owned manifest and does not recursively scan project roots, start file watchers, or run parser/language-server workers.
+   - Sending a project-scoped chat may include a compact orientation about the selected project, but project truth should come from local tools and bounded reads, not from injecting full file contents into every prompt.
+
+23. **Keep session persistence agent-scoped and project-aware.**
+   - Rationale: the sidebar now distinguishes agent, project, and general sessions, so persisted metadata must support that same hierarchy.
+   - Main-agent sessions live under the main workspace session directory; sub-agent sessions live under the corresponding `workspace-<agentId>` session directory.
+   - Project sessions remain GetClowHub session files with project metadata; they are not written into the user's selected project folder.
+   - Legacy global sessions remain readable through compatibility lookup so existing history is not lost.
+
+24. **Use a layered assistant message render policy.**
+   - Rationale: always mounting heavyweight WebViews or AppKit text views creates scroll, height, and switching churn. Ordinary messages should take the lowest-cost render path that still supports reading and copying.
+   - Streaming and ordinary markdown use native selectable markdown by default.
+   - A2UI payloads render as native cards when detected.
+   - Complex markdown such as tables, math, or HTML upgrades to the WebView fallback.
+   - WebView fallback must cache rendered HTML and measured heights, mutate body HTML for updates, and ignore tiny height changes so message rows do not repeatedly reflow.
+
+25. **Expose title-level user-message navigation.**
+   - Rationale: named conversations need quick orientation without adding another sidebar search surface.
+   - Hovering the center shell title can reveal a compact popover of user-authored messages in the conversation.
+   - Selecting a message closes the popover and scrolls or jumps to that message.
+   - Empty/new conversations do not show this title popover because they do not render the shell title.
+
+26. **Keep Skills and Plugins marketplace pages as catalog-backed utility surfaces.**
+   - Rationale: Skills and Plugins are operational catalog pages, not marketing landing pages. They should stay dense, searchable, and consistent with the app's centered utility layout.
+   - Both pages use a constrained center column, search field, refresh action, segmented Recommend/All/Installed modes, and detail presentation.
+   - Installed items are matched back to catalog metadata when possible, while custom/manual installs remain visible as custom installed entries.
+   - Refresh should force catalog sync and update visible catalog state without requiring the user to infer success from unrelated navigation.
+
+27. **Support account-specific channel configuration.**
+   - Rationale: providers such as DingTalk and Feishu may need more than one account, and removing one account must not remove or overwrite the entire channel type.
+   - The add-channel flow collects account id and display name for account-capable providers.
+   - Non-default accounts are stored under the channel's `accounts` collection, while the default account remains compatible with the existing top-level channel config.
+   - Removing a channel disables the selected account entry rather than blindly deleting the whole provider configuration.
+
+28. **Upgrade bundled OpenClaw core silently and transactionally.**
+   - Rationale: packaged app releases need to keep the local OpenClaw runtime current without asking users to manually repair the npm global install.
+   - Startup compares a bundled core manifest with the installed `openclaw --version`.
+   - If the bundled version is newer, the app stops the gateway, extracts the bundled core to staging, verifies the staged version, swaps only the installed OpenClaw package and bin link, reinstalls/repairs the gateway, restarts the service, and removes backups when complete.
+   - If a post-swap step fails, the app rolls back from backup. Upgrade state stays internal to startup; the dashboard should not add core-upgrade progress chrome or success toasts.
+
 ## Risks / Trade-offs
 
 - **Duplicating composer UI between empty and non-empty states** -> Extract small shared composer subviews and actions, but avoid a broad `DashboardView.swift` refactor.
@@ -199,6 +254,12 @@ The change should treat the reference screenshots as the visual target: quiet si
 - **Filtering workspace files too aggressively can hide genuinely useful artifacts** -> Limit the default hidden set to known agent-config markdown files and document the rule in code.
 - **Promoting right-sidebar state upward can touch a large existing view file** -> Keep the state surface narrow and move only ownership/layout wiring, not unrelated chat behavior.
 - **Removing the top-level Search row can reduce discoverability if focus behavior is weak** -> Ensure the remaining session-search control is easy to trigger and immediately focused when opened.
+- **Project-workspace scope can balloon into a full IDE** -> Keep the MVP to project records, agent bindings, project-scoped sessions, and a lightweight manifest; defer watchers, semantic parsers, branch controls, and permission controls.
+- **Project session storage can pollute source repos** -> Keep chat history and repo-map metadata under GetClowHub-controlled storage; only write into the selected project when the user explicitly asks for a project artifact.
+- **Render policy changes can regress selectable text or rich markdown** -> Verify native selection, complex markdown fallback, WebView cache limits, and height writeback thresholds.
+- **Silent core upgrade can damage the user's npm global directory** -> Stage, verify, and swap only the OpenClaw package/bin link, keep backups, and roll back on failure.
+- **Channel accounts can overwrite each other** -> Treat default and named accounts separately and disable only the selected account on removal.
+- **Marketplace catalog lookup can confuse installed/custom items** -> Keep catalog-backed installed items and custom installed items visible in predictable sections.
 
 ## Open Questions
 
@@ -208,6 +269,9 @@ The change should treat the reference screenshots as the visual target: quiet si
 - The `Market` label must follow the active language; English should show `Market`, and Chinese should use the existing or newly added localized value.
 - The top-right Outputs control is click-only. Hover may show a normal tooltip, but it must not expand or reveal the right sidebar. When Outputs is closed, no separate right-side strip should remain visible.
 - The search requirement is interpreted as keeping the session-search input and removing the redundant top-level sidebar `Search` row; clicking search should focus the session-search field and search all sessions globally.
+- Project workspaces are interpreted as local work folders under agents, not as cloud projects or as metadata written into the selected repository.
+- The repo-map service is currently an MVP manifest/bootstrap service; deeper semantic indexing should be proposed as a separate change.
+- The bundled OpenClaw core upgrade should stay a startup/runtime maintenance path, not a new dashboard page.
 
 ## Final Accepted Layout
 
@@ -223,3 +287,16 @@ This means the session title is owned by the center app-shell header, not by `Ch
 The right sidebar is a real shell-level sibling column. It opens and closes through explicit button clicks, matching the left sidebar's interaction model. Hover may show a tooltip, but hover must not open, reveal, or resize the sidebar. When the user opens, closes, or resizes a sidebar, the center chat region's available width changes. The chat column keeps a readable max width, but it must shrink when the center region becomes narrower.
 
 The right sidebar title is `Outputs`. Its content is a filtered model-output browser, not the full workspace tree. It should surface generated reports, generated files, images, patches, logs, and similar run artifacts while hiding agent/user/context documents such as `USER.md`, `AGENTS.md`, `TOOLS.md`, `BOOTSTRAP.md`, `IDENTITY.md`, `SOUL.md`, and `MEMORY.md`.
+
+## Current Expanded Design Baseline
+
+This change now also captures the broader app design that was added during the same implementation window:
+
+- Agent sidebar hierarchy may contain project folders under each agent. Project sessions render under their project folder; general sessions render after projects.
+- Project metadata and repo-map bootstrap data belong to GetClowHub-managed storage. The user's selected source folder remains clean unless the user asks the agent to create or edit project files.
+- Chat sessions are agent-scoped and may be project-scoped through metadata. Legacy globally stored sessions remain readable.
+- Assistant messages choose between native selectable markdown, A2UI cards, and cached WebView fallback according to content complexity.
+- Named conversation titles can reveal a hover popover of user messages for quick navigation.
+- Skills and Plugins pages are catalog-backed operational views with search, segmented modes, refresh, detail views, and custom install paths.
+- Channels support provider-specific named accounts, especially app-key providers such as DingTalk and Feishu.
+- Packaged releases can silently upgrade the bundled OpenClaw core through a staged, verified, rollback-capable startup flow.

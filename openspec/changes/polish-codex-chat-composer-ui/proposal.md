@@ -1,33 +1,28 @@
 ## Why
 
-The completed Codex-style chat changes still leave visible UI mismatches: the empty New chat composer remains bottom-aligned, chat bubble backgrounds are too subtle, divider/anchor lines visually cross the layout, and agent/model selection is not available from the composer in the requested form. This change turns the prior broad redesign into a stricter visual and interaction polish pass that matches the referenced Codex-like screenshots.
+The earlier Codex-style chat work started as visual polish, but the accepted design has become a shell-level app experience update. The remaining contract is no longer only about composer placement or bubble styling; it also defines how the left sidebar, center chat shell, right Outputs sidebar, agent selection, project workspaces, local runtime upgrades, rich message rendering, marketplace pages, channel accounts, session persistence, and search entry points fit together.
+
+This change records the current design as the implementation source of truth so future work does not continue from the older "chat-internal polish" interpretation. The app should behave as an outer three-column shell: the left sidebar owns primary navigation, agent switching, and agent project folders; the center shell owns the conversation header, message rendering, and chat column; and the right Outputs sidebar is a real sibling layout column that appears only when explicitly opened.
 
 ## What Changes
 
-- Center the New chat empty-state title and composer in the main chat panel when the selected session has no messages.
-- Keep scroll anchors and scroll affordances inside the chat panel only; they must not draw lines across or through the left sidebar.
-- Remove unwanted standalone divider lines at the top of the chat area and near the lower-left input/sidebar boundary.
-- Restore visible gray chat bubble backgrounds using a Codex-like rounded light-gray treatment for user and assistant messages.
-- Tighten chat bubble corner radii so user and assistant bubbles read as lightly rounded panels instead of large pills.
-- Add a compact composer agent/model selector that displays the selected agent and model as a combined label such as `UX · GPT-5.5 v`.
-- Implement the selector as a custom nested panel: agent options in the primary panel and model options revealed directly through a `Model >` row in an adjacent panel.
-- Add an existing-conversation shell header control for Outputs access, matching the referenced top chrome placement, independent of scroll-anchor state.
-- Animate the panel control's expand/collapse behavior smoothly instead of snapping open or closed.
-- Expand Outputs from the shell header control into a real right-sidebar layout column when open, but remove the right-side collapsed strip entirely when closed.
-- Remove the trailing narrow Outputs toolbar/strip shown at the far-right edge; the closed state must leave no right-side column, divider, folder icon, or sidebar icon.
-- Use the top-right Outputs button as the explicit click affordance; do not expand the Outputs sidebar on hover.
-- Keep the chat message and composer width stable when the left sidebar changes or Outputs opens/closes; the chat column should recenter inside the remaining space instead of stretching wider.
-- Remove the top-left sidebar brand icon so the header does not show the logo mark.
-- Show the active chat session title near the left edge of the main chat panel whenever the selected session already has a non-empty name.
-- Show a delete affordance on the right side of hovered chat-session rows instead of a hover state that implies expandable behavior.
-- Keep the composer position stable when the user opens the agent/model selector; selector panels must float without changing the composer card's layout height.
-- Localize sidebar and chrome labels according to the active app language, while preserving chat message content as originally authored.
-- Remove the left-sidebar `Outputs` navigation entry and rely on the existing-conversation shell header control for Outputs access.
-- Add a localized `Market` navigation entry under `Automation` for the existing marketplace/expert-team surface.
-- Remove the global top divider line that spans across the sidebar/main-panel boundary.
-- Reduce the vertical gutter above the first visible chat message so the top anchor/header area feels more compact.
-- Group provider settings into a single `Gateway` settings section with the Gateway heading at the top.
-- Preserve existing chat sending, message persistence, model update, agent switching, attachments, and non-chat tab behavior.
+- Define the final app-shell layout as left sidebar, center chat shell, and optional right Outputs sidebar sibling columns.
+- Render a shell-owned 16pt conversation title and Outputs toggle only for named existing conversations; empty new chats keep the centered composition surface and no header separator.
+- Keep the chat timeline and composer on a readable max-width column that recenters within the available center region and shrinks only when the center region becomes too narrow.
+- Make the right Outputs sidebar click-only, animated, and layout-owned. It must not open on hover, float over chat, remain as a collapsed strip, or live inside the chat message panel.
+- Treat the right sidebar as `Outputs`, not a full workspace browser. It shows generated artifacts and excludes context/config files such as `USER.md`, `AGENTS.md`, `TOOLS.md`, `BOOTSTRAP.md`, `IDENTITY.md`, `SOUL.md`, and `MEMORY.md`.
+- Remove the left-sidebar `Outputs` route and the redundant top-level `Search` route. Session search remains the single chat-history search entry point and focuses the session search input when activated.
+- Add localized `Agent` and `Market` sidebar sections: `Agent` exposes existing agent selection and creation, while `Market` opens the existing marketplace/expert-team surface under `Automation`.
+- Add agent project workspaces under the Agent sidebar: users can add local work folders per agent, see project-scoped sessions before general sessions, and keep project indexing metadata in app-owned storage instead of inside user repos.
+- Store sessions under each agent's workspace directory, while preserving access to legacy globally stored sessions through migration or compatible loading.
+- Keep local project context lightweight: chat turns may carry a short project orientation, but the app must not inject a full project tree or scan project contents just to render the sidebar.
+- Preserve the new assistant rendering policy: native selectable text is the default path, rich markdown upgrades only when needed, and WebView rendering uses cached HTML/height updates to avoid blank flashes and layout churn.
+- Add the title hover popover for named conversations so the title can expose user-message jump targets without becoming part of the message timeline.
+- Preserve Skills and Plugins marketplace refinements: centered 760pt pages, Recommend/All/Installed modes, search, refresh, detail presentation, manual/custom install paths, and installed-item catalog lookup.
+- Preserve channel account behavior, including DingTalk/Feishu-style app-key accounts with default and named account entries rather than overwriting the whole channel type.
+- Add silent bundled OpenClaw core upgrade behavior at startup: compare the bundled core manifest with the installed version, stage and verify the new core, swap only the OpenClaw package/bin link, reinstall/restart the gateway, and roll back on failure without adding dashboard status chrome.
+- Preserve the accepted chat polish details: centered empty composer, visible gray bubbles with tighter radii, invisible contained scroll anchors, no stray global dividers, hover delete affordance on session rows, localized chrome, and grouped `Gateway` settings.
+- Preserve existing chat sending, attachments, model updates, gateway behavior, marketplace behavior, and non-chat tab behavior except where explicitly touched by the shell/sidebar changes.
 
 ## Final Layout Clarification
 
@@ -40,7 +35,7 @@ The expanded right sidebar is titled `Outputs` and shows model output artifacts 
 ## Capabilities
 
 ### New Capabilities
-- `codex-chat-composer-polish`: Covers centered New chat composition, chat bubble gray styling, contained scroll anchors/divider removal, composer agent/model selection, fixed animated panel controls without a closed-state right strip, sidebar header icon removal, localized sidebar navigation, marketplace entry placement, and gateway settings grouping.
+- `codex-chat-composer-polish`: Covers the final Codex-style app shell, including centered New chat composition, visible gray message bubbles, contained scroll anchors/divider cleanup, composer agent/model selection, shell-owned conversation header and title popover, click-only right Outputs sidebar, Outputs-only artifact filtering, localized sidebar navigation, Agent and Market sidebar entries, agent project workspaces, per-agent and project-aware session metadata, session-search consolidation, assistant render policy, Skills/Plugins marketplace page refinements, multi-account channel configuration, bundled OpenClaw core upgrades, and Gateway settings grouping.
 
 ### Modified Capabilities
 
@@ -48,8 +43,15 @@ None. There are no existing archived OpenSpec capabilities in `openspec/specs/`;
 
 ## Impact
 
-- Affects `OpenClawInstaller/Views/Dashboard/DashboardView.swift` for chat layout, bubble styling, session-row hover actions, chat header/title placement, scroll-anchor containment, stable centered chat width, right-sidebar Outputs column placement, and removal of the closed-state right strip.
-- May affect `OpenClawInstaller/ViewModels/DashboardViewModel.swift` if a narrow helper is needed for composer-driven model switching or panel state.
+- Affects `OpenClawInstaller/Views/Dashboard/DashboardView.swift` for app-shell layout, sidebar navigation, chat layout, bubble styling, session-row hover actions, shell header/title placement, scroll-anchor containment, stable centered chat width, right-sidebar Outputs column placement, and removal of the closed-state right strip.
+- Affects `OpenClawInstaller/ViewModels/DashboardViewModel.swift` for shell/sidebar state, composer-driven model or agent switching helpers, search focus behavior, selected-agent behavior, and any fallback behavior for removed sidebar routes.
+- Affects `OpenClawInstaller/Models/ChatSession.swift`, `OpenClawInstaller/Models/ProjectWorkspace.swift`, `OpenClawInstaller/Services/ChatSessionStore.swift`, and `OpenClawInstaller/Services/SemanticRepoMapService.swift` for project-scoped session metadata, per-agent workspace session paths, local project registry/bindings, lightweight repo-map manifest bootstrapping, and legacy-session compatibility.
+- Affects `OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift`, `OpenClawInstaller/Views/Dashboard/MarkdownHTML.swift`, and `OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift` for assistant render-mode selection, native selectable markdown, WebView fallback rendering, cache limits, and height measurement guards.
+- Affects `OpenClawInstaller/Views/Dashboard/SessionTitleUserMessagesPopover.swift` for the named-session title popover and message jump affordance.
+- Affects workspace/output browsing code for Outputs-only filtering and exclusion of agent/context configuration documents.
+- Affects `OpenClawInstaller/Views/Dashboard/SkillsTabView.swift`, `OpenClawInstaller/Views/Dashboard/PluginsTabView.swift`, marketplace resources, and catalog services for Skills/Plugins marketplace layout, lookup, refresh, search, and install behavior.
+- Affects `OpenClawInstaller/Views/Dashboard/ChannelsTabView.swift` and channel-related ViewModel logic for account-specific channel configuration.
+- Affects `OpenClawInstaller/Models/OpenClawCoreManifest.swift`, `OpenClawInstaller/Services/OpenClawCoreUpgradeCoordinator.swift`, `OpenClawInstaller/OpenClawInstallerApp.swift`, release resources, and packaging scripts for bundled OpenClaw core upgrade behavior.
 - May affect `OpenClawInstaller/Localizable.xcstrings` if new visible labels or accessibility/help strings are introduced.
 - Affects `OpenClawInstaller/Views/Dashboard/ConfigTabView.swift` for the grouped Gateway settings layout.
-- Does not change backend chat/session APIs, stored conversation format, or OpenClaw service behavior.
+- Does not change backend chat APIs, gateway protocols, or the stored chat-message payload format.

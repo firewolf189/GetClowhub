@@ -115,6 +115,28 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 fi
 echo "✅ Preflight 通过 (${#REQUIRED_BUNDLES[@]} 个必需 bundle 就位)"
 
+CORE_MANIFEST="$RESOURCES_SRC/openclaw-core-version.json"
+if [ ! -f "$CORE_MANIFEST" ]; then
+    echo "❌ 缺少 OpenClaw core manifest: $CORE_MANIFEST"
+    echo "   需要提交 OpenClawInstaller/Resources/openclaw-core-version.json"
+    exit 1
+fi
+
+MANIFEST_VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("openclawVersion",""))' "$CORE_MANIFEST")
+BUNDLE_VERSION=$(tar -xOf "$RESOURCES_SRC/openclaw-bundle.tar.gz" lib/node_modules/openclaw/package.json | python3 -c 'import json,sys; print(json.load(sys.stdin).get("version",""))')
+if [ -z "$MANIFEST_VERSION" ] || [ -z "$BUNDLE_VERSION" ]; then
+    echo "❌ 无法读取 OpenClaw core manifest 或 bundle 内 package.json 版本"
+    exit 1
+fi
+if [ "$MANIFEST_VERSION" != "$BUNDLE_VERSION" ]; then
+    echo "❌ OpenClaw core manifest 与 bundle 版本不一致"
+    echo "   manifest: $MANIFEST_VERSION"
+    echo "   bundle:   $BUNDLE_VERSION"
+    echo "   请重建 openclaw-bundle.tar.gz，或把 openclaw-core-version.json 同步到 bundle 实际版本"
+    exit 1
+fi
+echo "✅ OpenClaw core manifest 与 bundle 版本一致: $MANIFEST_VERSION"
+
 if [ -d "$RESOURCES_SRC" ]; then
     cp -R "$RESOURCES_SRC/"* "$RESOURCES_DEST/"
     echo "   Universal 构建，保留全部 Node.js 包"

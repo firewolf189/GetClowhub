@@ -239,6 +239,8 @@ struct AddChannelSheet: View {
     @State private var token = ""
     @State private var appKey = ""
     @State private var appSecret = ""
+    @State private var accountId = "default"
+    @State private var displayName = ""
     @State private var pluginsLoaded = false
 
     private var usesAppKeyAuth: Bool {
@@ -270,6 +272,7 @@ struct AddChannelSheet: View {
         if !isPluginInstalled { return false }
         if viewModel.isPerformingAction { return false }
         if usesQRLogin { return false }
+        if accountId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
         if usesAppKeyAuth {
             return !appKey.trimmingCharacters(in: .whitespaces).isEmpty
                 && !appSecret.trimmingCharacters(in: .whitespaces).isEmpty
@@ -314,6 +317,8 @@ struct AddChannelSheet: View {
                         token = ""
                         appKey = ""
                         appSecret = ""
+                        accountId = "default"
+                        displayName = ""
                         viewModel.resetWeixinLogin()
                     }
                 }
@@ -426,7 +431,31 @@ struct AddChannelSheet: View {
                             .padding(.vertical, 20)
                         }
                     }
-                } else if usesAppKeyAuth {
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(String(localized: "Account ID", bundle: LanguageManager.shared.localizedBundle))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        TextField("default", text: $accountId)
+                            .textFieldStyle(.roundedBorder)
+
+                        Text(String(localized: "Use default for the primary account, or enter another ID to add multiple accounts for the same channel.", bundle: LanguageManager.shared.localizedBundle))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(String(localized: "Display Name", bundle: LanguageManager.shared.localizedBundle))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        TextField(String(localized: "Optional", bundle: LanguageManager.shared.localizedBundle), text: $displayName)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+
+                if usesAppKeyAuth {
                     // Credential inputs
                     VStack(alignment: .leading, spacing: 6) {
                         Text(String(localized: "App Key", bundle: LanguageManager.shared.localizedBundle))
@@ -491,9 +520,20 @@ struct AddChannelSheet: View {
                     Button(String(localized: "Add", bundle: LanguageManager.shared.localizedBundle)) {
                         Task {
                             if usesAppKeyAuth {
-                                await viewModel.addChannel(channelType: selectedChannel, appKey: appKey, appSecret: appSecret)
+                                await viewModel.addChannel(
+                                    channelType: selectedChannel,
+                                    appKey: appKey,
+                                    appSecret: appSecret,
+                                    accountId: accountId,
+                                    displayName: displayName
+                                )
                             } else {
-                                await viewModel.addChannel(channelType: selectedChannel, token: token)
+                                await viewModel.addChannel(
+                                    channelType: selectedChannel,
+                                    token: token,
+                                    accountId: accountId,
+                                    displayName: displayName
+                                )
                             }
                             isPresented = false
                         }

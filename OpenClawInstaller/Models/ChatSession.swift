@@ -11,6 +11,9 @@ struct ChatSession: Codable, Identifiable {
     var messages: [ChatMessage]
     var isPinned: Bool
     var isArchived: Bool
+    var projectId: String?
+    var projectRoot: String?
+    var projectDisplayName: String?
 
     init(
         id: UUID = UUID(),
@@ -20,7 +23,10 @@ struct ChatSession: Codable, Identifiable {
         updatedAt: Date = Date(),
         messages: [ChatMessage] = [],
         isPinned: Bool = false,
-        isArchived: Bool = false
+        isArchived: Bool = false,
+        projectId: String? = nil,
+        projectRoot: String? = nil,
+        projectDisplayName: String? = nil
     ) {
         self.id = id
         self.agentId = agentId
@@ -30,6 +36,9 @@ struct ChatSession: Codable, Identifiable {
         self.messages = messages
         self.isPinned = isPinned
         self.isArchived = isArchived
+        self.projectId = projectId
+        self.projectRoot = projectRoot
+        self.projectDisplayName = projectDisplayName
     }
 
     static let defaultTitle = "新会话"
@@ -62,6 +71,9 @@ struct ChatSessionMetadata: Codable, Identifiable, Equatable {
     var messageCount: Int
     var isPinned: Bool
     var isArchived: Bool
+    var projectId: String?
+    var projectRoot: String?
+    var projectDisplayName: String?
 
     init(from session: ChatSession) {
         self.id = session.id
@@ -72,6 +84,9 @@ struct ChatSessionMetadata: Codable, Identifiable, Equatable {
         self.messageCount = session.messages.count
         self.isPinned = session.isPinned
         self.isArchived = session.isArchived
+        self.projectId = session.projectId
+        self.projectRoot = session.projectRoot
+        self.projectDisplayName = session.projectDisplayName
     }
 }
 

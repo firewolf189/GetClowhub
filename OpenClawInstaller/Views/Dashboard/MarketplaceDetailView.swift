@@ -108,7 +108,7 @@ struct MarketplaceDetailView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .disabled(isInstalling)
-                .help("Close")
+                .help(String(localized: "Close", bundle: languageManager.localizedBundle))
             }
         }
     }
@@ -129,7 +129,7 @@ struct MarketplaceDetailView: View {
             get: { installError != nil },
             set: { if !$0 { installError = nil } }
         )) {
-            Button("OK", role: .cancel) {}
+            Button(String(localized: "OK", bundle: languageManager.localizedBundle), role: .cancel) {}
         } message: {
             Text(installError ?? "")
         }

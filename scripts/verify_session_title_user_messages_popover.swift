@@ -31,26 +31,13 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let popover = read("OpenClawInstaller/Views/Dashboard/SessionTitleUserMessagesPopover.swift")
+let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 let titleToolbar = slice(
     dashboard,
     from: #".toolbar {"#,
     to: #".alert("Error""#
-)
-let titlePopoverView = slice(
-    dashboard,
-    from: "private struct SessionTitlePopoverView: View",
-    to: "// MARK: - Input Mode Picker"
-)
-let titleFlyoutOverlay = slice(
-    dashboard,
-    from: "private var sessionTitleUserMessagesFlyout: some View",
-    to: "private func updateSessionTitleHover"
-)
-let titleFlyoutContent = slice(
-    dashboard,
-    from: "private struct SessionTitleUserMessagesFlyoutContent: View",
-    to: "private struct SessionTitleUserMessageRow: View"
 )
 let chatView = slice(
     dashboard,
@@ -65,13 +52,18 @@ let chatBubble = slice(
 
 assertContains(
     titleToolbar,
-    "SessionTitlePopoverView(",
-    "conversation title must use the custom hover popover title view"
+    "SessionTitleUserMessagesPopover(",
+    "conversation title must use the locally owned hover popover component"
 )
 assertContains(
     titleToolbar,
     "messages: currentSessionUserMessages",
     "conversation title hover control must know whether user messages are available"
+)
+assertContains(
+    titleToolbar,
+    "onTapMessage: jumpToUserMessage",
+    "conversation title popover should only call back to Dashboard when a user message is selected"
 )
 assertNotContains(
     titleToolbar,
@@ -91,99 +83,233 @@ assertContains(
 )
 
 assertContains(
-    titlePopoverView,
+    project,
+    "SessionTitleUserMessagesPopover.swift in Sources",
+    "local title popover component must be compiled into the app target"
+)
+
+assertContains(
+    popover,
+    "struct SessionTitleUserMessagesPopover: View",
+    "title user-message popover should live in its own focused component"
+)
+assertContains(
+    popover,
+    "@State private var isTitleHovering = false",
+    "title hover state should be local to the title popover component"
+)
+assertContains(
+    popover,
+    "@State private var isPopoverHovering = false",
+    "popover hover state should be local so moving from title into the panel keeps it open"
+)
+assertContains(
+    popover,
+    "@State private var isPopoverPresented = false",
+    "popover presentation state should not live in DashboardView"
+)
+assertContains(
+    popover,
+    "@State private var popoverCloseTask: DispatchWorkItem?",
+    "short close grace delay should be owned by the local title popover"
+)
+assertContains(
+    popover,
     "RoundedRectangle(cornerRadius: 8, style: .continuous)",
     "conversation title must render inside a lightweight rounded rectangle"
 )
 assertContains(
-    titlePopoverView,
-    "onHoverChange(hovering)",
-    "title hover control must delegate hover state to the root overlay owner"
+    popover,
+    "private struct SessionTitlePopoverHost<Label: View>: NSViewRepresentable",
+    "toolbar title should use a narrow AppKit bridge to anchor a local popover"
+)
+assertContains(
+    popover,
+    "let popover = NSPopover()",
+    "title user-message panel should be an AppKit popover anchored to the title view"
 )
 assertNotContains(
-    titlePopoverView,
-    "Task.sleep(nanoseconds: 300_000_000)",
-    "title popover must not keep the old 300ms delayed hover behavior"
-)
-assertNotContains(
-    titlePopoverView,
+    popover,
     ".popover(",
-    "title hover UI must not use native popover because toolbar source views flicker"
+    "title hover UI should not use SwiftUI popover state attached to DashboardView"
 )
 assertContains(
-    titleFlyoutOverlay,
-    "GeometryReader { proxy in",
-    "title user-message flyout must be rendered by a root overlay with geometry conversion"
+    popover,
+    "popover.behavior = .transient",
+    "title popover should close naturally when focus leaves it"
 )
 assertContains(
-    titleFlyoutOverlay,
-    "let panelX = sessionTitleFlyoutX(in: proxy)",
-    "title user-message flyout must compute an x position from the title frame"
+    popover,
+    "schedulePresent(relativeTo: nsView, isPresented: $isPresented)",
+    "title popover should not synchronously show from updateNSView"
 )
 assertContains(
-    titleFlyoutOverlay,
-    "let panelY = sessionTitleFlyoutY(in: proxy)",
-    "title user-message flyout must compute a y position from the title frame"
+    popover,
+    "private var pendingPresentWork: DispatchWorkItem?",
+    "title popover should cancel stale async show attempts when SwiftUI rebuilds the source view"
 )
 assertContains(
-    titleFlyoutOverlay,
-    "SessionTitleUserMessagesFlyoutContent(",
-    "title user-message list must be rendered as a self-owned flyout, not a native popover"
+    popover,
+    "DispatchQueue.main.async(execute: work)",
+    "title popover should defer AppKit show until the next main run loop"
 )
 assertContains(
-    titleFlyoutOverlay,
-    ".offset(x: panelX, y: panelY)",
-    "title user-message flyout must be positioned to the right of the title"
+    popover,
+    "guard isPresented.wrappedValue, !self.messages.isEmpty else { return }",
+    "title popover should re-check binding state and messages before showing"
 )
 assertContains(
-    titleFlyoutOverlay,
-    ".onHover { hovering in",
-    "title user-message flyout must keep itself open while pointer is over the panel"
+    popover,
+    "guard sourceView.window != nil, !sourceView.bounds.isEmpty else",
+    "title popover should only show from a source view attached to a window with stable bounds"
 )
 assertContains(
-    titleFlyoutOverlay,
-    "updateSessionTitleFlyoutHover(hovering)",
-    "title user-message flyout hover must participate in close scheduling"
+    popover,
+    "isPresented.wrappedValue = false",
+    "title popover should reset SwiftUI presentation state when the source view is unusable"
 )
 assertContains(
-    titleFlyoutContent,
+    popover,
+    "popover.animates = false",
+    "title popover should avoid toolbar hover animation churn"
+)
+assertContains(
+    popover,
+    "preferredEdge: .maxY",
+    "title popover should be positioned by AppKit relative to the title view"
+)
+assertContains(
+    popover,
+    "if !isTitleHovering && !isPopoverHovering",
+    "local close scheduling should keep the panel open while the pointer is over title or panel"
+)
+assertContains(
+    popover,
+    "onPopoverHoverChange(hovering)",
+    "popover content should report hover locally instead of through DashboardView"
+)
+assertContains(
+    popover,
     "ScrollView",
     "title popover content must be scrollable for long sessions"
 )
 assertContains(
-    titleFlyoutContent,
+    popover,
     "LazyVStack",
     "title popover content must render user messages as a list"
 )
 assertContains(
-    titleFlyoutContent,
+    popover,
     "ForEach(messages) { message in",
     "title popover must preserve message identity for future jump behavior"
 )
 assertContains(
-    titleFlyoutContent,
+    popover,
     "onTapMessage(message)",
     "title popover rows must expose a future message-selection hook"
 )
 assertContains(
-    titleFlyoutOverlay,
-    ".frame(width: sessionTitleFlyoutWidth)",
+    popover,
+    ".frame(width: 360)",
     "title popover must use a stable readable width"
 )
 assertContains(
-    titleFlyoutContent,
+    popover,
     ".frame(maxHeight: 320)",
     "title popover must cap height so long sessions scroll"
 )
 assertContains(
-    dashboard,
-    "private func scheduleSessionTitleFlyoutClose()",
-    "title user-message flyout must close via a short grace delay instead of on title leave"
+    popover,
+    "private struct SessionTitleLiquidGlassBackground: View",
+    "title popover should use a named SwiftUI-native liquid-glass-inspired background"
+)
+
+let titlePopoverContent = slice(
+    popover,
+    from: "private struct SessionTitleUserMessagesPopoverContent: View",
+    to: "private struct SessionTitleLiquidGlassBackground: View"
+)
+let liquidGlassBackground = slice(
+    popover,
+    from: "private struct SessionTitleLiquidGlassBackground: View",
+    to: "private struct SessionTitleUserMessageRow: View"
+)
+
+assertContains(
+    titlePopoverContent,
+    ".background(SessionTitleLiquidGlassBackground(cornerRadius: 12))",
+    "title popover content should apply the custom glass background as its outer surface"
+)
+assertNotContains(
+    titlePopoverContent,
+    ".background(.regularMaterial)",
+    "title popover content should not use a plain regularMaterial background"
 )
 assertContains(
+    liquidGlassBackground,
+    ".fill(.ultraThinMaterial)",
+    "liquid glass background should use a light native material base"
+)
+assertContains(
+    liquidGlassBackground,
+    "LinearGradient(",
+    "liquid glass background should add a directional highlight layer"
+)
+assertContains(
+    liquidGlassBackground,
+    "RadialGradient(",
+    "liquid glass background should add a localized lens highlight"
+)
+assertContains(
+    liquidGlassBackground,
+    ".strokeBorder(",
+    "liquid glass background should draw subtle glass edges"
+)
+assertContains(
+    liquidGlassBackground,
+    ".shadow(color:",
+    "liquid glass background should keep depth without adding a heavy opaque fill"
+)
+assertContains(
+    popover,
+    "private func schedulePopoverClose()",
+    "title user-message popover must close via a short local grace delay"
+)
+assertContains(
+    popover,
+    "popoverCloseTask?.cancel()",
+    "title user-message popover must cancel pending closes when pointer enters title or panel"
+)
+
+assertNotContains(
     dashboard,
-    "sessionTitleFlyoutCloseTask?.cancel()",
-    "title user-message flyout must cancel pending closes when pointer enters title or panel"
+    "SessionTitleFrameReporter",
+    "DashboardView should not measure the toolbar title frame for a root overlay"
+)
+assertNotContains(
+    dashboard,
+    "sessionTitleUserMessagesFlyout",
+    "DashboardView should not render the title user-message panel as a root overlay"
+)
+assertNotContains(
+    dashboard,
+    "updateSessionTitleHover",
+    "DashboardView should not own title hover state"
+)
+assertNotContains(
+    dashboard,
+    "sessionTitleFlyoutCloseTask",
+    "DashboardView should not own title popover close scheduling"
+)
+assertNotContains(
+    dashboard,
+    "isSessionTitleHovering",
+    "DashboardView should not change root state for title hover"
+)
+assertNotContains(
+    dashboard,
+    "sessionTitleFrame",
+    "DashboardView should not store title geometry for hover popover placement"
 )
 
 assertContains(

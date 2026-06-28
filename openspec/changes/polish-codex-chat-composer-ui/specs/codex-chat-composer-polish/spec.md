@@ -338,3 +338,120 @@ The system SHALL present the right sidebar as an Outputs browser rather than a f
 - **WHEN** the Outputs tree or Outputs search results are rendered
 - **THEN** context/config files such as `USER.md`, `AGENTS.md`, `TOOLS.md`, `BOOTSTRAP.md`, `IDENTITY.md`, `SOUL.md`, and `MEMORY.md` are excluded
 - **AND** the visible list focuses on model-generated reports, files, images, patches, logs, and similar artifacts
+
+### Requirement: Agent sidebar supports local project workspaces
+The system SHALL let agents own local project folders and project-scoped sessions without storing GetClowHub metadata in the user's project folder.
+
+#### Scenario: Project folder is added under an agent
+- **WHEN** the user adds a local work folder for an agent
+- **THEN** the project appears under that agent in the left sidebar
+- **AND** project-scoped sessions render under the project folder before that agent's project-less general sessions
+- **AND** the same project may be bound to more than one agent without merging those agents' sidebar state
+
+#### Scenario: Project metadata stays app-owned
+- **WHEN** GetClowHub records a project binding or repo-map bootstrap manifest
+- **THEN** the metadata is stored in GetClowHub-controlled application storage
+- **AND** the app does not write chat history, repo-map cache, or GetClowHub metadata into the selected user project folder
+
+#### Scenario: Project context is lightweight
+- **WHEN** the user sends a message in a project-scoped session
+- **THEN** the app may include only compact project orientation metadata
+- **AND** it does not inject a full project tree or recursively scanned file contents into every chat prompt
+
+### Requirement: Project-scoped sessions remain agent-scoped and legacy-compatible
+The system SHALL persist project session metadata while preserving existing chat history.
+
+#### Scenario: Project session metadata is saved
+- **WHEN** a chat session belongs to a project
+- **THEN** the session metadata includes the project id, project root, and project display name
+- **AND** the session still belongs to exactly one agent
+
+#### Scenario: Legacy sessions remain visible
+- **WHEN** the app loads session history after project and agent workspace storage are introduced
+- **THEN** sessions from the legacy global store remain readable
+- **AND** they can still appear in the appropriate agent history
+
+### Requirement: Assistant messages choose the lowest-cost correct renderer
+The system SHALL render assistant messages through a policy that avoids unnecessary persistent WebViews while preserving rich output fidelity.
+
+#### Scenario: Ordinary or streaming markdown renders natively
+- **WHEN** an assistant message is streaming or contains ordinary markdown
+- **THEN** the message renders through native selectable text/markdown
+- **AND** the app does not keep a WKWebView mounted solely for ordinary prose
+
+#### Scenario: Complex markdown uses WebView fallback
+- **WHEN** an assistant message contains rich markdown that needs WebView rendering, such as tables, math, or HTML blocks
+- **THEN** the message renders through the WebView fallback
+- **AND** rendered HTML and measured heights are cached or guarded so small height changes do not repeatedly reflow the timeline
+
+#### Scenario: A2UI card payload renders as a card
+- **WHEN** an assistant message contains a recognized A2UI card payload
+- **THEN** the message renders as the corresponding native card presentation
+- **AND** the raw payload is not shown as ordinary prose unless card parsing fails
+
+### Requirement: Conversation title exposes user-message navigation
+The system SHALL let a named conversation title reveal user-authored messages for quick navigation.
+
+#### Scenario: Title hover shows user-message popover
+- **WHEN** the user hovers the center shell title for a named conversation that has user messages
+- **THEN** a compact popover lists user-authored message previews with timestamps where available
+- **AND** the popover remains separate from the chat message timeline layout
+
+#### Scenario: Selecting a user message navigates and closes
+- **WHEN** the user selects a message from the title popover
+- **THEN** the popover closes
+- **AND** the chat scroll target moves to that message
+
+### Requirement: Skills and Plugins pages are catalog-backed utility views
+The system SHALL keep Skills and Plugins marketplace pages searchable, mode-based, and consistent with the app utility layout.
+
+#### Scenario: Skills and Plugins show centered catalog pages
+- **WHEN** the user opens Skills or Plugins
+- **THEN** the page content is constrained to the shared centered utility column
+- **AND** the page exposes search, refresh, and segmented `Recommend`, `All`, and `Installed` modes
+
+#### Scenario: Installed items use catalog lookup when possible
+- **WHEN** an installed skill or plugin corresponds to a catalog item
+- **THEN** its display name, description, icon, and detail content prefer catalog metadata
+- **AND** installed custom items without catalog metadata remain visible as custom installed entries
+
+#### Scenario: Manual install remains available
+- **WHEN** the user needs to install a non-catalog skill or plugin
+- **THEN** the page provides a manual/custom install path
+- **AND** catalog refresh does not remove the ability to see already installed custom items
+
+### Requirement: Channels support account-specific configuration
+The system SHALL support named account entries for account-capable channel providers.
+
+#### Scenario: App-key provider accepts account fields
+- **WHEN** the user adds an app-key channel provider such as DingTalk or Feishu
+- **THEN** the add-channel flow accepts account id and display name
+- **AND** the default account remains compatible with the existing default channel configuration
+
+#### Scenario: Named account does not overwrite provider
+- **WHEN** the user adds a non-default account for a channel provider
+- **THEN** the account is stored under that provider's account collection
+- **AND** adding it does not overwrite the entire channel provider configuration
+
+#### Scenario: Removing account is scoped
+- **WHEN** the user removes a configured channel account
+- **THEN** only the selected account is disabled or removed
+- **AND** other accounts for the same channel provider remain intact
+
+### Requirement: Bundled OpenClaw core upgrades silently and transactionally
+The system SHALL keep the installed OpenClaw core current with the bundled app version without adding dashboard upgrade chrome.
+
+#### Scenario: Startup checks bundled core manifest
+- **WHEN** the app starts after OpenClaw is detected
+- **THEN** it compares the bundled OpenClaw core manifest with the installed `openclaw --version`
+- **AND** it skips upgrade work when the installed version is already current
+
+#### Scenario: Newer bundled core is staged and verified
+- **WHEN** the bundled core version is newer
+- **THEN** the app stops the old gateway, extracts the bundled core into staging, and verifies the staged OpenClaw version before swapping
+- **AND** the app swaps only the OpenClaw package and bin link rather than moving the entire npm global directory
+
+#### Scenario: Upgrade rolls back on failure
+- **WHEN** a post-swap upgrade step fails
+- **THEN** the app restores the previous OpenClaw files from backup
+- **AND** gateway install/start recovery is attempted without showing dashboard success chrome

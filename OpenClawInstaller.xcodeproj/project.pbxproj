@@ -15,6 +15,9 @@
 		3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410282F5802970045A6F7 /* CommandExecutor.swift */; };
 		3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410252F5802970045A6F7 /* SystemEnvironment.swift */; };
 		3564104F2F5802970045A6F7 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410232F5802970045A6F7 /* AppSettings.swift */; };
+		COREUPGRADE000000000001 /* OpenClawCoreManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */; };
+		COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */; };
+		COREUPGRADE000000000005 /* openclaw-core-version.json in Resources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000006 /* openclaw-core-version.json */; };
 		APPA0000000000000001 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPA0000000000000002 /* AppAppearance.swift */; };
 		356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102A2F5802970045A6F7 /* NodeInstaller.swift */; };
 		356410512F5802970045A6F7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410432F5802970045A6F7 /* ContentView.swift */; };
@@ -28,6 +31,10 @@
 		356410762F5802970045A6F7 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 356410752F5802970045A6F7 /* Sparkle */; };
 		35641A012F6E02970045A6F7 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 35641A002F6E02970045A6F7 /* MarkdownUI */; };
 		356410592F5802970045A6F7 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410342F5802970045A6F7 /* DashboardView.swift */; };
+		AMR000000000000000000001 /* AssistantMessageRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AMR000000000000000000002 /* AssistantMessageRenderer.swift */; };
+		SMV000000000000000000001 /* SelectableMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SMV000000000000000000002 /* SelectableMarkdownView.swift */; };
+		MDH000000000000000000001 /* MarkdownHTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDH000000000000000000002 /* MarkdownHTML.swift */; };
+		STP000000000000000000001 /* SessionTitleUserMessagesPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = STP000000000000000000002 /* SessionTitleUserMessagesPopover.swift */; };
 		RI01AB01C2D3E4F5A6B70001 /* RightInspectorSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */; };
 		A0B1C2D3E4F5061728394052 /* OutputsSidebarLayoutMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */; };
 		3564105A2F5802970045A6F7 /* CompletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410382F5802970045A6F7 /* CompletionView.swift */; };
@@ -60,6 +67,8 @@
 		A2C000000000000000000003 /* A2UICardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C000000000000000000004 /* A2UICardView.swift */; };
 		PLCAT0000000000000001 /* PluginCatalogItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLCAT0000000000000002 /* PluginCatalogItem.swift */; };
 		PLCAT0000000000000003 /* PluginCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLCAT0000000000000004 /* PluginCatalogService.swift */; };
+		PLINF0000000000000001 /* PluginInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLINF0000000000000002 /* PluginInfo.swift */; };
+		PLPAR0000000000000001 /* PluginListParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLPAR0000000000000002 /* PluginListParser.swift */; };
 		SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000002 /* SkillCatalogItem.swift */; };
 		SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000004 /* SkillCatalogService.swift */; };
 		SKSRC0000000000000001 /* SkillSourcePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKSRC0000000000000002 /* SkillSourcePresentation.swift */; };
@@ -84,6 +93,8 @@
 		BD01AA05B1C2D3E4F5A60005 /* BudgetTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */; };
 		GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */; };
 		IRBS0001C2D3E4F5A6B70001 /* ImageReviewBatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */; };
+		APWS0001D1E2F3A4B5C60001 /* ProjectWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = APWS0002D1E2F3A4B5C60002 /* ProjectWorkspace.swift */; };
+		SRMS0001D1E2F3A4B5C60001 /* SemanticRepoMapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SRMS0002D1E2F3A4B5C60002 /* SemanticRepoMapService.swift */; };
 		DI01AB01C2D3E4F5A6B70001 /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DI01AB02C2D3E4F5A6B70002 /* DeviceIdentity.swift */; };
 		DI01AB03C2D3E4F5A6B70003 /* DeviceAuthTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DI01AB04C2D3E4F5A6B70004 /* DeviceAuthTokenStore.swift */; };
 		CS01AA01D1E2F3A4B5C60001 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */; };
@@ -107,10 +118,12 @@
 		APPA0000000000000002 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
 		356410242F5802970045A6F7 /* InstallationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationState.swift; sourceTree = "<group>"; };
 		356410252F5802970045A6F7 /* SystemEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemEnvironment.swift; sourceTree = "<group>"; };
+		COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawCoreManifest.swift; sourceTree = "<group>"; };
 		356410282F5802970045A6F7 /* CommandExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandExecutor.swift; sourceTree = "<group>"; };
 		356410292F5802970045A6F7 /* DiagnosticService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticService.swift; sourceTree = "<group>"; };
 		3564102A2F5802970045A6F7 /* NodeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInstaller.swift; sourceTree = "<group>"; };
 		3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawInstaller.swift; sourceTree = "<group>"; };
+		COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawCoreUpgradeCoordinator.swift; sourceTree = "<group>"; };
 		3564102C2F5802970045A6F7 /* OpenClawService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawService.swift; sourceTree = "<group>"; };
 		ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		F1E2D3C4B5A647389021A3B4 /* UninstallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallManager.swift; sourceTree = "<group>"; };
@@ -121,6 +134,10 @@
 		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationViewModel.swift; sourceTree = "<group>"; };
 		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigTabView.swift; sourceTree = "<group>"; };
 		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		AMR000000000000000000002 /* AssistantMessageRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantMessageRenderer.swift; sourceTree = "<group>"; };
+		SMV000000000000000000002 /* SelectableMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableMarkdownView.swift; sourceTree = "<group>"; };
+		MDH000000000000000000002 /* MarkdownHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownHTML.swift; sourceTree = "<group>"; };
+		STP000000000000000000002 /* SessionTitleUserMessagesPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTitleUserMessagesPopover.swift; sourceTree = "<group>"; };
 		RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightInspectorSplitView.swift; sourceTree = "<group>"; };
 		A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputsSidebarLayoutMetrics.swift; sourceTree = "<group>"; };
 		356410352F5802970045A6F7 /* LogsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsTabView.swift; sourceTree = "<group>"; };
@@ -134,6 +151,8 @@
 		A2C000000000000000000004 /* A2UICardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = A2UICardView.swift; sourceTree = "<group>"; };
 		PLCAT0000000000000002 /* PluginCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCatalogItem.swift; sourceTree = "<group>"; };
 		PLCAT0000000000000004 /* PluginCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCatalogService.swift; sourceTree = "<group>"; };
+		PLINF0000000000000002 /* PluginInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginInfo.swift; sourceTree = "<group>"; };
+		PLPAR0000000000000002 /* PluginListParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginListParser.swift; sourceTree = "<group>"; };
 		SKCAT0000000000000002 /* SkillCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogItem.swift; sourceTree = "<group>"; };
 		SKCAT0000000000000004 /* SkillCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogService.swift; sourceTree = "<group>"; };
 		3564106C2F5802970045A6F7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -159,6 +178,7 @@
 		356410472F5802970045A6F7 /* OpenClawInstallerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawInstallerApp.swift; sourceTree = "<group>"; };
 		3564106E2F5802970045A6F7 /* ProviderPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPreset.swift; sourceTree = "<group>"; };
 		3564106F2F5802970045A6F7 /* providers_preset.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = providers_preset.json; sourceTree = "<group>"; };
+		COREUPGRADE000000000006 /* openclaw-core-version.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "openclaw-core-version.json"; sourceTree = "<group>"; };
 		B1C2D3E4F5A6478990A1B2C3 /* PersonaTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaTabView.swift; sourceTree = "<group>"; };
 		D4E5F6A7B8C9401A2B3C4D5E /* SubAgentsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubAgentsTabView.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6A7491A0B1C2D3E /* HelpFAQ.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpFAQ.swift; sourceTree = "<group>"; };
@@ -176,6 +196,8 @@
 		BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTabView.swift; sourceTree = "<group>"; };
 		GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
 		IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReviewBatchStore.swift; sourceTree = "<group>"; };
+		APWS0002D1E2F3A4B5C60002 /* ProjectWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspace.swift; sourceTree = "<group>"; };
+		SRMS0002D1E2F3A4B5C60002 /* SemanticRepoMapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticRepoMapService.swift; sourceTree = "<group>"; };
 		DI01AB02C2D3E4F5A6B70002 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdentity.swift; sourceTree = "<group>"; };
 		DI01AB04C2D3E4F5A6B70004 /* DeviceAuthTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceAuthTokenStore.swift; sourceTree = "<group>"; };
 		CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
@@ -245,11 +267,14 @@
 				B2C3D4E5F6A7491A0B1C2D3E /* HelpFAQ.swift */,
 				356410242F5802970045A6F7 /* InstallationState.swift */,
 				MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */,
+				APWS0002D1E2F3A4B5C60002 /* ProjectWorkspace.swift */,
 				PLCAT0000000000000002 /* PluginCatalogItem.swift */,
+				PLINF0000000000000002 /* PluginInfo.swift */,
 				3564106E2F5802970045A6F7 /* ProviderPreset.swift */,
 				SKCAT0000000000000002 /* SkillCatalogItem.swift */,
 				SKSRC0000000000000002 /* SkillSourcePresentation.swift */,
 				356410252F5802970045A6F7 /* SystemEnvironment.swift */,
+				COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */,
 				CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */,
 				CS01AA06D1E2F3A4B5C60006 /* ChatSessionSearch.swift */,
 			);
@@ -271,6 +296,7 @@
 				356410292F5802970045A6F7 /* DiagnosticService.swift */,
 				GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */,
 				IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */,
+				SRMS0002D1E2F3A4B5C60002 /* SemanticRepoMapService.swift */,
 				DI01AB02C2D3E4F5A6B70002 /* DeviceIdentity.swift */,
 				DI01AB04C2D3E4F5A6B70004 /* DeviceAuthTokenStore.swift */,
 				CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */,
@@ -278,9 +304,11 @@
 				356410782F5802970045A6F7 /* LanguageManager.swift */,
 				3564102A2F5802970045A6F7 /* NodeInstaller.swift */,
 				3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */,
+				COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */,
 				3564102C2F5802970045A6F7 /* OpenClawService.swift */,
 				3564102D2F5802970045A6F7 /* PermissionManager.swift */,
 				PLCAT0000000000000004 /* PluginCatalogService.swift */,
+				PLPAR0000000000000002 /* PluginListParser.swift */,
 				SKCAT0000000000000004 /* SkillCatalogService.swift */,
 				3564102E2F5802970045A6F7 /* SparkleUpdater.swift */,
 			
@@ -312,7 +340,9 @@
 				356410332F5802970045A6F7 /* ConfigTabView.swift */,
 				C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */,
 				A2C000000000000000000004 /* A2UICardView.swift */,
+				AMR000000000000000000002 /* AssistantMessageRenderer.swift */,
 				356410342F5802970045A6F7 /* DashboardView.swift */,
+				MDH000000000000000000002 /* MarkdownHTML.swift */,
 				A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */,
 				F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */,
 				356410352F5802970045A6F7 /* LogsTabView.swift */,
@@ -321,6 +351,8 @@
 				35641B012F7A02970045A6F7 /* MarketplaceOverviewView.swift */,
 				3564106A2F5802970045A6F7 /* ModelsTabView.swift */,
 				356410662F5802970045A6F7 /* PluginsTabView.swift */,
+				STP000000000000000000002 /* SessionTitleUserMessagesPopover.swift */,
+				SMV000000000000000000002 /* SelectableMarkdownView.swift */,
 				356410732F5802970045A6F7 /* SkillsTabView.swift */,
 				356410362F5802970045A6F7 /* StatusTabView.swift */,
 				RI01AB03C2D3E4F5A6B70003 /* Inspector */,
@@ -409,6 +441,7 @@
 				C011AB08A1B2C3D4E5F60008 /* commander-persona.md */,
 				MP01AD05E4F5A6B7C8D90005 /* marketplace_agents.json */,
 				MP01AD07E4F5A6B7C8D90007 /* marketplace_agents.i18n.json */,
+				COREUPGRADE000000000006 /* openclaw-core-version.json */,
 				3564106F2F5802970045A6F7 /* providers_preset.json */,
 				B5C6D7E8F9A04E4A6B7C8D9E /* 用户指南.md */,
 			);
@@ -425,6 +458,7 @@
 				356410102F58023C0045A6F7 /* Sources */,
 				356410112F58023C0045A6F7 /* Frameworks */,
 				356410122F58023C0045A6F7 /* Resources */,
+				COREBUNDLECP0000000001 /* Copy Bundled Runtime Archives */,
 			);
 			buildRules = (
 			);
@@ -486,6 +520,7 @@
 			files = (
 				3564106D2F5802970045A6F7 /* Assets.xcassets in Resources */,
 				3564107B2F5802970045A6F7 /* Localizable.xcstrings in Resources */,
+				COREUPGRADE000000000005 /* openclaw-core-version.json in Resources */,
 				356410712F5802970045A6F7 /* providers_preset.json in Resources */,
 				MP01AD06E4F5A6B7C8D90006 /* marketplace_agents.json in Resources */,
 				MP01AD08E4F5A6B7C8D90008 /* marketplace_agents.i18n.json in Resources */,
@@ -495,9 +530,37 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXResourcesBuildPhase section */
+	/* End PBXResourcesBuildPhase section */
 
-/* Begin PBXSourcesBuildPhase section */
+/* Begin PBXShellScriptBuildPhase section */
+		COREBUNDLECP0000000001 /* Copy Bundled Runtime Archives */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/OpenClawInstaller/Resources/openclaw-bundle.tar.gz",
+				"$(SRCROOT)/OpenClawInstaller/Resources/node-v24.14.0-darwin-arm64.tar.gz",
+				"$(SRCROOT)/OpenClawInstaller/Resources/node-v24.14.0-darwin-x64.tar.gz",
+			);
+			name = "Copy Bundled Runtime Archives";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/openclaw-bundle.tar.gz",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/node-v24.14.0-darwin-arm64.tar.gz",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/node-v24.14.0-darwin-x64.tar.gz",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nSRC_DIR=\"$SRCROOT/OpenClawInstaller/Resources\"\nDEST_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nmkdir -p \"$DEST_DIR\"\nfor archive in openclaw-bundle.tar.gz node-v24.14.0-darwin-arm64.tar.gz node-v24.14.0-darwin-x64.tar.gz; do\n  if [ -f \"$SRC_DIR/$archive\" ]; then\n    cp \"$SRC_DIR/$archive\" \"$DEST_DIR/$archive\"\n  else\n    echo \"warning: Optional bundled runtime archive missing: $SRC_DIR/$archive\"\n  fi\ndone\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+	/* Begin PBXSourcesBuildPhase section */
 		356410102F58023C0045A6F7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -508,6 +571,8 @@
 				3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */,
 					3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */,
 					3564104F2F5802970045A6F7 /* AppSettings.swift in Sources */,
+					COREUPGRADE000000000001 /* OpenClawCoreManifest.swift in Sources */,
+					COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */,
 					APPA0000000000000001 /* AppAppearance.swift in Sources */,
 					356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */,
 				356410512F5802970045A6F7 /* ContentView.swift in Sources */,
@@ -519,6 +584,10 @@
 				356410572F5802970045A6F7 /* WelcomeView.swift in Sources */,
 				356410582F5802970045A6F7 /* SparkleUpdater.swift in Sources */,
 				356410592F5802970045A6F7 /* DashboardView.swift in Sources */,
+				AMR000000000000000000001 /* AssistantMessageRenderer.swift in Sources */,
+				SMV000000000000000000001 /* SelectableMarkdownView.swift in Sources */,
+				MDH000000000000000000001 /* MarkdownHTML.swift in Sources */,
+				STP000000000000000000001 /* SessionTitleUserMessagesPopover.swift in Sources */,
 				RI01AB01C2D3E4F5A6B70001 /* RightInspectorSplitView.swift in Sources */,
 				A0B1C2D3E4F5061728394052 /* OutputsSidebarLayoutMetrics.swift in Sources */,
 				3564105A2F5802970045A6F7 /* CompletionView.swift in Sources */,
@@ -549,6 +618,8 @@
 				A2C000000000000000000003 /* A2UICardView.swift in Sources */,
 				PLCAT0000000000000001 /* PluginCatalogItem.swift in Sources */,
 				PLCAT0000000000000003 /* PluginCatalogService.swift in Sources */,
+				PLINF0000000000000001 /* PluginInfo.swift in Sources */,
+				PLPAR0000000000000001 /* PluginListParser.swift in Sources */,
 				SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */,
 				SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */,
 				356410702F5802970045A6F7 /* ProviderPreset.swift in Sources */,
@@ -572,6 +643,8 @@
 				C011AB05A1B2C3D4E5F60005 /* CollabWindow.swift in Sources */,
 				GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */,
 				IRBS0001C2D3E4F5A6B70001 /* ImageReviewBatchStore.swift in Sources */,
+				APWS0001D1E2F3A4B5C60001 /* ProjectWorkspace.swift in Sources */,
+				SRMS0001D1E2F3A4B5C60001 /* SemanticRepoMapService.swift in Sources */,
 				DI01AB01C2D3E4F5A6B70001 /* DeviceIdentity.swift in Sources */,
 				DI01AB03C2D3E4F5A6B70003 /* DeviceAuthTokenStore.swift in Sources */,
 				CS01AA01D1E2F3A4B5C60001 /* ChatSession.swift in Sources */,

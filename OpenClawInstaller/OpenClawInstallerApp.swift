@@ -11,6 +11,7 @@ class AppServices: ObservableObject {
     let commandExecutor: CommandExecutor
     let systemEnvironment: SystemEnvironment
     let openclawService: OpenClawService
+    private let coreUpgradeCoordinator: OpenClawCoreUpgradeCoordinator
     let installationViewModel: InstallationViewModel
     let dashboardViewModel: DashboardViewModel
 
@@ -23,6 +24,7 @@ class AppServices: ObservableObject {
         let ce = CommandExecutor(permissionManager: pm)
         let se = SystemEnvironment(commandExecutor: ce)
         let os = OpenClawService(commandExecutor: ce)
+        let cuc = OpenClawCoreUpgradeCoordinator(commandExecutor: ce, openclawService: os)
 
         self.permissionManager = pm
         self.installationState = is_
@@ -30,6 +32,7 @@ class AppServices: ObservableObject {
         self.commandExecutor = ce
         self.systemEnvironment = se
         self.openclawService = os
+        self.coreUpgradeCoordinator = cuc
         self.installationViewModel = InstallationViewModel(
             installationState: is_,
             systemEnvironment: se,
@@ -48,6 +51,21 @@ class AppServices: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
+
+    }
+
+    func ensureOpenClawCoreIsCurrent() async {
+        await coreUpgradeCoordinator.ensureBundledCoreIsCurrent()
+    }
+
+    func ensureBundledCoreForInstalledOpenClaw() async {
+        await systemEnvironment.detectOpenClaw()
+        guard systemEnvironment.openclawInfo != nil else {
+            return
+        }
+        await ensureOpenClawCoreIsCurrent()
+        await systemEnvironment.detectOpenClaw()
+        await openclawService.fetchVersion()
     }
 }
 
@@ -63,6 +81,7 @@ struct OpenClawInstallerApp: App {
     #endif
 
     @State private var showPermissionAlert = false
+    @State private var didStartBundledCoreCheck = false
 
     var body: some Scene {
         WindowGroup {
@@ -80,6 +99,10 @@ struct OpenClawInstallerApp: App {
                     appDelegate.openclawService = services.openclawService
                     appDelegate.sparkleUpdater = sparkleUpdater
                     Task { await sparkleUpdater.checkLatestVersionOnLaunch() }
+                    if !didStartBundledCoreCheck {
+                        didStartBundledCoreCheck = true
+                        Task { await services.ensureBundledCoreForInstalledOpenClaw() }
+                    }
                     #if REQUIRE_LOGIN
                     appDelegate.authManager = authManager
                     appDelegate.membershipManager = membershipManager
@@ -201,6 +224,8 @@ struct MainContentView: View {
         #endif
         await services.systemEnvironment.performFullCheck()
         if services.systemEnvironment.openclawInfo != nil {
+            await services.ensureOpenClawCoreIsCurrent()
+            await services.systemEnvironment.detectOpenClaw()
             viewMode = .dashboard
         } else {
             viewMode = .initial

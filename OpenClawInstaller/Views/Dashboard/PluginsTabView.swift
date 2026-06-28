@@ -83,20 +83,11 @@ struct PluginsTabView: View {
         viewModel.plugins.contains { $0.origin == .global }
     }
 
-    private var catalogItemsByName: [String: PluginCatalogItem] {
-        firstCatalogItems { $0.name }
-    }
-
-    private var catalogItemsByPluginID: [String: PluginCatalogItem] {
-        firstCatalogItems { $0.openClawPluginID }
-    }
-
-    private var installedPluginsByID: [String: PluginInfo] {
-        firstInstalledPlugins { $0.pluginId }
-    }
-
-    private var installedPluginsByChannel: [String: PluginInfo] {
-        firstInstalledPlugins { $0.channel }
+    private var pluginLookupIndex: PluginLookupIndex {
+        PluginLookupIndex(
+            catalogItems: viewModel.pluginCatalog,
+            installedPlugins: viewModel.plugins
+        )
     }
 
     private var filteredCatalogItems: [PluginCatalogItem] {
@@ -117,9 +108,9 @@ struct PluginsTabView: View {
         filteredCatalogItems.filter { !$0.isRecommended }
     }
 
-    private var filteredInstalledPlugins: [PluginInfo] {
+    private func filteredInstalledPlugins(using lookup: PluginLookupIndex) -> [PluginInfo] {
         viewModel.plugins.filter { plugin in
-            let catalogItem = catalogItem(for: plugin)
+            let catalogItem = lookup.catalogItem(for: plugin)
             return matchesSearch(
                 name: catalogItem?.displayName ?? plugin.channel,
                 description: catalogItem?.description ?? plugin.pluginId,
@@ -128,14 +119,14 @@ struct PluginsTabView: View {
         }
     }
 
-    private var customInstalledPlugins: [PluginInfo] {
-        filteredInstalledPlugins.filter { catalogItem(for: $0) == nil }
+    private func customInstalledPlugins(from plugins: [PluginInfo], using lookup: PluginLookupIndex) -> [PluginInfo] {
+        plugins.filter { lookup.catalogItem(for: $0) == nil }
     }
 
-    private var installedSections: [InstalledSection] {
+    private func installedSections(from plugins: [PluginInfo], using lookup: PluginLookupIndex) -> [InstalledSection] {
         PluginLibrarySection.allCases.compactMap { section in
-            let items = filteredInstalledPlugins.filter {
-                PluginLibrarySection.section(for: $0, catalogItem: catalogItem(for: $0)) == section
+            let items = plugins.filter {
+                PluginLibrarySection.section(for: $0, catalogItem: lookup.catalogItem(for: $0)) == section
             }
             guard !items.isEmpty else { return nil }
             return InstalledSection(id: section, title: section.title, items: items)
@@ -247,18 +238,23 @@ struct PluginsTabView: View {
 
     @ViewBuilder
     private var content: some View {
+        let lookup = pluginLookupIndex
+        let installedPlugins = filteredInstalledPlugins(using: lookup)
+        let customPlugins = customInstalledPlugins(from: installedPlugins, using: lookup)
+        let sections = installedSections(from: installedPlugins, using: lookup)
+
         switch displayMode {
         case .recommend:
-            recommendedPluginsContent
+            recommendedPluginsContent(lookup: lookup)
         case .all:
-            allPluginsContent
+            allPluginsContent(customPlugins: customPlugins, lookup: lookup)
         case .installed:
-            installedPluginsContent
+            installedPluginsContent(sections: sections, lookup: lookup)
         }
     }
 
     @ViewBuilder
-    private var recommendedPluginsContent: some View {
+    private func recommendedPluginsContent(lookup: PluginLookupIndex) -> some View {
         if viewModel.isLoadingPluginCatalog && viewModel.pluginCatalog.isEmpty {
             PluginLoadingStateView(text: "Loading plugin catalog...")
         } else if let error = viewModel.pluginCatalogError, viewModel.pluginCatalog.isEmpty {
@@ -276,24 +272,25 @@ struct PluginsTabView: View {
         } else {
             catalogSection(
                 title: PluginLibrarySection.recommend.title,
-                items: filteredRecommendedCatalogItems
+                items: filteredRecommendedCatalogItems,
+                lookup: lookup
             )
         }
     }
 
     @ViewBuilder
-    private var allPluginsContent: some View {
+    private func allPluginsContent(customPlugins: [PluginInfo], lookup: PluginLookupIndex) -> some View {
         if viewModel.isLoadingPluginCatalog && viewModel.pluginCatalog.isEmpty {
             PluginLoadingStateView(text: "Loading plugin catalog...")
         } else if let error = viewModel.pluginCatalogError,
                   viewModel.pluginCatalog.isEmpty,
-                  customInstalledPlugins.isEmpty {
+                  customPlugins.isEmpty {
             EmptyPluginStateView(
                 systemImage: "exclamationmark.triangle",
                 title: "Could not load plugin catalog",
                 detail: error
             )
-        } else if filteredCatalogItems.isEmpty && customInstalledPlugins.isEmpty {
+        } else if filteredCatalogItems.isEmpty && customPlugins.isEmpty {
             EmptyPluginStateView(
                 systemImage: "puzzlepiece",
                 title: viewModel.pluginCatalog.isEmpty && viewModel.plugins.isEmpty ? "No plugins found" : "No matching plugins",
@@ -304,21 +301,24 @@ struct PluginsTabView: View {
                 if !filteredRecommendedCatalogItems.isEmpty {
                     catalogSection(
                         title: PluginLibrarySection.recommend.title,
-                        items: filteredRecommendedCatalogItems
+                        items: filteredRecommendedCatalogItems,
+                        lookup: lookup
                     )
                 }
 
                 if !filteredBuiltInCatalogItems.isEmpty {
                     catalogSection(
                         title: PluginLibrarySection.builtIn.title,
-                        items: filteredBuiltInCatalogItems
+                        items: filteredBuiltInCatalogItems,
+                        lookup: lookup
                     )
                 }
 
-                if !customInstalledPlugins.isEmpty {
+                if !customPlugins.isEmpty {
                     installedSection(
                         title: PluginLibrarySection.custom.title,
-                        items: customInstalledPlugins
+                        items: customPlugins,
+                        lookup: lookup
                     )
                 }
             }
@@ -326,10 +326,10 @@ struct PluginsTabView: View {
     }
 
     @ViewBuilder
-    private var installedPluginsContent: some View {
+    private func installedPluginsContent(sections: [InstalledSection], lookup: PluginLookupIndex) -> some View {
         if viewModel.isLoadingPlugins && viewModel.plugins.isEmpty {
             PluginLoadingStateView(text: "Loading installed plugins...")
-        } else if installedSections.isEmpty {
+        } else if sections.isEmpty {
             EmptyPluginStateView(
                 systemImage: "checkmark.circle",
                 title: viewModel.plugins.isEmpty ? "No installed plugins" : "No matching installed plugins",
@@ -337,20 +337,20 @@ struct PluginsTabView: View {
             )
         } else {
             VStack(alignment: .leading, spacing: 26) {
-                ForEach(installedSections) { section in
-                    installedSection(title: section.title, items: section.items)
+                ForEach(sections) { section in
+                    installedSection(title: section.title, items: section.items, lookup: lookup)
                 }
             }
         }
     }
 
-    private func catalogSection(title: String, items: [PluginCatalogItem]) -> some View {
+    private func catalogSection(title: String, items: [PluginCatalogItem], lookup: PluginLookupIndex) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             PluginSectionHeader(title: title, count: items.count)
 
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                    let installedPlugin = installedPlugin(for: item)
+                    let installedPlugin = lookup.installedPlugin(for: item)
 
                     CatalogPluginListRow(
                         item: item,
@@ -373,13 +373,13 @@ struct PluginsTabView: View {
         }
     }
 
-    private func installedSection(title: String, items: [PluginInfo]) -> some View {
+    private func installedSection(title: String, items: [PluginInfo], lookup: PluginLookupIndex) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             PluginSectionHeader(title: title, count: items.count)
 
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, plugin in
-                    let catalogItem = catalogItem(for: plugin)
+                    let catalogItem = lookup.catalogItem(for: plugin)
 
                     InstalledPluginListRow(
                         plugin: plugin,
@@ -398,40 +398,6 @@ struct PluginsTabView: View {
         }
     }
 
-    private func installedPlugin(for item: PluginCatalogItem) -> PluginInfo? {
-        installedPluginsByID[lookupKey(item.openClawPluginID)]
-            ?? installedPluginsByID[lookupKey(item.name)]
-            ?? installedPluginsByChannel[lookupKey(item.name)]
-    }
-
-    private func catalogItem(for plugin: PluginInfo) -> PluginCatalogItem? {
-        catalogItemsByPluginID[lookupKey(plugin.pluginId)]
-            ?? catalogItemsByName[lookupKey(plugin.pluginId)]
-            ?? catalogItemsByName[lookupKey(plugin.channel)]
-    }
-
-    private func firstCatalogItems(key: (PluginCatalogItem) -> String) -> [String: PluginCatalogItem] {
-        var result: [String: PluginCatalogItem] = [:]
-        for item in viewModel.pluginCatalog where result[lookupKey(key(item))] == nil {
-            result[lookupKey(key(item))] = item
-        }
-        return result
-    }
-
-    private func firstInstalledPlugins(key: (PluginInfo) -> String) -> [String: PluginInfo] {
-        var result: [String: PluginInfo] = [:]
-        for plugin in viewModel.plugins where result[lookupKey(key(plugin))] == nil {
-            result[lookupKey(key(plugin))] = plugin
-        }
-        return result
-    }
-
-    private func lookupKey(_ value: String) -> String {
-        let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard let slashIndex = lower.lastIndex(of: "/") else { return lower }
-        return String(lower[lower.index(after: slashIndex)...])
-    }
-
     private func matchesSearch(name: String, description: String, metadata: [String]) -> Bool {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return true }
@@ -440,6 +406,60 @@ struct PluginsTabView: View {
             .joined(separator: " ")
             .lowercased()
         return haystack.contains(query)
+    }
+}
+
+private struct PluginLookupIndex {
+    let catalogItemsByName: [String: PluginCatalogItem]
+    let catalogItemsByPluginID: [String: PluginCatalogItem]
+    let installedPluginsByID: [String: PluginInfo]
+    let installedPluginsByChannel: [String: PluginInfo]
+
+    init(catalogItems: [PluginCatalogItem], installedPlugins: [PluginInfo]) {
+        catalogItemsByName = Self.firstCatalogItems(catalogItems) { $0.name }
+        catalogItemsByPluginID = Self.firstCatalogItems(catalogItems) { $0.openClawPluginID }
+        installedPluginsByID = Self.firstInstalledPlugins(installedPlugins) { $0.pluginId }
+        installedPluginsByChannel = Self.firstInstalledPlugins(installedPlugins) { $0.channel }
+    }
+
+    func installedPlugin(for item: PluginCatalogItem) -> PluginInfo? {
+        installedPluginsByID[Self.lookupKey(item.openClawPluginID)]
+            ?? installedPluginsByID[Self.lookupKey(item.name)]
+            ?? installedPluginsByChannel[Self.lookupKey(item.name)]
+    }
+
+    func catalogItem(for plugin: PluginInfo) -> PluginCatalogItem? {
+        catalogItemsByPluginID[Self.lookupKey(plugin.pluginId)]
+            ?? catalogItemsByName[Self.lookupKey(plugin.pluginId)]
+            ?? catalogItemsByName[Self.lookupKey(plugin.channel)]
+    }
+
+    private static func firstCatalogItems(
+        _ items: [PluginCatalogItem],
+        key: (PluginCatalogItem) -> String
+    ) -> [String: PluginCatalogItem] {
+        var result: [String: PluginCatalogItem] = [:]
+        for item in items where result[lookupKey(key(item))] == nil {
+            result[lookupKey(key(item))] = item
+        }
+        return result
+    }
+
+    private static func firstInstalledPlugins(
+        _ plugins: [PluginInfo],
+        key: (PluginInfo) -> String
+    ) -> [String: PluginInfo] {
+        var result: [String: PluginInfo] = [:]
+        for plugin in plugins where result[lookupKey(key(plugin))] == nil {
+            result[lookupKey(key(plugin))] = plugin
+        }
+        return result
+    }
+
+    private static func lookupKey(_ value: String) -> String {
+        let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let slashIndex = lower.lastIndex(of: "/") else { return lower }
+        return String(lower[lower.index(after: slashIndex)...])
     }
 }
 
@@ -560,11 +580,8 @@ private struct CatalogPluginListRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.18)) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
-        .animation(.easeInOut(duration: 0.18), value: isHovered)
     }
 
     private var rowBackground: Color {
@@ -611,11 +628,8 @@ private struct InstalledPluginListRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.18)) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
-        .animation(.easeInOut(duration: 0.18), value: isHovered)
     }
 
     private var rowBackground: Color {
@@ -666,13 +680,33 @@ private struct PluginCatalogIcon: View {
 
     private var resolvedCustomImage: NSImage? {
         guard let iconURL else { return nil }
-        return NSImage(contentsOf: iconURL)
+        return PluginIconImageCache.shared.image(for: iconURL)
     }
 
     private var pluginDefaultIconBackground: Color {
         colorScheme == .dark
             ? Color.black.opacity(0.32)
             : Color(NSColor.controlBackgroundColor)
+    }
+}
+
+private final class PluginIconImageCache {
+    static let shared = PluginIconImageCache()
+
+    private let cache = NSCache<NSURL, NSImage>()
+
+    private init() {}
+
+    func image(for url: URL) -> NSImage? {
+        let key = url as NSURL
+        if let cached = cache.object(forKey: key) {
+            return cached
+        }
+        guard let image = NSImage(contentsOf: url) else {
+            return nil
+        }
+        cache.setObject(image, forKey: key)
+        return image
     }
 }
 

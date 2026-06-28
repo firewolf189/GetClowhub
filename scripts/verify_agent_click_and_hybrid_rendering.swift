@@ -39,6 +39,7 @@ func optionalSlice(_ haystack: String, from start: String, to end: String) -> St
 }
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
 
 let agentSectionContent = slice(
     dashboard,
@@ -52,18 +53,13 @@ let toggleAgentSelection = slice(
 )
 let sessionRowTap = slice(
     dashboard,
-    from: ".onTapGesture {\n                    cancelSessionDeleteConfirmation()",
+    from: "private func sessionRows(_ agentSessions: [ChatSessionMetadata], for agent: AgentOption) -> some View",
     to: ".contextMenu {"
 )
 let chatBubble = slice(
     dashboard,
     from: "struct ChatBubble: View",
     to: "// MARK: - Typewriter Text for Streaming"
-)
-let assistantRenderer = optionalSlice(
-    dashboard,
-    from: "private struct AssistantMessageContentView",
-    to: "// MARK: - Selectable Markdown View"
 )
 
 assertContains(
@@ -104,7 +100,7 @@ assertContains(
 
 assertContains(
     chatBubble,
-    "AssistantMessageContentView(content: message.content, isStreaming: isStreamingState)",
+    "AssistantMessageContentView(",
     "assistant bubbles should route through the hybrid native/WK renderer"
 )
 assertNotContains(
@@ -119,12 +115,12 @@ assertContains(
 )
 assertContains(
     assistantRenderer,
-    "Markdown(content)",
-    "hybrid renderer should use native MarkdownUI for ordinary assistant content"
+    "NativeSelectableMarkdownView(",
+    "hybrid renderer should use native direct-selection text for ordinary assistant content"
 )
 assertContains(
     assistantRenderer,
-    "SelectableMarkdownView(content: content)",
+    "SelectableMarkdownView(content: renderModel.content)",
     "hybrid renderer should retain WKWebView for complex assistant content"
 )
 assertContains(
