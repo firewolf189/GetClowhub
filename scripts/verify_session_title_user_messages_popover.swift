@@ -131,6 +131,11 @@ assertContains(
 )
 assertContains(
     popover,
+    "private var panelTrackingView: SessionTitlePanelTrackingView?",
+    "title user-message panel should keep hover tracking on the AppKit panel root view"
+)
+assertContains(
+    popover,
     "private let panelContentSize = NSSize(width: 360, height: 320)",
     "title user-message panel should keep a stable content size"
 )
@@ -181,6 +186,26 @@ assertContains(
 )
 assertContains(
     popover,
+    "panel.appearance = NSAppearance(named: .aqua)",
+    "title panel should force light appearance so system scroll indicators stay visible on the fixed light surface"
+)
+assertContains(
+    popover,
+    "let trackingView = SessionTitlePanelTrackingView(frame:",
+    "title panel should install a root AppKit tracking view that covers the entire panel"
+)
+assertContains(
+    popover,
+    "trackingView.addSubview(controller.view)",
+    "title panel tracking view should wrap the SwiftUI hosting view instead of sitting behind scroll content"
+)
+assertContains(
+    popover,
+    "panel.contentView = trackingView",
+    "title panel should use the AppKit tracking root as its content view"
+)
+assertContains(
+    popover,
     "panel.orderFrontRegardless()",
     "title user-message panel should be shown without activating the main window"
 )
@@ -223,6 +248,16 @@ assertContains(
     popover,
     "!self.messages.isEmpty",
     "title panel should re-check messages before showing"
+)
+assertContains(
+    popover,
+    "private var shouldPreserveVisiblePanelMessages: Bool",
+    "title panel should preserve the current list while the user is hovering the visible panel"
+)
+assertContains(
+    popover,
+    "if shouldPreserveVisiblePanelMessages {",
+    "title panel should not close on transient empty message updates while the pointer is in the panel"
 )
 assertContains(
     popover,
@@ -286,8 +321,13 @@ assertContains(
 )
 assertContains(
     popover,
-    "private struct SessionTitlePanelHoverTracker: NSViewRepresentable",
-    "panel content should use an AppKit tracking-area bridge for stable hover while scrolling"
+    "if isMouseInsidePanel {",
+    "title panel should treat AppKit mouse-position fallback as panel hover before closing"
+)
+assertContains(
+    popover,
+    "private final class SessionTitlePanelTrackingView: NSView",
+    "panel content should use an AppKit root tracking view for stable hover while scrolling"
 )
 assertContains(
     popover,
@@ -311,8 +351,8 @@ assertContains(
 )
 assertContains(
     popover,
-    "ScrollView",
-    "title popover content must be scrollable for long sessions"
+    "ScrollView(.vertical, showsIndicators: true)",
+    "title popover content must explicitly keep system scroll indicators visible for long sessions"
 )
 assertContains(
     popover,
@@ -353,12 +393,17 @@ assertContains(
 let titlePopoverContent = slice(
     popover,
     from: "private struct SessionTitleUserMessagesPopoverContent: View",
-    to: "private struct SessionTitlePanelHoverTracker: NSViewRepresentable"
+    to: "private struct SessionTitlePanelBackground: View"
 )
 let panelBackground = slice(
     popover,
     from: "private struct SessionTitlePanelBackground: View",
-    to: "private struct SessionTitleUserMessageRow: View"
+    to: "private final class SessionTitlePanelTrackingView: NSView"
+)
+let titleMessageRow = slice(
+    popover,
+    from: "private struct SessionTitleUserMessageRow: View",
+    to: "private static let timestampFormatter"
 )
 
 assertContains(
@@ -366,10 +411,15 @@ assertContains(
     ".background(SessionTitlePanelBackground(cornerRadius: 12))",
     "title popover content should apply the restored system-material background as its outer surface"
 )
+assertNotContains(
+    titlePopoverContent,
+    "SessionTitlePanelHoverTracker",
+    "title popover content should not rely on a SwiftUI background hover tracker"
+)
 assertContains(
     titlePopoverContent,
-    ".background(SessionTitlePanelHoverTracker(onPanelHoverChange: onPanelHoverChange))",
-    "title popover content should keep hover tracking local to the panel surface"
+    ".scrollContentBackground(.hidden)",
+    "title popover scroll view should not paint an adaptive dark scroll background"
 )
 assertNotContains(
     titlePopoverContent,
@@ -378,8 +428,28 @@ assertNotContains(
 )
 assertContains(
     panelBackground,
-    ".fill(.regularMaterial)",
-    "title panel background should restore the original lighter system material"
+    "Color(red: 0.98, green: 0.98, blue: 0.97).opacity(0.96)",
+    "title panel background should use a slightly transparent fixed light color"
+)
+assertNotContains(
+    panelBackground,
+    ".regularMaterial",
+    "title panel background should not use adaptive material because it can sample as dark gray in the floating panel"
+)
+assertNotContains(
+    panelBackground,
+    ".windowBackgroundColor",
+    "title panel background should not use windowBackgroundColor because it follows dark panel appearance"
+)
+assertContains(
+    titleMessageRow,
+    "Color.black.opacity(0.56)",
+    "title popover timestamps should stay readable on the fixed light panel even when the app appearance is dark"
+)
+assertContains(
+    titleMessageRow,
+    "Color.black.opacity(0.86)",
+    "title popover message text should stay readable on the fixed light panel even when the app appearance is dark"
 )
 assertNotContains(
     panelBackground,

@@ -75,6 +75,7 @@ private final class SessionTitlePopoverCoordinator {
     private let panelChromeInset: CGFloat = 14
     private let titlePanelVerticalOffset: CGFloat = 8
     private var panel: NSPanel?
+    private var panelTrackingView: SessionTitlePanelTrackingView?
     private var hostingController: NSHostingController<SessionTitleUserMessagesPopoverContent>?
     private var messages: [ChatMessage] = []
     private var onTapMessage: (ChatMessage) -> Void = { _ in }
@@ -94,16 +95,23 @@ private final class SessionTitlePopoverCoordinator {
         messages: [ChatMessage],
         onTapMessage: @escaping (ChatMessage) -> Void
     ) {
+        if messages.isEmpty {
+            if shouldPreserveVisiblePanelMessages {
+                self.onTapMessage = onTapMessage
+                return
+            }
+            self.messages = []
+            self.onTapMessage = onTapMessage
+            closeImmediately()
+            return
+        }
+
         self.messages = messages
         self.onTapMessage = onTapMessage
         hostingController?.rootView = SessionTitleUserMessagesPopoverContent(
             messages: messages,
-            onPanelHoverChange: updatePanelHover,
             onTapMessage: handleTapMessage
         )
-        if messages.isEmpty {
-            closeImmediately()
-        }
     }
 
     func setTitleHovering(_ hovering: Bool, relativeTo sourceView: NSView) {
@@ -142,6 +150,13 @@ private final class SessionTitlePopoverCoordinator {
     }
 
     private func updatePanelHover(_ hovering: Bool) {
+        if !hovering, isMouseInsidePanel {
+            isPanelHovering = true
+            panelCloseTask?.cancel()
+            panelCloseTask = nil
+            return
+        }
+
         isPanelHovering = hovering
         if hovering {
             panelCloseTask?.cancel()
@@ -155,6 +170,10 @@ private final class SessionTitlePopoverCoordinator {
         panelCloseTask?.cancel()
         let task = DispatchWorkItem { [weak self] in
             guard let self else { return }
+            if isMouseInsidePanel {
+                isPanelHovering = true
+                return
+            }
             if !isTitleHovering && !isPanelHovering && !isMouseInsidePanel {
                 panel?.orderOut(nil)
             }
@@ -176,7 +195,6 @@ private final class SessionTitlePopoverCoordinator {
         let controller = NSHostingController(
             rootView: SessionTitleUserMessagesPopoverContent(
                 messages: messages,
-                onPanelHoverChange: updatePanelHover,
                 onTapMessage: handleTapMessage
             )
         )
@@ -184,6 +202,18 @@ private final class SessionTitlePopoverCoordinator {
         controller.view.wantsLayer = true
         controller.view.layer?.backgroundColor = NSColor.clear.cgColor
         hostingController = controller
+
+        let trackingView = SessionTitlePanelTrackingView(frame: NSRect(origin: .zero, size: panelWindowSize))
+        trackingView.onPanelHoverChange = updatePanelHover
+        trackingView.addSubview(controller.view)
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            controller.view.leadingAnchor.constraint(equalTo: trackingView.leadingAnchor),
+            controller.view.trailingAnchor.constraint(equalTo: trackingView.trailingAnchor),
+            controller.view.topAnchor.constraint(equalTo: trackingView.topAnchor),
+            controller.view.bottomAnchor.constraint(equalTo: trackingView.bottomAnchor)
+        ])
+        panelTrackingView = trackingView
 
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: panelWindowSize),
@@ -194,10 +224,11 @@ private final class SessionTitlePopoverCoordinator {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
+        panel.appearance = NSAppearance(named: .aqua)
         panel.hidesOnDeactivate = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentViewController = controller
+        panel.contentView = trackingView
         self.panel = panel
         return panel
     }
@@ -220,15 +251,19 @@ private final class SessionTitlePopoverCoordinator {
         guard let panel, panel.isVisible else { return false }
         return panel.frame.contains(NSEvent.mouseLocation)
     }
+
+    private var shouldPreserveVisiblePanelMessages: Bool {
+        guard let panel, panel.isVisible, !messages.isEmpty else { return false }
+        return isTitleHovering || isPanelHovering || isMouseInsidePanel
+    }
 }
 
 private struct SessionTitleUserMessagesPopoverContent: View {
     let messages: [ChatMessage]
-    let onPanelHoverChange: (Bool) -> Void
     let onTapMessage: (ChatMessage) -> Void
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: true) {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(messages) { message in
                     Button {
@@ -246,11 +281,11 @@ private struct SessionTitleUserMessagesPopoverContent: View {
             }
             .padding(.vertical, 6)
         }
+        .scrollContentBackground(.hidden)
         .frame(width: 360)
         .frame(maxHeight: 320)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .background(SessionTitlePanelBackground(cornerRadius: 12))
-        .background(SessionTitlePanelHoverTracker(onPanelHoverChange: onPanelHoverChange))
         .padding(14)
     }
 }
@@ -260,7 +295,7 @@ private struct SessionTitlePanelBackground: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
+            .fill(Color(red: 0.98, green: 0.98, blue: 0.97).opacity(0.96))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
@@ -272,71 +307,53 @@ private struct SessionTitlePanelBackground: View {
     }
 }
 
-private struct SessionTitlePanelHoverTracker: NSViewRepresentable {
-    let onPanelHoverChange: (Bool) -> Void
+private final class SessionTitlePanelTrackingView: NSView {
+    var onPanelHoverChange: (Bool) -> Void = { _ in }
+    private var trackingArea: NSTrackingArea?
 
-    func makeNSView(context: Context) -> TrackingView {
-        let view = TrackingView()
-        view.onPanelHoverChange = onPanelHoverChange
-        return view
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.clear.cgColor
     }
 
-    func updateNSView(_ nsView: TrackingView, context: Context) {
-        nsView.onPanelHoverChange = onPanelHoverChange
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
     }
 
-    final class TrackingView: NSView {
-        var onPanelHoverChange: (Bool) -> Void = { _ in }
-        private var trackingArea: NSTrackingArea?
-
-        override init(frame frameRect: NSRect) {
-            super.init(frame: frameRect)
-            wantsLayer = true
-            layer?.backgroundColor = NSColor.clear.cgColor
+    override func updateTrackingAreas() {
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
         }
 
-        @available(*, unavailable)
-        required init?(coder: NSCoder) {
-            nil
-        }
+        let trackingArea = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
 
-        override func updateTrackingAreas() {
-            if let trackingArea {
-                removeTrackingArea(trackingArea)
-            }
+        super.updateTrackingAreas()
+    }
 
-            let trackingArea = NSTrackingArea(
-                rect: .zero,
-                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-                owner: self,
-                userInfo: nil
-            )
-            addTrackingArea(trackingArea)
-            self.trackingArea = trackingArea
+    override func mouseEntered(with event: NSEvent) {
+        onPanelHoverChange(true)
+    }
 
-            super.updateTrackingAreas()
-        }
+    override func mouseExited(with event: NSEvent) {
+        onPanelHoverChange(false)
+    }
 
-        override func mouseEntered(with event: NSEvent) {
-            onPanelHoverChange(true)
-        }
-
-        override func mouseExited(with event: NSEvent) {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let window {
+            let boundsInWindow = convert(bounds, to: nil)
+            onPanelHoverChange(boundsInWindow.contains(window.mouseLocationOutsideOfEventStream))
+        } else {
             onPanelHoverChange(false)
-        }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if let window {
-                let boundsInWindow = convert(bounds, to: nil)
-                onPanelHoverChange(boundsInWindow.contains(window.mouseLocationOutsideOfEventStream))
-            } else {
-                onPanelHoverChange(false)
-            }
-        }
-
-        override func hitTest(_ point: NSPoint) -> NSView? {
-            nil
         }
     }
 }
@@ -349,12 +366,12 @@ private struct SessionTitleUserMessageRow: View {
             if let timestamp = message.timestamp {
                 Text(Self.timestampFormatter.string(from: timestamp))
                     .font(DashboardTypography.messageMeta)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.black.opacity(0.56))
             }
 
             Text(messagePreview)
                 .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.black.opacity(0.86))
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
