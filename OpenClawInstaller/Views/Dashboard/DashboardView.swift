@@ -1162,7 +1162,11 @@ private struct WorkspaceInspectorPane: View {
 
             Divider()
 
-            NestedWorkspaceSplitView(secondaryWidth: visualDetailWidth) {
+            NestedWorkspaceSplitView(
+                totalWidth: browserWidth + visualDetailWidth,
+                primaryWidth: browserWidth,
+                secondaryWidth: visualDetailWidth
+            ) {
                 WorkspaceFilePanel(
                     root: root,
                     editingFilePath: $editingFilePath,
@@ -1898,7 +1902,7 @@ struct SidebarView: View {
                 Label("Add Work Folder...", systemImage: "folder.badge.plus")
             }
             Divider()
-            if agent.id != "main" && agent.id != "commander" {
+            if canDeleteAgent(agent) {
                 Button(role: .destructive) {
                     deleteAgentConfirmId = agent.id
                 } label: {
@@ -1956,7 +1960,7 @@ struct SidebarView: View {
                 Label("Add Work Folder...", systemImage: "folder.badge.plus")
             }
             Divider()
-            if agent.id != "main" && agent.id != "commander" {
+            if canDeleteAgent(agent) {
                 Button(role: .destructive) {
                     deleteAgentConfirmId = agent.id
                 } label: {
@@ -1964,6 +1968,12 @@ struct SidebarView: View {
                 }
             }
         }
+    }
+
+    private func canDeleteAgent(_ agent: AgentOption) -> Bool {
+        agent.id != "main"
+            && agent.id != "commander"
+            && !DashboardViewModel.internalAgentIds.contains(agent.id)
     }
 
     private func sidebarItemHighlightColor(isActive: Bool, isHovering: Bool) -> SwiftUI.Color {

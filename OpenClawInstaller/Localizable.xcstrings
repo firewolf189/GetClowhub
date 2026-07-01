@@ -328,7 +328,20 @@
 
     },
     "(expires %@)" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（到期 %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（到期 %@）"
+          }
+        }
+      }
     },
     "(Ready)" : {
 
@@ -381,6 +394,22 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ / %2$@"
+          }
+        }
+      }
+    },
+    "%@ / month" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / 月"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / 月"
           }
         }
       }
@@ -1216,7 +1245,20 @@
       }
     },
     "%lld files" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個檔案"
+          }
+        }
+      }
     },
     "%lld installed" : {
 
@@ -1225,10 +1267,36 @@
 
     },
     "%lld models available" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个模型可用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個模型可用"
+          }
+        }
+      }
     },
     "%lld models configured" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已配置 %lld 个模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已配置 %lld 個模型"
+          }
+        }
+      }
     },
     "%lld records" : {
 
@@ -1237,7 +1305,20 @@
 
     },
     "%lld unsaved" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个未保存"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個未儲存"
+          }
+        }
+      }
     },
     "%lld/%lld" : {
       "localizations" : {
@@ -2931,9 +3012,6 @@
     "👤" : {
 
     },
-    "¥%@ / month" : {
-
-    },
     "0 = no limit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3444,8 +3522,53 @@
     "Aa" : {
 
     },
+    "Accent" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强调色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "強調色"
+          }
+        }
+      }
+    },
     "Accent %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强调色 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "強調色 %@"
+          }
+        }
+      }
+    },
+    "Account" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账户"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帳戶"
+          }
+        }
+      }
     },
     "Account ID" : {
 
@@ -6325,6 +6448,22 @@
         }
       }
     },
+    "API key management is available in signed builds." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 密钥管理仅在签名构建中可用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 金鑰管理僅在簽名建置中可用。"
+          }
+        }
+      }
+    },
     "App Key" : {
       "localizations" : {
         "ar" : {
@@ -6634,7 +6773,36 @@
       }
     },
     "Appearance" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外观"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外觀"
+          }
+        }
+      }
+    },
+    "Applies to controls and selected states." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用于控件和选中状态。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用於控制項和選取狀態。"
+          }
+        }
+      }
     },
     "Architecture" : {
       "localizations" : {
@@ -7573,13 +7741,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "身份验证令牌"
+            "value" : "认证令牌"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "身分驗證令牌"
+            "value" : "驗證權杖"
           }
         }
       }
@@ -7715,13 +7883,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "网关访问身份验证令牌"
+            "value" : "用于访问网关的认证令牌"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "閘道器存取身分驗證令牌"
+            "value" : "用於存取閘道的驗證權杖"
           }
         }
       }
@@ -8611,7 +8779,20 @@
       }
     },
     "Available Models" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用模型"
+          }
+        }
+      }
     },
     "Available Space" : {
       "localizations" : {
@@ -10611,6 +10792,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更新於"
+          }
+        }
+      }
+    },
+    "Blue" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "蓝色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "藍色"
           }
         }
       }
@@ -13781,13 +13978,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "频道"
+            "value" : "通道"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "頻道"
+            "value" : "通道"
           }
         }
       }
@@ -14696,6 +14893,22 @@
         }
       }
     },
+    "Choose a mode and preview how the workspace will feel." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择显示模式，并预览工作区效果。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇顯示模式，並預覽工作區效果。"
+          }
+        }
+      }
+    },
     "Clear Conversation" : {
       "localizations" : {
         "zh-Hans" : {
@@ -15042,7 +15255,20 @@
 
     },
     "Collapse" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收起"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收合"
+          }
+        }
+      }
     },
     "Collapse panel" : {
 
@@ -15628,7 +15854,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定"
+            "value" : "配置"
           }
         }
       }
@@ -17954,7 +18180,20 @@
 
     },
     "Custom API Provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义 API 服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自訂 API 服務"
+          }
+        }
+      }
     },
     "Cut" : {
 
@@ -18103,7 +18342,20 @@
       }
     },
     "Dark" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        }
+      }
     },
     "Decrease font size (⌘-)" : {
 
@@ -22338,13 +22590,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "直接编辑完整配置文件以进行高级设置。"
+            "value" : "直接编辑完整配置文件以调整高级设置。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "直接編輯完整設定檔以進行進階設定。"
+            "value" : "直接編輯完整配置檔以調整進階設定。"
           }
         }
       }
@@ -22782,7 +23034,20 @@
       }
     },
     "Enter API Key" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入 API 密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入 API 金鑰"
+          }
+        }
+      }
     },
     "Enter App Key" : {
       "localizations" : {
@@ -23223,13 +23488,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "输入身份验证令牌"
+            "value" : "输入认证令牌"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "輸入身分驗證令牌"
+            "value" : "輸入驗證權杖"
           }
         }
       }
@@ -24253,7 +24518,20 @@
 
     },
     "Expand" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "展开"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "展開"
+          }
+        }
+      }
     },
     "Expand session details" : {
 
@@ -25154,10 +25432,36 @@
       }
     },
     "Fetch Models" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获取模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取得模型"
+          }
+        }
+      }
     },
     "Fetch models from this provider or add them before saving." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存前，请从该服务获取模型或手动添加模型。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存前，請從該服務取得模型或手動新增模型。"
+          }
+        }
+      }
     },
     "File Analysis" : {
       "extractionState" : "stale",
@@ -26187,7 +26491,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "閘道器"
+            "value" : "閘道"
           }
         }
       }
@@ -26758,7 +27062,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "閘道器監聽連接埠"
+            "value" : "閘道監聽連接埠"
           }
         }
       }
@@ -26925,7 +27229,20 @@
       }
     },
     "Generate Key" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "產生金鑰"
+          }
+        }
+      }
     },
     "Generating QR code..." : {
       "localizations" : {
@@ -27221,7 +27538,20 @@
 
     },
     "GetClawHub Official Service" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GetClawHub 官方服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GetClawHub 官方服務"
+          }
+        }
+      }
     },
     "GitHub Auto Development" : {
       "extractionState" : "stale",
@@ -28109,6 +28439,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已授予"
+          }
+        }
+      }
+    },
+    "Graphite" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "石墨色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "石墨色"
+          }
+        }
+      }
+    },
+    "Green" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绿色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "綠色"
           }
         }
       }
@@ -32174,7 +32536,20 @@
       }
     },
     "Light" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "淺色"
+          }
+        }
+      }
     },
     "Linked" : {
       "localizations" : {
@@ -32922,7 +33297,20 @@
       }
     },
     "Loading membership info..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载会员信息..."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在載入會員資訊..."
+          }
+        }
+      }
     },
     "Loading models..." : {
       "localizations" : {
@@ -33842,7 +34230,20 @@
       }
     },
     "Log in to use GetClawHub AI service" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录后使用 GetClawHub AI 服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入後使用 GetClawHub AI 服務"
+          }
+        }
+      }
     },
     "Log out" : {
 
@@ -33852,13 +34253,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出"
+            "value" : "退出登录"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出"
+            "value" : "登出"
           }
         }
       }
@@ -35073,7 +35474,20 @@
 
     },
     "Manage" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理"
+          }
+        }
+      }
     },
     "Mark as completed (unblock downstream tasks)" : {
 
@@ -35551,7 +35965,20 @@
       }
     },
     "Membership" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "会员"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "會員"
+          }
+        }
+      }
     },
     "Message" : {
 
@@ -36509,7 +36936,20 @@
       }
     },
     "More files" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多檔案"
+          }
+        }
+      }
     },
     "Move to Background" : {
       "localizations" : {
@@ -37914,7 +38354,20 @@
       }
     },
     "No API Key yet" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有 API 密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚無 API 金鑰"
+          }
+        }
+      }
     },
     "No billing data yet" : {
 
@@ -39170,7 +39623,20 @@
 
     },
     "No matching models found in the official provider preset." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "官方服务预设中没有找到匹配的模型。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "官方服務預設中沒有找到相符的模型。"
+          }
+        }
+      }
     },
     "No matching skills" : {
       "localizations" : {
@@ -39310,6 +39776,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沒有符合的技能"
+          }
+        }
+      }
+    },
+    "No models available" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无可用模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫無可用模型"
           }
         }
       }
@@ -42534,7 +43016,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "開啟設定檔"
+            "value" : "開啟配置檔"
           }
         }
       }
@@ -42960,13 +43442,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "打开提供商预设"
+            "value" : "打开服务预设"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "開啟供應商預設"
+            "value" : "開啟服務預設"
           }
         }
       }
@@ -46996,6 +47478,22 @@
         }
       }
     },
+    "Preferences" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏好设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏好設定"
+          }
+        }
+      }
+    },
     "Preparing" : {
 
     },
@@ -47010,6 +47508,38 @@
     },
     "Process running" : {
 
+    },
+    "Profile" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个人资料"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "個人資料"
+          }
+        }
+      }
+    },
+    "Profile is available in signed builds." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个人资料仅在签名构建中可用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "個人資料僅在簽名建置中可用。"
+          }
+        }
+      }
     },
     "Progress" : {
       "extractionState" : "manual",
@@ -47303,13 +47833,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "提供商"
+            "value" : "服务提供商"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "供應商"
+            "value" : "服務供應商"
           }
         }
       }
@@ -48496,7 +49026,20 @@
       }
     },
     "Recommended" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推荐"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推薦"
+          }
+        }
+      }
     },
     "Recruit" : {
       "localizations" : {
@@ -57469,13 +58012,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切换提供商"
+            "value" : "切换服务提供商"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切換供應商"
+            "value" : "切換服務供應商"
           }
         }
       }
@@ -57910,16 +58453,68 @@
       }
     },
     "Switching provider will replace the current Base URL. API Key will be cleared. Continue?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换服务提供商会替换当前 Base URL，并清空 API 密钥。是否继续？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切換服務供應商會替換目前 Base URL，並清空 API 金鑰。是否繼續？"
+          }
+        }
+      }
     },
     "Sync" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步"
+          }
+        }
+      }
     },
     "Sync failed: %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步失败：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步失敗：%@"
+          }
+        }
+      }
     },
     "Syncing membership info..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在同步会员信息..."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在同步會員資訊..."
+          }
+        }
+      }
     },
     "System" : {
       "localizations" : {
@@ -62140,7 +62735,36 @@
 
     },
     "Use your own API Key" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用你自己的 API 密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用你自己的 API 金鑰"
+          }
+        }
+      }
+    },
+    "Use your preferred app language." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用你偏好的应用语言。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用你偏好的應用語言。"
+          }
+        }
+      }
     },
     "User" : {
       "localizations" : {
@@ -62759,6 +63383,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查看結果 ↑"
+          }
+        }
+      }
+    },
+    "Violet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紫色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紫色"
           }
         }
       }
@@ -64854,13 +65494,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "您有未保存的更改"
+            "value" : "你有未保存的更改"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "您有未儲存的變更"
+            "value" : "你有未儲存的變更"
           }
         }
       }

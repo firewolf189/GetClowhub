@@ -920,6 +920,16 @@ assertContains(
 )
 assertContains(
     workspaceInspectorPane,
+    "primaryWidth: browserWidth",
+    "nested workspace split should receive an explicit primary Outputs column width so the Outputs content is visible before the secondary column opens"
+)
+assertContains(
+    workspaceInspectorPane,
+    "totalWidth: browserWidth + visualDetailWidth",
+    "nested workspace split should receive the full local inspector width so its AppKit container is not inferred as zero-width"
+)
+assertContains(
+    workspaceInspectorPane,
     "secondaryWidth: visualDetailWidth",
     "nested workspace split should receive the local secondary column width"
 )
@@ -1018,6 +1028,31 @@ assertContains(
     workspaceInspectorPane,
     "WorkspaceFilePanel(",
     "workspace inspector pane should own the Outputs file content"
+)
+assertContains(
+    rightInspectorSplit,
+    "let primaryWidth: CGFloat",
+    "NestedWorkspaceSplitView should accept an explicit primary column width"
+)
+assertContains(
+    rightInspectorSplit,
+    "let totalWidth: CGFloat",
+    "NestedWorkspaceSplitView should accept an explicit total width for the local inspector container"
+)
+assertContains(
+    rightInspectorSplit,
+    "primaryWidthConstraint",
+    "NestedWorkspaceSplitController should keep the primary Outputs column stable with a width constraint"
+)
+assertContains(
+    rightInspectorSplit,
+    ".frame(width: totalWidth)",
+    "NestedWorkspaceSplitView should pin the AppKit container width to the primary plus secondary column widths"
+)
+assertContains(
+    rightInspectorSplit,
+    "primaryHost.view.widthAnchor.constraint(equalToConstant: 0)",
+    "NestedWorkspaceSplitController should install a primary width constraint instead of relying on implicit AppKit layout"
 )
 
 assertNotContains(

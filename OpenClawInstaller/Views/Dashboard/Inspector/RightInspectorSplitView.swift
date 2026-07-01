@@ -84,16 +84,53 @@ struct RightInspectorSplitView<Content: View, Sidebar: View>: NSViewControllerRe
     }
 }
 
-struct NestedWorkspaceSplitView<Primary: View, Secondary: View>: NSViewControllerRepresentable {
+struct NestedWorkspaceSplitView<Primary: View, Secondary: View>: View {
+    let totalWidth: CGFloat
+    let primaryWidth: CGFloat
     let secondaryWidth: CGFloat
     let primary: Primary
     let secondary: Secondary
 
     init(
+        totalWidth: CGFloat,
+        primaryWidth: CGFloat,
         secondaryWidth: CGFloat,
         @ViewBuilder primary: () -> Primary,
         @ViewBuilder secondary: () -> Secondary
     ) {
+        self.totalWidth = totalWidth
+        self.primaryWidth = primaryWidth
+        self.secondaryWidth = secondaryWidth
+        self.primary = primary()
+        self.secondary = secondary()
+    }
+
+    var body: some View {
+        NestedWorkspaceSplitRepresentable(
+            primaryWidth: primaryWidth,
+            secondaryWidth: secondaryWidth
+        ) {
+            primary
+        } secondary: {
+            secondary
+        }
+        .frame(width: totalWidth)
+    }
+}
+
+private struct NestedWorkspaceSplitRepresentable<Primary: View, Secondary: View>: NSViewControllerRepresentable {
+    let primaryWidth: CGFloat
+    let secondaryWidth: CGFloat
+    let primary: Primary
+    let secondary: Secondary
+
+    init(
+        primaryWidth: CGFloat,
+        secondaryWidth: CGFloat,
+        @ViewBuilder primary: () -> Primary,
+        @ViewBuilder secondary: () -> Secondary
+    ) {
+        self.primaryWidth = primaryWidth
         self.secondaryWidth = secondaryWidth
         self.primary = primary()
         self.secondary = secondary()
@@ -110,6 +147,7 @@ struct NestedWorkspaceSplitView<Primary: View, Secondary: View>: NSViewControlle
         nestedController.update(
             primary: AnyView(primary),
             secondary: AnyView(secondary),
+            primaryWidth: primaryWidth,
             secondaryWidth: secondaryWidth
         )
     }
@@ -120,6 +158,7 @@ private final class NestedWorkspaceSplitController: NSViewController {
     private let secondaryClipView = NSView()
     private let secondaryHost = NSHostingController(rootView: AnyView(EmptyView()))
 
+    private var primaryWidthConstraint: NSLayoutConstraint?
     private var secondaryWidthConstraint: NSLayoutConstraint?
     private var secondaryContentWidthConstraint: NSLayoutConstraint?
     private var hasInstalledLayout = false
@@ -136,14 +175,16 @@ private final class NestedWorkspaceSplitController: NSViewController {
         installLayoutIfNeeded()
     }
 
-    func update(primary: AnyView, secondary: AnyView, secondaryWidth: CGFloat) {
+    func update(primary: AnyView, secondary: AnyView, primaryWidth: CGFloat, secondaryWidth: CGFloat) {
         loadViewIfNeeded()
         installLayoutIfNeeded()
 
         primaryHost.rootView = primary
         secondaryHost.rootView = secondary
 
+        let targetPrimaryWidth = max(0, primaryWidth)
         let targetWidth = max(0, secondaryWidth)
+        primaryWidthConstraint?.constant = targetPrimaryWidth
         guard hasAppliedInitialLayout else {
             setSecondaryWidth(targetWidth)
             hasAppliedInitialLayout = true
@@ -168,6 +209,7 @@ private final class NestedWorkspaceSplitController: NSViewController {
         view.addSubview(secondaryClipView)
         secondaryClipView.addSubview(secondaryHost.view)
 
+        let primaryWidthConstraint = primaryHost.view.widthAnchor.constraint(equalToConstant: 0)
         let secondaryWidthConstraint = secondaryClipView.widthAnchor.constraint(equalToConstant: 0)
         let secondaryContentWidthConstraint = secondaryHost.view.widthAnchor.constraint(equalToConstant: 0)
 
@@ -176,6 +218,7 @@ private final class NestedWorkspaceSplitController: NSViewController {
             primaryHost.view.topAnchor.constraint(equalTo: view.topAnchor),
             primaryHost.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             primaryHost.view.trailingAnchor.constraint(equalTo: secondaryClipView.leadingAnchor),
+            primaryWidthConstraint,
             secondaryClipView.topAnchor.constraint(equalTo: view.topAnchor),
             secondaryClipView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             secondaryClipView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -186,6 +229,7 @@ private final class NestedWorkspaceSplitController: NSViewController {
             secondaryWidthConstraint
         ])
 
+        self.primaryWidthConstraint = primaryWidthConstraint
         self.secondaryWidthConstraint = secondaryWidthConstraint
         self.secondaryContentWidthConstraint = secondaryContentWidthConstraint
         hasInstalledLayout = true
