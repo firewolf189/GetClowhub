@@ -6,23 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.64</title>
-      <sparkle:version>71</sparkle:version>
-      <sparkle:shortVersionString>1.1.64</sparkle:shortVersionString>
+      <title>Version 1.1.65</title>
+      <sparkle:version>73</sparkle:version>
+      <sparkle:shortVersionString>1.1.65</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.64</h2>
+        <h2>OpenClaw Helper 1.1.65</h2>
         <ul>
-          <li>修复模型选择弹窗与 Markdown 选择布局在部分窗口尺寸下的遮挡问题。</li>
-          <li>完善工作区与设置入口的交互细节，降低侧栏与快捷设置面板的渲染干扰。</li>
-          <li>更新统一国际化资源，补齐新增状态与错误提示文案。</li>
-          <li>保持聊天渲染、OpenClaw 资源包和 Node 运行时打包稳定性。</li>
+          <li>版本 1.1.65 更新</li>
         </ul>
       ]]></description>
-      <pubDate>Thu, 02 Jul 2026 17:22:11 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.64/GetClawHub.dmg"
-                 length="217839708"
+      <pubDate>Thu, 02 Jul 2026 19:09:04 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.65/GetClawHub.dmg"
+                 length="217827437"
                  type="application/octet-stream"
-                 sparkle:edSignature="deU3R8zIAzvYNaskFKxhK6S1CMg2pWgcQ+NYA2LokT9rGawOnXxmXagB8oDEGJJJwqVCaS0K+syuTmHuOuAJBA==" />
+                 sparkle:edSignature="9oJd+2miwE0r9yMV+EFEByt85Ce+fkhlKtZ9s6Q+1VeCFf9FjuGcuu7dS3lwLSwkw1B19wJcqwKFKFLAsz7cAQ==" />
     </item>
   </channel>
 </rss>
