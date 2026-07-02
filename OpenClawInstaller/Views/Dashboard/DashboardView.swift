@@ -154,13 +154,18 @@ struct DashboardView: View {
             }
         )
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                if let title = currentSessionTitle {
-                    SessionTitleUserMessagesPopover(
-                        title: title,
-                        messages: currentSessionUserMessages,
-                        onTapMessage: jumpToUserMessage
-                    )
+            // macOS 26 draws a Liquid Glass capsule behind toolbar items,
+            // which stacks with the chip's own pill background as two
+            // offset light/dark rounded rects — hide the shared capsule
+            // there and keep the self-drawn pill as the single chrome.
+            if #available(macOS 26.0, *) {
+                ToolbarItem(placement: .navigation) {
+                    sessionTitleToolbarChip
+                }
+                .sharedBackgroundVisibility(.hidden)
+            } else {
+                ToolbarItem(placement: .navigation) {
+                    sessionTitleToolbarChip
                 }
             }
         }
@@ -228,6 +233,17 @@ struct DashboardView: View {
             return nil
         }
         return (viewModel.sessionsByAgent[viewModel.selectedAgentId] ?? []).first { $0.id == sessionId }
+    }
+
+    @ViewBuilder
+    private var sessionTitleToolbarChip: some View {
+        if let title = currentSessionTitle {
+            SessionTitleUserMessagesPopover(
+                title: title,
+                messages: currentSessionUserMessages,
+                onTapMessage: jumpToUserMessage
+            )
+        }
     }
 
     private var currentSessionTitle: String? {
