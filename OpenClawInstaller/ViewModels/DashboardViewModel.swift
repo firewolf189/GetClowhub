@@ -754,6 +754,12 @@ class DashboardViewModel: ObservableObject {
     @Published var models: [ModelInfo] = []
     @Published var modelOverview: ModelOverview = ModelOverview()
     @Published var activeComposerModel: String = ""
+    /// Last model successfully applied to each gateway session via
+    /// `sessions.patch`, keyed by sessionKey. Lets the send path skip the
+    /// patch round-trip when the composer model hasn't changed. Safe to keep
+    /// in memory only: the gateway persists the override in its session
+    /// store, and a fresh app launch starts with an empty cache anyway.
+    private var appliedSessionModels: [String: String] = [:]
 
     /// Gateway `Main` lane concurrency cap — the number of agent runs the
     /// backend will execute in parallel before the rest start queueing.
@@ -3201,9 +3207,12 @@ class DashboardViewModel: ObservableObject {
             taskSessionKeyOverride.removeValue(forKey: msgId)
         }
 
+        // Non-fatal: a rejected patch just means the chunk runs on the
+        // session's current model instead of the composer override.
         if !modelOverride.isEmpty {
-            guard await gatewayClient.patchSessionModel(sessionKey: sessionKey, model: modelOverride) else {
-                return ("failed", "Failed to apply the selected model.")
+            let patched = await gatewayClient.patchSessionModel(sessionKey: sessionKey, model: modelOverride)
+            if !patched {
+                chatLog.warning("phase=session_model_patch_failed session=\(sessionKey, privacy: .public) model=\(modelOverride, privacy: .public) — running image review chunk with the session's current model")
             }
         }
 
@@ -3529,17 +3538,18 @@ class DashboardViewModel: ObservableObject {
         let subscriberId = msgId.uuidString
         let eventStream = gatewayClient.subscribeToEvents(subscriberId: subscriberId)
 
-        if !composerModelOverride.isEmpty {
+        // Apply the composer model as a session-level override. Non-fatal by
+        // design: a gateway that rejects `sessions.patch` (older builds, or a
+        // connection it classifies as webchat) still runs the turn on the
+        // session's current model, so warn instead of blocking the message.
+        if !composerModelOverride.isEmpty, appliedSessionModels[sessionKey] != composerModelOverride {
             let patched = await gatewayClient.patchSessionModel(sessionKey: sessionKey, model: composerModelOverride)
-            guard patched else {
-                gatewayClient.unsubscribe(subscriberId: subscriberId)
-                let errorMsg = String(localized: "Failed to apply the selected model. Please try again.", bundle: LanguageManager.shared.localizedBundle)
-                updateMessage(msgId: msgId, content: errorMsg, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
-                foregroundTaskIds.remove(msgId)
-                taskAgentMap.removeValue(forKey: msgId)
-                taskSessionMap.removeValue(forKey: msgId)
-                recomputeIsSendingMessage()
-                return
+            if patched {
+                appliedSessionModels[sessionKey] = composerModelOverride
+            } else {
+                appliedSessionModels.removeValue(forKey: sessionKey)
+                chatLog.warning("phase=session_model_patch_failed session=\(sessionKey, privacy: .public) model=\(composerModelOverride, privacy: .public) — sending with the session's current model")
+                showErrorMessage(String(localized: "Could not switch to the selected model; sending with the current model.", bundle: LanguageManager.shared.localizedBundle))
             }
         }
 

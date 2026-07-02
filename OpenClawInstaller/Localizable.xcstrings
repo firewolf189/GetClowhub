@@ -16893,6 +16893,34 @@
     "Copy" : {
 
     },
+    "Could not switch to the selected model; sending with the current model." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したモデルに切り替えられませんでした。現在のモデルで送信します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 모델로 전환할 수 없어 현재 모델로 전송합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法切换到所选模型，将使用当前模型发送。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法切換到所選模型，將使用目前模型傳送。"
+          }
+        }
+      }
+    },
     "Cost" : {
       "extractionState" : "stale",
       "localizations" : {

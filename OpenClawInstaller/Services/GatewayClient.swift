@@ -729,7 +729,13 @@ class GatewayClient: ObservableObject {
         // verifies the signature against it. Drift here → server reports
         // "invalid device signature" and 1008-closes the socket.
         let clientId = "openclaw-macos"
-        let clientMode = "webchat"
+        // CRITICAL: "ui" is the gateway's canonical mode for native apps
+        // (paired with the "openclaw-macos" client id). Do NOT use "webchat":
+        // openclaw 2026.6.10 classifies mode=webchat connections as the public
+        // webchat surface and rejects `sessions.patch` from them
+        // ("webchat clients cannot patch sessions"), which breaks the composer
+        // model override applied before every chat.send.
+        let clientMode = "ui"
         // CRITICAL: use "darwin" (Node's `process.platform` on macOS), NOT
         // "macos". When the openclaw CLI / setup wizard ran on this same
         // machine, it auto-paired using `process.platform = "darwin"`, so
