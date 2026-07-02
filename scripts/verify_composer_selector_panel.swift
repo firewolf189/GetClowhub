@@ -93,6 +93,16 @@ assertContains(
     "ComposerModelPanel(",
     "composer selector overlay must use a model-only panel"
 )
+assertContains(
+    dashboard,
+    "currentModel: viewModel.activeComposerModel",
+    "composer selector overlay must use the app-level active composer model"
+)
+assertContains(
+    dashboard,
+    "onSelectModel: viewModel.selectComposerModel",
+    "composer selector overlay must not write agent model settings"
+)
 assertNotContains(
     dashboard,
     "ComposerAgentModelSelector",
@@ -107,6 +117,16 @@ assertNotContains(
     selectorButton,
     "AgentAvatarImage(",
     "composer selector button must not show or depend on agent selection"
+)
+assertContains(
+    selectorButton,
+    "viewModel.activeComposerModel",
+    "composer selector button must render the active composer model"
+)
+assertNotContains(
+    selectorButton,
+    "currentAgent?.model",
+    "composer selector button must not read the selected agent model"
 )
 assertNotContains(
     selectorPanel,
@@ -125,8 +145,8 @@ assertNotContains(
 )
 assertContains(
     selectorPanel,
-    "let models: [ModelOption]",
-    "composer model panel must receive model data as an explicit input"
+    "let modelGroups: [ProviderModelGroup]",
+    "composer model panel must receive grouped model data as an explicit input"
 )
 assertContains(
     selectorPanel,
@@ -140,8 +160,38 @@ assertNotContains(
 )
 assertContains(
     selectorPanel,
-    "ForEach(models)",
-    "composer model panel must render the injected model list directly"
+    "ForEach(modelGroups)",
+    "composer model panel must render the injected provider groups directly"
+)
+assertContains(
+    selectorPanel,
+    "group.displayName",
+    "composer model panel must render provider group headers"
+)
+assertNotContains(
+    selectorPanel,
+    "Default (",
+    "composer model panel must not show a Default row"
+)
+assertNotContains(
+    selectorPanel,
+    #"subtitle: "Inherit""#,
+    "composer model panel must not expose inherit text in the model list"
+)
+assertContains(
+    selectorPanel,
+    "effectiveSelectedModel",
+    "composer model panel must select the effective model when current model inherits the default"
+)
+assertNotContains(
+    selectorPanel,
+    "resetToDefault",
+    "composer model panel must not reset the composer model to an empty selection"
+)
+assertNotContains(
+    selectorPanel,
+    #"Image(systemName: "arrow.counterclockwise")"#,
+    "composer model panel must not show a reset icon"
 )
 assertContains(
     selectorPanel,

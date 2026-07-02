@@ -97,6 +97,12 @@ require(!agentContextMenu.contains("onRequestCreateAgent()"), "agent row context
 require(agentContextMenu.contains("Remove Agent"), "agent row context menu should still expose remove for custom agents")
 require(agentSidebarRow.contains(".contextMenu"), "agent sidebar row should own the context menu on the full row")
 require(agentSidebarRow.contains("Remove Agent"), "agent sidebar row context menu should expose remove for custom agents")
+require(dashboard.contains("private func canDeleteAgent(_ agent: AgentOption) -> Bool"), "sidebar should centralize agent delete eligibility")
+require(dashboard.contains("!DashboardViewModel.internalAgentIds.contains(agent.id)"), "agent delete eligibility should block internal agents")
+require(dashboard.contains(#"agent.id != "main""#), "agent delete eligibility should keep main protected")
+require(dashboard.contains(#"agent.id != "commander""#), "agent delete eligibility should keep commander protected")
+require(agentContextMenu.contains("if canDeleteAgent(agent)"), "legacy agent context menu should use centralized delete eligibility")
+require(agentSidebarRow.contains("if canDeleteAgent(agent)"), "agent sidebar context menu should use centralized delete eligibility")
 require(sidebarCollapsibleRow.contains(".contentShape(Rectangle())"), "agent sidebar row should define a full-row hit area")
 
 require(deleteAgent.contains("func deleteAgent(agentId: String) async -> Bool"), "deleteAgent should return success/failure")

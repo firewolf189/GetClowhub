@@ -1,5 +1,15 @@
 import SwiftUI
 
+@MainActor
+private func localizedString(_ key: String) -> String {
+    I18n.t(key, fallback: key)
+}
+
+@MainActor
+private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
+    String(format: I18n.t(key, fallback: key), arguments: arguments)
+}
+
 enum SettingsPageSection: String, CaseIterable, Identifiable {
     case profile
     case preferences
@@ -15,7 +25,7 @@ enum SettingsPageSection: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
-    var title: String {
+    private var titleKey: String {
         switch self {
         case .profile: return "Profile"
         case .preferences: return "Preferences"
@@ -29,6 +39,11 @@ enum SettingsPageSection: String, CaseIterable, Identifiable {
         case .channels: return "Channels"
         case .logs: return "Logs"
         }
+    }
+
+    @MainActor
+    func localizedTitle() -> String {
+        localizedString(titleKey)
     }
 
     var systemImage: String {
@@ -93,8 +108,8 @@ struct ConfigTabView: View {
                     .environmentObject(authManager)
                     .environmentObject(membershipManager)
                 #else
-                SettingsCard(title: "Profile", systemImage: "person.crop.circle") {
-                    Text("Profile is available in signed builds.")
+                SettingsCard(title: localizedString("Profile"), systemImage: "person.crop.circle") {
+                    Text(localizedString("Profile is available in signed builds."))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -124,7 +139,7 @@ struct ConfigTabView: View {
                     .environmentObject(authManager)
                     .environmentObject(membershipManager)
                 #else
-                Text("API key management is available in signed builds.")
+                Text(localizedString("API key management is available in signed builds."))
                     .foregroundColor(.secondary)
                 #endif
                 SaveButtonsSection(viewModel: viewModel)
@@ -157,7 +172,7 @@ struct ConfigTabView: View {
     private func settingsScroll<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
         SmoothScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text(selectedSection.title)
+                Text(selectedSection.localizedTitle())
                     .font(.system(size: 24, weight: .semibold))
 
                 content()
@@ -181,7 +196,7 @@ private struct SettingsSectionSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Settings")
+            Text(localizedString("Settings"))
                 .font(.system(size: 18, weight: .semibold))
                 .padding(.horizontal, 14)
                 .padding(.top, 18)
@@ -189,31 +204,18 @@ private struct SettingsSectionSidebar: View {
             VStack(alignment: .leading, spacing: 16) {
                 ForEach(groups, id: \.0) { group in
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(group.0)
+                        Text(localizedString(group.0))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 14)
 
                         ForEach(group.1) { section in
-                            Button {
+                            SettingsSectionRow(
+                                section: section,
+                                isSelected: selectedSection == section
+                            ) {
                                 selectedSection = section
-                            } label: {
-                                HStack(spacing: 9) {
-                                    Image(systemName: section.systemImage)
-                                        .frame(width: 16)
-                                    Text(section.title)
-                                    Spacer()
-                                }
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(selectedSection == section ? Color.primary.opacity(0.10) : Color.clear)
-                                )
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -223,6 +225,34 @@ private struct SettingsSectionSidebar: View {
             Spacer()
         }
         .background(Color(NSColor.controlBackgroundColor).opacity(0.42))
+    }
+}
+
+private struct SettingsSectionRow: View {
+    let section: SettingsPageSection
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: section.systemImage)
+                    .frame(width: 16)
+                Text(section.localizedTitle())
+                Spacer()
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? Color.primary.opacity(0.10) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -260,7 +290,7 @@ private struct ProfileSettingsCard: View {
     @EnvironmentObject var membershipManager: MembershipManager
 
     var body: some View {
-        SettingsCard(title: "Profile", systemImage: "person.crop.circle") {
+        SettingsCard(title: localizedString("Profile"), systemImage: "person.crop.circle") {
             switch authManager.state {
             case .loggedIn(let nickname):
                 HStack {
@@ -274,19 +304,19 @@ private struct ProfileSettingsCard: View {
                     Spacer()
                 }
                 HStack(spacing: 10) {
-                    Button("Manage") {
+                    Button(localizedString("Manage")) {
                         openMemberAccount()
                     }
                     .buttonStyle(.bordered)
-                    Button("Log Out") {
+                    Button(localizedString("Log Out")) {
                         authManager.logout()
                     }
                     .buttonStyle(.bordered)
                 }
             default:
-                Text("Not Logged In")
+                Text(localizedString("Not Logged In"))
                     .foregroundColor(.secondary)
-                Button("Log In") {
+                Button(localizedString("Log In")) {
                     authManager.login()
                 }
                 .buttonStyle(.borderedProminent)
@@ -336,10 +366,10 @@ private struct PreferencesSettingsCard: View {
     }
 
     var body: some View {
-        SettingsCard(title: "Preferences", systemImage: "slider.horizontal.3") {
+        SettingsCard(title: localizedString("Preferences"), systemImage: "slider.horizontal.3") {
             VStack(alignment: .leading, spacing: 18) {
-                preferenceRow(title: "Language", subtitle: "Use your preferred app language.") {
-                    Picker("Language", selection: $languageManager.selectedLanguage) {
+                preferenceRow(title: localizedString("Language"), subtitle: localizedString("Use your preferred app language.")) {
+                    Picker(localizedString("Language"), selection: $languageManager.selectedLanguage) {
                         ForEach(languageManager.supportedLanguages) { lang in
                             Text(lang.name).tag(lang.id)
                         }
@@ -351,10 +381,10 @@ private struct PreferencesSettingsCard: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 14) {
-                    preferenceRow(title: "Appearance", subtitle: "Choose a mode and preview how the workspace will feel.") {
-                        Picker("Appearance", selection: $appAppearance) {
+                    preferenceRow(title: localizedString("Appearance"), subtitle: localizedString("Choose a mode and preview how the workspace will feel.")) {
+                        Picker(localizedString("Appearance"), selection: $appAppearance) {
                             ForEach(AppAppearanceMode.allCases) { mode in
-                                Label(mode.title, systemImage: mode.systemImage)
+                                Label(localizedString(mode.title), systemImage: mode.systemImage)
                                     .tag(mode.rawValue)
                             }
                         }
@@ -369,7 +399,7 @@ private struct PreferencesSettingsCard: View {
                         systemScheme: colorScheme
                     )
 
-                    preferenceRow(title: "Accent", subtitle: "Applies to controls and selected states.") {
+                    preferenceRow(title: localizedString("Accent"), subtitle: localizedString("Applies to controls and selected states.")) {
                         HStack(spacing: 8) {
                             ForEach(AppAccentPalette.allCases) { accent in
                                 Button {
@@ -378,7 +408,7 @@ private struct PreferencesSettingsCard: View {
                                     AccentSwatch(accent: accent, isSelected: selectedAccent == accent)
                                 }
                                 .buttonStyle(.plain)
-                                .help(accent.title)
+                                .help(localizedString(accent.title))
                             }
                         }
                     }
@@ -467,14 +497,14 @@ private struct AppearancePreview: View {
                     Circle()
                         .fill(accent.color)
                         .frame(width: 8, height: 8)
-                    Text("GetClawHub")
+                        Text("GetClawHub")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(textColor)
                 }
 
-                previewSidebarRow(icon: "bolt.fill", title: "Skills", active: true)
-                previewSidebarRow(icon: "puzzlepiece.fill", title: "Plugins", active: false)
-                previewSidebarRow(icon: "gearshape", title: "Settings", active: false)
+                previewSidebarRow(icon: AppSystemSymbol.skills, title: localizedString("Skills"), active: true)
+                previewSidebarRow(icon: "powerplug.portrait", title: localizedString("Plugins"), active: false)
+                previewSidebarRow(icon: "gearshape", title: localizedString("Settings"), active: false)
 
                 Spacer(minLength: 0)
             }
@@ -485,10 +515,10 @@ private struct AppearancePreview: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(mode.title)
+                        Text(localizedString(mode.title))
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(textColor)
-                        Text("Accent \(accent.title)")
+                        Text(localizedFormat("Accent %@", localizedString(accent.title)))
                             .font(.caption)
                             .foregroundColor(textColor.opacity(0.58))
                     }
@@ -638,7 +668,7 @@ private struct AgentPersonaSettingsList: View {
                             .lineLimit(1)
 
                         if unsavedCount > 0 {
-                            Text("\(unsavedCount) unsaved")
+                            Text(localizedFormat("%lld unsaved", unsavedCount))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundColor(.orange)
                                 .padding(.horizontal, 7)
@@ -732,7 +762,7 @@ private struct AgentPersonaSettingsList: View {
                     HStack(spacing: 8) {
                         Image(systemName: "folder.badge.gearshape")
                             .foregroundColor(.secondary)
-                        Text("More files")
+                        Text(localizedString("More files"))
                             .font(.system(size: 13, weight: .semibold))
                         Text("\(visibleOptionalFiles.count)")
                             .font(.caption2.weight(.semibold))
@@ -768,7 +798,7 @@ private struct AgentPersonaSettingsList: View {
         let count = files.filter { fileName in
             FileManager.default.fileExists(atPath: (workspace as NSString).appendingPathComponent(fileName))
         }.count
-        return "\(count) files"
+        return localizedFormat("%lld files", count)
     }
 
     private func unsavedFileCount(for agent: AgentOption) -> Int {
@@ -811,7 +841,7 @@ struct GatewaySettingsGroup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Gateway")
+            Text(localizedString("Gateway"))
                 .font(.title3.weight(.semibold))
 
             VStack(alignment: .leading, spacing: 16) {
@@ -847,35 +877,35 @@ struct GatewayConfigSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if showsTitle {
-                Text("Gateway")
+                Text(localizedString("Gateway"))
                     .font(.headline)
             }
 
             // Port
             HStack {
-                Text("Port")
+                Text(localizedString("Port"))
                     .frame(width: 120, alignment: .leading)
 
                 TextField("18789", text: $viewModel.editedPort)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 120)
 
-                Text("Gateway listening port")
+                Text(localizedString("Gateway listening port"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
 
             // Auth Token
             HStack {
-                Text("Auth Token")
+                Text(localizedString("Auth Token"))
                     .frame(width: 120, alignment: .leading)
 
                 ZStack {
                     if showAuthToken {
-                        TextField("Enter auth token", text: $viewModel.editedAuthToken)
+                        TextField(localizedString("Enter auth token"), text: $viewModel.editedAuthToken)
                             .textFieldStyle(.roundedBorder)
                     } else {
-                        SecureField("Enter auth token", text: $viewModel.editedAuthToken)
+                        SecureField(localizedString("Enter auth token"), text: $viewModel.editedAuthToken)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -885,9 +915,9 @@ struct GatewayConfigSection: View {
                     Image(systemName: showAuthToken ? "eye" : "eye.slash")
                 }
                 .buttonStyle(.borderless)
-                .help(showAuthToken ? "Hide" : "Show")
+                .help(showAuthToken ? localizedString("Hide") : localizedString("Show"))
 
-                Text("Authentication token for gateway access")
+                Text(localizedString("Authentication token for gateway access"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -948,7 +978,7 @@ struct GetClawHubServiceSection: View {
     private var officialModelSummary: String {
         let names = officialAvailableModels.prefix(3).map { $0.name.isEmpty ? $0.id : $0.name }
         guard !names.isEmpty else {
-            return "No models available"
+            return localizedString("No models available")
         }
         let suffix = officialAvailableModels.count > names.count ? "..." : ""
         return names.joined(separator: ", ") + suffix
@@ -963,10 +993,10 @@ struct GetClawHubServiceSection: View {
                     .font(.system(size: 16))
                     .onTapGesture { viewModel.editedActiveServiceSource = "getclawhub" }
 
-                Text("GetClawHub Official Service")
+                Text(localizedString("GetClawHub Official Service"))
                     .font(.headline)
 
-                Text("Recommended")
+                Text(localizedString("Recommended"))
                     .font(.caption)
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
@@ -982,7 +1012,7 @@ struct GetClawHubServiceSection: View {
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .buttonStyle(.borderless)
-                .help(isExpanded ? "Collapse" : "Expand")
+                .help(isExpanded ? localizedString("Collapse") : localizedString("Expand"))
             }
 
             if isExpanded {
@@ -1027,7 +1057,7 @@ struct GetClawHubServiceSection: View {
         VStack(alignment: .leading, spacing: 16) {
             // Membership
             HStack {
-                Text("Membership")
+                Text(localizedString("Membership"))
                     .frame(width: 120, alignment: .leading)
 
                 Text(membership.level.displayName)
@@ -1035,14 +1065,14 @@ struct GetClawHubServiceSection: View {
                     .foregroundColor(badgeColor(membership.level))
 
                 if let expiresAt = membership.expiresAt {
-                    Text("(expires \(expiresAt.formatted(.dateTime.year().month().day())))")
+                    Text(localizedFormat("(expires %@)", expiresAt.formatted(.dateTime.year().month().day())))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
                 Spacer()
 
-                Button("Manage") {
+                Button(localizedString("Manage")) {
                     var urlString = "\(AuthConfig.baseURL)/member/account/"
                     var params: [String] = []
                     if let token = authManager.accessToken {
@@ -1065,10 +1095,10 @@ struct GetClawHubServiceSection: View {
 
             // Budget
             HStack {
-                Text("Budget")
+                Text(localizedString("Budget"))
                     .frame(width: 120, alignment: .leading)
 
-                Text("¥\(String(format: "%.0f", membership.maxBudget)) / month")
+                Text(localizedFormat("%@ / month", "¥\(String(format: "%.0f", membership.maxBudget))"))
                     .foregroundColor(.primary)
 
                 Spacer()
@@ -1082,7 +1112,7 @@ struct GetClawHubServiceSection: View {
 
             // Base URL (readonly) — above API Key
             HStack {
-                Text("API Base URL")
+                Text(localizedString("API Base URL"))
                     .frame(width: 120, alignment: .leading)
 
                 TextField("", text: .constant(presetBaseUrl))
@@ -1094,15 +1124,15 @@ struct GetClawHubServiceSection: View {
             // API Key (editable)
             if let _ = membershipManager.apiKeys.last(where: { $0.isActive }) {
                 HStack {
-                    Text("API Key")
+                    Text(localizedString("API Key"))
                         .frame(width: 120, alignment: .leading)
 
                     ZStack {
                         if showApiKey {
-                            TextField("Enter API Key", text: $viewModel.editedGetClawHubApiKey)
+                            TextField(localizedString("Enter API Key"), text: $viewModel.editedGetClawHubApiKey)
                                 .textFieldStyle(.roundedBorder)
                         } else {
-                            SecureField("Enter API Key", text: $viewModel.editedGetClawHubApiKey)
+                            SecureField(localizedString("Enter API Key"), text: $viewModel.editedGetClawHubApiKey)
                                 .textFieldStyle(.roundedBorder)
                         }
                     }
@@ -1118,7 +1148,7 @@ struct GetClawHubServiceSection: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                            Text("Sync")
+                            Text(localizedString("Sync"))
                         }
                     }
                     .font(.caption)
@@ -1136,12 +1166,12 @@ struct GetClawHubServiceSection: View {
 
     private var availableModelsView: some View {
         HStack(alignment: .top) {
-            Text("Available Models")
+            Text(localizedString("Available Models"))
                 .frame(width: 120, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 10) {
                 if officialAvailableModels.isEmpty {
-                    Text("No matching models found in the official provider preset.")
+                    Text(localizedString("No matching models found in the official provider preset."))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
@@ -1152,7 +1182,7 @@ struct GetClawHubServiceSection: View {
                     } label: {
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("\(officialAvailableModels.count) models available")
+                                Text(localizedFormat("%lld models available", officialAvailableModels.count))
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(.primary)
                                 Text(officialModelSummary)
@@ -1247,19 +1277,19 @@ struct GetClawHubServiceSection: View {
 
     private func noKeyGuidanceView(_ membership: MembershipInfo) -> some View {
         HStack {
-            Text("API Key")
+            Text(localizedString("API Key"))
                 .frame(width: 120, alignment: .leading)
 
             Image(systemName: "key.slash")
                 .foregroundColor(.orange)
 
-            Text("No API Key yet")
+            Text(localizedString("No API Key yet"))
                 .font(.callout)
                 .foregroundColor(.secondary)
 
             Spacer()
 
-            Button("Generate Key") {
+            Button(localizedString("Generate Key")) {
                 var urlString = "\(AuthConfig.baseURL)/member/api-keys/"
                 if let uid = authManager.userId {
                     urlString += "?user_id=\(uid)"
@@ -1271,7 +1301,7 @@ struct GetClawHubServiceSection: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
 
-            Button("Sync") {
+            Button(localizedString("Sync")) {
                 Task { await membershipManager.syncProfile() }
             }
             .buttonStyle(.bordered)
@@ -1288,7 +1318,7 @@ struct GetClawHubServiceSection: View {
                 HStack {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Syncing membership info...")
+                    Text(localizedString("Syncing membership info..."))
                         .font(.callout)
                         .foregroundColor(.secondary)
                 }
@@ -1296,11 +1326,11 @@ struct GetClawHubServiceSection: View {
                 HStack {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundColor(.orange)
-                    Text("Sync failed: \(msg)")
+                    Text(localizedFormat("Sync failed: %@", msg))
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
-                    Button("Retry") {
+                    Button(localizedString("Retry")) {
                         Task { await membershipManager.syncProfile() }
                     }
                     .font(.caption)
@@ -1309,11 +1339,11 @@ struct GetClawHubServiceSection: View {
                 }
             } else {
                 HStack {
-                    Text("Loading membership info...")
+                    Text(localizedString("Loading membership info..."))
                         .font(.callout)
                         .foregroundColor(.secondary)
                     Spacer()
-                    Button("Sync") {
+                    Button(localizedString("Sync")) {
                         Task { await membershipManager.syncProfile() }
                     }
                     .font(.caption)
@@ -1331,12 +1361,12 @@ struct GetClawHubServiceSection: View {
             HStack {
                 Image(systemName: "person.crop.circle.badge.questionmark")
                     .foregroundColor(.secondary)
-                Text("Log in to use GetClawHub AI service")
+                Text(localizedString("Log in to use GetClawHub AI service"))
                     .font(.callout)
                     .foregroundColor(.secondary)
             }
 
-            Button("Log In") {
+            Button(localizedString("Log In")) {
                 authManager.login()
             }
             .buttonStyle(.borderedProminent)
@@ -1380,11 +1410,11 @@ struct ModelConfigSection: View {
                     .onTapGesture { viewModel.editedActiveServiceSource = "custom" }
                 #endif
 
-                Text("Custom API Provider")
+                Text(localizedString("Custom API Provider"))
                     .font(.headline)
 
                 #if REQUIRE_LOGIN
-                Text("Use your own API Key")
+                Text(localizedString("Use your own API Key"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 #endif
@@ -1397,13 +1427,13 @@ struct ModelConfigSection: View {
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .buttonStyle(.borderless)
-                .help(isExpanded ? "Collapse" : "Expand")
+                .help(isExpanded ? localizedString("Collapse") : localizedString("Expand"))
             }
 
             if isExpanded {
                 // Provider Picker
                 HStack {
-                    Text("Provider")
+                    Text(localizedString("Provider"))
                         .frame(width: 120, alignment: .leading)
 
                     Picker("", selection: Binding(
@@ -1421,7 +1451,7 @@ struct ModelConfigSection: View {
 
                 // Base URL
                 HStack {
-                    Text("API Base URL")
+                    Text(localizedString("API Base URL"))
                         .frame(width: 120, alignment: .leading)
 
                     TextField("https://api.example.com/v1", text: $viewModel.editedModelBaseUrl)
@@ -1431,15 +1461,15 @@ struct ModelConfigSection: View {
 
                 // API Key
                 HStack {
-                    Text("API Key")
+                    Text(localizedString("API Key"))
                         .frame(width: 120, alignment: .leading)
 
                     ZStack {
                         if showApiKey {
-                            TextField("Enter API key", text: $viewModel.editedModelApiKey)
+                            TextField(localizedString("Enter API key"), text: $viewModel.editedModelApiKey)
                                 .textFieldStyle(.roundedBorder)
                         } else {
-                            SecureField("Enter API key", text: $viewModel.editedModelApiKey)
+                            SecureField(localizedString("Enter API key"), text: $viewModel.editedModelApiKey)
                                 .textFieldStyle(.roundedBorder)
                         }
                     }
@@ -1449,7 +1479,7 @@ struct ModelConfigSection: View {
                         Image(systemName: showApiKey ? "eye" : "eye.slash")
                     }
                     .buttonStyle(.borderless)
-                    .help(showApiKey ? "Hide" : "Show")
+                    .help(showApiKey ? localizedString("Hide") : localizedString("Show"))
                 }
 
                 customProviderModelsView
@@ -1467,26 +1497,26 @@ struct ModelConfigSection: View {
         .contentShape(Rectangle())
         .onTapGesture { viewModel.editedActiveServiceSource = "custom" }
         #endif
-        .alert("Switch Provider", isPresented: $viewModel.showProviderSwitchConfirm) {
-            Button("Cancel", role: .cancel) {
+        .alert(localizedString("Switch Provider"), isPresented: $viewModel.showProviderSwitchConfirm) {
+            Button(localizedString("Cancel"), role: .cancel) {
                 viewModel.cancelSwitchProvider()
             }
-            Button("Switch", role: .destructive) {
+            Button(localizedString("Switch"), role: .destructive) {
                 viewModel.confirmSwitchProvider()
             }
         } message: {
-            Text("Switching provider will replace the current Base URL. API Key will be cleared. Continue?")
+            Text(localizedString("Switching provider will replace the current Base URL. API Key will be cleared. Continue?"))
         }
     }
 
     private var customProviderModelsView: some View {
         HStack(alignment: .top) {
-            Text("Models")
+            Text(localizedString("Models"))
                 .frame(width: 120, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
-                    Text("\(viewModel.editedConfiguredModels.count) models configured")
+                    Text(localizedFormat("%lld models configured", viewModel.editedConfiguredModels.count))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.primary)
 
@@ -1502,7 +1532,7 @@ struct ModelConfigSection: View {
                             } else {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                             }
-                            Text("Fetch Models")
+                            Text(localizedString("Fetch Models"))
                         }
                     }
                     .font(.caption)
@@ -1518,7 +1548,7 @@ struct ModelConfigSection: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                 } else {
-                    Text("Fetch models from this provider or add them before saving.")
+                    Text(localizedString("Fetch models from this provider or add them before saving."))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -1563,7 +1593,7 @@ struct SaveButtonsSection: View {
             Button(action: {
                 viewModel.resetConfiguration()
             }) {
-                Text("Reset")
+                Text(localizedString("Reset"))
                     .frame(width: 100)
             }
             .buttonStyle(.bordered)
@@ -1577,7 +1607,7 @@ struct SaveButtonsSection: View {
             }) {
                 HStack {
                     Image(systemName: "checkmark")
-                    Text("Save")
+                    Text(localizedString("Save"))
                 }
                 .frame(width: 120)
             }
@@ -1591,7 +1621,7 @@ struct SaveButtonsSection: View {
             }) {
                 HStack {
                     Image(systemName: "arrow.clockwise")
-                    Text("Save & Restart")
+                    Text(localizedString("Save & Restart"))
                 }
                 .frame(width: 160)
             }
@@ -1608,11 +1638,11 @@ struct OpenConfigFileSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Advanced")
+            Text(localizedString("Advanced"))
                 .font(.headline)
 
             HStack {
-                Text("Edit the full configuration file directly for advanced settings.")
+                Text(localizedString("Edit the full configuration file directly for advanced settings."))
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -1623,7 +1653,7 @@ struct OpenConfigFileSection: View {
                 }) {
                     HStack {
                         Image(systemName: "list.bullet.rectangle")
-                        Text("Open Providers Preset")
+                        Text(localizedString("Open Providers Preset"))
                     }
                 }
                 .buttonStyle(.bordered)
@@ -1633,7 +1663,7 @@ struct OpenConfigFileSection: View {
                 }) {
                     HStack {
                         Image(systemName: "doc.text")
-                        Text("Open Config File")
+                        Text(localizedString("Open Config File"))
                     }
                 }
                 .buttonStyle(.bordered)
@@ -1657,7 +1687,7 @@ struct UnsavedChangesWarning: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.orange)
 
-            Text("You have unsaved changes")
+            Text(localizedString("You have unsaved changes"))
                 .font(.body)
                 .foregroundColor(.primary)
         }
