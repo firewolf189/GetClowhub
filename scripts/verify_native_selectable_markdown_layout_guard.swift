@@ -40,8 +40,15 @@ require(
 
 require(
     source.contains("let heightChanged = previousHeight.map { abs($0 - measuredHeight) > Self.layoutEpsilon } ?? true")
-        && source.contains("if heightChanged {\n                invalidateIntrinsicContentSize()"),
+        && source.contains("if heightChanged {\n                scheduleIntrinsicContentSizeInvalidation()"),
     "Intrinsic invalidation should only happen when measured height meaningfully changes."
+)
+
+require(
+    source.contains("private func scheduleIntrinsicContentSizeInvalidation()")
+        && source.contains("guard !hasPendingIntrinsicSizeInvalidation else { return }")
+        && !source.contains("if heightChanged {\n                invalidateIntrinsicContentSize()"),
+    "Intrinsic invalidation must be deferred+coalesced off the current layout pass — a synchronous invalidateIntrinsicContentSize from setFrameSize/updateNSView mid-layout trips AppKit's update-constraints feedback-loop NSException."
 )
 
 require(

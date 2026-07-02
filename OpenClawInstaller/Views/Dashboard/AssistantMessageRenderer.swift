@@ -371,6 +371,7 @@ struct NativeSelectableMarkdownView: NSViewRepresentable {
         private var cachedIntrinsicHeight: CGFloat?
         private var lastMeasuredWidth: CGFloat = 0
         private var lastAppliedFrameWidth: CGFloat = 0
+        private var hasPendingIntrinsicSizeInvalidation = false
         var fullTextCopyFallback: String = ""
 
         override var acceptsFirstResponder: Bool { true }
@@ -415,7 +416,7 @@ struct NativeSelectableMarkdownView: NSViewRepresentable {
                 let shouldInvalidate = cachedIntrinsicHeight != nil
                 cachedIntrinsicHeight = nil
                 if shouldInvalidate {
-                    invalidateIntrinsicContentSize()
+                    scheduleIntrinsicContentSizeInvalidation()
                 }
                 return shouldInvalidate
             }
@@ -426,7 +427,7 @@ struct NativeSelectableMarkdownView: NSViewRepresentable {
                 cachedIntrinsicHeight = nil
                 lastMeasuredWidth = width
                 if shouldInvalidate {
-                    invalidateIntrinsicContentSize()
+                    scheduleIntrinsicContentSizeInvalidation()
                 }
                 return shouldInvalidate
             }
@@ -438,10 +439,30 @@ struct NativeSelectableMarkdownView: NSViewRepresentable {
 
             let heightChanged = previousHeight.map { abs($0 - measuredHeight) > Self.layoutEpsilon } ?? true
             if heightChanged {
-                invalidateIntrinsicContentSize()
+                scheduleIntrinsicContentSizeInvalidation()
                 return true
             }
             return false
+        }
+
+        /// refreshMeasuredHeight can run inside an active layout pass —
+        /// setFrameSize during window resize, or updateNSView driven from
+        /// NSHostingView.layout while a reply streams. Calling
+        /// invalidateIntrinsicContentSize() there marks the window as
+        /// needing another update-constraints pass while one is running;
+        /// with many message bubbles resizing at once AppKit trips its
+        /// feedback-loop guard and throws in _postWindowNeedsUpdateConstraints
+        /// (crash via NSApplication _crashOnException). Deferring the
+        /// notification one runloop turn is lossless because
+        /// intrinsicContentSize already serves the freshly cached height.
+        private func scheduleIntrinsicContentSizeInvalidation() {
+            guard !hasPendingIntrinsicSizeInvalidation else { return }
+            hasPendingIntrinsicSizeInvalidation = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.hasPendingIntrinsicSizeInvalidation = false
+                self.invalidateIntrinsicContentSize()
+            }
         }
 
         private func measureHeight(for textContainer: NSTextContainer) -> CGFloat {
