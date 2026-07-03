@@ -146,15 +146,14 @@ struct ConfigTabView: View {
             }
         case .provider:
             settingsScroll {
+                ProviderSettingsIntro()
                 #if REQUIRE_LOGIN
-                HStack(alignment: .top, spacing: 16) {
-                    GetClawHubServiceSection(viewModel: viewModel)
-                        .environmentObject(authManager)
-                        .environmentObject(membershipManager)
-                    ModelConfigSection(viewModel: viewModel)
-                }
+                GetClawHubServiceSection(viewModel: viewModel)
+                    .environmentObject(authManager)
+                    .environmentObject(membershipManager)
+                CustomProviderListSection(viewModel: viewModel)
                 #else
-                ModelConfigSection(viewModel: viewModel)
+                CustomProviderListSection(viewModel: viewModel)
                 #endif
                 SaveButtonsSection(viewModel: viewModel)
             }
@@ -932,6 +931,59 @@ struct GatewayConfigSection: View {
     }
 }
 
+private struct ProviderSettingsIntro: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(localizedString("Providers"))
+                .font(.system(size: 22, weight: .semibold))
+            Text(localizedString("Choose the model provider used by the local gateway. Custom providers stay saved, but only the selected provider is edited here."))
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private enum ProviderStatusBadgeTone {
+    case selected
+    case configured
+    case warning
+    case neutral
+
+    var foreground: Color {
+        switch self {
+        case .selected: return .blue
+        case .configured: return .secondary
+        case .warning: return .orange
+        case .neutral: return .secondary
+        }
+    }
+
+    var background: Color {
+        switch self {
+        case .selected: return Color.blue.opacity(0.12)
+        case .configured: return Color.primary.opacity(0.06)
+        case .warning: return Color.orange.opacity(0.12)
+        case .neutral: return Color.primary.opacity(0.05)
+        }
+    }
+}
+
+private struct ProviderStatusBadge: View {
+    let text: String
+    let tone: ProviderStatusBadgeTone
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundColor(tone.foreground)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(tone.background)
+            .clipShape(Capsule())
+    }
+}
+
 #if REQUIRE_LOGIN
 // MARK: - GetClawHub Official Service (Blue Border + Radio)
 
@@ -984,40 +1036,15 @@ struct GetClawHubServiceSection: View {
         return names.joined(separator: ", ") + suffix
     }
 
+    private var isConfigured: Bool {
+        membershipManager.apiKeys.contains(where: { $0.isActive })
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Radio + Title + Expand/Collapse
-            HStack(spacing: 8) {
-                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                    .foregroundColor(isSelected ? .blue : .secondary)
-                    .font(.system(size: 16))
-                    .onTapGesture { viewModel.editedActiveServiceSource = "getclawhub" }
-
-                Text(localizedString("GetClawHub Official Service"))
-                    .font(.headline)
-
-                Text(localizedString("Recommended"))
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.blue)
-                    .cornerRadius(4)
-
-                Spacer()
-
-                Button(action: { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                .buttonStyle(.borderless)
-                .help(isExpanded ? localizedString("Collapse") : localizedString("Expand"))
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            providerHeader
 
             if isExpanded {
-                Spacer().frame(height: 16)
-
                 if case .loggedIn = authManager.state {
                     if let membership = membershipManager.membership {
                         loggedInContent(membership)
@@ -1029,7 +1056,7 @@ struct GetClawHubServiceSection: View {
                 }
             }
         }
-        .padding(20)
+        .padding(16)
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .overlay(
@@ -1048,6 +1075,54 @@ struct GetClawHubServiceSection: View {
             if let activeKey = newKeys.last(where: { $0.isActive }) {
                 viewModel.editedGetClawHubApiKey = activeKey.fullKey
             }
+        }
+    }
+
+    private var providerHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "key")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(isSelected ? .blue : .secondary)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(localizedString("GetClawHub Official"))
+                        .font(.system(size: 14, weight: .semibold))
+                    ProviderStatusBadge(text: localizedString("Recommended"), tone: .selected)
+                }
+
+                Text(localizedString("Uses your GetClawHub membership, synced API key, and official model access."))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            if isSelected {
+                ProviderStatusBadge(text: localizedString("Selected"), tone: .selected)
+            } else if isConfigured {
+                ProviderStatusBadge(text: localizedString("Configured"), tone: .configured)
+            }
+
+            Button {
+                viewModel.editedActiveServiceSource = "getclawhub"
+            } label: {
+                Text(localizedString(isSelected ? "Editing" : "Use"))
+            }
+            .font(.caption)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
+            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } }) {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .help(isExpanded ? localizedString("Collapse") : localizedString("Expand"))
         }
     }
 
@@ -1386,12 +1461,169 @@ struct GetClawHubServiceSection: View {
 }
 #endif
 
+struct CustomProviderListSection: View {
+    @ObservedObject var viewModel: DashboardViewModel
+
+    private var currentProviderModels: [PresetModel] {
+        viewModel.editedConfiguredModels
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(localizedString("Custom Providers"))
+                    .font(.system(size: 14, weight: .semibold))
+
+                Spacer()
+
+                Button {
+                    viewModel.openProviderPresetFile()
+                } label: {
+                    Label(localizedString("Manage Presets"), systemImage: "list.bullet.rectangle")
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            VStack(spacing: 12) {
+                ForEach(viewModel.availableProviders) { provider in
+                    VStack(alignment: .leading, spacing: 12) {
+                        CustomProviderCard(
+                            provider: provider,
+                            isSelected: isCurrentProvider(provider),
+                            isConfigured: isConfigured(provider),
+                            modelCount: modelCount(for: provider),
+                            onSelect: {
+                                select(provider)
+                            }
+                        )
+
+                        if isCurrentProvider(provider) {
+                            ModelConfigSection(viewModel: viewModel)
+                                .padding(.top, 2)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func isCurrentProvider(_ provider: ProviderPreset) -> Bool {
+        viewModel.editedSelectedProviderKey == provider.key
+    }
+
+    private func isConfigured(_ provider: ProviderPreset) -> Bool {
+        if isCurrentProvider(provider) {
+            return !viewModel.editedModelApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return !provider.models.isEmpty
+    }
+
+    private func modelCount(for provider: ProviderPreset) -> Int {
+        isCurrentProvider(provider) ? currentProviderModels.count : provider.models.count
+    }
+
+    private func select(_ provider: ProviderPreset) {
+        #if REQUIRE_LOGIN
+        viewModel.editedActiveServiceSource = "custom"
+        #endif
+        if isCurrentProvider(provider) { return }
+        viewModel.requestSwitchProvider(to: provider.key)
+    }
+}
+
+private struct CustomProviderCard: View {
+    let provider: ProviderPreset
+    let isSelected: Bool
+    let isConfigured: Bool
+    let modelCount: Int
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "key")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(isSelected ? .blue : .secondary)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(provider.displayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+
+                        ProviderStatusBadge(
+                            text: statusText,
+                            tone: statusTone
+                        )
+                    }
+
+                    HStack(spacing: 8) {
+                        Text(provider.baseUrl)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        if modelCount > 0 {
+                            Text("•")
+                            Text(localizedFormat("%lld models", modelCount))
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Text(localizedString(isSelected ? "Editing" : "Use"))
+                    .font(.caption)
+                    .foregroundColor(isSelected ? .secondary : .blue)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(isSelected ? Color.primary.opacity(0.06) : Color.blue.opacity(0.10))
+                    )
+
+                Image(systemName: isSelected ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 14)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(NSColor.controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isSelected ? Color.blue.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var statusText: String {
+        if isSelected { return localizedString("Selected") }
+        if isConfigured { return localizedString("Configured") }
+        return localizedString("Needs key")
+    }
+
+    private var statusTone: ProviderStatusBadgeTone {
+        if isSelected { return .selected }
+        if isConfigured { return .configured }
+        return .warning
+    }
+}
+
 // MARK: - Custom API Provider (Blue Border + Radio)
 
 struct ModelConfigSection: View {
     @ObservedObject var viewModel: DashboardViewModel
     @State private var showApiKey = false
-    @State private var isExpanded = true
 
     #if REQUIRE_LOGIN
     private var isSelected: Bool {
@@ -1399,103 +1631,69 @@ struct ModelConfigSection: View {
     }
     #endif
 
+    private var selectedProviderDisplayName: String {
+        if let displayName = viewModel.availableProviders.first(where: { $0.key == viewModel.editedSelectedProviderKey })?.displayName {
+            return displayName
+        }
+        return viewModel.editedSelectedProviderKey.isEmpty
+            ? localizedString("Custom API Provider")
+            : viewModel.editedSelectedProviderKey
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Title row
-            HStack(spacing: 8) {
-                #if REQUIRE_LOGIN
-                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                    .foregroundColor(isSelected ? .blue : .secondary)
-                    .font(.system(size: 16))
-                    .onTapGesture { viewModel.editedActiveServiceSource = "custom" }
-                #endif
-
-                Text(localizedString("Custom API Provider"))
-                    .font(.headline)
-
-                #if REQUIRE_LOGIN
-                Text(localizedString("Use your own API Key"))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(selectedProviderDisplayName)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(localizedString("Provider details"))
                     .font(.caption)
                     .foregroundColor(.secondary)
-                #endif
-
                 Spacer()
-
-                Button(action: { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                .buttonStyle(.borderless)
-                .help(isExpanded ? localizedString("Collapse") : localizedString("Expand"))
             }
 
-            if isExpanded {
-                // Provider Picker
-                HStack {
-                    Text(localizedString("Provider"))
-                        .frame(width: 120, alignment: .leading)
+            // Base URL
+            HStack {
+                Text(localizedString("API Base URL"))
+                    .frame(width: 120, alignment: .leading)
 
-                    Picker("", selection: Binding(
-                        get: { viewModel.editedSelectedProviderKey },
-                        set: { newKey in
-                            viewModel.requestSwitchProvider(to: newKey)
-                        }
-                    )) {
-                        ForEach(viewModel.availableProviders) { provider in
-                            Text(provider.displayName).tag(provider.key)
-                        }
-                    }
-                    .frame(width: 200)
-                }
-
-                // Base URL
-                HStack {
-                    Text(localizedString("API Base URL"))
-                        .frame(width: 120, alignment: .leading)
-
-                    TextField("https://api.example.com/v1", text: $viewModel.editedModelBaseUrl)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: .infinity)
-                }
-
-                // API Key
-                HStack {
-                    Text(localizedString("API Key"))
-                        .frame(width: 120, alignment: .leading)
-
-                    ZStack {
-                        if showApiKey {
-                            TextField(localizedString("Enter API key"), text: $viewModel.editedModelApiKey)
-                                .textFieldStyle(.roundedBorder)
-                        } else {
-                            SecureField(localizedString("Enter API key"), text: $viewModel.editedModelApiKey)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                    }
+                TextField("https://api.example.com/v1", text: $viewModel.editedModelBaseUrl)
+                    .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
+            }
 
-                    Button(action: { showApiKey.toggle() }) {
-                        Image(systemName: showApiKey ? "eye" : "eye.slash")
+            // API Key
+            HStack {
+                Text(localizedString("API Key"))
+                    .frame(width: 120, alignment: .leading)
+
+                ZStack {
+                    if showApiKey {
+                        TextField(localizedString("Enter API key"), text: $viewModel.editedModelApiKey)
+                            .textFieldStyle(.roundedBorder)
+                    } else {
+                        SecureField(localizedString("Enter API key"), text: $viewModel.editedModelApiKey)
+                            .textFieldStyle(.roundedBorder)
                     }
-                    .buttonStyle(.borderless)
-                    .help(showApiKey ? localizedString("Hide") : localizedString("Show"))
                 }
+                .frame(maxWidth: .infinity)
 
-                customProviderModelsView
+                Button(action: { showApiKey.toggle() }) {
+                    Image(systemName: showApiKey ? "eye" : "eye.slash")
+                }
+                .buttonStyle(.borderless)
+                .help(showApiKey ? localizedString("Hide") : localizedString("Show"))
+            }
 
-            } // end isExpanded
+            customProviderModelsView
         }
-        .padding(20)
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(12)
+        .padding(16)
+        .background(Color.primary.opacity(0.035))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         #if REQUIRE_LOGIN
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(isSelected ? 0.6 : 0.3), lineWidth: isSelected ? 2 : 1)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.blue.opacity(isSelected ? 0.18 : 0.08), lineWidth: 1)
         )
-        .contentShape(Rectangle())
-        .onTapGesture { viewModel.editedActiveServiceSource = "custom" }
         #endif
         .alert(localizedString("Switch Provider"), isPresented: $viewModel.showProviderSwitchConfirm) {
             Button(localizedString("Cancel"), role: .cancel) {

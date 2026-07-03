@@ -25019,6 +25019,9 @@
         }
       }
     },
+    "Failed to apply the selected model. Please try again." : {
+
+    },
     "Failed to send message. Please try again." : {
 
     },
@@ -27555,6 +27558,7 @@
 
     },
     "GetClawHub Official Service" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -52566,6 +52570,7 @@
       }
     },
     "Search agents..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -62711,13 +62716,11 @@
         }
       }
     },
-    "Use Default" : {
-
-    },
     "Use default for the primary account, or enter another ID to add multiple accounts for the same channel." : {
 
     },
     "Use your own API Key" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {

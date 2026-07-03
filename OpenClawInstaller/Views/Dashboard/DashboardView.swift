@@ -37,6 +37,50 @@ enum DashboardSidebarMetrics {
     static let sessionRowVerticalPadding: CGFloat = 4
 }
 
+struct DashboardSettingsShortcutState: Equatable {
+    let models: [ModelInfo]
+    let modelOverview: ModelOverview
+    let budgetSnapshots: [BudgetSnapshot]
+}
+
+struct DashboardSidebarState: Equatable {
+    let selectedTab: DashboardViewModel.DashboardTab
+    let selectedAgentId: String
+    let selectedSessionIdByAgent: [String: UUID]
+    let availableAgents: [AgentOption]
+    let projectSessionsByAgent: [String: [ProjectSessionGroup]]
+    let generalSessionsByAgent: [String: [ChatSessionMetadata]]
+    let pinnedSessions: [ChatSessionMetadata]
+    let inflightSessionIds: Set<UUID>
+    let serviceStatus: ServiceStatus
+    let serviceVersion: String
+    let settingsShortcut: DashboardSettingsShortcutState
+}
+
+struct DashboardSidebarActions {
+    let createNewSession: () -> Void
+    let openGlobalSessionSearch: () -> Void
+    let selectTab: (DashboardViewModel.DashboardTab) -> Void
+    let createSessionForAgent: (String) -> Void
+    let createSessionForProject: (String, String) -> Void
+    let switchSession: (UUID) -> Void
+    let switchSessionGlobally: (UUID) -> Void
+    let togglePinSession: (UUID) -> Void
+    let deleteSession: (UUID) -> Void
+    let archiveSession: (UUID) -> Void
+    let exportSession: (UUID) -> Void
+    let toggleProjectCollapse: (String, String) -> Void
+    let revealProjectInFinder: (String) -> Void
+    let removeProject: (String, String) -> Void
+    let openProject: (String) -> Void
+    let requestCreateAgent: () -> Void
+    let requestRenameSession: (ChatSessionMetadata) -> Void
+    let openSettingsSection: (SettingsPageSection) -> Void
+    let removeAgent: (String) -> Void
+    let setDefaultModel: (ModelInfo) async -> Void
+    let loadSettingsShortcutData: () async -> Void
+}
+
 private struct SessionRenamePresentation: Identifiable {
     let id: UUID
 }
@@ -64,7 +108,6 @@ struct DashboardView: View {
     @State private var isGlobalSessionSearchPresented = false
     @State private var globalSessionSearchText: String = ""
     @State private var isCreateAgentOverlayPresented = false
-    @State private var expandedAgentIds: Set<String> = []
     @State private var workspaceSidebarExpanded = false
     @State private var isWorkspaceSidebarOpening = false
     @State private var isWorkspaceSidebarClosing = false
@@ -96,14 +139,9 @@ struct DashboardView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(
-                selectedTab: $viewModel.selectedTab,
-                viewModel: viewModel,
+                state: sidebarState,
+                actions: sidebarActions,
                 createAgentVM: createAgentVM,
-                expandedAgentIds: $expandedAgentIds,
-                onOpenGlobalSessionSearch: openGlobalSessionSearch,
-                onRequestCreateAgent: presentCreateAgentOverlay,
-                onRequestRenameSession: beginSessionRename,
-                onOpenSettingsSection: openSettingsSection
             )
         } detail: {
             RightInspectorSplitView(
@@ -218,6 +256,87 @@ struct DashboardView: View {
         .sheet(isPresented: $viewModel.showDiagnostics) {
             DiagnosticsSheet(report: viewModel.diagnosticReport, isPresented: $viewModel.showDiagnostics)
         }
+    }
+
+    private var sidebarState: DashboardSidebarState {
+        DashboardSidebarState(
+            selectedTab: viewModel.selectedTab,
+            selectedAgentId: viewModel.selectedAgentId,
+            selectedSessionIdByAgent: viewModel.selectedSessionIdByAgent,
+            availableAgents: viewModel.availableAgents,
+            projectSessionsByAgent: viewModel.projectSessionsByAgent,
+            generalSessionsByAgent: viewModel.generalSessionsByAgent,
+            pinnedSessions: viewModel.pinnedSessions,
+            inflightSessionIds: viewModel.inflightSessionIds,
+            serviceStatus: viewModel.openclawService.status,
+            serviceVersion: viewModel.openclawService.version,
+            settingsShortcut: DashboardSettingsShortcutState(
+                models: viewModel.models,
+                modelOverview: viewModel.modelOverview,
+                budgetSnapshots: viewModel.budgetSnapshots
+            )
+        )
+    }
+
+    private var sidebarActions: DashboardSidebarActions {
+        DashboardSidebarActions(
+            createNewSession: {
+                viewModel.createNewSession()
+                viewModel.selectedTab = .chat
+            },
+            openGlobalSessionSearch: openGlobalSessionSearch,
+            selectTab: { tab in
+                viewModel.selectedTab = tab
+            },
+            createSessionForAgent: { agentId in
+                viewModel.createNewSession(forAgent: agentId)
+                viewModel.selectedTab = .chat
+            },
+            createSessionForProject: { agentId, projectId in
+                viewModel.createNewSession(forAgent: agentId, projectId: projectId)
+                viewModel.selectedTab = .chat
+            },
+            switchSession: { sessionId in
+                viewModel.switchSession(to: sessionId)
+                viewModel.selectedTab = .chat
+            },
+            switchSessionGlobally: { sessionId in
+                viewModel.switchSessionGlobally(to: sessionId)
+                viewModel.selectedTab = .chat
+            },
+            togglePinSession: viewModel.togglePinSession,
+            deleteSession: viewModel.deleteSession,
+            archiveSession: viewModel.archiveSession,
+            exportSession: viewModel.exportSession,
+            toggleProjectCollapse: { agentId, projectId in
+                viewModel.toggleProjectCollapse(agentId: agentId, projectId: projectId)
+            },
+            revealProjectInFinder: viewModel.revealProjectInFinder,
+            removeProject: { projectId, agentId in
+                viewModel.removeProject(projectId, fromAgent: agentId)
+            },
+            openProject: viewModel.openProject,
+            requestCreateAgent: presentCreateAgentOverlay,
+            requestRenameSession: beginSessionRename,
+            openSettingsSection: openSettingsSection,
+            removeAgent: removeAgentFromSidebar,
+            setDefaultModel: { model in
+                await viewModel.setDefaultModel(model)
+            },
+            loadSettingsShortcutData: {
+                if viewModel.models.isEmpty {
+                    await viewModel.loadModels()
+                }
+                if viewModel.budgetSnapshots.isEmpty {
+                    await viewModel.loadBudgets()
+                }
+                #if REQUIRE_LOGIN
+                if viewModel.membershipManager?.keysBilling.isEmpty != false {
+                    await viewModel.loadKeysBilling()
+                }
+                #endif
+            }
+        )
     }
 
     private var activeTab: DashboardViewModel.DashboardTab {
@@ -471,7 +590,21 @@ struct DashboardView: View {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
                 viewModel.selectedAgentId = agentId
                 viewModel.selectedTab = .chat
-                expandedAgentIds.insert(agentId)
+            }
+        }
+    }
+
+    private func removeAgentFromSidebar(_ agentId: String) {
+        Task {
+            let deleted = await createAgentVM.deleteAgent(agentId: agentId)
+            await MainActor.run {
+                if deleted {
+                    viewModel.loadAvailableAgents()
+                    viewModel.removeDeletedAgentState(agentId: agentId)
+                } else {
+                    viewModel.errorMessage = createAgentVM.lastActionError ?? "Failed to remove agent \(agentId)"
+                    viewModel.showError = true
+                }
             }
         }
     }
@@ -1012,14 +1145,9 @@ private struct RightOutputsTitlebarAccessory: View {
 // MARK: - Sidebar
 
 struct SidebarView: View {
-    @Binding var selectedTab: DashboardViewModel.DashboardTab
-    @Binding var expandedAgentIds: Set<String>
-    @ObservedObject var viewModel: DashboardViewModel
+    let state: DashboardSidebarState
+    let actions: DashboardSidebarActions
     @ObservedObject var createAgentVM: SubAgentsViewModel
-    let onOpenGlobalSessionSearch: () -> Void
-    let onRequestCreateAgent: () -> Void
-    let onRequestRenameSession: (ChatSessionMetadata) -> Void
-    let onOpenSettingsSection: (SettingsPageSection) -> Void
     @EnvironmentObject var sparkleUpdater: SparkleUpdater
     @EnvironmentObject var languageManager: LanguageManager
     #if REQUIRE_LOGIN
@@ -1040,35 +1168,22 @@ struct SidebarView: View {
     // Chat session management state
     @State private var confirmingDeleteSessionId: UUID?
 
-    // Marketplace state
-    @State private var marketplaceSearchText = ""
-    @State private var expandedDivisions: Set<String> = []
-    @State private var expandedAgentDivisions: Set<String> = []
     @State private var hoveredSessionId: UUID?
     @State private var hoveredSidebarTab: DashboardViewModel.DashboardTab?
     @State private var hoveredSidebarAction: SidebarChromeAction?
     @State private var areAgentsCollapsed = false
+    @State private var expandedAgentIds: Set<String> = []
     @State private var isPinnedSessionsExpanded = true
     @State private var isAgentSectionHeaderHovering = false
 
     init(
-        selectedTab: Binding<DashboardViewModel.DashboardTab>,
-        viewModel: DashboardViewModel,
-        createAgentVM: SubAgentsViewModel,
-        expandedAgentIds: Binding<Set<String>>,
-        onOpenGlobalSessionSearch: @escaping () -> Void,
-        onRequestCreateAgent: @escaping () -> Void,
-        onRequestRenameSession: @escaping (ChatSessionMetadata) -> Void,
-        onOpenSettingsSection: @escaping (SettingsPageSection) -> Void
+        state: DashboardSidebarState,
+        actions: DashboardSidebarActions,
+        createAgentVM: SubAgentsViewModel
     ) {
-        self._selectedTab = selectedTab
-        self._expandedAgentIds = expandedAgentIds
-        self.viewModel = viewModel
+        self.state = state
+        self.actions = actions
         self.createAgentVM = createAgentVM
-        self.onOpenGlobalSessionSearch = onOpenGlobalSessionSearch
-        self.onRequestCreateAgent = onRequestCreateAgent
-        self.onRequestRenameSession = onRequestRenameSession
-        self.onOpenSettingsSection = onOpenSettingsSection
     }
 
     private var isDark: Bool {
@@ -1089,19 +1204,8 @@ struct SidebarView: View {
         )) {
             Button("Remove", role: .destructive) {
                 if let agentId = deleteAgentConfirmId {
-                    Task {
-                        let deleted = await createAgentVM.deleteAgent(agentId: agentId)
-                        await MainActor.run {
-                            if deleted {
-                                viewModel.loadAvailableAgents()
-                                expandedAgentIds.remove(agentId)
-                                viewModel.removeDeletedAgentState(agentId: agentId)
-                            } else {
-                                viewModel.errorMessage = createAgentVM.lastActionError ?? "Failed to remove agent \(agentId)"
-                                viewModel.showError = true
-                            }
-                        }
-                    }
+                    actions.removeAgent(agentId)
+                    expandedAgentIds.remove(agentId)
                 }
                 deleteAgentConfirmId = nil
             }
@@ -1110,8 +1214,13 @@ struct SidebarView: View {
             }
         } message: {
             if let agentId = deleteAgentConfirmId,
-               let agent = viewModel.availableAgents.first(where: { $0.id == agentId }) {
+               let agent = state.availableAgents.first(where: { $0.id == agentId }) {
                 Text("Are you sure you want to remove \"\(agent.name)\"? This will delete the agent and its workspace.")
+            }
+        }
+        .onChange(of: state.selectedAgentId) { agentId in
+            if state.selectedTab == .chat {
+                expandedAgentIds.insert(agentId)
             }
         }
     }
@@ -1162,16 +1271,16 @@ struct SidebarView: View {
     private var sidebarMainList: some View {
         SmoothScrollView {
             VStack(alignment: .leading, spacing: 4) {
-                ServiceStatusBadge(viewModel: viewModel)
+                ServiceStatusBadge(status: state.serviceStatus, version: state.serviceVersion)
                     .padding(.bottom, 8)
 
                 Button {
                     cancelSessionDeleteConfirmation()
-                    viewModel.createNewSession()
-                    selectedTab = .chat
+                    actions.createNewSession()
+                    actions.selectTab(.chat)
                 } label: {
-                    let isNewChatActive = selectedTab == .chat
-                        && viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId] == nil
+                    let isNewChatActive = state.selectedTab == .chat
+                        && state.selectedSessionIdByAgent[state.selectedAgentId] == nil
 
                     sidebarRowContent(title: String(localized: "New chat", bundle: languageManager.localizedBundle), systemImage: "plus.circle")
                         .foregroundColor(.primary)
@@ -1190,7 +1299,7 @@ struct SidebarView: View {
 
                 Button {
                     cancelSessionDeleteConfirmation()
-                    onOpenGlobalSessionSearch()
+                    actions.openGlobalSessionSearch()
                 } label: {
                     sidebarRowContent(title: String(localized: "Search chats", bundle: languageManager.localizedBundle), systemImage: "magnifyingglass")
                         .foregroundColor(.primary)
@@ -1226,13 +1335,13 @@ struct SidebarView: View {
     private func navRow(_ tab: DashboardViewModel.DashboardTab, title: String, systemImage: String, assetImage: String? = nil) -> some View {
         Button {
             cancelSessionDeleteConfirmation()
-            selectedTab = tab
+            actions.selectTab(tab)
         } label: {
             sidebarRowContent(title: title, systemImage: systemImage, assetImage: assetImage)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(sidebarItemHighlightColor(
-                            isActive: selectedTab == tab,
+                            isActive: state.selectedTab == tab,
                             isHovering: hoveredSidebarTab == tab
                         ))
                 )
@@ -1274,8 +1383,8 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func sessionsSectionContent(for agent: AgentOption) -> some View {
-        let projectGroups = viewModel.projectSessionsByAgent[agent.id] ?? []
-        let generalSessions = viewModel.generalSessionsByAgent[agent.id] ?? []
+        let projectGroups = state.projectSessionsByAgent[agent.id] ?? []
+        let generalSessions = state.generalSessionsByAgent[agent.id] ?? []
 
         if projectGroups.isEmpty && generalSessions.isEmpty {
             Text(String(localized: "No sessions yet", bundle: languageManager.localizedBundle))
@@ -1291,7 +1400,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func projectFoldersSectionContent(for agent: AgentOption) -> some View {
-        let projectGroups = viewModel.projectSessionsByAgent[agent.id] ?? []
+        let projectGroups = state.projectSessionsByAgent[agent.id] ?? []
 
         ForEach(projectGroups) { group in
             projectFolderRow(group: group, agent: agent)
@@ -1300,7 +1409,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func generalSessionsSectionContent(for agent: AgentOption) -> some View {
-        let generalSessions = viewModel.generalSessionsByAgent[agent.id] ?? []
+        let generalSessions = state.generalSessionsByAgent[agent.id] ?? []
         sessionRows(generalSessions, for: agent)
     }
 
@@ -1311,26 +1420,26 @@ struct SidebarView: View {
         switchGlobally: Bool = false
     ) -> some View {
         ForEach(agentSessions) { meta in
-            let isSessionActive = selectedTab == .chat
-                && viewModel.selectedAgentId == meta.agentId
-                && viewModel.selectedSessionIdByAgent[meta.agentId] == meta.id
+            let isSessionActive = state.selectedTab == .chat
+                && state.selectedAgentId == meta.agentId
+                && state.selectedSessionIdByAgent[meta.agentId] == meta.id
             let isSessionHovering = hoveredSessionId == meta.id
 
             ChatSessionRow(
                 meta: meta,
                 isActive: isSessionActive,
-                isExecuting: viewModel.hasInflightTask(inSession: meta.id),
+                isExecuting: state.inflightSessionIds.contains(meta.id),
                 isHovering: isSessionHovering,
                 isDeleteConfirming: confirmingDeleteSessionId == meta.id,
                 onPinToggle: {
                     cancelSessionDeleteConfirmation()
-                    viewModel.togglePinSession(meta.id)
+                    actions.togglePinSession(meta.id)
                 },
                 onDeleteIntent: {
                     confirmingDeleteSessionId = meta.id
                 },
                 onDeleteConfirm: {
-                    viewModel.deleteSession(meta.id)
+                    actions.deleteSession(meta.id)
                     confirmingDeleteSessionId = nil
                 }
             )
@@ -1344,16 +1453,16 @@ struct SidebarView: View {
             .contentShape(Rectangle())
             .onTapGesture(count: 2) {
                 cancelSessionDeleteConfirmation()
-                onRequestRenameSession(meta)
+                actions.requestRenameSession(meta)
             }
             .onTapGesture {
                 cancelSessionDeleteConfirmation()
                 if switchGlobally {
-                    viewModel.switchSessionGlobally(to: meta.id)
+                    actions.switchSessionGlobally(meta.id)
                 } else {
-                    viewModel.switchSession(to: meta.id)
+                    actions.switchSession(meta.id)
                 }
-                selectedTab = .chat
+                actions.selectTab(.chat)
             }
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: 0.12)) {
@@ -1367,24 +1476,24 @@ struct SidebarView: View {
             .contextMenu {
                 Button {
                     cancelSessionDeleteConfirmation()
-                    onRequestRenameSession(meta)
+                    actions.requestRenameSession(meta)
                 } label: {
                     Label("Rename", systemImage: "pencil")
                 }
                 Button {
-                    viewModel.togglePinSession(meta.id)
+                    actions.togglePinSession(meta.id)
                 } label: {
                     Label(meta.isPinned ? "Unpin" : "Pin",
                           systemImage: meta.isPinned ? "pin.slash" : "pin")
                 }
                 Button {
-                    viewModel.exportSession(meta.id)
+                    actions.exportSession(meta.id)
                 } label: {
                     Label("Export…", systemImage: "square.and.arrow.up")
                 }
                 Divider()
                 Button {
-                    viewModel.archiveSession(meta.id)
+                    actions.archiveSession(meta.id)
                 } label: {
                     Label("Archive", systemImage: "archivebox")
                 }
@@ -1405,18 +1514,18 @@ struct SidebarView: View {
             },
             onToggle: {
                 cancelSessionDeleteConfirmation()
-                viewModel.toggleProjectCollapse(agentId: agent.id, projectId: group.project.id)
+                actions.toggleProjectCollapse(agent.id, group.project.id)
             },
             onNewSession: {
                 cancelSessionDeleteConfirmation()
-                viewModel.createNewSession(forAgent: agent.id, projectId: group.project.id)
-                selectedTab = .chat
+                actions.createSessionForProject(agent.id, group.project.id)
+                actions.selectTab(.chat)
             },
             onRevealInFinder: {
-                viewModel.revealProjectInFinder(group.project.id)
+                actions.revealProjectInFinder(group.project.id)
             },
             onRemoveFromAgent: {
-                viewModel.removeProject(group.project.id, fromAgent: agent.id)
+                actions.removeProject(group.project.id, agent.id)
             },
             sessions: {
                 sessionRows(group.sessions, for: agent)
@@ -1426,7 +1535,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var globalPinnedSessionsSection: some View {
-        if !viewModel.pinnedSessions.isEmpty {
+        if !state.pinnedSessions.isEmpty {
             SidebarCollapsibleRow(
                 title: "Pinned",
                 titleFont: DashboardTypography.sidebarAgent(active: false),
@@ -1449,7 +1558,7 @@ struct SidebarView: View {
                     EmptyView()
                 },
                 children: {
-                    sessionRows(viewModel.pinnedSessions, switchGlobally: true)
+                    sessionRows(state.pinnedSessions, switchGlobally: true)
                 }
             )
             .padding(.top, 6)
@@ -1460,7 +1569,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var agentSectionContent: some View {
-        let visibleAgents = viewModel.availableAgents.filter {
+        let visibleAgents = state.availableAgents.filter {
             !DashboardViewModel.internalAgentIds.contains($0.id)
         }
 
@@ -1491,7 +1600,7 @@ struct SidebarView: View {
         .overlay(alignment: .trailing) {
             Button {
                 cancelSessionDeleteConfirmation()
-                onRequestCreateAgent()
+                actions.requestCreateAgent()
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 11, weight: .semibold))
@@ -1537,15 +1646,17 @@ struct SidebarView: View {
 
     private var sidebarBottomBar: some View {
         SettingsShortcutPanelButton(
-            viewModel: viewModel,
-            isActive: selectedTab == .config,
+            shortcutState: state.settingsShortcut,
+            setDefaultModel: actions.setDefaultModel,
+            loadShortcutData: actions.loadSettingsShortcutData,
+            isActive: state.selectedTab == .config,
             highlightColor: { isOpen in
-                sidebarItemHighlightColor(isActive: selectedTab == .config, isHovering: isOpen)
+                sidebarItemHighlightColor(isActive: state.selectedTab == .config, isHovering: isOpen)
             },
             onBeforeToggle: {
                 cancelSessionDeleteConfirmation()
             },
-            onOpenSettingsSection: onOpenSettingsSection
+            onOpenSettingsSection: actions.openSettingsSection
         )
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -1555,7 +1666,7 @@ struct SidebarView: View {
 
     /// Agents grouped by division for the sidebar
     private var agentsByDivisionGrouped: [(division: String, agents: [AgentOption])] {
-        let grouped = Dictionary(grouping: viewModel.availableAgents.filter {
+        let grouped = Dictionary(grouping: state.availableAgents.filter {
             $0.id != "commander" && $0.id != "main" && !$0.division.isEmpty
         }) { $0.division }
 
@@ -1568,7 +1679,7 @@ struct SidebarView: View {
     }
 
     private func agentSidebarRow(_ agent: AgentOption) -> some View {
-        let isActive = viewModel.selectedAgentId == agent.id && selectedTab == .chat
+        let isActive = state.selectedAgentId == agent.id && state.selectedTab == .chat
 
         return SidebarCollapsibleRow(
             title: agent.name,
@@ -1588,7 +1699,7 @@ struct SidebarView: View {
             actions: {
                 Button {
                     cancelSessionDeleteConfirmation()
-                    viewModel.openProject(forAgent: agent.id)
+                    actions.openProject(agent.id)
                 } label: {
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 11, weight: .semibold))
@@ -1615,65 +1726,7 @@ struct SidebarView: View {
         )
         .contextMenu {
             Button {
-                viewModel.openProject(forAgent: agent.id)
-            } label: {
-                Label("Add Work Folder...", systemImage: "folder.badge.plus")
-            }
-            Divider()
-            if canDeleteAgent(agent) {
-                Button(role: .destructive) {
-                    deleteAgentConfirmId = agent.id
-                } label: {
-                    Label("Remove Agent", systemImage: "trash")
-                }
-            }
-        }
-    }
-
-    private func agentRowWithContextMenu(_ agent: AgentOption) -> some View {
-        SidebarCollapsibleRow(
-            title: agent.name,
-            titleFont: DashboardTypography.sidebarAgent(active: viewModel.selectedAgentId == agent.id),
-            isExpanded: false,
-            rowHeight: 24,
-            verticalPadding: 4,
-            backgroundColor: { _ in SwiftUI.Color.clear },
-            onToggle: {},
-            icon: {
-                AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize)
-            },
-            actions: {
-                Button {
-                    cancelSessionDeleteConfirmation()
-                    viewModel.openProject(forAgent: agent.id)
-                } label: {
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 20, height: 20)
-                }
-                .buttonStyle(.plain)
-                .help("Add Work Folder...")
-
-                Button {
-                    createSession(for: agent)
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 20, height: 20)
-                }
-                .buttonStyle(.plain)
-                .help(String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle))
-            },
-            children: {
-                EmptyView()
-            }
-        )
-        .tag(agent.id)
-        .contextMenu {
-            Button {
-                viewModel.openProject(forAgent: agent.id)
+                actions.openProject(agent.id)
             } label: {
                 Label("Add Work Folder...", systemImage: "folder.badge.plus")
             }
@@ -1760,69 +1813,9 @@ struct SidebarView: View {
 
     private func createSession(for agent: AgentOption) {
         cancelSessionDeleteConfirmation()
-        viewModel.createNewSession(forAgent: agent.id)
-        selectedTab = .chat
+        actions.createSessionForAgent(agent.id)
+        actions.selectTab(.chat)
     }
-
-    private var agentsList: some View {
-        // Wrap the selection binding so we also force-switch to the
-        // chat tab when the user picks an agent from 我的团队. Without
-        // this, if the user was on .status (or any non-per-agent tab),
-        // clicking a team member visibly does nothing — only
-        // `selectedAgentId` updates and the right side doesn't reflect
-        // the agent context. The expectation is "I clicked a team
-        // member → take me to that team member's conversation".
-        List(selection: Binding<String>(
-            get: { viewModel.selectedAgentId },
-            set: { newId in
-                viewModel.selectedAgentId = newId
-                viewModel.selectedTab = .chat
-            }
-        )) {
-            // Commander — pinned at top, standalone
-            if let commander = viewModel.availableAgents.first(where: { $0.id == "commander" }) {
-                agentRowWithContextMenu(commander)
-            }
-
-            // main — pinned after commander
-            if let main = viewModel.availableAgents.first(where: { $0.id == "main" }) {
-                agentRowWithContextMenu(main)
-            }
-
-            // Grouped by division
-            ForEach(agentsByDivisionGrouped, id: \.division) { group in
-                let emoji = Self.divisionEmoji[group.division] ?? "📁"
-                DisclosureGroup(
-                    isExpanded: Binding<Bool>(
-                        get: { expandedAgentDivisions.contains(group.division) },
-                        set: { isExpanded in
-                            if isExpanded {
-                                expandedAgentDivisions.insert(group.division)
-                            } else {
-                                expandedAgentDivisions.remove(group.division)
-                            }
-                        }
-                    )
-                ) {
-                    ForEach(group.agents) { agent in
-                        agentRowWithContextMenu(agent)
-                    }
-                } label: {
-                    Text(verbatim: "\(emoji) \(group.division) (\(group.agents.count))")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .id("agent-division-\(group.division)")
-            }
-            .animation(nil, value: viewModel.availableAgents)
-        }
-        .listStyle(.sidebar)
-        .onAppear {
-            viewModel.loadAvailableAgents()
-        }
-    }
-
-    // MARK: - Marketplace List
 
     private static let divisionEmoji: [String: String] = [
         "Academic": "🎓",
@@ -1840,85 +1833,6 @@ struct SidebarView: View {
         "Testing": "🧪",
     ]
 
-    private var filteredMarketplaceAgents: [MarketplaceAgent] {
-        MarketplaceCatalog.shared.search(query: marketplaceSearchText, localeID: languageManager.currentLocale.identifier)
-    }
-
-    /// Agents grouped by division, used when not searching
-    private var agentsByDivision: [(division: String, agents: [MarketplaceAgent])] {
-        let catalog = MarketplaceCatalog.shared
-        return catalog.divisions.compactMap { div in
-            let agents = catalog.search(query: "", division: div, localeID: languageManager.currentLocale.identifier)
-            guard !agents.isEmpty else { return nil }
-            return (division: div, agents: agents)
-        }
-    }
-
-    private var marketplaceList: some View {
-        VStack(spacing: 0) {
-            UnifiedSearchField(
-                placeholder: String(localized: "Search agents...", bundle: languageManager.localizedBundle),
-                text: $marketplaceSearchText
-            )
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-
-            // Agent list - tree view or flat search results.
-            //
-            // Selecting an agent updates the same selected agent used by
-            // the market grid highlight and the root-level modal overlay.
-            // It also switches the main content to the market tab so the
-            // sidebar selection, page title, grid, and detail modal stay
-            // synchronized around one current agent.
-            List(selection: Binding<MarketplaceAgent?>(
-                get: { viewModel.selectedMarketplaceAgent },
-                set: { newAgent in
-                    guard !viewModel.isRecruitingMarketplaceAgent else { return }
-                    withAnimation(.spring(response: 0.26, dampingFraction: 0.86)) {
-                        viewModel.selectedMarketplaceAgent = newAgent
-                        if newAgent != nil {
-                            viewModel.selectedTab = .market
-                        }
-                    }
-                }
-            )) {
-                if marketplaceSearchText.isEmpty {
-                    // Tree view grouped by division
-                    ForEach(agentsByDivision, id: \.division) { group in
-                        let emoji = Self.divisionEmoji[group.division] ?? "📁"
-                        let divisionName = MarketplaceCatalog.shared.localizedDivisionName(group.division, localeID: languageManager.currentLocale.identifier)
-                        DisclosureGroup(
-                            isExpanded: Binding<Bool>(
-                                get: { expandedDivisions.contains(group.division) },
-                                set: { isExpanded in
-                                    if isExpanded {
-                                        expandedDivisions.insert(group.division)
-                                    } else {
-                                        expandedDivisions.remove(group.division)
-                                    }
-                                }
-                            )
-                        ) {
-                            ForEach(group.agents) { agent in
-                            MarketplaceAgentRow(agent: agent)
-                                    .tag(agent)
-                            }
-                        } label: {
-                            Text(verbatim: "\(emoji) \(divisionName) (\(group.agents.count))")
-                                .font(.system(size: 13, weight: .medium))
-                        }
-                    }
-                } else {
-                    // Flat search results
-                    ForEach(filteredMarketplaceAgents) { agent in
-                        MarketplaceAgentRow(agent: agent)
-                            .tag(agent)
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-        }
-    }
 }
 
 struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
@@ -2078,7 +1992,8 @@ private struct PulsingDot: View {
 // MARK: - Service Status Badge
 
 struct ServiceStatusBadge: View {
-    @ObservedObject var viewModel: DashboardViewModel
+    let status: ServiceStatus
+    let version: String
 
     var body: some View {
         HStack(spacing: 8) {
@@ -2087,11 +2002,11 @@ struct ServiceStatusBadge: View {
                 .frame(width: 10, height: 10)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(viewModel.openclawService.status.rawValue)
+                Text(status.rawValue)
                     .font(.headline)
 
-                if !viewModel.openclawService.version.isEmpty {
-                    Text("v\(viewModel.openclawService.version)")
+                if !version.isEmpty {
+                    Text("v\(version)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -2101,7 +2016,7 @@ struct ServiceStatusBadge: View {
     }
 
     private var statusColor: SwiftUI.Color {
-        switch viewModel.openclawService.status {
+        switch status {
         case .running: return .green
         case .stopped: return .gray
         case .starting, .stopping: return .orange
@@ -3547,6 +3462,11 @@ struct ChatView: View {
         .onChange(of: currentActiveSessionId) { _ in
             drainPendingComposerQueueIfPossible()
             beginRenderObservationForCurrentSession()
+            guard !viewModel.consumeSuppressNextSessionSwitchBottomScroll() else {
+                scheduledBottomScrollGeneration += 1
+                chatAutoScrollMode = .followingBottom
+                return
+            }
             scheduleSessionSwitchScrollToBottom()
         }
         .overlay(alignment: .trailing) {

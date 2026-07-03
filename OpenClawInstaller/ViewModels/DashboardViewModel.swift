@@ -1631,6 +1631,7 @@ class DashboardViewModel: ObservableObject {
     /// a first message. They should be visible/clickable in the sidebar, but
     /// should not be persisted unless the user actually types into them.
     private var pendingSessionMetadataByAgent: [String: ChatSessionMetadata] = [:]
+    private var shouldSuppressNextSessionSwitchBottomScroll = false
 
     /// Refresh `sessionsByAgent` from the store's index. Newest-first within
     /// each derived display group. Archived sessions are excluded so the
@@ -2316,9 +2317,13 @@ class DashboardViewModel: ObservableObject {
         if pendingSessionMetadataByAgent[agentId]?.id == sessionId {
             pendingSessionMetadataByAgent.removeValue(forKey: agentId)
         }
-        if wasActive {
-            promoteNextSession(forAgent: agentId)
+        guard wasActive else {
+            rebuildSessionsMirror()
+            recomputeIsSendingMessage()
+            return
         }
+        shouldSuppressNextSessionSwitchBottomScroll = true
+        promoteNextSession(forAgent: agentId)
         rebuildSessionsMirror()
         recomputeIsSendingMessage()
     }
@@ -2643,6 +2648,16 @@ class DashboardViewModel: ObservableObject {
     func hasInflightTask(inSession sessionId: UUID) -> Bool {
         foregroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
             || backgroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
+    }
+
+    var inflightSessionIds: Set<UUID> {
+        Set((foregroundTaskIds.union(backgroundTaskIds)).compactMap { taskSessionMap[$0] })
+    }
+
+    func consumeSuppressNextSessionSwitchBottomScroll() -> Bool {
+        let shouldSuppress = shouldSuppressNextSessionSwitchBottomScroll
+        shouldSuppressNextSessionSwitchBottomScroll = false
+        return shouldSuppress
     }
 
     /// Recompute `isSendingMessage` based on whether the currently visible
@@ -6011,7 +6026,7 @@ struct ChannelInfo: Identifiable {
 
 // MARK: - Model Info
 
-struct ModelOverview {
+struct ModelOverview: Equatable {
     var defaultModel: String = "-"
     var imageModel: String?
     var fallbacks: String = ""
@@ -6019,7 +6034,7 @@ struct ModelOverview {
     var aliases: String = ""
 }
 
-struct ModelInfo: Identifiable {
+struct ModelInfo: Identifiable, Equatable {
     let id = UUID()
     let modelId: String
     let input: String

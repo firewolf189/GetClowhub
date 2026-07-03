@@ -28,7 +28,9 @@ private enum SettingsShortcutColors {
 }
 
 struct SettingsShortcutPanelButton: View {
-    @ObservedObject var viewModel: DashboardViewModel
+    let shortcutState: DashboardSettingsShortcutState
+    let setDefaultModel: (ModelInfo) async -> Void
+    let loadShortcutData: () async -> Void
     let isActive: Bool
     let highlightColor: (Bool) -> SwiftUI.Color
     let onBeforeToggle: () -> Void
@@ -62,7 +64,9 @@ struct SettingsShortcutPanelButton: View {
         .background(alignment: .trailing) {
             SettingsShortcutPanelHost(
                 isPresented: $isPanelPresented,
-                viewModel: viewModel,
+                shortcutState: shortcutState,
+                setDefaultModel: setDefaultModel,
+                loadShortcutData: loadShortcutData,
                 onOpenSettingsSection: onOpenSettingsSection
             )
             .frame(width: 1, height: 1)
@@ -73,7 +77,9 @@ struct SettingsShortcutPanelButton: View {
 
 private struct SettingsShortcutPanelHost: NSViewRepresentable {
     @Binding var isPresented: Bool
-    @ObservedObject var viewModel: DashboardViewModel
+    let shortcutState: DashboardSettingsShortcutState
+    let setDefaultModel: (ModelInfo) async -> Void
+    let loadShortcutData: () async -> Void
     let onOpenSettingsSection: (SettingsPageSection) -> Void
     #if REQUIRE_LOGIN
     @EnvironmentObject var authManager: AuthManager
@@ -90,7 +96,9 @@ private struct SettingsShortcutPanelHost: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         let presentation = $isPresented
         let menu = SettingsShortcutMenu(
-            viewModel: viewModel,
+            shortcutState: shortcutState,
+            setDefaultModel: setDefaultModel,
+            loadShortcutData: loadShortcutData,
             onSizeChange: { size in
                 context.coordinator.updateContentSize(size)
             },
@@ -321,7 +329,9 @@ private final class SettingsShortcutPanelCoordinator {
 }
 
 private struct SettingsShortcutMenu: View {
-    @ObservedObject var viewModel: DashboardViewModel
+    let shortcutState: DashboardSettingsShortcutState
+    let setDefaultModel: (ModelInfo) async -> Void
+    let loadShortcutData: () async -> Void
     let onSizeChange: (CGSize) -> Void
     let onDismiss: () -> Void
     let onOpenSettingsSection: (SettingsPageSection) -> Void
@@ -343,7 +353,10 @@ private struct SettingsShortcutMenu: View {
 
                 Divider()
 
-                DefaultModelShortcutPicker(viewModel: viewModel) {
+                DefaultModelShortcutPicker(
+                    shortcutState: shortcutState,
+                    setDefaultModel: setDefaultModel
+                ) {
                     onOpenSettingsSection(.provider)
                 }
 
@@ -356,7 +369,7 @@ private struct SettingsShortcutMenu: View {
 
                 BudgetShortcutSummary(
                     isExpanded: $isBudgetExpanded,
-                    viewModel: viewModel,
+                    snapshots: shortcutState.budgetSnapshots,
                     onOpenBudget: { onOpenSettingsSection(.budget) }
                 )
 
@@ -404,17 +417,7 @@ private struct SettingsShortcutMenu: View {
             onSizeChange(size)
         }
         .task {
-            if viewModel.models.isEmpty {
-                await viewModel.loadModels()
-            }
-            if viewModel.budgetSnapshots.isEmpty {
-                await viewModel.loadBudgets()
-            }
-            #if REQUIRE_LOGIN
-            if membershipManager.keysBilling.isEmpty {
-                await viewModel.loadKeysBilling()
-            }
-            #endif
+            await loadShortcutData()
         }
     }
 
@@ -565,14 +568,15 @@ private struct SettingsShortcutRowContent: View {
 }
 
 private struct DefaultModelShortcutPicker: View {
-    @ObservedObject var viewModel: DashboardViewModel
+    let shortcutState: DashboardSettingsShortcutState
+    let setDefaultModel: (ModelInfo) async -> Void
     let onOpenProvider: () -> Void
 
     private var selectedModelID: String {
-        if let current = viewModel.models.first(where: \.isDefault)?.modelId {
+        if let current = shortcutState.models.first(where: \.isDefault)?.modelId {
             return current
         }
-        return viewModel.modelOverview.defaultModel
+        return shortcutState.modelOverview.defaultModel
     }
 
     var body: some View {
@@ -590,7 +594,7 @@ private struct DefaultModelShortcutPicker: View {
                 .foregroundStyle(SettingsShortcutColors.secondaryText)
             }
 
-            if viewModel.models.isEmpty {
+            if shortcutState.models.isEmpty {
                 Text(I18n.t("No models loaded"))
                     .font(.system(size: 12))
                     .foregroundStyle(SettingsShortcutColors.secondaryText)
@@ -598,11 +602,11 @@ private struct DefaultModelShortcutPicker: View {
                 Picker("", selection: Binding<String>(
                     get: { selectedModelID },
                     set: { modelID in
-                        guard let model = viewModel.models.first(where: { $0.modelId == modelID }) else { return }
-                        Task { await viewModel.setDefaultModel(model) }
+                        guard let model = shortcutState.models.first(where: { $0.modelId == modelID }) else { return }
+                        Task { await setDefaultModel(model) }
                     }
                 )) {
-                    ForEach(viewModel.models, id: \.modelId) { model in
+                    ForEach(shortcutState.models, id: \.modelId) { model in
                         Text(model.modelId).tag(model.modelId)
                     }
                 }
@@ -692,11 +696,11 @@ private struct BillingShortcutSummary: View {
 
 private struct BudgetShortcutSummary: View {
     @Binding var isExpanded: Bool
-    @ObservedObject var viewModel: DashboardViewModel
+    let snapshots: [BudgetSnapshot]
     let onOpenBudget: () -> Void
 
     private var globalSnapshot: BudgetSnapshot? {
-        viewModel.budgetSnapshots.first(where: { $0.scope == .global })
+        snapshots.first(where: { $0.scope == .global })
     }
 
     var body: some View {

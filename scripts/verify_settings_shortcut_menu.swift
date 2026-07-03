@@ -77,7 +77,7 @@ require(
         sidebarMainList.contains("navRow(.plugins"),
     "Skills and Plugins should remain first-class entries in the main sidebar."
 )
-let searchChatsOffset = offset(of: "onOpenGlobalSessionSearch()", in: sidebarMainList)
+let searchChatsOffset = offset(of: "actions.openGlobalSessionSearch()", in: sidebarMainList)
 let skillsOffset = offset(of: "navRow(.skills", in: sidebarMainList)
 let pluginsOffset = offset(of: "navRow(.plugins", in: sidebarMainList)
 let automationOffset = offset(of: "navRow(.tasksLogs", in: sidebarMainList)
@@ -112,10 +112,10 @@ require(
     "Sidebar bottom bar should contain only the Settings shortcut, not update or theme controls."
 )
 require(
-    dashboard.contains("onOpenSettingsSection: openSettingsSection") &&
+    dashboard.contains("onOpenSettingsSection: actions.openSettingsSection") &&
         dashboard.contains("private func openSettingsSection(_ section: SettingsPageSection)") &&
         dashboard.contains("selectedSettingsSection = section") &&
-        dashboard.contains("selectedTab = .config"),
+        dashboard.contains("viewModel.selectedTab = .config"),
     "Settings shortcut menu should route specific sections into the independent Settings page."
 )
 require(
@@ -155,10 +155,10 @@ require(
     "Settings should not duplicate main sidebar entries for Skills, Plugins, or Automation/Cron."
 )
 let officialProviderOffset = offset(of: "GetClawHubServiceSection(viewModel: viewModel)", in: providerSettingsContent)
-let customProviderOffset = offset(of: "ModelConfigSection(viewModel: viewModel)", in: providerSettingsContent)
+let customProviderOffset = offset(of: "CustomProviderListSection(viewModel: viewModel)", in: providerSettingsContent)
 require(
     officialProviderOffset < customProviderOffset,
-    "Provider settings should keep the official GetClawHub service option before the custom API provider."
+    "Provider settings should keep the official GetClawHub service option before the custom provider list."
 )
 require(
     officialServiceSection.contains("Available Models") &&

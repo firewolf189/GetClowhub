@@ -37,7 +37,8 @@ let beginRename = slice(dashboard, from: "private func beginSessionRename", to: 
 let saveRename = slice(dashboard, from: "private func saveSessionRename", to: "private func dismissSessionRename")
 let renameOverlay = slice(dashboard, from: "private var sessionRenameOverlay", to: "private func openSettingsSection")
 let sidebarInit = slice(dashboard, from: "struct SidebarView: View", to: "private var isDark")
-let sessionsSection = slice(dashboard, from: "private func sessionsSectionContent(for agent: AgentOption) -> some View", to: "// MARK: - Agent Section Content")
+let sessionsSection = slice(dashboard, from: "private func sessionsSectionContent(for agent: AgentOption) -> some View", to: "private func projectFolderRow")
+let chatSessionRow = slice(dashboard, from: "struct ChatSessionRow: View", to: "static func shortRelative")
 
 assertNotContains(
     dashboard,
@@ -169,19 +170,24 @@ assertContains(
     "saving the dialog should reuse the existing session rename persistence"
 )
 assertContains(
-    sidebarInit,
-    "let onRequestRenameSession: (ChatSessionMetadata) -> Void",
+    dashboard,
+    "let requestRenameSession: (ChatSessionMetadata) -> Void",
     "sidebar should keep rename routing as a parent-owned action"
 )
 assertContains(
     sessionsSection,
     ".onTapGesture(count: 2)",
-    "session rows should expose double-click rename"
+    "full session rows should expose double-click rename"
 )
 assertContains(
     sessionsSection,
-    "onRequestRenameSession(meta)",
-    "both double-click and context menu rename should use the shared rename request"
+    "actions.requestRenameSession(meta)",
+    "double-click and context menu rename should use the shared rename request"
+)
+assertNotContains(
+    chatSessionRow,
+    "let onRename: () -> Void",
+    "ChatSessionRow should remain a presentational row; rename belongs to the row wrapper"
 )
 
 print("Session double-click rename overlay checks passed")

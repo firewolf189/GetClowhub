@@ -53,7 +53,7 @@ struct BudgetRule: Codable, Identifiable, Equatable {
 
 // MARK: - Budget Snapshot (运行时状态快照)
 
-struct BudgetSnapshot: Identifiable {
+struct BudgetSnapshot: Identifiable, Equatable {
     let id: String
     let label: String
     let scope: BudgetScope
