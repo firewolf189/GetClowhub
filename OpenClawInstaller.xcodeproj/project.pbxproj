@@ -42,6 +42,7 @@
 		AS01AB01C2D3E4F5A6B70001 /* DashboardViewModel+AgentSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AS01AB02C2D3E4F5A6B70002 /* DashboardViewModel+AgentSettings.swift */; };
 		ST01AB01C2D3E4F5A6B70001 /* DashboardViewModel+StatusMonitoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST01AB02C2D3E4F5A6B70002 /* DashboardViewModel+StatusMonitoring.swift */; };
 		IF01AB01C2D3E4F5A6B70001 /* DashboardViewModel+InFlightRuns.swift in Sources */ = {isa = PBXBuildFile; fileRef = IF01AB02C2D3E4F5A6B70002 /* DashboardViewModel+InFlightRuns.swift */; };
+		CP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ConfigProviderLogs.swift in Sources */ = {isa = PBXBuildFile; fileRef = CP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ConfigProviderLogs.swift */; };
 		356410622F5802970045A6F7 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102D2F5802970045A6F7 /* PermissionManager.swift */; };
 		356410632F5802970045A6F7 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410412F5802970045A6F7 /* ErrorView.swift */; };
 		356410642F5802970045A6F7 /* OpenClawService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102C2F5802970045A6F7 /* OpenClawService.swift */; };
@@ -163,6 +164,7 @@
 		AS01AB02C2D3E4F5A6B70002 /* DashboardViewModel+AgentSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+AgentSettings.swift"; sourceTree = "<group>"; };
 		ST01AB02C2D3E4F5A6B70002 /* DashboardViewModel+StatusMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+StatusMonitoring.swift"; sourceTree = "<group>"; };
 		IF01AB02C2D3E4F5A6B70002 /* DashboardViewModel+InFlightRuns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+InFlightRuns.swift"; sourceTree = "<group>"; };
+		CP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ConfigProviderLogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+ConfigProviderLogs.swift"; sourceTree = "<group>"; };
 		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationViewModel.swift; sourceTree = "<group>"; };
 		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigTabView.swift; sourceTree = "<group>"; };
 		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -383,6 +385,7 @@
 				AS01AB02C2D3E4F5A6B70002 /* DashboardViewModel+AgentSettings.swift */,
 				ST01AB02C2D3E4F5A6B70002 /* DashboardViewModel+StatusMonitoring.swift */,
 				IF01AB02C2D3E4F5A6B70002 /* DashboardViewModel+InFlightRuns.swift */,
+				CP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ConfigProviderLogs.swift */,
 				D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */,
 				356410312F5802970045A6F7 /* InstallationViewModel.swift */,
 			);
@@ -735,6 +738,7 @@
 				AS01AB01C2D3E4F5A6B70001 /* DashboardViewModel+AgentSettings.swift in Sources */,
 				ST01AB01C2D3E4F5A6B70001 /* DashboardViewModel+StatusMonitoring.swift in Sources */,
 				IF01AB01C2D3E4F5A6B70001 /* DashboardViewModel+InFlightRuns.swift in Sources */,
+				CP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ConfigProviderLogs.swift in Sources */,
 				356410622F5802970045A6F7 /* PermissionManager.swift in Sources */,
 				356410632F5802970045A6F7 /* ErrorView.swift in Sources */,
 				AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */,
