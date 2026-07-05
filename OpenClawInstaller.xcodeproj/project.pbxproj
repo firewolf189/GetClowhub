@@ -32,6 +32,7 @@
 		356410602F5802970045A6F7 /* NodeInstallationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564103C2F5802970045A6F7 /* NodeInstallationView.swift */; };
 		356410612F5802970045A6F7 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410302F5802970045A6F7 /* DashboardViewModel.swift */; };
 		DM01AB01C2D3E4F5A6B70001 /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */; };
+		WX01AB01C2D3E4F5A6B70001 /* DashboardViewModel+WeixinLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = WX01AB02C2D3E4F5A6B70002 /* DashboardViewModel+WeixinLogin.swift */; };
 		356410622F5802970045A6F7 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102D2F5802970045A6F7 /* PermissionManager.swift */; };
 		356410632F5802970045A6F7 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410412F5802970045A6F7 /* ErrorView.swift */; };
 		356410642F5802970045A6F7 /* OpenClawService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102C2F5802970045A6F7 /* OpenClawService.swift */; };
@@ -143,6 +144,7 @@
 		3564102E2F5802970045A6F7 /* SparkleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleUpdater.swift; sourceTree = "<group>"; };
 		356410302F5802970045A6F7 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
+		WX01AB02C2D3E4F5A6B70002 /* DashboardViewModel+WeixinLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+WeixinLogin.swift"; sourceTree = "<group>"; };
 		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationViewModel.swift; sourceTree = "<group>"; };
 		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigTabView.swift; sourceTree = "<group>"; };
 		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -353,6 +355,7 @@
 				C011AB04A1B2C3D4E5F60004 /* CollabViewModel.swift */,
 				356410302F5802970045A6F7 /* DashboardViewModel.swift */,
 				DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */,
+				WX01AB02C2D3E4F5A6B70002 /* DashboardViewModel+WeixinLogin.swift */,
 				D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */,
 				356410312F5802970045A6F7 /* InstallationViewModel.swift */,
 			);
@@ -695,6 +698,7 @@
 				356410602F5802970045A6F7 /* NodeInstallationView.swift in Sources */,
 				356410612F5802970045A6F7 /* DashboardViewModel.swift in Sources */,
 				DM01AB01C2D3E4F5A6B70001 /* DashboardModels.swift in Sources */,
+				WX01AB01C2D3E4F5A6B70001 /* DashboardViewModel+WeixinLogin.swift in Sources */,
 				356410622F5802970045A6F7 /* PermissionManager.swift in Sources */,
 				356410632F5802970045A6F7 /* ErrorView.swift in Sources */,
 				AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */,
