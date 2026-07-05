@@ -52,7 +52,7 @@ let dashboardRoot = slice(
 let sidebarView = slice(
     dashboard,
     from: "struct SidebarView: View",
-    to: "private struct SidebarCollapsibleRow"
+    to: "struct SidebarCollapsibleRow"
 )
 let chatScrollContent = slice(
     dashboard,

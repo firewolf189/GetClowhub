@@ -41,7 +41,8 @@ func block(startingWith signature: String, in text: String) -> String {
 }
 
 let viewModeBlock = block(startingWith: "enum ViewMode", in: source)
-let bodyBlock = block(startingWith: "var body: some View", in: source)
+// The switch over viewMode was extracted from `body` into `routedContent`.
+let routedContentBlock = block(startingWith: "private var routedContent: some View", in: source)
 let determineInitialViewBlock = block(startingWith: "private func determineInitialView()", in: source)
 
 require(
@@ -49,7 +50,7 @@ require(
     "MainContentView should have a checking startup mode before routing."
 )
 require(
-    bodyBlock.contains("case .checking:"),
+    routedContentBlock.contains("case .checking:"),
     "MainContentView should render a checking state instead of flashing the install landing page."
 )
 require(

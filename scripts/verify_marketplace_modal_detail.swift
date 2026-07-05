@@ -49,7 +49,7 @@ let marketBranch = slice(
 let marketplaceOverlay = slice(
     dashboard,
     from: "private func marketplaceDetailOverlay(for agent: MarketplaceAgent) -> some View",
-    to: "private func presentPluginDetail"
+    to: "private var globalSessionSearchOverlay"
 )
 
 require(

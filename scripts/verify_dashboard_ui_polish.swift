@@ -33,20 +33,19 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let selectableMarkdown = read("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
 let markdownHTML = read("OpenClawInstaller/Views/Dashboard/MarkdownHTML.swift")
+let composerView = read("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
+let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
+// AgentListRow was generalized into SidebarCollapsibleRow; the expand/chevron
+// contract lives there now.
 let agentListRow = slice(
     dashboard,
-    from: "private struct AgentListRow: View",
+    from: "struct SidebarCollapsibleRow",
     to: "// MARK: - Pulsing Dot"
 )
 let agentSidebarRow = slice(
     dashboard,
     from: "private func agentSidebarRow(_ agent: AgentOption) -> some View",
     to: "private func toggleAgentSelection"
-)
-let chatView = slice(
-    dashboard,
-    from: "struct ChatView: View",
-    to: "struct ComposerModelSelector: View"
 )
 let chatBubble = slice(
     dashboard,
@@ -59,14 +58,22 @@ assertContains(
     "enum DashboardTypography",
     "dashboard should centralize scoped chat/sidebar typography"
 )
+// The composer was extracted into ChatComposerView.swift.
 assertContains(
-    chatView,
-    "DashboardTypography.composer",
+    composerView,
+    ".font(DashboardTypography.composer)",
     "composer input should use the scoped readable typography"
 )
+// Plain bubble text rendering was extracted into AssistantMessageRenderer.swift;
+// ChatBubble delegates to AssistantMessageContentView.
 assertContains(
     chatBubble,
-    "DashboardTypography.message",
+    "AssistantMessageContentView(",
+    "chat bubbles should render text through the shared assistant renderer"
+)
+assertContains(
+    assistantRenderer,
+    ".font(DashboardTypography.message)",
     "plain chat bubbles should use the scoped readable typography"
 )
 assertContains(

@@ -36,15 +36,12 @@ let sendLoop = slice(
     from: "var accumulatedText = \"\"",
     to: "// Stream ended without a terminal event"
 )
-let workStatusHeader = slice(
-    dashboard,
-    from: "private struct WorkStatusHeader: View",
-    to: "struct ChatBubble: View"
-)
+// WorkStatusHeader (and ActivitySummaryRows) were extracted into their own file.
+let workStatusHeader = try read("OpenClawInstaller/Views/Dashboard/WorkStatusHeader.swift")
 let chatBubble = slice(
     dashboard,
     from: "struct ChatBubble: View",
-    to: "struct InlineUserMessageEditor: View"
+    to: "private struct InlineUserMessageEditor: View"
 )
 
 require(chatMessage.contains("let activityEvents: [ChatActivityEvent]"), "ChatMessage should persist activity events")
@@ -76,11 +73,11 @@ require(workStatusHeader.contains("Button {"), "working header chevron should be
 require(workStatusHeader.contains("isExpanded.toggle()"), "working header should toggle activity visibility")
 require(workStatusHeader.contains("if isExpanded {"), "working header should hide activity rows while collapsed")
 require(workStatusHeader.contains("ActivitySummaryRows(events: activityEvents)"), "working header should render activity rows when expanded")
-require(dashboard.contains("private struct ActivitySummaryRows: View"), "dashboard should define activity summary rows")
-require(!dashboard.contains("events.prefix(4)"), "activity rows should not cap visible event categories")
-require(!dashboard.contains("events.count > 4"), "activity rows should not show a capped more row")
-require(dashboard.contains("event.kind == .progressUpdate"), "working header should render progress text as transcript text")
-require(dashboard.contains("event.details"), "activity rows should render structured details")
+require(workStatusHeader.contains("private struct ActivitySummaryRows: View"), "activity summary rows should be defined alongside the working header")
+require(!workStatusHeader.contains("events.prefix(4)"), "activity rows should not cap visible event categories")
+require(!workStatusHeader.contains("events.count > 4"), "activity rows should not show a capped more row")
+require(workStatusHeader.contains("event.kind == .progressUpdate"), "working header should render progress text as transcript text")
+require(workStatusHeader.contains("event.details"), "activity rows should render structured details")
 require(chatBubble.contains("WorkStatusHeader(")
         && chatBubble.contains("start: message.timestamp")
         && chatBubble.contains("end: message.completedAt")

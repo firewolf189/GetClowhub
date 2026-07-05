@@ -44,9 +44,9 @@ require(
 
 require(
     detail.contains("CatalogActionButton(") &&
-        detail.contains("title: String(localized: \"Recruit\", bundle: languageManager.localizedBundle)") &&
-        detail.contains("loadingTitle: String(localized: \"Recruiting...\", bundle: languageManager.localizedBundle)") &&
-        detail.contains("completedTitle: String(localized: \"Recruited\", bundle: languageManager.localizedBundle)") &&
+        detail.contains("title: I18n.t(\"agents.action.recruit\")") &&
+        detail.contains("loadingTitle: I18n.t(\"agents.action.recruiting\")") &&
+        detail.contains("completedTitle: I18n.t(\"agents.action.recruited\")") &&
         detail.contains("state: recruitButtonState") &&
         detail.contains("action: installAgent"),
     "Marketplace detail should render recruitment through the shared catalog action button."

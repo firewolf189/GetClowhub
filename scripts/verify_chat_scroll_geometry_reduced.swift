@@ -29,9 +29,8 @@ require(
         !source.contains("chatScrollContentHeight"),
     "chat scroll offset/height state should be removed with the preference metrics"
 )
-require(
-    source.contains("showTransientChatScrollIndicator()"),
-    "scroll indicator feedback should remain as a lightweight transient affordance"
-)
+// The custom transient scroll indicator was intentionally removed in the
+// chat-surface extraction (native scrollbars now provide feedback);
+// verify_chat_scroll_metrics_guard.swift asserts its absence.
 
 print("Chat scroll geometry feedback loop is reduced")

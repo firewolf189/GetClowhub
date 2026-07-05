@@ -6,7 +6,12 @@ let rendererURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard
 let selectableURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
 let markdownHTMLURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarkdownHTML.swift")
 let helpURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/HelpAssistantWindow.swift")
+let timelineURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift")
 
+guard let timeline = try? String(contentsOf: timelineURL, encoding: .utf8) else {
+    fputs("FAIL: unable to read ChatTimelineSurface.swift\n", stderr)
+    exit(1)
+}
 guard let dashboard = try? String(contentsOf: dashboardURL, encoding: .utf8) else {
     fatalError("Could not read DashboardView.swift")
 }
@@ -81,12 +86,12 @@ expectContains(
     "WKWebView eligibility should be calculated from the full message list"
 )
 expectContains(
-    dashboard,
-    "let richMarkdownMessageIds = MarkdownRenderPolicy.recentRichMessageIds(in: viewModel.chatMessages)",
+    timeline,
+    "let richMarkdownMessageIds = MarkdownRenderPolicy.recentRichMessageIds(in: messages)",
     "Chat list should compute recent rich-message eligibility once per list render"
 )
 expectContains(
-    dashboard,
+    timeline,
     "allowsRichMarkdown: richMarkdownMessageIds.contains(message.id)",
     "Each chat bubble should receive explicit WKWebView eligibility"
 )

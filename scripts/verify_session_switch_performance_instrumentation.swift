@@ -30,10 +30,16 @@ assertContains(
     #"private let perfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")"#,
     "session store should log cold-load performance to the shared category"
 )
+let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
+assertContains(
+    assistantRenderer,
+    #"let chatRenderPerfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")"#,
+    "chat render code should log render-side performance to the shared category"
+)
 assertContains(
     dashboard,
-    #"private let chatRenderPerfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")"#,
-    "chat view should log render-side performance to the shared category"
+    "chatRenderPerfLog.info(",
+    "chat view should log render-side performance to the shared logger"
 )
 assertContains(
     viewModel,

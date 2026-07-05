@@ -9,7 +9,10 @@ let viewModel = try String(contentsOf: viewModelURL, encoding: .utf8)
 
 expect(pluginsTab.contains(#"case link = "Link""#), "install sheet should still expose Link method")
 expect(pluginsTab.contains("private var linkSpec"), "Link method should use a typed link spec")
-expect(pluginsTab.contains("https://github.com/owner/repo"), "Link method should show URL-style placeholder")
+let enPluginsURL = URL(fileURLWithPath: "OpenClawInstaller/Resources/I18n/en/plugins.json")
+let enPlugins = try String(contentsOf: enPluginsURL, encoding: .utf8)
+expect(pluginsTab.contains(#"TextField(I18n.t("plugins.install.linkPlaceholder"), text: $linkSpec)"#), "Link method should show localized URL-style placeholder")
+expect(enPlugins.contains(#""plugins.install.linkPlaceholder": "https://github.com/owner/repo""#), "Link placeholder should be a URL-style example in English strings")
 expect(!pluginsTab.contains("case .link: return dirPath"), "Link method should not use a browsed directory path")
 expect(!pluginsTab.contains("let isLink = installMethod == .link"), "Link method should not enable OpenClaw --link")
 expect(!pluginsTab.contains("await model.installPlugin(spec: spec, link: isLink)"), "Link install should pass the typed spec without --link")
@@ -24,7 +27,8 @@ guard let methodSpecificInputRange = pluginsTab.range(of: "// Method-specific in
 let linkBody = String(pluginsTab[linkRange.lowerBound..<footerRange.lowerBound])
 expect(!linkBody.contains("browseDirectory()"), "Link method should not open a directory browser")
 expect(!linkBody.contains(".disabled(true)"), "Link method text field should be editable")
-expect(linkBody.contains("Plugin Link"), "Link method should label the input as a link")
+expect(linkBody.contains(#"I18n.t("plugins.install.pluginLink")"#), "Link method should label the input as a link")
+expect(enPlugins.contains(#""plugins.install.pluginLink": "Plugin Link""#), "Link label should read Plugin Link in English strings")
 
 expect(pluginsModel.contains("openclaw plugins install") || viewModel.contains("openclaw plugins install"), "manual install should use OpenClaw plugin install")
 

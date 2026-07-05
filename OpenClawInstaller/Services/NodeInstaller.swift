@@ -1,4 +1,5 @@
 import Combine
+import CryptoKit
 import Foundation
 
 struct NodeVersion: Codable {
@@ -45,6 +46,15 @@ class NodeInstaller: ObservableObject {
 
     // Bundled Node.js version
     private let bundledNodeVersion = "v24.14.0"
+
+    /// SHA256 of the official Node.js tarballs for the pinned bundled
+    /// version, keyed by arch. Network downloads of this version are
+    /// verified against these; other versions verify against the
+    /// mirror's SHASUMS256.txt. Update together with bundledNodeVersion.
+    private static let pinnedNodeTarballSHA256: [String: String] = [
+        "arm64": "a1a54f46a750d2523d628d924aab61758a51c9dad3e0238beb14141be9615dd3",
+        "x64": "f2879eb810e25993a0578e5d878930266fd2eafcffe9f2839b3d8db354d4879e",
+    ]
 
     /// Node.js installation directory (user-local, no sudo needed)
     var nodeInstallDir: String {
@@ -186,7 +196,7 @@ class NodeInstaller: ObservableObject {
         // Remove existing file if present
         try? FileManager.default.removeItem(at: destinationURL)
 
-        return try await withCheckedThrowingContinuation { continuation in
+        let downloaded: URL = try await withCheckedThrowingContinuation { continuation in
             let task = URLSession.shared.downloadTask(with: url) { tempURL, response, error in
                 if let error = error {
                     continuation.resume(throwing: NodeInstallationError.downloadFailed(error.localizedDescription))
@@ -224,6 +234,59 @@ class NodeInstaller: ObservableObject {
             task.resume()
             self.downloadTask = task
         }
+
+        try await verifyNodeTarball(at: downloaded, version: version, arch: arch)
+        return downloaded
+    }
+
+    /// Verify a downloaded Node.js tarball against its official SHA256.
+    /// The pinned bundled version checks the hash compiled into the app;
+    /// other versions check the SHASUMS256.txt published next to the
+    /// tarball on the same mirror — that still catches truncation and
+    /// corruption even though it shares the download channel.
+    private func verifyNodeTarball(at fileURL: URL, version: String, arch: String) async throws {
+        installationStatus = "Verifying download integrity..."
+        let actual = try Self.sha256Hex(of: fileURL)
+
+        let expected: String
+        if version == bundledNodeVersion, let pinned = Self.pinnedNodeTarballSHA256[arch] {
+            expected = pinned
+        } else {
+            let fileName = "node-\(version)-darwin-\(arch).tar.gz"
+            guard let shasumsURL = URL(string: "\(getNodeMirrorURL())/\(version)/SHASUMS256.txt") else {
+                throw NodeInstallationError.downloadFailed("Invalid SHASUMS256.txt URL")
+            }
+            let (data, _) = try await URLSession.shared.data(from: shasumsURL)
+            guard let text = String(data: data, encoding: .utf8),
+                  let line = text.components(separatedBy: "\n")
+                      .first(where: { $0.hasSuffix(fileName) }),
+                  let hash = line.components(separatedBy: " ").first,
+                  hash.count == 64 else {
+                throw NodeInstallationError.downloadFailed("SHASUMS256.txt has no entry for \(fileName)")
+            }
+            expected = hash.lowercased()
+        }
+
+        guard actual == expected else {
+            try? FileManager.default.removeItem(at: fileURL)
+            throw NodeInstallationError.downloadFailed(
+                "Checksum mismatch for \(fileURL.lastPathComponent): expected \(expected.prefix(12))…, got \(actual.prefix(12))…"
+            )
+        }
+        appendLog("Node tarball checksum verified (sha256 \(actual.prefix(12))…)")
+    }
+
+    /// Streamed SHA256 so a ~50MB tarball isn't loaded into memory at once.
+    private static func sha256Hex(of fileURL: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while true {
+            let chunk = autoreleasepool { handle.readData(ofLength: 4 * 1024 * 1024) }
+            if chunk.isEmpty { break }
+            hasher.update(data: chunk)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     /// Install Node.js from tar.gz file

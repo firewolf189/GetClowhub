@@ -72,11 +72,11 @@ require(
     "Refresh action should force catalog sync."
 )
 require(
-    skillsModel.contains(#"notifySuccess("Skills updated successfully")"#),
+    skillsModel.contains(#"notifySuccess(I18n.t("skills.toast.updated"))"#),
     "Forced skill catalog refresh should show a success toast after updating."
 )
 require(
-    skillsView.contains("UnifiedSearchField(placeholder: \"Search skills\", text: $searchText)") &&
+    skillsView.contains("UnifiedSearchField(placeholder: I18n.t(\"skills.search.placeholder\"), text: $searchText)") &&
         unifiedSearchField.contains("RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)") &&
         unifiedSearchField.contains(".stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)") &&
         !unifiedSearchField.contains(".clipShape(Capsule())"),
@@ -137,7 +137,7 @@ require(
 require(
     !skillsView.contains("InstalledSection") &&
         !skillsView.contains("installedSections") &&
-        skillsView.contains(#"SkillSectionHeader(title: "Installed""#),
+        skillsView.contains(#"SkillSectionHeader(title: I18n.t("catalog.section.installed")"#),
     "Installed skills should render as one list instead of preserving Catalog/Custom sub-sections."
 )
 require(
@@ -297,8 +297,8 @@ require(
     "Skill detail sheet should own install and uninstall actions."
 )
 require(
-    detailSheet.contains(#"Text("Install")"#) &&
-        detailSheet.contains(#"Text("Uninstall")"#),
+    detailSheet.contains(#"Text(I18n.t("catalog.action.install"))"#) &&
+        detailSheet.contains(#"I18n.t("catalog.action.uninstall")"#),
     "Skill detail sheet should render install and uninstall controls."
 )
 require(
@@ -332,7 +332,7 @@ require(
     skillsView.contains("@State private var showManualInstallSheet = false") &&
         skillsView.contains("manualInstallOverlay") &&
         skillsView.contains("ManualSkillInstallSheet") &&
-        skillsView.contains("Install skill from GitHub repository"),
+        skillsView.contains(#"I18n.t("skills.manual.title")"#),
     "Skills UI should expose manual GitHub repository skill installation from the plus button."
 )
 require(

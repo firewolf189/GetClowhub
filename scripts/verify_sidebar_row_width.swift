@@ -30,7 +30,13 @@ let sidebarRowContent = slice(
 let agentSidebarRow = slice(
     dashboard,
     from: "private func agentSidebarRow",
-    to: "private func sidebarItemHighlightColor"
+    to: "private func agentRowWithContextMenu"
+)
+
+let collapsibleRowContent = slice(
+    dashboard,
+    from: "struct SidebarCollapsibleRow",
+    to: "private var chevron: some View"
 )
 
 assertContains(
@@ -41,8 +47,19 @@ assertContains(
 
 assertContains(
     agentSidebarRow,
-    ".frame(maxWidth: .infinity, alignment: .leading)",
-    "Agent sidebar rows should use the same full-width background frame"
+    "return SidebarCollapsibleRow(",
+    "Agent sidebar rows should render through the shared collapsible row"
 )
+
+assertContains(
+    collapsibleRowContent,
+    ".frame(maxWidth: .infinity, alignment: .leading)",
+    "Shared collapsible row content should use the same full-width background frame"
+)
+
+guard let frameRange = collapsibleRowContent.range(of: ".frame(maxWidth: .infinity, alignment: .leading)"),
+      collapsibleRowContent[frameRange.upperBound...].contains(".background(") else {
+    fatalError("Collapsible row should expand to full width before its background is applied")
+}
 
 print("Sidebar row width verification passed")

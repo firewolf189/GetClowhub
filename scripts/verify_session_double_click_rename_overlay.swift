@@ -35,7 +35,7 @@ let sharedOverlay = read("OpenClawInstaller/Views/Shared/DashboardModalOverlay.s
 let dashboardBody = slice(dashboard, from: "var body: some View", to: "private var activeTab")
 let beginRename = slice(dashboard, from: "private func beginSessionRename", to: "private func saveSessionRename")
 let saveRename = slice(dashboard, from: "private func saveSessionRename", to: "private func dismissSessionRename")
-let renameOverlay = slice(dashboard, from: "private var sessionRenameOverlay", to: "private func presentSkillDetail")
+let renameOverlay = slice(dashboard, from: "private var sessionRenameOverlay", to: "private func openSettingsSection")
 let sidebarInit = slice(dashboard, from: "struct SidebarView: View", to: "private var isDark")
 let sessionsSection = slice(dashboard, from: "private func sessionsSectionContent(for agent: AgentOption) -> some View", to: "// MARK: - Agent Section Content")
 

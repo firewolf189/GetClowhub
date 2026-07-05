@@ -24,13 +24,15 @@ func slice(_ source: String, from start: String, to end: String) -> String {
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
+// AgentListRow was replaced by the generic SidebarCollapsibleRow, which
+// owns the chevron for agent rows now.
 let agentRow = slice(
     dashboard,
-    from: "private struct AgentListRow: View",
+    from: "struct SidebarCollapsibleRow",
     to: "private struct MarketplaceAgentRow: View"
 )
 
-require(!agentRow.isEmpty, "AgentListRow source block should be discoverable")
+require(!agentRow.isEmpty, "SidebarCollapsibleRow source block should be discoverable")
 require(agentRow.contains("Image(systemName: \"chevron.right\")"), "agent row should use one chevron.right icon")
 require(agentRow.contains(".rotationEffect(.degrees(isExpanded ? 90 : 0))"), "agent chevron should rotate down when expanded")
 require(!agentRow.contains("isExpanded ? \"chevron.down\" : \"chevron.right\""), "agent row should not swap chevron.down/chevron.right")

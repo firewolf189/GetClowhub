@@ -34,7 +34,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let typography = slice(
     dashboard,
     from: "enum DashboardTypography",
-    to: "private enum DashboardSidebarMetrics"
+    to: "enum DashboardSidebarMetrics"
 )
 
 guard typography.contains("static let message = Font.system(size: 14, weight: .regular)") else {

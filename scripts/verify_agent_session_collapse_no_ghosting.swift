@@ -31,26 +31,44 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let agentSection = slice(
+// Agent session rows now expand/collapse inside SidebarCollapsibleRow.
+// Ghosting during collapse is prevented by clipping the animated child
+// block (and the whole row container) instead of an asymmetric transition.
+let collapsibleRowBody = slice(
     dashboard,
-    from: "private var agentSectionContent: some View",
-    to: "// MARK: - Sidebar Bottom Bar"
+    from: "struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View",
+    to: "private var rowContent: some View"
 )
-let expandedSessionBlock = slice(
-    agentSection,
-    from: "if expandedAgentIds.contains(agent.id) {",
-    to: ".animation(.spring(response: 0.28, dampingFraction: 0.86), value: expandedAgentIds)"
+let expandedChildrenBlock = slice(
+    collapsibleRowBody,
+    from: "if isExpanded {",
+    to: ".animation(Self.expansionAnimation, value: isExpanded)"
 )
 
-assertNotContains(
-    expandedSessionBlock,
-    ".transition(.move(edge: .top).combined(with: .opacity))",
-    "collapsing agent session rows must not move old titles during removal"
+assertContains(
+    expandedChildrenBlock,
+    ".transition(Self.childTransition)",
+    "session rows should keep a soft insertion transition when expanding"
 )
 assertContains(
-    expandedSessionBlock,
-    ".transition(.asymmetric(insertion: .opacity, removal: .identity))",
-    "session rows should disappear immediately on collapse while keeping insertion soft"
+    expandedChildrenBlock,
+    ".clipped()",
+    "collapsing agent session rows must clip the animated child block so old titles cannot ghost outside the row"
+)
+assertContains(
+    collapsibleRowBody,
+    ".animation(Self.expansionAnimation, value: isExpanded)",
+    "expansion animation should be driven by the isExpanded state"
+)
+let afterAnimation = slice(
+    collapsibleRowBody,
+    from: ".animation(Self.expansionAnimation, value: isExpanded)",
+    to: "}"
+)
+assertContains(
+    afterAnimation,
+    ".clipped()",
+    "the whole collapsible row container must also be clipped during collapse to avoid ghosting"
 )
 
 print("Agent session collapse ghosting checks passed")

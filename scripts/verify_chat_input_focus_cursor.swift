@@ -32,6 +32,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let subAgents = read("OpenClawInstaller/Views/Agent/SubAgentsTabView.swift")
+let chatComposer = read("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
 
 let typography = slice(
     dashboard,
@@ -66,7 +67,7 @@ assertContains(
 )
 
 assertContains(
-    chatView,
+    chatComposer,
     ".tint(Color(NSColor.labelColor))",
     "composer text input should use a neutral text cursor instead of the blue accent cursor"
 )

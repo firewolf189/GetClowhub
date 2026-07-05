@@ -38,33 +38,36 @@ func expectAppearsInOrder(_ haystack: String, _ needles: [String], _ message: St
 
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let sidebarRowContent = slice(dashboard, from: "private func sidebarRowContent", to: "private func sidebarIcon")
-let agentSidebarRow = slice(dashboard, from: "private func agentSidebarRow", to: "private func sidebarItemHighlightColor")
-let agentListRow = slice(dashboard, from: "private struct AgentListRow: View", to: "// MARK: - Pulsing Dot")
+// Agent rows are now rendered through the shared SidebarCollapsibleRow
+// (AgentListRow was replaced in the collapsible-sidebar refactor).
+let agentSidebarRow = slice(dashboard, from: "private func agentSidebarRow", to: "private func agentRowWithContextMenu")
+let collapsibleRowContent = slice(
+    dashboard,
+    from: "struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View",
+    to: "private var chevron: some View"
+)
 
 expect(
     sidebarRowContent.contains(".padding(.vertical, 7)"),
     "main sidebar rows should keep the current selected-background height"
 )
 expect(
-    agentListRow.contains(".frame(height: 24)") && agentListRow.contains(".padding(.vertical, 4)"),
-    "agent row content should stay at its current 32pt visual content height"
-)
-expect(
-    !agentSidebarRow.contains(".padding(.horizontal, 8)\n            .padding(.vertical, 3)\n            .frame(maxWidth: .infinity, alignment: .leading)\n            .background("),
-    "agent row external spacing must not be inside the selected background"
+    agentSidebarRow.contains("rowHeight: 24") && agentSidebarRow.contains("verticalPadding: 4"),
+    "agent rows should stay at 24pt content + 4pt vertical padding = the 32pt height that matches main sidebar rows"
 )
 expectAppearsInOrder(
-    agentSidebarRow,
+    collapsibleRowContent,
     [
+        ".frame(height: rowHeight)",
         ".padding(.horizontal, 8)",
+        ".padding(.vertical, verticalPadding)",
         ".frame(maxWidth: .infinity, alignment: .leading)",
-        ".background(",
         ".contentShape(Rectangle())",
+        ".background(",
         ".onTapGesture",
-        ".onHover",
-        ".padding(.vertical, 3)"
+        ".onHover"
     ],
-    "agent row vertical spacing should sit outside the selected background so the selected row height matches main sidebar rows"
+    "collapsible agent row should size its content to rowHeight and include the vertical padding inside the selected background so the highlighted row height matches main sidebar rows"
 )
 
 print("Agent sidebar row height verification passed")

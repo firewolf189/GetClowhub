@@ -12,11 +12,13 @@ let skillsPath = root
     .appendingPathComponent("OpenClawInstaller")
     .appendingPathComponent("Views")
     .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Skills")
     .appendingPathComponent("SkillsTabView.swift")
 let pluginsPath = root
     .appendingPathComponent("OpenClawInstaller")
     .appendingPathComponent("Views")
     .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Plugins")
     .appendingPathComponent("PluginsTabView.swift")
 let marketplaceOverviewPath = root
     .appendingPathComponent("OpenClawInstaller")
@@ -72,18 +74,18 @@ require(
     "UnifiedSearchField should centralize height, rounded background, and light/dark border styling."
 )
 require(
-    skills.contains("UnifiedSearchField(placeholder: \"Search skills\", text: $searchText)") &&
+    skills.contains("UnifiedSearchField(placeholder: I18n.t(\"skills.search.placeholder\"), text: $searchText)") &&
         !skills.contains(#"TextField("Search skills", text: $searchText)"#),
     "Skills tab should use UnifiedSearchField instead of hand-written search chrome."
 )
 require(
-    plugins.contains("UnifiedSearchField(placeholder: \"Search plugins\", text: $searchText)") &&
+    plugins.contains("UnifiedSearchField(placeholder: I18n.t(\"plugins.search.placeholder\"), text: $searchText)") &&
         !plugins.contains(#"TextField("Search plugins", text: $searchText)"#),
     "Plugins tab should use UnifiedSearchField instead of hand-written search chrome."
 )
 require(
     marketplaceOverview.contains("UnifiedSearchField(") &&
-        marketplaceOverview.contains(#"String(localized: "Search agents...", bundle: languageManager.localizedBundle)"#),
+        marketplaceOverview.contains(#"placeholder: I18n.t("agents.search.placeholder")"#),
     "Marketplace overview should use UnifiedSearchField with its localized placeholder."
 )
 require(

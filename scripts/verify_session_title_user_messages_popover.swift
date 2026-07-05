@@ -40,6 +40,11 @@ let titleToolbar = slice(
     from: #".toolbar {"#,
     to: #".alert("Error""#
 )
+let titleToolbarChip = slice(
+    dashboard,
+    from: "private var sessionTitleToolbarChip: some View",
+    to: "private var currentSessionTitle: String?"
+)
 let chatView = slice(
     dashboard,
     from: "struct ChatView: View",
@@ -53,21 +58,41 @@ let chatBubble = slice(
 
 assertContains(
     titleToolbar,
+    "sessionTitleToolbarChip",
+    "conversation title toolbar item must render the shared session title chip"
+)
+assertContains(
+    titleToolbar,
+    "if #available(macOS 26.0, *)",
+    "conversation title toolbar item must branch on macOS 26 for the shared glass capsule"
+)
+assertContains(
+    titleToolbar,
+    ".sharedBackgroundVisibility(.hidden)",
+    "macOS 26 toolbar chip must hide the shared Liquid Glass capsule behind the chip"
+)
+assertContains(
+    titleToolbarChip,
     "SessionTitleUserMessagesPopover(",
     "conversation title must use the locally owned hover popover component"
 )
 assertContains(
-    titleToolbar,
+    titleToolbarChip,
     "messages: currentSessionUserMessages",
     "conversation title hover control must know whether user messages are available"
 )
 assertContains(
-    titleToolbar,
+    titleToolbarChip,
     "onTapMessage: jumpToUserMessage",
     "conversation title popover should only call back to Dashboard when a user message is selected"
 )
 assertNotContains(
     titleToolbar,
+    ".allowsHitTesting(false)",
+    "conversation title must be interactive for hover popover behavior"
+)
+assertNotContains(
+    titleToolbarChip,
     ".allowsHitTesting(false)",
     "conversation title must be interactive for hover popover behavior"
 )

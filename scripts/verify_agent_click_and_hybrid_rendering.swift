@@ -41,10 +41,10 @@ func optionalSlice(_ haystack: String, from start: String, to end: String) -> St
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
 
-let agentSectionContent = slice(
+let agentSidebarRow = slice(
     dashboard,
-    from: "private var agentSectionContent: some View",
-    to: "// MARK: - Sidebar Bottom Bar"
+    from: "private func agentSidebarRow(_ agent: AgentOption) -> some View",
+    to: "private func agentRowWithContextMenu(_ agent: AgentOption) -> some View"
 )
 let toggleAgentSelection = slice(
     dashboard,
@@ -53,7 +53,7 @@ let toggleAgentSelection = slice(
 )
 let sessionRowTap = slice(
     dashboard,
-    from: "private func sessionRows(_ agentSessions: [ChatSessionMetadata], for agent: AgentOption) -> some View",
+    from: "private func sessionRows(",
     to: ".contextMenu {"
 )
 let chatBubble = slice(
@@ -63,18 +63,18 @@ let chatBubble = slice(
 )
 
 assertContains(
-    agentSectionContent,
-    "if expandedAgentIds.contains(agent.id) {",
+    agentSidebarRow,
+    "isExpanded: expandedAgentIds.contains(agent.id)",
     "expanded agent sessions should render from expansion state alone"
 )
 assertNotContains(
-    agentSectionContent,
-    "&& viewModel.selectedAgentId == agent.id",
+    agentSidebarRow,
+    "isExpanded: expandedAgentIds.contains(agent.id) && viewModel.selectedAgentId == agent.id",
     "expanding/collapsing an agent should not require selecting that agent"
 )
 assertNotContains(
-    agentSectionContent,
-    "&& selectedTab == .chat",
+    agentSidebarRow,
+    "isExpanded: expandedAgentIds.contains(agent.id) && selectedTab == .chat",
     "expanding/collapsing an agent should not require switching to the chat tab"
 )
 assertNotContains(
@@ -120,7 +120,7 @@ assertContains(
 )
 assertContains(
     assistantRenderer,
-    "SelectableMarkdownView(content: renderModel.content)",
+    "case .webViewFallback:\n            SelectableMarkdownView(",
     "hybrid renderer should retain WKWebView for complex assistant content"
 )
 assertContains(

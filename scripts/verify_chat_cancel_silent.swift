@@ -43,7 +43,11 @@ let chatBubble = slice(
 )
 
 require(!abortBranch.contains("Task cancelled"), "aborted stream branch should not append cancellation text")
-require(abortBranch.contains("content: accumulatedText"), "aborted stream branch should keep only accumulated text")
+// Streaming progress text now lives in activity events (working header), so
+// an aborted turn keeps its transcript via activityEvents and leaves the
+// assistant body empty instead of dumping accumulated stream text into it.
+require(abortBranch.contains("content: \"\", status: .cancelled"), "aborted stream branch should mark the message cancelled without injecting body text")
+require(abortBranch.contains("activityEvents: accumulatedActivityEvents"), "aborted stream branch should preserve the accumulated activity transcript")
 require(!cancelChat.contains("Task cancelled"), "manual cancel should not append cancellation text")
 require(cancelChat.contains("content: msg.content"), "manual cancel should keep existing assistant content")
 require(!chatBubble.contains("Text(\"Cancelled\")"), "chat bubble should not render a Cancelled status label")

@@ -1,5 +1,21 @@
 import Foundation
 
+// `swift` interprets a single file, but this guard exercises real app logic.
+// Compile the app source(s) plus the embedded driver via swiftc and run it.
+
+let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+let appSources = [
+    "OpenClawInstaller/Services/PluginCatalogService.swift",
+    "OpenClawInstaller/Models/PluginCatalogItem.swift",
+    "OpenClawInstaller/Services/I18nService.swift",
+    "OpenClawInstaller/Services/LanguageManager.swift",
+    "OpenClawInstaller/Models/MarketplaceAgent.swift",
+    "OpenClawInstaller/Models/SkillCatalogItem.swift",
+]
+
+let driverSource = #"""
+import Foundation
+
 @main
 struct VerifyPluginCatalogOpenClawAdapters {
     static func main() throws {
@@ -88,3 +104,38 @@ struct VerifyPluginCatalogOpenClawAdapters {
         exit(1)
     }
 }
+
+"""#
+
+let fm = FileManager.default
+let workDir = fm.temporaryDirectory
+    .appendingPathComponent("verify_plugin_catalog_openclaw_adapters-\(UUID().uuidString)")
+try! fm.createDirectory(at: workDir, withIntermediateDirectories: true)
+let driverURL = workDir.appendingPathComponent("driver.swift")
+try! driverSource.write(to: driverURL, atomically: true, encoding: .utf8)
+let binaryURL = workDir.appendingPathComponent("verify")
+
+@discardableResult
+func run(_ arguments: [String]) -> Int32 {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = arguments
+    do { try process.run() } catch {
+        fputs("FAIL: could not launch \(arguments[0]): \(error)\n", stderr)
+        exit(1)
+    }
+    process.waitUntilExit()
+    return process.terminationStatus
+}
+
+var compileArgs = ["swiftc"]
+compileArgs += appSources.map { repoRoot.appendingPathComponent($0).path }
+compileArgs += [driverURL.path, "-o", binaryURL.path]
+if run(compileArgs) != 0 {
+    fputs("FAIL: app sources + verify_plugin_catalog_openclaw_adapters driver no longer compile\n", stderr)
+    try? fm.removeItem(at: workDir)
+    exit(1)
+}
+let status = run([binaryURL.path])
+try? fm.removeItem(at: workDir)
+exit(status)

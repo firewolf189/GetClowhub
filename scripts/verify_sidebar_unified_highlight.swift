@@ -44,7 +44,7 @@ func slice(_ haystack: String, from start: String, toAny ends: [String]) -> Stri
 let sidebarView = slice(
     dashboard,
     from: "struct SidebarView: View",
-    to: "private struct AgentListRow: View"
+    to: "struct SidebarCollapsibleRow"
 )
 
 let mainList = slice(
