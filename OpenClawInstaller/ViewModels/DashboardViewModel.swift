@@ -2658,6 +2658,21 @@ class DashboardViewModel: ObservableObject {
         isSendingMessage = hasForegroundTask(inSession: sid)
     }
 
+    /// Single-point removal of every piece of per-task tracking state.
+    /// Every task-exit path must run through this — a partial cleanup
+    /// leaves stale taskSessionMap/taskAgentMap entries that keep
+    /// isSendingMessage and hasInflightTask(inSession:) wrong until the
+    /// next app launch.
+    private func clearTaskTracking(_ msgId: UUID) {
+        activeChatRuns.removeValue(forKey: msgId)
+        taskSessionKeyOverride.removeValue(forKey: msgId)
+        foregroundTaskIds.remove(msgId)
+        backgroundTaskIds.remove(msgId)
+        taskAgentMap.removeValue(forKey: msgId)
+        taskSessionMap.removeValue(forKey: msgId)
+        recomputeIsSendingMessage()
+    }
+
     /// Cancel every task (fg + bg) currently bound to `sessionId`. Only
     /// used by `deleteSession` — deleting a session while tasks are
     /// running on it makes no sense (the destination for the output is
@@ -3085,13 +3100,7 @@ class DashboardViewModel: ObservableObject {
         let store = ImageReviewBatchStore()
 
         defer {
-            activeChatRuns.removeValue(forKey: msgId)
-            taskSessionKeyOverride.removeValue(forKey: msgId)
-            foregroundTaskIds.remove(msgId)
-            backgroundTaskIds.remove(msgId)
-            taskAgentMap.removeValue(forKey: msgId)
-            taskSessionMap.removeValue(forKey: msgId)
-            recomputeIsSendingMessage()
+            clearTaskTracking(msgId)
         }
 
         do {
@@ -3506,10 +3515,7 @@ class DashboardViewModel: ObservableObject {
                 errorMsg = generic
             }
             updateMessage(msgId: msgId, content: errorMsg, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
-            foregroundTaskIds.remove(msgId)
-            taskAgentMap.removeValue(forKey: msgId)
-            taskSessionMap.removeValue(forKey: msgId)
-            recomputeIsSendingMessage()
+            clearTaskTracking(msgId)
             return
         }
 
@@ -3567,10 +3573,7 @@ class DashboardViewModel: ObservableObject {
             let errorMsg = String(localized: "Failed to send message. Please try again.", bundle: LanguageManager.shared.localizedBundle)
             updateMessage(msgId: msgId, content: errorMsg, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
             gatewayClient.unsubscribe(subscriberId: subscriberId)
-            foregroundTaskIds.remove(msgId)
-            taskAgentMap.removeValue(forKey: msgId)
-            taskSessionMap.removeValue(forKey: msgId)
-            recomputeIsSendingMessage()
+            clearTaskTracking(msgId)
             return
         }
 
@@ -3642,12 +3645,7 @@ class DashboardViewModel: ObservableObject {
                                     self.updateMessage(msgId: msgId, content: content, status: .timedOut, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
                                 }
                             }
-                            self.activeChatRuns.removeValue(forKey: msgId)
-                            self.foregroundTaskIds.remove(msgId)
-                            self.backgroundTaskIds.remove(msgId)
-                            self.taskAgentMap.removeValue(forKey: msgId)
-                            self.taskSessionMap.removeValue(forKey: msgId)
-                            self.recomputeIsSendingMessage()
+                            self.clearTaskTracking(msgId)
                         }
                     }
                     return
@@ -3661,13 +3659,8 @@ class DashboardViewModel: ObservableObject {
             gatewayClient.unsubscribe(subscriberId: subscriberId)
             // Cleanup must happen on MainActor since these are @Published properties
             Task { @MainActor in
-                self.activeChatRuns.removeValue(forKey: msgId)
-                self.foregroundTaskIds.remove(msgId)
-                self.backgroundTaskIds.remove(msgId)
-                self.taskAgentMap.removeValue(forKey: msgId)
-                self.taskSessionMap.removeValue(forKey: msgId)
+                self.clearTaskTracking(msgId)
                 self.unregisterInFlightRun(msgId: msgId)
-                self.recomputeIsSendingMessage()
             }
         }
 
@@ -3978,12 +3971,7 @@ class DashboardViewModel: ObservableObject {
         }
 
         // 4. Cleanup tracking
-        foregroundTaskIds.remove(msgId)
-        backgroundTaskIds.remove(msgId)
-        taskAgentMap.removeValue(forKey: msgId)
-        taskSessionMap.removeValue(forKey: msgId)
-        taskSessionKeyOverride.removeValue(forKey: msgId)
-        recomputeIsSendingMessage()
+        clearTaskTracking(msgId)
     }
 
     /// Filter out system prompt lines from openclaw agent output

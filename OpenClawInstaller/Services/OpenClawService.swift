@@ -69,6 +69,19 @@ class OpenClawService: ObservableObject {
 
     private let commandExecutor: CommandExecutor
     private var statusTimer: Timer?
+
+    // Adaptive poll backoff: each status check spawns launchctl (and
+    // sometimes the openclaw CLI), so once the status has been stable for
+    // a while we stretch the effective check interval instead of probing
+    // every timer tick. Start/stop/restart reset to fast polling so
+    // transitions are still picked up promptly.
+    private var monitorStableTicks = 0
+    private var nextStatusCheckAt = Date.distantPast
+    private var lastDetailFetchAt = Date.distantPast
+    private static let fastCheckInterval: TimeInterval = 5
+    private static let idleCheckInterval: TimeInterval = 30
+    private static let stableTicksBeforeIdle = 6
+    private static let detailFetchMinInterval: TimeInterval = 60
     private var startTime: Date?
     var resolvedOpenclawPath: String?
 
@@ -95,6 +108,7 @@ class OpenClawService: ObservableObject {
     /// If already running, it does nothing (safe to call anytime).
     func start() async throws {
         status = .starting
+        resetMonitorBackoff()
         addLog("Starting OpenClaw service...")
 
         guard let openclawPath = await getOpenclawPath() else {
@@ -166,6 +180,7 @@ class OpenClawService: ObservableObject {
     /// Stop OpenClaw service
     func stop() async throws {
         status = .stopping
+        resetMonitorBackoff()
         addLog("Stopping OpenClaw service...")
 
         let cmd = await openclawCmd("gateway stop 2>&1") ?? "openclaw gateway stop 2>&1"
@@ -188,6 +203,7 @@ class OpenClawService: ObservableObject {
     /// Restart OpenClaw service
     func restart() async throws {
         status = .starting
+        resetMonitorBackoff()
         addLog("Restarting OpenClaw service...")
 
         let cmd = await openclawCmd("gateway restart 2>&1") ?? "openclaw gateway restart 2>&1"
@@ -225,12 +241,23 @@ class OpenClawService: ObservableObject {
             await checkStatus()
         }
 
-        // Set up timer for periodic checks
+        // Set up timer for periodic checks. The timer ticks at the fast
+        // interval; the backoff gate below decides whether a tick actually
+        // probes, so a stable gateway is only checked every idleCheckInterval.
         statusTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                await self?.checkStatus()
+                guard let self else { return }
+                guard Date() >= self.nextStatusCheckAt else { return }
+                await self.checkStatus()
             }
         }
+    }
+
+    /// Drop back to fast polling — called around start/stop/restart so the
+    /// status transition is observed within one fast tick.
+    private func resetMonitorBackoff() {
+        monitorStableTicks = 0
+        nextStatusCheckAt = .distantPast
     }
 
     /// Stop monitoring service status
@@ -244,6 +271,8 @@ class OpenClawService: ObservableObject {
     /// Check current service status
     /// Uses fast launchctl + lsof check first, then parses openclaw gateway status for details
     func checkStatus() async {
+        let statusBeforeCheck = status
+
         // Step 1: Fast check via launchctl (instant, no network probes)
         let launchctlOutput = await runShellQuietly(
             "launchctl list ai.openclaw.gateway 2>&1",
@@ -302,9 +331,13 @@ class OpenClawService: ObservableObject {
             await detectByPort()
         }
 
-        // Step 2: Get details (dashboard URL, port) from gateway status in background
-        // Only do this occasionally, not every 5 seconds
-        if dashboardURL == "http://127.0.0.1:18789" {
+        // Step 2: Get details (dashboard URL, port) from gateway status.
+        // The openclaw CLI is a full Node boot, so throttle this to at most
+        // once per detailFetchMinInterval — the URL-is-still-default guard
+        // alone used to re-run it on every single check.
+        if dashboardURL == "http://127.0.0.1:18789",
+           Date().timeIntervalSince(lastDetailFetchAt) >= Self.detailFetchMinInterval {
+            lastDetailFetchAt = Date()
             if let statusCmd = await openclawCmd("gateway status 2>&1") {
                 let gatewayOutput = await runShellQuietly(
                     statusCmd,
@@ -319,6 +352,18 @@ class OpenClawService: ObservableObject {
         if status != .error {
             lastError = nil
         }
+
+        // Adaptive backoff: stretch the effective check interval once the
+        // status has held steady for stableTicksBeforeIdle checks.
+        if status == statusBeforeCheck {
+            monitorStableTicks += 1
+        } else {
+            monitorStableTicks = 0
+        }
+        let effectiveInterval = monitorStableTicks >= Self.stableTicksBeforeIdle
+            ? Self.idleCheckInterval
+            : Self.fastCheckInterval
+        nextStatusCheckAt = Date().addingTimeInterval(effectiveInterval - 0.5)
     }
 
     /// Parse dashboard URL and port from gateway status output

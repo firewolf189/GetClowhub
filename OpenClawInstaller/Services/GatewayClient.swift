@@ -702,17 +702,22 @@ class GatewayClient: ObservableObject {
     /// `ConnectErrorDetailCodes` enum + `formatGatewayAuthFailureMessage` —
     /// matched loosely on detailCode keywords so we don't pin to one exact
     /// spelling that the server might rename across versions.
+    /// Every keyword the client treats as "stored device token is bad" lives
+    /// in this ONE table. When a gateway upgrade renames an error code, add
+    /// the new spelling here — do not scatter ad-hoc `contains` checks at
+    /// call sites (guarded by scripts/verify_gateway_protocol_string_tables.swift).
+    static let deviceTokenFailureSignals: [String] = [
+        "device_token", "device-token",
+        "token_revoked", "token-revoked",
+        "token_mismatch", "token-mismatch",
+        "scope_mismatch", "scope-mismatch",
+        "device_token_mismatch",
+    ]
+
     private static func isDeviceTokenAuthFailure(_ err: GatewayConnectError) -> Bool {
         let detail = (err.detailCode ?? "").lowercased()
         let msg = err.message.lowercased()
-        let tokenSignals = [
-            "device_token", "device-token",
-            "token_revoked", "token-revoked",
-            "token_mismatch", "token-mismatch",
-            "scope_mismatch", "scope-mismatch",
-            "device_token_mismatch",
-        ]
-        for s in tokenSignals {
+        for s in deviceTokenFailureSignals {
             if detail.contains(s) || msg.contains(s) { return true }
         }
         return false
@@ -824,7 +829,9 @@ class GatewayClient: ObservableObject {
             "maxProtocol": 4,                   // gateway accepts highest mutual; v4 unlocks newer event shapes
             "client": [
                 "id": clientId,
-                "version": "1.1.16",
+                // Real app version; client.version is informational only —
+                // it is NOT part of the v3 signature payload above.
+                "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0",
                 "platform": platformForAuth,
                 "mode": clientMode,
                 "instanceId": instanceId,
@@ -1046,27 +1053,38 @@ class GatewayClient: ObservableObject {
             return GatewayActivityEvent(kind: .toolFailed, detail: detail ?? toolName, dedupeKey: key)
         }
 
-        switch normalizedTool {
-        case "read", "read_file", "file_read":
-            return GatewayActivityEvent(kind: .readFiles, detail: detail, dedupeKey: key)
-        case "exec", "bash", "shell", "command", "run_command":
-            return GatewayActivityEvent(kind: .ranCommands, detail: detail, dedupeKey: key)
-        case "write", "create_file":
-            return GatewayActivityEvent(kind: .createdFiles, detail: detail, dedupeKey: key)
-        case "edit", "patch", "apply_patch", "str_replace", "replace", "write_file":
-            return GatewayActivityEvent(kind: .editedFiles, detail: detail, dedupeKey: key)
-        case "grep", "rg", "search", "glob", "find", "list", "ls", "list_dir":
-            return GatewayActivityEvent(kind: .searchedCode, detail: detail, dedupeKey: key)
-        case "agent", "agents", "subagent", "subagents", "delegate", "dispatch_agent":
-            return GatewayActivityEvent(kind: .agentUsed, detail: detail ?? toolName, dedupeKey: key)
-        case "recruit", "recruit_agent", "agent_recruit", "marketplace_agent":
-            return GatewayActivityEvent(kind: .agentRecruited, detail: detail ?? toolName, dedupeKey: key)
-        case .some:
+        guard let normalizedTool else { return nil }
+        guard let kind = Self.activityKindByToolName[normalizedTool] else {
             return GatewayActivityEvent(kind: .loadedTools, detail: toolName, dedupeKey: key)
-        case .none:
-            return nil
         }
+        let usesToolNameFallback = kind == .agentUsed || kind == .agentRecruited
+        return GatewayActivityEvent(
+            kind: kind,
+            detail: usesToolNameFallback ? (detail ?? toolName) : detail,
+            dedupeKey: key
+        )
     }
+
+    /// Every gateway tool name → activity kind mapping lives in this ONE
+    /// table. Gateway upgrades that add or rename tools should extend it
+    /// here; unknown names degrade to `.loadedTools` with the raw tool name
+    /// as detail, so drift stays visible in the activity feed instead of
+    /// disappearing (guarded by scripts/verify_gateway_protocol_string_tables.swift).
+    static let activityKindByToolName: [String: GatewayActivityEvent.Kind] = [
+        "read": .readFiles, "read_file": .readFiles, "file_read": .readFiles,
+        "exec": .ranCommands, "bash": .ranCommands, "shell": .ranCommands,
+        "command": .ranCommands, "run_command": .ranCommands,
+        "write": .createdFiles, "create_file": .createdFiles,
+        "edit": .editedFiles, "patch": .editedFiles, "apply_patch": .editedFiles,
+        "str_replace": .editedFiles, "replace": .editedFiles, "write_file": .editedFiles,
+        "grep": .searchedCode, "rg": .searchedCode, "search": .searchedCode,
+        "glob": .searchedCode, "find": .searchedCode, "list": .searchedCode,
+        "ls": .searchedCode, "list_dir": .searchedCode,
+        "agent": .agentUsed, "agents": .agentUsed, "subagent": .agentUsed,
+        "subagents": .agentUsed, "delegate": .agentUsed, "dispatch_agent": .agentUsed,
+        "recruit": .agentRecruited, "recruit_agent": .agentRecruited,
+        "agent_recruit": .agentRecruited, "marketplace_agent": .agentRecruited,
+    ]
 
     private func parseModelActivity(data: [String: Any], payload: [String: Any]) -> GatewayActivityEvent? {
         let provider = firstString(in: data, keys: ["provider"])
@@ -1106,15 +1124,18 @@ class GatewayClient: ObservableObject {
     }
 
     private func sanitizedActivityDetail(for toolName: String?, data: [String: Any]) -> String? {
+        // Resolve through the same activityKindByToolName table as the
+        // classifier so tool-name spellings live in exactly one place.
+        let kind = toolName.flatMap { Self.activityKindByToolName[$0] }
         let argumentKeys: [String]
-        switch toolName {
-        case "read", "read_file", "file_read", "write", "create_file", "edit", "patch", "apply_patch", "str_replace", "replace", "write_file":
+        switch kind {
+        case .readFiles, .createdFiles, .editedFiles:
             argumentKeys = ["path", "file", "filePath", "target", "resolvedPath"]
-        case "exec", "bash", "shell", "command", "run_command":
+        case .ranCommands:
             argumentKeys = ["command", "cmd"]
-        case "grep", "rg", "search", "glob", "find", "list", "ls", "list_dir":
+        case .searchedCode:
             argumentKeys = ["query", "pattern", "path", "cwd", "command"]
-        case "agent", "agents", "subagent", "subagents", "delegate", "dispatch_agent", "recruit", "recruit_agent", "agent_recruit", "marketplace_agent":
+        case .agentUsed, .agentRecruited:
             argumentKeys = ["agentId", "agent", "subagent", "subAgentId", "name", "role"]
         default:
             argumentKeys = ["path", "command", "query", "name", "agentId", "agent"]
