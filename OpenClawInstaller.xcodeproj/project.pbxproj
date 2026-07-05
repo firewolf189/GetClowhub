@@ -36,6 +36,8 @@
 		PL01AB01C2D3E4F5A6B70001 /* DashboardViewModel+PluginManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = PL01AB02C2D3E4F5A6B70002 /* DashboardViewModel+PluginManagement.swift */; };
 		CH01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ChannelManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = CH01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChannelManagement.swift */; };
 		CR01AB01C2D3E4F5A6B70001 /* DashboardViewModel+CronManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR01AB02C2D3E4F5A6B70002 /* DashboardViewModel+CronManagement.swift */; };
+		BG01AB01C2D3E4F5A6B70001 /* DashboardViewModel+BudgetManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = BG01AB02C2D3E4F5A6B70002 /* DashboardViewModel+BudgetManagement.swift */; };
+		MM01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ModelManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = MM01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ModelManagement.swift */; };
 		356410622F5802970045A6F7 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102D2F5802970045A6F7 /* PermissionManager.swift */; };
 		356410632F5802970045A6F7 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410412F5802970045A6F7 /* ErrorView.swift */; };
 		356410642F5802970045A6F7 /* OpenClawService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102C2F5802970045A6F7 /* OpenClawService.swift */; };
@@ -151,6 +153,8 @@
 		PL01AB02C2D3E4F5A6B70002 /* DashboardViewModel+PluginManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+PluginManagement.swift"; sourceTree = "<group>"; };
 		CH01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChannelManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+ChannelManagement.swift"; sourceTree = "<group>"; };
 		CR01AB02C2D3E4F5A6B70002 /* DashboardViewModel+CronManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+CronManagement.swift"; sourceTree = "<group>"; };
+		BG01AB02C2D3E4F5A6B70002 /* DashboardViewModel+BudgetManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+BudgetManagement.swift"; sourceTree = "<group>"; };
+		MM01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ModelManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+ModelManagement.swift"; sourceTree = "<group>"; };
 		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationViewModel.swift; sourceTree = "<group>"; };
 		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigTabView.swift; sourceTree = "<group>"; };
 		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -365,6 +369,8 @@
 				PL01AB02C2D3E4F5A6B70002 /* DashboardViewModel+PluginManagement.swift */,
 				CH01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChannelManagement.swift */,
 				CR01AB02C2D3E4F5A6B70002 /* DashboardViewModel+CronManagement.swift */,
+				BG01AB02C2D3E4F5A6B70002 /* DashboardViewModel+BudgetManagement.swift */,
+				MM01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ModelManagement.swift */,
 				D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */,
 				356410312F5802970045A6F7 /* InstallationViewModel.swift */,
 			);
@@ -711,6 +717,8 @@
 				PL01AB01C2D3E4F5A6B70001 /* DashboardViewModel+PluginManagement.swift in Sources */,
 				CH01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ChannelManagement.swift in Sources */,
 				CR01AB01C2D3E4F5A6B70001 /* DashboardViewModel+CronManagement.swift in Sources */,
+				BG01AB01C2D3E4F5A6B70001 /* DashboardViewModel+BudgetManagement.swift in Sources */,
+				MM01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ModelManagement.swift in Sources */,
 				356410622F5802970045A6F7 /* PermissionManager.swift in Sources */,
 				356410632F5802970045A6F7 /* ErrorView.swift in Sources */,
 				AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */,
