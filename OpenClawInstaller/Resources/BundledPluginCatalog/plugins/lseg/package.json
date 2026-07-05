@@ -1,0 +1,12 @@
+{
+  "name": "lseg",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Financial market data, company intelligence, and news",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

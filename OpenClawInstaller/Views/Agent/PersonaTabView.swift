@@ -220,7 +220,7 @@ private struct PersonaFilePanel: View {
 
                 HStack(spacing: 8) {
                     if isDirty {
-                        Button("Save") { onSave() }
+                        Button(I18n.t("common.action.save")) { onSave() }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
                     }
@@ -228,7 +228,7 @@ private struct PersonaFilePanel: View {
                     Button(action: {
                         withAnimation { isEditing.toggle() }
                     }) {
-                        Label(isEditing ? "Preview" : "Edit",
+                        Label(isEditing ? I18n.t("common.action.preview") : I18n.t("common.action.edit"),
                               systemImage: isEditing ? "eye" : "pencil")
                     }
                     .buttonStyle(.bordered)
@@ -355,7 +355,7 @@ struct MarkdownFileEditor: View {
                     if isExpanded {
                         HStack(spacing: 8) {
                             if isDirty {
-                                Button("Save") {
+                                Button(I18n.t("common.action.save")) {
                                     onSave()
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -365,7 +365,7 @@ struct MarkdownFileEditor: View {
                             Button(action: {
                                 withAnimation { isEditing.toggle() }
                             }) {
-                                Label(isEditing ? "Preview" : "Edit",
+                                Label(isEditing ? I18n.t("common.action.preview") : I18n.t("common.action.edit"),
                                       systemImage: isEditing ? "eye" : "pencil")
                             }
                             .buttonStyle(.bordered)
@@ -422,7 +422,7 @@ struct MarkdownRendererView: View {
 
     private func parseLines() -> [AnyView] {
         guard !markdown.isEmpty else {
-            return [AnyView(Text("(empty)").foregroundColor(.secondary).italic())]
+            return [AnyView(Text(I18n.t("common.empty.parenthesized")).foregroundColor(.secondary).italic())]
         }
 
         var views: [AnyView] = []

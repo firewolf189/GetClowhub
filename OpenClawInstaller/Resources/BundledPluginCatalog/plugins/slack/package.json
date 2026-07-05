@@ -1,0 +1,12 @@
+{
+  "name": "slack",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Read and manage Slack",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

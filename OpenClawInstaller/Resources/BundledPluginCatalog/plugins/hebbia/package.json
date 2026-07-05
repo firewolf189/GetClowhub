@@ -1,0 +1,12 @@
+{
+  "name": "hebbia",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Document research, evidence-backed answers, and project analysis",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

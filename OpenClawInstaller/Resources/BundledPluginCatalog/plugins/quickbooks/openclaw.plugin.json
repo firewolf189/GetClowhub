@@ -1,0 +1,20 @@
+{
+  "id": "quickbooks",
+  "name": "QuickBooks",
+  "displayName": "QuickBooks",
+  "description": "QuickBooks accounting, invoices, expenses, customers, and payment context",
+  "longDescription": "QuickBooks accounting, invoices, expenses, customers, and payment context",
+  "version": "1.0.3",
+  "developerName": "QuickBooks",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://quickbooks.intuit.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

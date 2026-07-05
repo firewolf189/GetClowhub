@@ -1,0 +1,12 @@
+{
+  "name": "neon-postgres",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Manage Neon Serverless Postgres projects and databases",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

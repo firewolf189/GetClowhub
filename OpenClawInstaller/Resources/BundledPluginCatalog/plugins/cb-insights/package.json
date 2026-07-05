@@ -1,0 +1,12 @@
+{
+  "name": "cb-insights",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Unleash OpenClaw as your private markets research agent.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

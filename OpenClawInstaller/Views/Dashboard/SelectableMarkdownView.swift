@@ -155,6 +155,8 @@ private class ScrollThroughWebView: WKWebView {
     var copyFallbackText: String = ""
     private var resizeWorkItem: DispatchWorkItem?
 
+    override var acceptsFirstResponder: Bool { true }
+
     override func scrollWheel(with event: NSEvent) {
         nextResponder?.scrollWheel(with: event)
     }
@@ -173,6 +175,21 @@ private class ScrollThroughWebView: WKWebView {
         }
     }
 
+    override func mouseDown(with event: NSEvent) {
+        markActiveForCopy()
+        super.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        markActiveForCopy()
+        super.mouseDragged(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        markActiveForCopy()
+        super.mouseUp(with: event)
+    }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let isCommandC = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command)
             && event.charactersIgnoringModifiers?.lowercased() == "c"
@@ -180,16 +197,75 @@ private class ScrollThroughWebView: WKWebView {
             return super.performKeyEquivalent(with: event)
         }
 
+        copySelectionOrFallback(allowFallback: true)
+        return true
+    }
+
+    func copySelectionOrFallback(allowFallback: Bool, completion: ((Bool) -> Void)? = nil) {
         evaluateJavaScript("window.getSelection().toString()") { [weak self] result, _ in
             guard let self else { return }
             let selected = (result as? String) ?? ""
-            let textToCopy = selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? self.copyFallbackText
-                : selected
+            let textToCopy: String
+            if selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                textToCopy = allowFallback ? copyFallbackText : ""
+            } else {
+                textToCopy = selected
+            }
+
+            guard !textToCopy.isEmpty else {
+                completion?(false)
+                return
+            }
 
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(textToCopy, forType: .string)
+            self.clearSelectionAfterCopy()
+            completion?(true)
         }
+    }
+
+    func prepareForReuseOrDismantle() {
+        resizeWorkItem?.cancel()
+        resizeWorkItem = nil
+        onResize = nil
+        copyFallbackText = ""
+        stopLoading()
+        navigationDelegate = nil
+        if window?.firstResponder === self {
+            window?.makeFirstResponder(nil)
+        }
+    }
+
+    private func markActiveForCopy() {
+        WebViewMarkdownSelectionRegistry.markActive(self)
+        window?.makeFirstResponder(self)
+    }
+
+    private func clearSelectionAfterCopy() {
+        evaluateJavaScript("window.getSelection().removeAllRanges()")
+        if window?.firstResponder === self {
+            window?.makeFirstResponder(nil)
+        }
+    }
+}
+
+enum WebViewMarkdownSelectionRegistry {
+    private static weak var activeWebView: ScrollThroughWebView?
+
+    fileprivate static func markActive(_ webView: ScrollThroughWebView) {
+        activeWebView = webView
+    }
+
+    fileprivate static func clearIfActive(_ webView: ScrollThroughWebView) {
+        if activeWebView === webView {
+            activeWebView = nil
+        }
+    }
+
+    static func copyActiveSelection() -> Bool {
+        guard let activeWebView,
+              NSApp.keyWindow?.firstResponder === activeWebView else { return false }
+        activeWebView.copySelectionOrFallback(allowFallback: false)
         return true
     }
 }
@@ -252,6 +328,13 @@ private struct _MarkdownWebView: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+        if let webView = nsView as? ScrollThroughWebView {
+            WebViewMarkdownSelectionRegistry.clearIfActive(webView)
+            webView.prepareForReuseOrDismantle()
+        } else {
+            nsView.stopLoading()
+            nsView.navigationDelegate = nil
+        }
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {

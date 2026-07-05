@@ -1,0 +1,30 @@
+{
+  "id": "hugging-face",
+  "name": "Hugging Face",
+  "displayName": "Hugging Face",
+  "description": "Inspect models, datasets, Spaces, and research",
+  "longDescription": "Connect to the Hugging Face Hub to explore Models and Datasets, access SDK Documentation and more. Manage Machine Learning Jobs and connect to thousands of AI applications via Spaces.",
+  "version": "1.0.3",
+  "developerName": "Hugging Face",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "hugging-face",
+    "models",
+    "datasets",
+    "spaces",
+    "machine-learning"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://huggingface.co",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "google-calendar",
+  "name": "Google Calendar",
+  "displayName": "Google Calendar",
+  "description": "OpenClaw adapter for Google Calendar scheduling and event-management workflows.",
+  "longDescription": "Use Google Calendar to summarize a day, check availability, list calendars, and create, update, or delete events directly from task prompts.",
+  "version": "1.2.3",
+  "developerName": "OpenAI",
+  "category": "Productivity",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "google-calendar",
+    "calendar",
+    "agenda",
+    "daily-brief",
+    "scheduling",
+    "productivity"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://workspace.google.com/products/calendar/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "authMode": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "oauth"
+        ],
+        "default": "manual"
+      }
+    }
+  }
+}

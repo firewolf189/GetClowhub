@@ -1,0 +1,12 @@
+{
+  "name": "github",
+  "version": "0.1.5",
+  "type": "module",
+  "private": true,
+  "description": "Triage PRs, issues, CI, and publish flows",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

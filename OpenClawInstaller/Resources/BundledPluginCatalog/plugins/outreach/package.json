@@ -1,0 +1,12 @@
+{
+  "name": "outreach",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Sales engagement, prospects, sequences, and deal activity context",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

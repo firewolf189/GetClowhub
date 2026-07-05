@@ -1,0 +1,37 @@
+{
+  "id": "nvidia",
+  "name": "NVIDIA",
+  "displayName": "NVIDIA",
+  "description": "Guided help for NVIDIA AI, GPU, robotics, simulation, and 3D workflows.",
+  "longDescription": "NVIDIAs ecosystem spans GPU acceleration, CUDA, AI agents, inference, robotics, Physical AI, Omniverse, and simulation. This plugin helps you understand the pieces, choose a path, validate your setup, and build practical NVIDIA-powered workflows.",
+  "version": "1.0.2",
+  "developerName": "NVIDIA",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "nvidia",
+    "gpu",
+    "cuda",
+    "ai-agents",
+    "inference",
+    "llm-serving",
+    "robotics",
+    "simulation",
+    "omniverse",
+    "openusd",
+    "digital-twin",
+    "physical-ai",
+    "cad"
+  ],
+  "icon": "./assets/nvidia.png",
+  "homepageURL": "https://www.nvidia.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

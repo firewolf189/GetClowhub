@@ -1,0 +1,20 @@
+{
+  "id": "fal",
+  "name": "Fal",
+  "displayName": "Fal",
+  "description": "AI image and media generation workflows using Fal models",
+  "longDescription": "AI image and media generation workflows using Fal models",
+  "version": "1.0.3",
+  "developerName": "Fal",
+  "category": "Creativity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://fal.ai",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

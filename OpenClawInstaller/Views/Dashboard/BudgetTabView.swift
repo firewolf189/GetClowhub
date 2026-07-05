@@ -50,7 +50,7 @@ struct BudgetOverviewSection: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
-                .help(String(localized: "Refresh", bundle: LanguageManager.shared.localizedBundle))
+                .unifiedTooltip(UnifiedTooltipContent(title: String(localized: "Refresh", bundle: LanguageManager.shared.localizedBundle)))
             }
 
             if viewModel.isLoadingBudgets {
@@ -363,7 +363,7 @@ struct AgentBudgetRow: View {
                     .foregroundColor(.blue)
             }
             .buttonStyle(.plain)
-            .help(String(localized: "Reset agent session", bundle: LanguageManager.shared.localizedBundle))
+            .unifiedTooltip(UnifiedTooltipContent(title: String(localized: "Reset agent session", bundle: LanguageManager.shared.localizedBundle)))
             .frame(width: 50)
             .onHover { hovering in
                 isHovering = hovering
@@ -541,21 +541,21 @@ struct BudgetRuleRow: View {
                     .foregroundColor(rule.enabled ? .orange : .green)
             }
             .buttonStyle(.plain)
-            .help(rule.enabled ? String(localized: "Disable", bundle: LanguageManager.shared.localizedBundle) : String(localized: "Enable", bundle: LanguageManager.shared.localizedBundle))
+            .unifiedTooltip(UnifiedTooltipContent(title: rule.enabled ? String(localized: "Disable", bundle: LanguageManager.shared.localizedBundle) : String(localized: "Enable", bundle: LanguageManager.shared.localizedBundle)))
 
             Button(action: onEdit) {
                 Image(systemName: "pencil.circle")
                     .foregroundColor(.blue)
             }
             .buttonStyle(.plain)
-            .help(String(localized: "Edit", bundle: LanguageManager.shared.localizedBundle))
+            .unifiedTooltip(UnifiedTooltipContent(title: String(localized: "Edit", bundle: LanguageManager.shared.localizedBundle)))
 
             Button(action: onDelete) {
                 Image(systemName: "trash.circle")
                     .foregroundColor(.red)
             }
             .buttonStyle(.plain)
-            .help(String(localized: "Delete", bundle: LanguageManager.shared.localizedBundle))
+            .unifiedTooltip(UnifiedTooltipContent(title: String(localized: "Delete", bundle: LanguageManager.shared.localizedBundle)))
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)

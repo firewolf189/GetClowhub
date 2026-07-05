@@ -1,0 +1,12 @@
+{
+  "name": "openclaw-security",
+  "version": "0.1.9",
+  "type": "module",
+  "private": true,
+  "description": "Security scanning for your codebase",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

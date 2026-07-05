@@ -1,0 +1,12 @@
+{
+  "name": "circleback",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Circleback helps teams get the most out of every conversation with AI-powered meeting notes, action items,...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

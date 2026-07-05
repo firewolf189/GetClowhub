@@ -1,0 +1,53 @@
+{
+  "id": "airtable",
+  "name": "Airtable",
+  "displayName": "Airtable",
+  "description": "Database and operations layer for your agents.",
+  "longDescription": "Airtable is the database and operations layer for your agents — whether running product, marketing, sales, ops, HR, or a custom business app. It combines structured data with multiplayer visual surfaces (grid, kanban, calendar, gallery, timeline) humans and agents share — plus sync integrations to Jira, Salesforce, Zendesk, Google Drive, Databricks, and the rest of your stack, all backed by enterprise governance. This plugin makes OpenClaw fluent in your Airtable bases: creating bases and schema, working with records, and sharing UI for collaboration. Uses the Airtable app connector.",
+  "version": "0.1.3",
+  "developerName": "Airtable",
+  "category": "Productivity",
+  "capabilities": [
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "airtable",
+    "database",
+    "relational-database",
+    "application-database",
+    "data-store",
+    "persistence",
+    "crud",
+    "product",
+    "product-ops",
+    "crm",
+    "sales",
+    "marketing",
+    "operations",
+    "hr",
+    "hiring",
+    "project-management",
+    "roadmap",
+    "customer-success",
+    "nocode",
+    "low-code",
+    "spreadsheet",
+    "collaboration",
+    "real-time",
+    "governance",
+    "workflow",
+    "automation",
+    "internal-tools",
+    "mcp",
+    "content"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.airtable.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

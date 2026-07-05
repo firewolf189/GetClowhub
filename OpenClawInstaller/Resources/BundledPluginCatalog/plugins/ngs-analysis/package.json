@@ -1,0 +1,12 @@
+{
+  "name": "ngs-analysis",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Guided NGS routing and local execution for sequencing analysis",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

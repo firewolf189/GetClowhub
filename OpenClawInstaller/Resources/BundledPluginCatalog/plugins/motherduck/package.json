@@ -1,0 +1,12 @@
+{
+  "name": "motherduck",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Connect AI assistants to your MotherDuck data warehouse.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

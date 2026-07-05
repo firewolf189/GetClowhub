@@ -1,0 +1,12 @@
+{
+  "name": "catalyst-by-zoho",
+  "version": "1.0.1",
+  "type": "module",
+  "private": true,
+  "description": "Use Catalyst by Zoho capabilities in OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

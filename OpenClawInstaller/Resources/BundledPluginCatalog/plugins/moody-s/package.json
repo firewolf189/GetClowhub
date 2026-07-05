@@ -1,0 +1,12 @@
+{
+  "name": "moody-s",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Credit ratings, research, entity intelligence, ownership, financials, and filings.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

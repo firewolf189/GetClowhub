@@ -1,0 +1,38 @@
+{
+  "id": "vercel",
+  "name": "Vercel",
+  "displayName": "Vercel",
+  "description": "Build and deploy web apps and agents",
+  "longDescription": "Bring Vercel ecosystem guidance into OpenClaw with curated skills and the connected Vercel app. Packages the upstream vercel/vercel-plugin skills, agents, and commands under the local `vercel` plugin identity for the OpenClaw plugin marketplace.",
+  "version": "0.21.3",
+  "developerName": "Vercel Labs",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "vercel",
+    "nextjs",
+    "ai-sdk",
+    "turborepo",
+    "turbopack",
+    "workflow",
+    "deployment",
+    "edge-functions",
+    "serverless",
+    "ai-gateway",
+    "chat-sdk",
+    "chat-bot",
+    "slack-bot",
+    "discord-bot"
+  ],
+  "icon": "./assets/logo-padded.png",
+  "homepageURL": "https://vercel.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

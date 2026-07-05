@@ -1,0 +1,19 @@
+{
+  "id": "amplitude",
+  "name": "Amplitude",
+  "displayName": "Amplitude",
+  "description": "Product analytics and funnels",
+  "longDescription": "Product analytics and funnels",
+  "version": "1.0.2",
+  "developerName": "Amplitude",
+  "category": "Data & Analytics",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

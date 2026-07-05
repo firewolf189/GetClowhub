@@ -1,0 +1,30 @@
+{
+  "id": "superhuman",
+  "name": "Superhuman Mail",
+  "displayName": "Superhuman Mail",
+  "description": "The most productive email app ever, for Gmail & Outlook",
+  "longDescription": "Build powerful workflows and automations for email and calendar. Find anything in your inbox, draft replies that sound like you for every recipient, check read statuses, schedule meetings, and send — all without leaving OpenClaw.",
+  "version": "0.1.2",
+  "developerName": "Superhuman",
+  "category": "Communication",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "superhuman",
+    "mail",
+    "email",
+    "calendar",
+    "mcp"
+  ],
+  "icon": "./assets/superhuman-mail.svg",
+  "homepageURL": "https://superhuman.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

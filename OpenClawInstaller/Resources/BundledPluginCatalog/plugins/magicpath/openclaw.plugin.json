@@ -1,0 +1,31 @@
+{
+  "id": "magicpath",
+  "name": "MagicPath",
+  "displayName": "MagicPath",
+  "description": "Find, install, and author MagicPath UI components from OpenClaw",
+  "longDescription": "Use MagicPath through the magicpath-ai CLI to search UI components, inspect source, install React and TypeScript components into applications, work with team projects and themes, and create or edit canvas components from local code.",
+  "version": "0.1.1",
+  "developerName": "MagicPathAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "magicpath",
+    "openclaw",
+    "ui-components",
+    "design",
+    "react",
+    "tailwind"
+  ],
+  "icon": "./assets/magicpath.png",
+  "homepageURL": "https://www.magicpath.ai/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

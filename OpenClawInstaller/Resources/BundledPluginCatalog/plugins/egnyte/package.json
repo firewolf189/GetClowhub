@@ -1,0 +1,12 @@
+{
+  "name": "egnyte",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Work with documents and files stored in Egnyte directly from OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

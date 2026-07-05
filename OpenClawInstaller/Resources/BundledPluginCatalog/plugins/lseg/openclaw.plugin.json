@@ -1,0 +1,20 @@
+{
+  "id": "lseg",
+  "name": "LSEG",
+  "displayName": "LSEG",
+  "description": "Financial market data, company intelligence, and news",
+  "longDescription": "Financial market data, company intelligence, and news",
+  "version": "1.0.2",
+  "developerName": "LSEG",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.lseg.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

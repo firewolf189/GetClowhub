@@ -1,0 +1,20 @@
+{
+  "id": "picsart",
+  "name": "Picsart",
+  "displayName": "Picsart",
+  "description": "Image editing, creative assets, and design workflows from Picsart",
+  "longDescription": "Image editing, creative assets, and design workflows from Picsart",
+  "version": "1.0.3",
+  "developerName": "Picsart",
+  "category": "Creativity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://picsart.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

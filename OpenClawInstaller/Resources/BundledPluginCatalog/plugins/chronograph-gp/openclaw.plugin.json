@@ -1,0 +1,20 @@
+{
+  "id": "chronograph-gp",
+  "name": "Chronograph GP",
+  "displayName": "Chronograph GP",
+  "description": "Trusted portfolio data for private capital GP teams",
+  "longDescription": "Chronograph GP provides portfolio monitoring, valuations, and analytics for private capital General Partner users. Query trusted portfolio data, analyze investments, surface company-level metrics, and access private markets portfolio data using natural language.",
+  "version": "1.0.0",
+  "developerName": "Chronograph",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.chronograph.pe/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "zoho",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "CRM records, deals, contacts, and account context from Zoho",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

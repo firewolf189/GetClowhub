@@ -1,0 +1,20 @@
+{
+  "id": "intercom",
+  "name": "Intercom",
+  "displayName": "Intercom",
+  "description": "Customer conversations, contacts, tickets, and support workflows from Intercom",
+  "longDescription": "Customer conversations, contacts, tickets, and support workflows from Intercom",
+  "version": "1.0.3",
+  "developerName": "Intercom",
+  "category": "Business & Operations",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.intercom.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

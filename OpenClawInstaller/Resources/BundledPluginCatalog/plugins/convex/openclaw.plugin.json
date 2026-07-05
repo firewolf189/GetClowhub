@@ -1,0 +1,52 @@
+{
+  "id": "convex",
+  "name": "Convex",
+  "displayName": "Convex",
+  "description": "Add a backend to JS/TS apps.",
+  "longDescription": "Use the reviewed Convex ChatGPT app from OpenClaw whenever a project needs a backend: database schema, reactive queries, mutations, server functions, auth-aware data access, real-time features, file storage, scheduled jobs, mobile/web app backends, or production scaling guidance. Convex helps coding agents choose backend primitives that are type-safe, reactive, and suitable for full-stack JavaScript and TypeScript apps.",
+  "version": "0.1.2",
+  "developerName": "Convex, Inc.",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Backend setup",
+    "Database schema",
+    "Reactive queries",
+    "Server functions",
+    "Auth-aware data access",
+    "Realtime apps",
+    "Scheduled jobs",
+    "File storage",
+    "Mobile backends",
+    "Scaling guidance"
+  ],
+  "keywords": [
+    "convex",
+    "backend",
+    "database",
+    "realtime",
+    "reactive",
+    "websocket",
+    "auth",
+    "storage",
+    "scheduler",
+    "cron",
+    "server functions",
+    "crud",
+    "full-stack",
+    "typescript",
+    "javascript",
+    "react",
+    "nextjs",
+    "expo",
+    "mobile",
+    "mcp"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://chatgpt.com/apps/convex/asdk_app_6a0faef988b48191b843bac5cd170a9e",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

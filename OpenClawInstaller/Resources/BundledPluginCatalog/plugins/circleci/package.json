@@ -1,0 +1,12 @@
+{
+  "name": "circleci",
+  "version": "1.0.4",
+  "type": "module",
+  "private": true,
+  "description": "Build, test, and deploy any application",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

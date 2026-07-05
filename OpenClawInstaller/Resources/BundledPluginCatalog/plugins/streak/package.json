@@ -1,0 +1,12 @@
+{
+  "name": "streak",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Streak is a CRM built directly into Gmail, so you can track deals, contacts, and workflows from your inbox.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

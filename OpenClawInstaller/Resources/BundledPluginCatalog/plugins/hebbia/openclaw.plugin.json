@@ -1,0 +1,20 @@
+{
+  "id": "hebbia",
+  "name": "Hebbia",
+  "displayName": "Hebbia",
+  "description": "Document research, evidence-backed answers, and project analysis",
+  "longDescription": "Document research, evidence-backed answers, and project analysis from Hebbia",
+  "version": "1.0.3",
+  "developerName": "Hebbia",
+  "category": "Business & Operations",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.hebbia.ai",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "netlify",
+  "name": "Netlify",
+  "displayName": "Netlify",
+  "description": "Deploy projects and manage releases",
+  "longDescription": "Use Netlify to inspect deployment state, manage sites, and pair the Netlify app with the curated deployment skill for preview and production workflows.",
+  "version": "1.1.2",
+  "developerName": "Netlify",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "netlify",
+    "deployment",
+    "hosting",
+    "preview",
+    "static-sites"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.netlify.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

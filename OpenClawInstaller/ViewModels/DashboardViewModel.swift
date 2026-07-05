@@ -10,6 +10,9 @@ private let sessionSwitchPerfLog = Logger(subsystem: "com.openclaw.installer", c
 
 @MainActor
 class DashboardViewModel: ObservableObject {
+    let chatState = ChatRuntimeState()
+    let taskState = TaskActivityState()
+    let sessionState = SessionNavigationState()
     @Published var openclawService: OpenClawService
     @Published var settings: AppSettingsManager
     @Published var systemEnvironment: SystemEnvironment
@@ -203,7 +206,7 @@ class DashboardViewModel: ObservableObject {
         // 3. Watch chatMessagesByAgent and persist the in-memory view back to
         //    the active session on disk — debounced so a streamed assistant
         //    reply collapses into one disk write.
-        $chatMessagesByAgent
+        chatState.$chatMessagesByAgent
             .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
             .sink { [weak self] dict in
                 self?.persistChangedSessions(from: dict)
@@ -231,7 +234,7 @@ class DashboardViewModel: ObservableObject {
         //    `createNewSession` / `promoteNextSession` (since those mutate
         //    `selectedSessionIdByAgent` dict in-place — SwiftUI doesn't
         //    publish per-key dict mutations reliably).
-        Publishers.CombineLatest($selectedAgentId, $foregroundTaskIds)
+        Publishers.CombineLatest(sessionState.$selectedAgentId, taskState.$foregroundTaskIds)
             .receive(on: RunLoop.main)
             .sink { [weak self] agentId, _ in
                 guard let self = self else { return }
@@ -243,7 +246,7 @@ class DashboardViewModel: ObservableObject {
         //    streaming). Same debounce window as the active sink so
         //    streaming completions in a hidden session still hit disk —
         //    otherwise the user sees the old state until next switch.
-        $chatMessagesByInactiveSession
+        chatState.$chatMessagesByInactiveSession
             .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
             .sink { [weak self] dict in
                 self?.persistInactiveSessions(from: dict)
@@ -259,7 +262,7 @@ class DashboardViewModel: ObservableObject {
         //      - stream callback delivery delayed when receiving deltas
         //    Energy cost is the trade-off — only held while tasks are
         //    actually running, released the moment all tasks finish.
-        Publishers.CombineLatest($foregroundTaskIds, $backgroundTaskIds)
+        Publishers.CombineLatest(taskState.$foregroundTaskIds, taskState.$backgroundTaskIds)
             .map { !$0.isEmpty || !$1.isEmpty }
             .removeDuplicates()
             .receive(on: RunLoop.main)
@@ -861,9 +864,9 @@ class DashboardViewModel: ObservableObject {
 
         do {
             try await openclawService.start()
-            showSuccessMessage("Service started successfully")
+            showSuccessMessage(I18n.t("dashboard.service.toast.started"))
         } catch {
-            showErrorMessage("Failed to start service: \(error.localizedDescription)")
+            showErrorMessage(I18n.format("dashboard.service.toast.startFailed", error.localizedDescription))
         }
 
         isPerformingAction = false
@@ -874,9 +877,9 @@ class DashboardViewModel: ObservableObject {
 
         do {
             try await openclawService.stop()
-            showSuccessMessage("Service stopped successfully")
+            showSuccessMessage(I18n.t("dashboard.service.toast.stopped"))
         } catch {
-            showErrorMessage("Failed to stop service: \(error.localizedDescription)")
+            showErrorMessage(I18n.format("dashboard.service.toast.stopFailed", error.localizedDescription))
         }
 
         isPerformingAction = false
@@ -887,9 +890,9 @@ class DashboardViewModel: ObservableObject {
 
         do {
             try await openclawService.restart()
-            showSuccessMessage("Service restarted successfully")
+            showSuccessMessage(I18n.t("dashboard.service.toast.restarted"))
         } catch {
-            showErrorMessage("Failed to restart service: \(error.localizedDescription)")
+            showErrorMessage(I18n.format("dashboard.service.toast.restartFailed", error.localizedDescription))
         }
 
         isPerformingAction = false
@@ -935,7 +938,7 @@ class DashboardViewModel: ObservableObject {
 
         // Validate port
         guard let port = Int(editedPort), port > 0, port < 65536 else {
-            showErrorMessage("Invalid port number. Must be between 1 and 65535")
+            showErrorMessage(I18n.t("dashboard.config.error.invalidPort"))
             isPerformingAction = false
             return
         }
@@ -977,9 +980,9 @@ class DashboardViewModel: ObservableObject {
             loadAvailableAgents()
             await loadModels()
             await loadModelsForSettings()
-            showSuccessMessage("Configuration saved to openclaw.json")
+            showSuccessMessage(I18n.t("dashboard.config.toast.saved"))
         } else {
-            showErrorMessage("Failed to save configuration file")
+            showErrorMessage(I18n.t("dashboard.config.error.saveFailed"))
         }
 
         isPerformingAction = false
@@ -1099,7 +1102,7 @@ class DashboardViewModel: ObservableObject {
 
     func clearLogs() {
         openclawService.clearLogs()
-        showSuccessMessage("Logs cleared")
+        showSuccessMessage(I18n.t("dashboard.logs.toast.cleared"))
     }
 
     func exportLogs() -> String {
@@ -1205,43 +1208,16 @@ class DashboardViewModel: ObservableObject {
 
     private var hasLoadedSkillCatalog = false
 
-    private static var trustedSkillsMarkerPath: String {
-        NSString("~/.openclaw/getclawhub-trusted-skills.json").expandingTildeInPath
-    }
-
     static func loadTrustedSkillNames() -> Set<String> {
-        guard let data = FileManager.default.contents(atPath: trustedSkillsMarkerPath),
-              let names = try? JSONDecoder().decode([String].self, from: data) else {
-            return []
-        }
-        return Set(names)
+        SkillTrustStore.load()
     }
 
     static func markTrustedSkill(_ skillName: String) {
-        let trimmed = skillName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        var names = loadTrustedSkillNames()
-        names.insert(trimmed)
-        writeTrustedSkillNames(names)
+        SkillTrustStore.mark(skillName)
     }
 
     static func unmarkTrustedSkill(_ skillName: String) {
-        var names = loadTrustedSkillNames()
-        names.remove(skillName)
-        writeTrustedSkillNames(names)
-    }
-
-    private static func writeTrustedSkillNames(_ names: Set<String>) {
-        let url = URL(fileURLWithPath: trustedSkillsMarkerPath)
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        if let data = try? JSONEncoder().encode(sorted) {
-            try? data.write(to: url, options: .atomic)
-        }
+        SkillTrustStore.unmark(skillName)
     }
 
     /// Load skills list by running `openclaw skills list`
@@ -1287,7 +1263,8 @@ class DashboardViewModel: ObservableObject {
         skillCatalogError = nil
 
         let cacheGitURL = SkillCatalogService.defaultCacheURL.appendingPathComponent(".git")
-        let shouldSync = forceSync || !FileManager.default.fileExists(atPath: cacheGitURL.path)
+        let didSeedBundledCatalog = !forceSync && SkillCatalogService.seedBundledCatalogIfNeeded()
+        let shouldSync = forceSync || (!didSeedBundledCatalog && !FileManager.default.fileExists(atPath: cacheGitURL.path))
         let syncOutput: String?
         if shouldSync {
             syncOutput = await openclawService.runCommand(
@@ -1596,11 +1573,14 @@ class DashboardViewModel: ObservableObject {
 
     // MARK: - Chat
 
-    @Published var chatMessagesByAgent: [String: [ChatMessage]] = [:]
+    var chatMessagesByAgent: [String: [ChatMessage]] {
+        get { chatState.chatMessagesByAgent }
+        set { chatState.chatMessagesByAgent = newValue }
+    }
     /// Computed view into the currently selected agent's messages.
     var chatMessages: [ChatMessage] {
-        get { chatMessagesByAgent[selectedAgentId] ?? [] }
-        set { chatMessagesByAgent[selectedAgentId] = newValue }
+        get { chatState.chatMessages(for: selectedAgentId) }
+        set { chatState.setChatMessages(newValue, for: selectedAgentId) }
     }
 
     // MARK: - Chat Session Persistence
@@ -1615,17 +1595,38 @@ class DashboardViewModel: ObservableObject {
     let chatSessionStore = ChatSessionStore()
     /// Per-agent metadata of every session, sorted newest-first.
     /// Filtered to exclude archived sessions; archived ones live in the store.
-    @Published var sessionsByAgent: [String: [ChatSessionMetadata]] = [:]
+    var sessionsByAgent: [String: [ChatSessionMetadata]] {
+        get { sessionState.sessionsByAgent }
+        set { sessionState.sessionsByAgent = newValue }
+    }
     /// Global derived list for pinned sessions. The sessions still retain their
     /// original agent/project ownership; this is only a sidebar presentation.
-    @Published var pinnedSessions: [ChatSessionMetadata] = []
-    @Published var projectBindingsByAgent: [String: [AgentProjectBinding]] = [:]
-    @Published var projectSessionsByAgent: [String: [ProjectSessionGroup]] = [:]
-    @Published var generalSessionsByAgent: [String: [ChatSessionMetadata]] = [:]
-    @Published var projectsById: [String: ProjectRecord] = [:]
+    var pinnedSessions: [ChatSessionMetadata] {
+        get { sessionState.pinnedSessions }
+        set { sessionState.pinnedSessions = newValue }
+    }
+    var projectBindingsByAgent: [String: [AgentProjectBinding]] {
+        get { sessionState.projectBindingsByAgent }
+        set { sessionState.projectBindingsByAgent = newValue }
+    }
+    var projectSessionsByAgent: [String: [ProjectSessionGroup]] {
+        get { sessionState.projectSessionsByAgent }
+        set { sessionState.projectSessionsByAgent = newValue }
+    }
+    var generalSessionsByAgent: [String: [ChatSessionMetadata]] {
+        get { sessionState.generalSessionsByAgent }
+        set { sessionState.generalSessionsByAgent = newValue }
+    }
+    var projectsById: [String: ProjectRecord] {
+        get { sessionState.projectsById }
+        set { sessionState.projectsById = newValue }
+    }
     /// The currently visible session for each agent. Switching this swaps
     /// chatMessagesByAgent[agentId] to the loaded session's messages.
-    @Published var selectedSessionIdByAgent: [String: UUID] = [:]
+    var selectedSessionIdByAgent: [String: UUID] {
+        get { sessionState.selectedSessionIdByAgent }
+        set { sessionState.selectedSessionIdByAgent = newValue }
+    }
     private var activeProjectIdByAgent: [String: String?] = [:]
     /// Empty sessions created by the sidebar plus button before the user sends
     /// a first message. They should be visible/clickable in the sidebar, but
@@ -2582,16 +2583,31 @@ class DashboardViewModel: ObservableObject {
     /// session. Was previously "true if ANY foreground task exists across
     /// agents/sessions", which locked the input in a session that didn't
     /// actually have a task running.
-    @Published var isSendingMessage = false
-    @Published var foregroundTaskIds: Set<UUID> = []  // message IDs of foreground (blocking) tasks
-    @Published var backgroundTaskIds: Set<UUID> = []  // message IDs of background tasks
-    var taskAgentMap: [UUID: String] = [:]  // msgId → agentId
+    var isSendingMessage: Bool {
+        get { taskState.isSendingMessage }
+        set { taskState.isSendingMessage = newValue }
+    }
+    var foregroundTaskIds: Set<UUID> {
+        get { taskState.foregroundTaskIds }
+        set { taskState.foregroundTaskIds = newValue }
+    }
+    var backgroundTaskIds: Set<UUID> {
+        get { taskState.backgroundTaskIds }
+        set { taskState.backgroundTaskIds = newValue }
+    }
+    var taskAgentMap: [UUID: String] {
+        get { taskState.taskAgentMap }
+        set { taskState.taskAgentMap = newValue }
+    }
     /// msgId → the sessionId the task was started under. Used to (a) route
     /// gateway sessionKey on cancel and (b) decide which UI session "owns"
     /// the spinner / cancel affordance. Both populated together with
     /// `taskAgentMap` in `sendChatMessage`; both cleaned together on any
     /// terminal event (completed / cancelled / timed-out / error).
-    var taskSessionMap: [UUID: UUID] = [:]
+    var taskSessionMap: [UUID: UUID] {
+        get { taskState.taskSessionMap }
+        set { taskState.taskSessionMap = newValue }
+    }
 
     /// Messages for sessions the user has navigated AWAY from while a
     /// foreground task was still streaming. Keyed by sessionId. The
@@ -2604,7 +2620,10 @@ class DashboardViewModel: ObservableObject {
     /// Persisted via a parallel debounced save sink so on-disk state
     /// catches up with completions that landed while the session was
     /// inactive.
-    @Published var chatMessagesByInactiveSession: [UUID: [ChatMessage]] = [:]
+    var chatMessagesByInactiveSession: [UUID: [ChatMessage]] {
+        get { chatState.chatMessagesByInactiveSession }
+        set { chatState.chatMessagesByInactiveSession = newValue }
+    }
 
     /// Sessions whose messages are being lazy-loaded from disk in the
     /// background. The chat view watches this set so it can render a
@@ -2612,7 +2631,10 @@ class DashboardViewModel: ObservableObject {
     /// flashing an empty thread. Entries are added by `switchSession` /
     /// `ensureMessagesLoaded` when they take the async path (cache miss)
     /// and removed when the load resolves.
-    @Published var loadingSessionIds: Set<UUID> = []
+    var loadingSessionIds: Set<UUID> {
+        get { chatState.loadingSessionIds }
+        set { chatState.loadingSessionIds = newValue }
+    }
 
     /// Whether the currently selected agent has any foreground task running
     /// — across all its sessions. Used by the agent picker to badge agents
@@ -2725,8 +2747,14 @@ class DashboardViewModel: ObservableObject {
         }
         return nil
     }
-    @Published var selectedAgentId: String = "main"
-    @Published var availableAgents: [AgentOption] = [AgentOption(id: "main", name: "main", emoji: "", description: "", model: "", division: "")]
+    var selectedAgentId: String {
+        get { sessionState.selectedAgentId }
+        set { sessionState.selectedAgentId = newValue }
+    }
+    var availableAgents: [AgentOption] {
+        get { sessionState.availableAgents }
+        set { sessionState.availableAgents = newValue }
+    }
 
     // Agent Settings Panel state
     @Published var agentSettingsOpen: Bool = false
@@ -4437,9 +4465,9 @@ class DashboardViewModel: ObservableObject {
             command
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to add \(channelType) \(normalizedAccountId): \(output)")
+            showErrorMessage(I18n.format("dashboard.channels.toast.addFailed", channelType, normalizedAccountId, output))
         } else {
-            showSuccessMessage("\(channelType) \(normalizedAccountId) channel added")
+            showSuccessMessage(I18n.format("dashboard.channels.toast.added", channelType, normalizedAccountId))
         }
         await loadChannels()
         isPerformingAction = false
@@ -4462,7 +4490,7 @@ class DashboardViewModel: ObservableObject {
         do {
             guard let data = fm.contents(atPath: configPath),
                   var root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                showErrorMessage("Failed to read openclaw.json")
+                showErrorMessage(I18n.t("dashboard.channels.toast.readConfigFailed"))
                 isPerformingAction = false
                 return
             }
@@ -4522,9 +4550,9 @@ class DashboardViewModel: ObservableObject {
                 options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
             )
             try updatedData.write(to: URL(fileURLWithPath: configPath))
-            showSuccessMessage("\(channelType) \(normalizedAccountId) channel added")
+            showSuccessMessage(I18n.format("dashboard.channels.toast.added", channelType, normalizedAccountId))
         } catch {
-            showErrorMessage("Failed to add \(channelType) \(normalizedAccountId): \(error.localizedDescription)")
+            showErrorMessage(I18n.format("dashboard.channels.toast.addFailed", channelType, normalizedAccountId, error.localizedDescription))
         }
 
         await loadChannels()
@@ -4539,11 +4567,11 @@ class DashboardViewModel: ObservableObject {
             "openclaw channels remove --channel \(Self.shellQuote(channelType)) --account \(Self.shellQuote(channel.account)) --delete 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to remove \(channel.name): \(output)")
+            showErrorMessage(I18n.format("dashboard.channels.toast.removeFailed", channel.name, output))
         } else {
             // Also disable the channel so it won't reappear in status list
             disableChannelInConfig(channelType, accountId: channel.account)
-            showSuccessMessage("\(channel.name) channel removed")
+            showSuccessMessage(I18n.format("dashboard.channels.toast.removed", channel.name))
         }
         await loadChannels()
         isPerformingAction = false
@@ -5036,9 +5064,9 @@ class DashboardViewModel: ObservableObject {
 
         let output = await openclawService.runCommand(cmd)
         if let output = output, output.lowercased().contains("error") && !output.contains("{") {
-            showErrorMessage("Failed to add cron job: \(output)")
+            showErrorMessage(I18n.format("dashboard.cron.toast.addFailed", output))
         } else {
-            showSuccessMessage("Cron job '\(name)' created")
+            showSuccessMessage(I18n.format("dashboard.cron.toast.created", name))
         }
         await loadCronJobs()
         isPerformingAction = false
@@ -5051,9 +5079,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw cron enable \(job.cronId) 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to enable cron job: \(output)")
+            showErrorMessage(I18n.format("dashboard.cron.toast.enableFailed", output))
         } else {
-            showSuccessMessage("Cron job '\(job.name)' enabled")
+            showSuccessMessage(I18n.format("dashboard.cron.toast.enabled", job.name))
         }
         await loadCronJobs()
         isPerformingAction = false
@@ -5066,9 +5094,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw cron disable \(job.cronId) 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to disable cron job: \(output)")
+            showErrorMessage(I18n.format("dashboard.cron.toast.disableFailed", output))
         } else {
-            showSuccessMessage("Cron job '\(job.name)' disabled")
+            showSuccessMessage(I18n.format("dashboard.cron.toast.disabled", job.name))
         }
         await loadCronJobs()
         isPerformingAction = false
@@ -5081,9 +5109,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw cron rm \(job.cronId) 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to remove cron job: \(output)")
+            showErrorMessage(I18n.format("dashboard.cron.toast.removeFailed", output))
         } else {
-            showSuccessMessage("Cron job '\(job.name)' removed")
+            showSuccessMessage(I18n.format("dashboard.cron.toast.removed", job.name))
         }
         await loadCronJobs()
         isPerformingAction = false
@@ -5097,9 +5125,9 @@ class DashboardViewModel: ObservableObject {
             timeout: 120
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to run cron job: \(output)")
+            showErrorMessage(I18n.format("dashboard.cron.toast.runFailed", output))
         } else {
-            showSuccessMessage("Cron job '\(job.name)' triggered")
+            showSuccessMessage(I18n.format("dashboard.cron.toast.triggered", job.name))
         }
         await loadCronJobs()
         isPerformingAction = false
@@ -5471,9 +5499,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw models set '\(model.modelId)' 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to set default model: \(output)")
+            showErrorMessage(I18n.format("dashboard.models.toast.setDefaultFailed", output))
         } else {
-            showSuccessMessage("Default model set to \(model.modelId)")
+            showSuccessMessage(I18n.format("dashboard.models.toast.defaultSet", model.modelId))
         }
         await loadModels()
         isPerformingAction = false
@@ -5486,9 +5514,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw models set-image '\(model.modelId)' 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to set image model: \(output)")
+            showErrorMessage(I18n.format("dashboard.models.toast.setImageFailed", output))
         } else {
-            showSuccessMessage("Image model set to \(model.modelId)")
+            showSuccessMessage(I18n.format("dashboard.models.toast.imageSet", model.modelId))
         }
         await loadModels()
         isPerformingAction = false
@@ -5501,9 +5529,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw models fallbacks add '\(model.modelId)' 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to add fallback: \(output)")
+            showErrorMessage(I18n.format("dashboard.models.toast.addFallbackFailed", output))
         } else {
-            showSuccessMessage("\(model.modelId) added to fallbacks")
+            showSuccessMessage(I18n.format("dashboard.models.toast.fallbackAdded", model.modelId))
         }
         await loadModels()
         isPerformingAction = false
@@ -5516,9 +5544,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw models fallbacks remove '\(modelId)' 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to remove fallback: \(output)")
+            showErrorMessage(I18n.format("dashboard.models.toast.removeFallbackFailed", output))
         } else {
-            showSuccessMessage("\(modelId) removed from fallbacks")
+            showSuccessMessage(I18n.format("dashboard.models.toast.fallbackRemoved", modelId))
         }
         await loadModels()
         isPerformingAction = false
@@ -5531,9 +5559,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw models image-fallbacks add '\(model.modelId)' 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to add image fallback: \(output)")
+            showErrorMessage(I18n.format("dashboard.models.toast.addImageFallbackFailed", output))
         } else {
-            showSuccessMessage("\(model.modelId) added to image fallbacks")
+            showSuccessMessage(I18n.format("dashboard.models.toast.imageFallbackAdded", model.modelId))
         }
         await loadModels()
         isPerformingAction = false
@@ -5546,9 +5574,9 @@ class DashboardViewModel: ObservableObject {
             "openclaw models image-fallbacks remove '\(modelId)' 2>&1"
         )
         if let output = output, output.lowercased().contains("error") {
-            showErrorMessage("Failed to remove image fallback: \(output)")
+            showErrorMessage(I18n.format("dashboard.models.toast.removeImageFallbackFailed", output))
         } else {
-            showSuccessMessage("\(modelId) removed from image fallbacks")
+            showSuccessMessage(I18n.format("dashboard.models.toast.imageFallbackRemoved", modelId))
         }
         await loadModels()
         isPerformingAction = false

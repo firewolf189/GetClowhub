@@ -1,0 +1,12 @@
+{
+  "name": "figma",
+  "version": "2.0.10",
+  "type": "module",
+  "private": true,
+  "description": "Design-to-code workflows powered by the Figma integration",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "marcopolo",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "MarcoPolo spins up a secure container where OpenClaw can work with your actual data.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

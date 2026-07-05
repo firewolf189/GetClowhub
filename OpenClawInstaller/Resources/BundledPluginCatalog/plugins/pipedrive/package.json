@@ -1,0 +1,12 @@
+{
+  "name": "pipedrive",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Connect to sync Pipedrive deals and contacts for use in OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "replit",
+  "name": "Replit",
+  "displayName": "Replit",
+  "description": "Work with Replit projects, apps, deployments, and workspace context",
+  "longDescription": "Work with Replit projects, apps, deployments, and workspace context",
+  "version": "1.0.2",
+  "developerName": "Replit",
+  "category": "Developer Tools",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://replit.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "zotero",
+  "name": "Zotero",
+  "displayName": "Zotero",
+  "description": "Find papers and add citations from Zotero",
+  "longDescription": "Connect OpenClaw to your Zotero desktop library so it can find saved papers, export BibTeX, add citation keys to drafts, read indexed attachment text when you ask, and import new reference records into Zotero with your approval.",
+  "version": "0.1.2",
+  "developerName": "OpenAI",
+  "category": "Education & Research",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "zotero",
+    "citations",
+    "bibliography",
+    "bibtex",
+    "references",
+    "research",
+    "papers",
+    "latex"
+  ],
+  "icon": "./assets/icon.png",
+  "homepageURL": "https://openai.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "coderabbit",
+  "version": "1.1.4",
+  "type": "module",
+  "private": true,
+  "description": "Run AI-powered code review for your current changes",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

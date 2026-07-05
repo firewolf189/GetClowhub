@@ -1,0 +1,20 @@
+{
+  "id": "third-bridge",
+  "name": "Third Bridge",
+  "displayName": "Third Bridge",
+  "description": "Seamlessly incorporate critical context and trusted insights from industry experts as part of your financia...",
+  "longDescription": "Seamlessly incorporate critical context and trusted insights from industry experts as part of your financial and business analysis. Refocus on extracting high-quality, reliable information by querying Third Bridge’s best-in-class substantial Library of expert content and data.\n\nOur MCP systematically and securely instructs Large Language Models (LLMs) to query insights from our database into their systems, streamlining your workflows and improving your output.",
+  "version": "1.0.3",
+  "developerName": "Third Bridge Group",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.thirdbridge.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

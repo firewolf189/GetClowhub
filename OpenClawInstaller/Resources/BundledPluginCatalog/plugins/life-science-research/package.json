@@ -1,0 +1,12 @@
+{
+  "name": "life-science-research",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "General life-sciences research with routing, evidence synthesis, and optional parallel subagent analysis",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

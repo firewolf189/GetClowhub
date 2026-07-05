@@ -1,0 +1,12 @@
+{
+  "name": "build-ios-apps",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Build, refine, and debug iOS apps with App Intents, SwiftUI, and Xcode workflows",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

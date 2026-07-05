@@ -104,12 +104,12 @@ assertContains(
 )
 assertContains(
     dashboard,
-    "if !viewModel.pinnedSessions.isEmpty",
+    "if !state.pinnedSessions.isEmpty",
     "global pinned section should be hidden when there are no pinned sessions"
 )
 assertContains(
     dashboard,
-    "sessionRows(viewModel.pinnedSessions, switchGlobally: true)",
+    "sessionRows(state.pinnedSessions, switchGlobally: true)",
     "pinned rows should use the shared session row renderer with global switching"
 )
 
@@ -125,12 +125,12 @@ assertContains(
 )
 assertContains(
     sessionRows,
-    "viewModel.switchSessionGlobally(to: meta.id)",
+    "actions.switchSessionGlobally(meta.id)",
     "global pinned rows should switch by session id across agents"
 )
 assertContains(
     sessionRows,
-    "viewModel.switchSession(to: meta.id)",
+    "actions.switchSession(meta.id)",
     "normal rows should preserve the local same-agent switch path"
 )
 

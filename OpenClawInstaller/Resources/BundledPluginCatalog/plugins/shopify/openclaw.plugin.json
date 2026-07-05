@@ -1,0 +1,30 @@
+{
+  "id": "shopify",
+  "name": "Shopify",
+  "displayName": "Shopify",
+  "description": "Build Shopify apps, themes, storefronts, and APIs",
+  "longDescription": "Shopify developer tools for searching Shopify documentation, generating and validating GraphQL, Liquid, Hydrogen, Functions, UI extension, and CLI workflows. Skill scripts send usage telemetry to shopify.dev by default; set OPT_OUT_INSTRUMENTATION=true to disable.",
+  "version": "1.3.3",
+  "developerName": "Shopify",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "shopify",
+    "mcp",
+    "graphql",
+    "liquid",
+    "storefront",
+    "admin-api"
+  ],
+  "icon": "./assets/logo-padded.svg",
+  "homepageURL": "https://shopify.dev/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

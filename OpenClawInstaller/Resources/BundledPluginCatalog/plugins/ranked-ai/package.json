@@ -1,0 +1,12 @@
+{
+  "name": "ranked-ai",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Ranked AI provides industry leading AI SEO & PPC software, with a fully managed service integrated into it.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

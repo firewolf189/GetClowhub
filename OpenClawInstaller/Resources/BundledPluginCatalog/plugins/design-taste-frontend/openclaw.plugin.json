@@ -1,0 +1,39 @@
+{
+  "id": "design-taste-frontend",
+  "name": "Design Taste Frontend",
+  "displayName": "Design Taste Frontend",
+  "description": "Frontend design taste guidance for polished product UI decisions",
+  "longDescription": "Use Design Taste Frontend when shaping frontend interfaces, visual hierarchy, interaction quality, and product UI polish. This plugin wraps the existing design-taste-frontend skill as one installable OpenClaw plugin.",
+  "version": "1.0.0",
+  "developerName": "OpenClaw",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "frontend",
+    "design",
+    "ui",
+    "visual",
+    "product",
+    "taste",
+    "polish"
+  ],
+  "systemIcon": "paintpalette",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "design_taste_frontend"
+    ]
+  }
+}

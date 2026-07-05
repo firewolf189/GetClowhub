@@ -1,0 +1,20 @@
+{
+  "id": "highlevel",
+  "name": "HighLevel",
+  "displayName": "HighLevel",
+  "description": "HighLevel gives agencies a unified CRM, automation, and client communication platform.",
+  "longDescription": "HighLevel gives agencies a unified CRM, automation, and client communication platform. This connector lets you securely bring HighLevel data—contacts, opportunities, appointments, conversations and more—into GPT, turning raw records into clear summaries, next-step recommendations, and ready-to-use content. Analyze pipelines, qualify leads, and prepare follow-ups in seconds without leaving the chat.",
+  "version": "1.0.2",
+  "developerName": "HighLevel",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.gohighlevel.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

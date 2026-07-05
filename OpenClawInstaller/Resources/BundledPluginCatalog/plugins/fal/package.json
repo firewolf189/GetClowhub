@@ -1,0 +1,12 @@
+{
+  "name": "fal",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "AI image and media generation workflows using Fal models",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

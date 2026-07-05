@@ -20,12 +20,12 @@ struct SubAgentsTabView: View {
                 VStack(spacing: 24) {
                     // Header
                     HStack {
-                        Text("Multi-Agent")
+                        Text(I18n.t("subAgents.title"))
                             .font(.title2)
                             .fontWeight(.bold)
 
                         if !viewModel.agents.isEmpty {
-                            Text("(\(viewModel.agents.count) agents)")
+                            Text(I18n.format("subAgents.count.agents", Int64(viewModel.agents.count)))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -33,7 +33,7 @@ struct SubAgentsTabView: View {
                         Spacer()
 
                         Button(action: { showCreateSheet = true }) {
-                            Label("New Agent", systemImage: "plus")
+                            Label(I18n.t("subAgents.action.new"), systemImage: "plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
@@ -42,7 +42,7 @@ struct SubAgentsTabView: View {
                         Button(action: {
                             Task { await viewModel.loadAgents() }
                         }) {
-                            Label("Refresh", systemImage: "arrow.clockwise")
+                            Label(I18n.t("common.action.refresh"), systemImage: "arrow.clockwise")
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -53,7 +53,7 @@ struct SubAgentsTabView: View {
                         VStack(spacing: 12) {
                             ProgressView()
                                 .scaleEffect(1.2)
-                            Text("Loading agents...")
+                            Text(I18n.t("subAgents.loading.agents"))
                                 .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity)
@@ -65,11 +65,11 @@ struct SubAgentsTabView: View {
                                 .font(.system(size: 48))
                                 .foregroundColor(.secondary)
 
-                            Text("No agents yet")
+                            Text(I18n.t("subAgents.empty.title"))
                                 .font(.headline)
                                 .foregroundColor(.secondary)
 
-                            Text("Create an agent to specialize in different tasks")
+                            Text(I18n.t("subAgents.empty.detail"))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -94,17 +94,17 @@ struct SubAgentsTabView: View {
                                 case .memory: fileName = "MEMORY.md"
                                 case .user: fileName = "USER.md"
                                 }
-                                showSaveToast(String(format: String(localized: "%@ %@ saved"), agent.name, fileName))
+                                showSaveToast(I18n.format("subAgents.toast.fileSaved", agent.name, fileName))
                             },
                             onSaveByName: { agent, fileName in
                                 viewModel.saveByName(agentId: agent.id, fileName: fileName)
-                                showSaveToast(String(format: String(localized: "%@ %@ saved"), agent.name, fileName))
+                                showSaveToast(I18n.format("subAgents.toast.fileSaved", agent.name, fileName))
                             },
                             onDelete: { agent in
                                 let name = agent.name
                                 Task {
                                     await viewModel.deleteAgent(agentId: agent.id)
-                                    showSaveToast("Agent \"\(name)\" deleted")
+                                    showSaveToast(I18n.format("subAgents.toast.deleted", name))
                                 }
                             },
                             onOpenWorkspace: { agent in
@@ -114,8 +114,8 @@ struct SubAgentsTabView: View {
                             },
                             onModelChange: { agent, model in
                                 viewModel.updateModel(agentId: agent.id, model: model)
-                                let shortModel = model.isEmpty ? "Default" : (model.components(separatedBy: "/").last ?? model)
-                                showSaveToast(String(format: String(localized: "%@ model → %@"), agent.name, shortModel))
+                                let shortModel = model.isEmpty ? I18n.t("subAgents.model.default") : (model.components(separatedBy: "/").last ?? model)
+                                showSaveToast(I18n.format("subAgents.toast.modelChanged", agent.name, shortModel))
                             },
                             bindingForAgent: { agentId, file in
                                 viewModel.binding(for: agentId, file: file)
@@ -346,11 +346,11 @@ private struct AgentSummaryCard: View {
                 isHovering = hovering
             }
         }
-        .alert("Delete Agent", isPresented: $showDeleteConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) { onDelete() }
+        .alert(I18n.t("subAgents.alert.deleteTitle"), isPresented: $showDeleteConfirm) {
+            Button(I18n.t("common.action.cancel"), role: .cancel) {}
+            Button(I18n.t("common.action.delete"), role: .destructive) { onDelete() }
         } message: {
-            Text("Delete \"\(agent.name)\"? This will remove the agent and its workspace.")
+            Text(I18n.format("subAgents.alert.deleteMessage", agent.name))
         }
     }
 }
@@ -413,7 +413,7 @@ private struct AgentDetailPanel: View {
 
                 if !agent.workspace.isEmpty {
                     Button(action: onOpenWorkspace) {
-                        Label("Open Workspace", systemImage: "folder")
+                        Label(I18n.t("subAgents.action.openWorkspace"), systemImage: "folder")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -440,11 +440,11 @@ private struct AgentDetailPanel: View {
                     Image(systemName: "cpu")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text("Model:")
+                    Text(I18n.t("subAgents.model.label"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Picker("", selection: $selectedModel) {
-                        Text("Default (inherit)").tag("")
+                        Text(I18n.t("subAgents.model.defaultInherit")).tag("")
                         ForEach(availableModels) { model in
                             Text(model.name).tag(model.id)
                         }
@@ -650,12 +650,12 @@ struct CreateAgentSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("New Agent")
+                Text(I18n.t("subAgents.create.title"))
                     .font(.headline)
 
                 Spacer()
 
-                Button("Cancel") {
+                Button(I18n.t("common.action.cancel")) {
                     isPresented = false
                 }
                 .keyboardShortcut(.cancelAction)
@@ -667,11 +667,11 @@ struct CreateAgentSheet: View {
             VStack(alignment: .leading, spacing: 16) {
                 // Agent ID
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Agent ID")
+                    Text(I18n.t("subAgents.create.agentId"))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    TextField("e.g. news-helper", text: $agentId)
+                    TextField(I18n.t("subAgents.create.agentIdPlaceholder"), text: $agentId)
                         .textFieldStyle(.roundedBorder)
                         .tint(Color(NSColor.labelColor))
                         .focused($focusedField, equals: .agentId)
@@ -687,30 +687,30 @@ struct CreateAgentSheet: View {
                             }
                         }
 
-                    Text("Lowercase letters, numbers, hyphens only")
+                    Text(I18n.t("subAgents.create.agentIdHelp"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
                 // Display Name
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Display Name")
+                    Text(I18n.t("subAgents.create.displayName"))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    TextField("e.g. News Helper", text: $displayName)
+                    TextField(I18n.t("subAgents.create.displayNamePlaceholder"), text: $displayName)
                         .textFieldStyle(.roundedBorder)
                         .tint(Color(NSColor.labelColor))
                         .focused($focusedField, equals: .displayName)
 
-                    Text("Optional. Written to IDENTITY.md as the agent's name")
+                    Text(I18n.t("subAgents.create.displayNameHelp"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
                 // Model picker
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Model")
+                    Text(I18n.t("subAgents.create.model"))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -718,18 +718,18 @@ struct CreateAgentSheet: View {
                         HStack(spacing: 8) {
                             ProgressView()
                                 .scaleEffect(0.7)
-                            Text("Loading models...")
+                            Text(I18n.t("subAgents.loading.models"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     } else {
                         Picker("", selection: $selectedModel) {
-                            Text("Default (inherit from config)").tag("")
+                            Text(I18n.t("subAgents.model.defaultFromConfig")).tag("")
                             ForEach(viewModel.availableModels) { model in
                                 HStack {
                                     Text(model.name)
                                     if model.tags.contains("default") {
-                                        Text("(default)")
+                                        Text(I18n.t("subAgents.model.defaultTag"))
                                     }
                                 }
                                 .tag(model.id)
@@ -741,7 +741,7 @@ struct CreateAgentSheet: View {
 
                 // Division picker
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Division")
+                    Text(I18n.t("subAgents.create.division"))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -752,7 +752,7 @@ struct CreateAgentSheet: View {
                     }
                     .labelsHidden()
 
-                    Text("Agent category for sidebar grouping")
+                    Text(I18n.t("subAgents.create.divisionHelp"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -765,7 +765,7 @@ struct CreateAgentSheet: View {
             HStack {
                 Spacer()
 
-                Button("Create") {
+                Button(I18n.t("common.action.create")) {
                     let name = displayName.trimmingCharacters(in: .whitespaces)
                     let finalName = name.isEmpty ? sanitizedId : name
                     Task {

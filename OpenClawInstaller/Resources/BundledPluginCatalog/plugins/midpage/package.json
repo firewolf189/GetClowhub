@@ -1,0 +1,12 @@
+{
+  "name": "midpage",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Legal research, cases, statutes, regulations, and cited research memos",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

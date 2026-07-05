@@ -1,0 +1,20 @@
+{
+  "id": "pylon",
+  "name": "Pylon",
+  "displayName": "Pylon",
+  "description": "Access Pylon's customer support platform directly from OpenClaw to search, manage, and resolve customer issues.",
+  "longDescription": "Access Pylon's customer support platform directly from OpenClaw to search, manage, and resolve\ncustomer issues. Stay on top of your support queue while connecting OpenClaw's insights to real customer conversations.\n\nYou can use the Pylon app to:\n  • Check your queue: \"What Pylon issues are assigned to me that need a response?\"\n  • Research customers: \"Summarize recent issues from Acme Corp and flag any escalations.\"\n  • Update issues: \"Mark the billing issue from Sarah as resolved and add a note that we issued a refund.\"",
+  "version": "1.0.3",
+  "developerName": "Pylon Labs Inc.",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.usepylon.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

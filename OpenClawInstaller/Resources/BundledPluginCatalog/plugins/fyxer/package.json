@@ -1,0 +1,12 @@
+{
+  "name": "fyxer",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Fyxer for OpenClaw lets you write emails that sound like you, right from the chat.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

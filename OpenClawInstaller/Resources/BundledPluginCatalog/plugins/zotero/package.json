@@ -1,0 +1,12 @@
+{
+  "name": "zotero",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Find papers and add citations from Zotero",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

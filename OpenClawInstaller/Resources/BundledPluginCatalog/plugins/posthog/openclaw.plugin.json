@@ -1,0 +1,36 @@
+{
+  "id": "posthog",
+  "name": "PostHog",
+  "displayName": "PostHog",
+  "description": "Query analytics, flags, experiments, and errors",
+  "longDescription": "Bring PostHog into ChatGPT and OpenClaw. Ask product-analytics questions in plain language and run HogQL, create and manage feature flags, launch and read experiments, triage error-tracking issues, explore session replays and surveys, inspect LLM analytics, and build dashboards — all grounded in your real PostHog data. With the PostHog app connected, the assistant reasons about your product alongside your code and decisions, and discovers the right PostHog tools and skills at runtime instead of relying on stale knowledge.",
+  "version": "0.1.2",
+  "developerName": "PostHog",
+  "category": "Data & Analytics",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "posthog",
+    "analytics",
+    "product-analytics",
+    "feature-flags",
+    "experiments",
+    "error-tracking",
+    "session-replay",
+    "surveys",
+    "llm-analytics",
+    "hogql",
+    "developer-tools"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://posthog.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

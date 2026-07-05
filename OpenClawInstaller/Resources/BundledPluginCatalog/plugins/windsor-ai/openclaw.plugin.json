@@ -1,0 +1,20 @@
+{
+  "id": "windsor-ai",
+  "name": "Windsor.ai",
+  "displayName": "Windsor.ai",
+  "description": "Windsor.ai connects your marketing and business data sources to OpenClaw so you can ask questions in natural...",
+  "longDescription": "Windsor.ai connects your marketing and business data sources to OpenClaw so you can ask questions in natural language and get answers from your connected accounts.\n\nCommon data sources customers connect include: Google Ads, Meta (Facebook) Ads, Instagram, LinkedIn Ads, LinkedIn Company Pages, TikTok Ads, GA4, Google Search Console, YouTube Analytics, Google Business Profile, HubSpot, Salesforce, Shopify, Klaviyo, Amazon Ads, Microsoft Ads (Bing), Google Merchant Center, Stripe, GoHighLevel, and more.  ￼",
+  "version": "1.0.3",
+  "developerName": "Windsor.ai",
+  "category": "Data & Analytics",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://windsor.ai",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "openclaw-security",
+  "name": "OpenClaw Security",
+  "displayName": "OpenClaw Security",
+  "description": "Security scanning for your codebase",
+  "longDescription": "OpenClaw Security packages reusable workflows for security scans, analysis, validation, and investigation across code, diffs, and related artifacts.",
+  "version": "0.1.9",
+  "developerName": "OpenAI",
+  "category": "Security",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "security",
+    "code-review",
+    "diff-review",
+    "appsec",
+    "threat-modeling"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://openai.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

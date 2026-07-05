@@ -1,0 +1,29 @@
+{
+  "id": "openai-ads-conversions",
+  "name": "OpenAI Ads Conversions",
+  "displayName": "OpenAI Ads Conversions",
+  "description": "Set up OpenAI Ads Pixel and CAPI tracking",
+  "longDescription": "Use OpenAI Ads Conversions to guide OpenClaw through adding or extending Measurement Pixel and optional Conversions API instrumentation in a repository, with local verification helpers and guidance for safe secret handling, deduplication, attribution context, and setup reporting.",
+  "version": "0.1.0",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "openai-ads",
+    "ads",
+    "conversions",
+    "measurement-pixel",
+    "capi"
+  ],
+  "homepageURL": "https://developers.openai.com/ads/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

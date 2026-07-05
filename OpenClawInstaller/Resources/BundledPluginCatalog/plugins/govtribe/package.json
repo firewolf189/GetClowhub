@@ -1,0 +1,12 @@
+{
+  "name": "govtribe",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Search government contracts, awards, and vendors directly from OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

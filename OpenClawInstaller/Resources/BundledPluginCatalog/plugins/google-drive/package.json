@@ -1,0 +1,12 @@
+{
+  "name": "google-drive",
+  "version": "0.1.7",
+  "type": "module",
+  "private": true,
+  "description": "Work across Drive, Docs, Sheets, and Slides",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

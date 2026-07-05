@@ -1,0 +1,12 @@
+{
+  "name": "vercel",
+  "version": "0.21.3",
+  "type": "module",
+  "private": true,
+  "description": "Build and deploy web apps and agents",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

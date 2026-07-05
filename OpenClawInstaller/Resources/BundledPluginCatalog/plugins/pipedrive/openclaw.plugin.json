@@ -1,0 +1,20 @@
+{
+  "id": "pipedrive",
+  "name": "Pipedrive",
+  "displayName": "Pipedrive",
+  "description": "Connect to sync Pipedrive deals and contacts for use in OpenClaw.",
+  "longDescription": "Connect to sync Pipedrive deals and contacts for use in OpenClaw.",
+  "version": "1.0.3",
+  "developerName": "OpenAI",
+  "category": "Business & Operations",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.pipedrive.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

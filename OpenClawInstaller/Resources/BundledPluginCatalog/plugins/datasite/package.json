@@ -1,0 +1,12 @@
+{
+  "name": "datasite",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Deal room documents, diligence materials, and Q&A workflows",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

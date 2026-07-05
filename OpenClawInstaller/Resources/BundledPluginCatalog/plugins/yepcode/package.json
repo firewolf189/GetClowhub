@@ -1,0 +1,12 @@
+{
+  "name": "yepcode",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "YepCode lets you build custom AI tools using your own code with JSON Schema-defined inputs, executed in an...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

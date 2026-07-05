@@ -1,0 +1,20 @@
+{
+  "id": "pitchbook",
+  "name": "PitchBook",
+  "displayName": "PitchBook",
+  "description": "PitchBook provides structured access to private capital market data across  companies, investors, funds, de...",
+  "longDescription": "PitchBook provides structured access to private capital market data across  companies, investors, funds, deals, limited partners, and people. It returns normalized fields such as  firmographics, financing rounds, deal terms, ownership information, financials, fund performance  metrics when available, LP commitments, investor portfolios, and team details with associated source  metadata. Use this connector when a query requires factual private market information or retrieval of  structured data related to private companies, investment activity, or market participants. It supports  queries that involve identifying entities, summarizing historical activity, or assembling datasets for  further analysis.",
+  "version": "1.0.3",
+  "developerName": "PitchBook",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.pitchbook.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

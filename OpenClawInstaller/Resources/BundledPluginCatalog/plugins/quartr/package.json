@@ -1,0 +1,12 @@
+{
+  "name": "quartr",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Access structured first-party IR data from over 14,500+ public companies across 65 markets Quartr delivers...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

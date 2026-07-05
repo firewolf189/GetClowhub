@@ -1,0 +1,31 @@
+{
+  "id": "hex",
+  "name": "Hex",
+  "displayName": "Hex",
+  "description": "Search Hex projects and ask Hex Threads questions",
+  "longDescription": "Hex helps users find existing Hex projects, dashboards, and data apps, then ask Hex Threads questions when the user explicitly wants to work in Hex.",
+  "version": "0.1.0",
+  "developerName": "Hex",
+  "category": "Data & Analytics",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "hex",
+    "data-analysis",
+    "analytics",
+    "threads",
+    "dashboards",
+    "notebooks"
+  ],
+  "icon": "./assets/hex.png",
+  "homepageURL": "https://hex.tech/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

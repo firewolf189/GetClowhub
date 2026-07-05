@@ -1,0 +1,20 @@
+{
+  "id": "brex",
+  "name": "Brex",
+  "displayName": "Brex",
+  "description": "Connect Brex to OpenClaw and review your company finances through natural conversation — at OpenClaw speed.",
+  "longDescription": "Connect Brex to OpenClaw and review your company finances through natural conversation — at OpenClaw speed.\n\nFor finance teams: Analyze spend, detect anomalies, and run custom queries and reports instantly to accelerate decisions and do more with less.\n\nFor employees: See how much you can spend, ask policy questions, check reimbursement status, manage travel, and more right in OpenClaw.\n\nAccess is role-aware by default: employees see only what applies to them, while admins retain full visibility and control.",
+  "version": "1.0.3",
+  "developerName": "Brex Inc.",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://brex.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "fiscal-ai",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Financial research, fundamentals, filings, and market insights",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

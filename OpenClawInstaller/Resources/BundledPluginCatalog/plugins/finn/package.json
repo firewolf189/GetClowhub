@@ -1,0 +1,12 @@
+{
+  "name": "finn",
+  "version": "1.0.4",
+  "type": "module",
+  "private": true,
+  "description": "A FINN car subscription is a flexible way to stay mobile anytime - without long-term commitments like buyin...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

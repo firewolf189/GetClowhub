@@ -1,0 +1,12 @@
+{
+  "name": "magicpath",
+  "version": "0.1.1",
+  "type": "module",
+  "private": true,
+  "description": "Find, install, and author MagicPath UI components from OpenClaw",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

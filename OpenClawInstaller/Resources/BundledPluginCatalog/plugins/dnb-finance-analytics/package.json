@@ -1,0 +1,12 @@
+{
+  "name": "dnb-finance-analytics",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Credit origination, portfolio risk, company reports, and folder workflows.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

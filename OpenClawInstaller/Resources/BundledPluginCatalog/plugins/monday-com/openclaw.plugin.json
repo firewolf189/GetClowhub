@@ -1,0 +1,20 @@
+{
+  "id": "monday-com",
+  "name": "Monday.com",
+  "displayName": "Monday.com",
+  "description": "A powerful MCP connector enabling AI agents to seamlessly interact with monday.com.",
+  "longDescription": "A powerful MCP connector enabling AI agents to seamlessly interact with monday.com. This connector provides comprehensive access to monday.com features including board management, item operations, dashboards, and more, allowing AI assistants to help manage projects, gain insights, and automate workflows within monday.com.",
+  "version": "1.0.2",
+  "developerName": "Monday.com",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://monday.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

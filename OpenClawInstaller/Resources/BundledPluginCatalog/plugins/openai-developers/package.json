@@ -1,0 +1,12 @@
+{
+  "name": "openai-developers",
+  "version": "1.2.3",
+  "type": "module",
+  "private": true,
+  "description": "Develop AI apps, agents, and ChatGPT Apps with OpenAI best practices",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

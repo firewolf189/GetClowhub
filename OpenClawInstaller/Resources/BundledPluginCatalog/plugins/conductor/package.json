@@ -1,0 +1,12 @@
+{
+  "name": "conductor",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The Conductor MCP server retrieves proprietary performance metrics regarding a brand's visibility, sentimen...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

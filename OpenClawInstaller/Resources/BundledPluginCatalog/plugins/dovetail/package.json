@@ -1,0 +1,12 @@
+{
+  "name": "dovetail",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Connect Dovetail inside OpenClaw to turn customer feedback into decisions without leaving your conversation.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

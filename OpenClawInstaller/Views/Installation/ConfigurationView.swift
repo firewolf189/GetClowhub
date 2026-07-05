@@ -16,11 +16,11 @@ struct ConfigurationView: View {
 
                 BrandTextView()
 
-                Text("Gateway Configuration")
+                Text(I18n.t("install.config.title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text("Set an auth token to secure your OpenClaw gateway")
+                Text(I18n.t("install.config.subtitle"))
                     .font(.title3)
                     .foregroundColor(.secondary)
             }
@@ -28,11 +28,11 @@ struct ConfigurationView: View {
             // Configuration form
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Gateway Auth Token")
+                    Text(I18n.t("install.config.authToken"))
                         .font(.headline)
 
                     HStack(spacing: 8) {
-                        TextField("Enter a token for gateway access", text: $viewModel.gatewayAuthToken)
+                        TextField(I18n.t("install.config.tokenPlaceholder"), text: $viewModel.gatewayAuthToken)
                             .textFieldStyle(.roundedBorder)
 
                         Button(action: {
@@ -40,14 +40,14 @@ struct ConfigurationView: View {
                         }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "dice")
-                                Text("Generate")
+                                Text(I18n.t("install.action.generate"))
                             }
                         }
                         .buttonStyle(.bordered)
                     }
                     .frame(maxWidth: 500)
 
-                    Text("This token is required to access the OpenClaw dashboard and API. You can change it later in the configuration page.")
+                    Text(I18n.t("install.config.tokenHelp"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -63,10 +63,10 @@ struct ConfigurationView: View {
                     .foregroundColor(.blue)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Why is a token needed?")
+                    Text(I18n.t("install.config.whyToken"))
                         .font(.headline)
 
-                    Text("The auth token protects your gateway from unauthorized access. It will be written to ~/.openclaw/openclaw.json and used when opening the dashboard.")
+                    Text(I18n.t("install.config.whyTokenDetail"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -88,7 +88,7 @@ struct ConfigurationView: View {
                     }
                 }) {
                     HStack {
-                        Text("Continue")
+                        Text(I18n.t("install.action.continue"))
                         Image(systemName: "arrow.right")
                     }
                     .frame(width: 160)

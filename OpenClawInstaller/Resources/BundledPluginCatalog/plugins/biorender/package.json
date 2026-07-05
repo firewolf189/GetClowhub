@@ -1,0 +1,12 @@
+{
+  "name": "biorender",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "BioRender helps scientists create professional figures in minutes.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

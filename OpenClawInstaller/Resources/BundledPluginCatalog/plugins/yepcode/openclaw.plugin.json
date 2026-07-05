@@ -1,0 +1,20 @@
+{
+  "id": "yepcode",
+  "name": "YepCode",
+  "displayName": "YepCode",
+  "description": "YepCode lets you build custom AI tools using your own code with JSON Schema-defined inputs, executed in an...",
+  "longDescription": "YepCode lets you build custom AI tools using your own code with JSON Schema-defined inputs, executed in an isolated sandbox with access to any npm or PyPI package and secure environment variables.\n\nDefine reusable processes in Node.js or Python, expose them as callable AI tools, and execute them on demand or on a schedule. Every run is logged and auditable, enabling traceable, production-grade AI integrations.\n\nBuilt for developers who need programmable, observable AI tool execution.",
+  "version": "1.0.3",
+  "developerName": "YepCode S.L.",
+  "category": "Developer Tools",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://yepcode.io/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

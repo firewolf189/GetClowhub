@@ -1,0 +1,12 @@
+{
+  "name": "brex",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Connect Brex to OpenClaw and review your company finances through natural conversation — at OpenClaw speed.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

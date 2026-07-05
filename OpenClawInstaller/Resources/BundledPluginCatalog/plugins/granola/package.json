@@ -1,0 +1,12 @@
+{
+  "name": "granola",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Granola MCP connects your meeting history to OpenClaw so your assistant can pull real context from past conv...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

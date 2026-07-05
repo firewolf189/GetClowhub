@@ -1,0 +1,12 @@
+{
+  "name": "teams",
+  "version": "0.1.3",
+  "type": "module",
+  "private": true,
+  "description": "Summarize Teams and draft follow-ups",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

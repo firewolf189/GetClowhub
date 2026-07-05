@@ -1,0 +1,12 @@
+{
+  "name": "meticulate",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Company matching, firmographic lookup, and go-to-market account intelligence",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

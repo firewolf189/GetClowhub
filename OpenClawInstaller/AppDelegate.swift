@@ -91,6 +91,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         if NativeSelectableTextSelectionRegistry.copyActiveSelection() {
             return
         }
+        if WebViewMarkdownSelectionRegistry.copyActiveSelection() {
+            return
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

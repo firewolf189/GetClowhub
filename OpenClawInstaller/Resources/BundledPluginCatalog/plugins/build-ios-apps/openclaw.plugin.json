@@ -1,0 +1,36 @@
+{
+  "id": "build-ios-apps",
+  "name": "Build iOS Apps",
+  "displayName": "Build iOS Apps",
+  "description": "Build, refine, and debug iOS apps with App Intents, SwiftUI, and Xcode workflows",
+  "longDescription": "Use Build iOS Apps to design App Intents and App Shortcuts, build or refactor SwiftUI UI, render SwiftUI previews in the OpenClaw in-app browser, adopt modern iOS patterns such as Liquid Glass, audit runtime performance, capture ETTrace profiles, investigate memory leaks, and debug apps on simulators with XcodeBuildMCP-backed workflows.",
+  "version": "0.1.2",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "ios",
+    "swift",
+    "swiftui",
+    "app-intents",
+    "shortcuts",
+    "siri",
+    "spotlight",
+    "xcode",
+    "performance",
+    "debugging",
+    "previews"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://openai.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "read-ai",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Read AI brings your meeting intelligence directly into your AI workflows.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

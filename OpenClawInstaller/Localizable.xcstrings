@@ -11,6 +11,7 @@
 
     },
     " agents" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164,12 +165,6 @@
     "(%@)" : {
 
     },
-    "(%lld agents)" : {
-
-    },
-    "(%lld configured)" : {
-
-    },
     "(%lld)" : {
 
     },
@@ -180,6 +175,7 @@
 
     },
     "(disabled)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -324,9 +320,6 @@
     "(Downgraded)" : {
 
     },
-    "(empty)" : {
-
-    },
     "(expires %@)" : {
       "localizations" : {
         "zh-Hans" : {
@@ -425,6 +418,7 @@
       }
     },
     "%@ %@ saved" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -580,16 +574,6 @@
     },
     "%@ ctx" : {
 
-    },
-    "%@ model → %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ model → %2$@"
-          }
-        }
-      }
     },
     "%@ plugin is already installed" : {
       "extractionState" : "stale",
@@ -1211,25 +1195,12 @@
     "%lld" : {
 
     },
-    "%lld " : {
-
-    },
     "%lld · %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld · %2$@"
-          }
-        }
-      }
-    },
-    "%lld / %lld enabled" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld / %2$lld enabled"
           }
         }
       }
@@ -1260,9 +1231,6 @@
           }
         }
       }
-    },
-    "%lld lines" : {
-
     },
     "%lld models available" : {
       "localizations" : {
@@ -1296,9 +1264,6 @@
         }
       }
     },
-    "%lld records" : {
-
-    },
     "%lld RPM" : {
 
     },
@@ -1324,16 +1289,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld/%2$lld"
-          }
-        }
-      }
-    },
-    "%lld/%lld subtasks" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld/%2$lld subtasks"
           }
         }
       }
@@ -3568,10 +3523,8 @@
         }
       }
     },
-    "Account ID" : {
-
-    },
     "Active: " : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3896,6 +3849,7 @@
       }
     },
     "Add a channel to get started" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4038,6 +3992,7 @@
       }
     },
     "Add a cron job to schedule automated tasks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4347,6 +4302,7 @@
       }
     },
     "Add Channel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4489,6 +4445,7 @@
       }
     },
     "Add Cron Job" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4643,6 +4600,7 @@
       }
     },
     "Add Job" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5094,9 +5052,6 @@
         }
       }
     },
-    "Add Work Folder..." : {
-
-    },
     "Administrator Privileges" : {
       "localizations" : {
         "ar" : {
@@ -5538,10 +5493,8 @@
         }
       }
     },
-    "Agent category for sidebar grouping" : {
-
-    },
     "Agent ID" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5695,10 +5648,8 @@
         }
       }
     },
-    "Agent running..." : {
-
-    },
     "Agent Sessions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5839,9 +5790,6 @@
           }
         }
       }
-    },
-    "Agent Timeout" : {
-
     },
     "Agent:" : {
       "extractionState" : "stale",
@@ -6463,6 +6411,7 @@
       }
     },
     "App Key" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6617,6 +6566,7 @@
       }
     },
     "App Secret" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6945,6 +6895,7 @@
       }
     },
     "Archive" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -6959,21 +6910,6 @@
           }
         }
       }
-    },
-    "Are you sure you want to delete \"%@\"?" : {
-
-    },
-    "Are you sure you want to remove \"%@\"? This will delete the agent and its workspace." : {
-
-    },
-    "Are you sure you want to remove the %@ channel? This will delete its configuration." : {
-
-    },
-    "Are you sure you want to remove the cron job '%@'? This action cannot be undone." : {
-
-    },
-    "Ask a question..." : {
-
     },
     "Ask Anything" : {
       "localizations" : {
@@ -7289,9 +7225,6 @@
           }
         }
       }
-    },
-    "Ask me anything about using GetClawHub." : {
-
     },
     "Assistant" : {
       "localizations" : {
@@ -7890,6 +7823,7 @@
       }
     },
     "Auto" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13413,9 +13347,6 @@
         }
       }
     },
-    "Cancel All" : {
-
-    },
     "Cancelled" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -13560,6 +13491,7 @@
       }
     },
     "Channel Type" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13984,9 +13916,6 @@
           }
         }
       }
-    },
-    "chars" : {
-
     },
     "Chat" : {
       "localizations" : {
@@ -14925,6 +14854,7 @@
 
     },
     "Click the button below to start WeChat QR login" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15208,9 +15138,6 @@
         }
       }
     },
-    "Close panel" : {
-
-    },
     "Code Interpreter" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -15229,6 +15156,7 @@
       }
     },
     "Code Mode" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -15243,12 +15171,6 @@
           }
         }
       }
-    },
-    "Collab Tasks" : {
-
-    },
-    "Collaboration history (%lld)" : {
-
     },
     "Collapse" : {
       "localizations" : {
@@ -15266,13 +15188,7 @@
         }
       }
     },
-    "Collapse panel" : {
-
-    },
     "Collapse session details" : {
-
-    },
-    "Commander Settings" : {
 
     },
     "Complete installation in just a few minutes" : {
@@ -16157,9 +16073,6 @@
     "Confirm & Execute" : {
 
     },
-    "Confirm delete" : {
-
-    },
     "Confirm Uninstall OpenClaw?" : {
       "localizations" : {
         "ar" : {
@@ -16893,34 +16806,6 @@
     "Copy" : {
 
     },
-    "Could not switch to the selected model; sending with the current model." : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選択したモデルに切り替えられませんでした。現在のモデルで送信します。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "선택한 모델로 전환할 수 없어 현재 모델로 전송합니다."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法切换到所选模型，将使用当前模型发送。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法切換到所選模型，將使用目前模型傳送。"
-          }
-        }
-      }
-    },
     "Cost" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -17253,7 +17138,36 @@
         }
       }
     },
+    "Could not switch to the selected model; sending with the current model." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したモデルに切り替えられませんでした。現在のモデルで送信します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 모델로 전환할 수 없어 현재 모델로 전송합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法切换到所选模型，将使用当前模型发送。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法切換到所選模型，將使用目前模型傳送。"
+          }
+        }
+      }
+    },
     "Create" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17408,6 +17322,7 @@
       }
     },
     "Create an agent to specialize in different tasks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17732,6 +17647,7 @@
       }
     },
     "Cron Expression" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17886,6 +17802,7 @@
       }
     },
     "Cron Health" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18028,6 +17945,7 @@
       }
     },
     "Cron Jobs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18216,9 +18134,6 @@
         }
       }
     },
-    "Cut" : {
-
-    },
     "Daily Weather Alerts" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18378,9 +18293,6 @@
         }
       }
     },
-    "Decrease font size (⌘-)" : {
-
-    },
     "default" : {
 
     },
@@ -18530,6 +18442,7 @@
 
     },
     "Default (inherit from config)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18840,10 +18753,8 @@
         }
       }
     },
-    "Delete \"%@\"? This will remove the agent and its workspace." : {
-
-    },
     "Delete Agent" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19185,9 +19096,6 @@
           }
         }
       }
-    },
-    "Depends on: #%@" : {
-
     },
     "Describe a task or ask any question" : {
       "extractionState" : "stale",
@@ -19901,9 +19809,6 @@
         }
       }
     },
-    "Disable word wrap" : {
-
-    },
     "Disabled" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -20048,6 +19953,7 @@
       }
     },
     "Display Name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20344,9 +20250,6 @@
         }
       }
     },
-    "Division" : {
-
-    },
     "Doctor" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -20491,6 +20394,7 @@
       }
     },
     "Done" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20787,9 +20691,6 @@
         }
       }
     },
-    "Double-click to copy path" : {
-
-    },
     "e.g. @openclaw/discord" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -20934,6 +20835,7 @@
       }
     },
     "e.g. 0 9 * * *" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21243,6 +21145,7 @@
       }
     },
     "e.g. Asia/Shanghai" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21397,6 +21300,7 @@
       }
     },
     "e.g. daily-report" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21694,6 +21598,7 @@
       }
     },
     "e.g. News Helper" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21848,6 +21753,7 @@
       }
     },
     "e.g. news-helper" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -22766,9 +22672,6 @@
         }
       }
     },
-    "Enable word wrap" : {
-
-    },
     "Enter a token for gateway access" : {
       "localizations" : {
         "ar" : {
@@ -23070,6 +22973,7 @@
       }
     },
     "Enter App Key" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23224,6 +23128,7 @@
       }
     },
     "Enter App Secret" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23520,6 +23425,7 @@
       }
     },
     "Enter bot token or API key" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23963,6 +23869,7 @@
       }
     },
     "Error details have been copied to your clipboard. Please paste them when reporting the issue." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24390,6 +24297,7 @@
       }
     },
     "Error Report Copied" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24534,9 +24442,6 @@
     "Error: %@" : {
 
     },
-    "Exit Fullscreen" : {
-
-    },
     "Expand" : {
       "localizations" : {
         "zh-Hans" : {
@@ -24560,6 +24465,7 @@
 
     },
     "Export" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24718,6 +24624,7 @@
       }
     },
     "Export…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -25019,13 +24926,11 @@
         }
       }
     },
-    "Failed to apply the selected model. Please try again." : {
-
-    },
     "Failed to send message. Please try again." : {
 
     },
     "Fallback" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -25168,6 +25073,7 @@
       }
     },
     "Fallback Models" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -25310,6 +25216,7 @@
       }
     },
     "Fallbacks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -25500,13 +25407,8 @@
         }
       }
     },
-    "Filter files..." : {
-
-    },
-    "Final Summary" : {
-
-    },
     "For aliases and auth configuration, use:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -25649,6 +25551,7 @@
       }
     },
     "For channels with complex setup (Slack, Matrix, etc.), use the command line:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -25933,6 +25836,7 @@
       }
     },
     "For Telegram/Discord: bot token. For Slack: bot token (xoxb-...). Other channels may require different credentials." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26075,6 +25979,7 @@
       }
     },
     "Format: minute hour day month weekday (e.g. \"0 9 * * *\" = every day at 9:00 AM)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26370,9 +26275,6 @@
           }
         }
       }
-    },
-    "Fullscreen" : {
-
     },
     "Gateway" : {
       "localizations" : {
@@ -27265,6 +27167,7 @@
       }
     },
     "Generating QR code..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -27873,6 +27776,7 @@
       }
     },
     "Go to DingTalk Open Platform to create an app and get the App Key and App Secret." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -28027,6 +27931,7 @@
       }
     },
     "Go to Feishu Open Platform to create an app and get the App ID and App Secret." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -28686,9 +28591,6 @@
         }
       }
     },
-    "Hi! I'm GetClawHub Assistant" : {
-
-    },
     "Hide" : {
       "localizations" : {
         "ar" : {
@@ -28831,25 +28733,10 @@
         }
       }
     },
-    "Hide agents" : {
-
-    },
     "Hide Outputs" : {
 
     },
-    "Hide Project Files" : {
-
-    },
     "Hide Terminal" : {
-
-    },
-    "History" : {
-
-    },
-    "History length passed to agent on retry" : {
-
-    },
-    "hours" : {
 
     },
     "https://api.example.com/v1" : {
@@ -29017,6 +28904,7 @@
       }
     },
     "Image Fallback Models" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -29176,6 +29064,7 @@
       }
     },
     "Image Model" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -29318,6 +29207,7 @@
       }
     },
     "Img Fallback" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -29460,6 +29350,7 @@
       }
     },
     "Img Fallbacks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -29600,9 +29491,6 @@
           }
         }
       }
-    },
-    "Increase font size (⌘+)" : {
-
     },
     "Input:" : {
       "extractionState" : "stale",
@@ -31763,6 +31651,7 @@
       }
     },
     "Isolated" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -31917,6 +31806,7 @@
       }
     },
     "Isolated: each run in a separate session. Main: reuse the main session." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -32399,9 +32289,6 @@
         }
       }
     },
-    "Last: %@" : {
-
-    },
     "Latest" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -32562,6 +32449,7 @@
       }
     },
     "Linked" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -32699,16 +32587,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已關聯"
-          }
-        }
-      }
-    },
-    "Ln %lld, Col %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Ln %1$lld, Col %2$lld"
           }
         }
       }
@@ -32857,6 +32735,7 @@
       }
     },
     "Loading agents..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -33011,6 +32890,7 @@
       }
     },
     "Loading channels..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -33324,6 +33204,7 @@
       }
     },
     "Loading models..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -33781,6 +33662,7 @@
       }
     },
     "Loading…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -34881,6 +34763,7 @@
       }
     },
     "Logs will appear here when the gateway service is running" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -35022,10 +34905,8 @@
         }
       }
     },
-    "Long running" : {
-
-    },
     "Lowercase letters, numbers, hyphens only" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -35325,6 +35206,7 @@
 
     },
     "Main" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -35497,9 +35379,6 @@
         }
       }
     },
-    "Mark as completed (unblock downstream tasks)" : {
-
-    },
     "Market" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -35659,15 +35538,6 @@
           }
         }
       }
-    },
-    "Max Concurrency" : {
-
-    },
-    "Max concurrent subtasks (0 = unlimited)" : {
-
-    },
-    "Max execution time per subtask (current: %@)" : {
-
     },
     "Max Out" : {
       "extractionState" : "stale",
@@ -35987,9 +35857,6 @@
           }
         }
       }
-    },
-    "Message" : {
-
     },
     "Messages" : {
       "localizations" : {
@@ -36313,6 +36180,7 @@
       }
     },
     "Mode:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -37866,9 +37734,6 @@
         }
       }
     },
-    "New chat in project" : {
-
-    },
     "New Conversation" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -38012,12 +37877,6 @@
         }
       }
     },
-    "New File" : {
-
-    },
-    "New Folder" : {
-
-    },
     "New Session" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -38036,6 +37895,7 @@
       }
     },
     "Next: " : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -38176,9 +38036,6 @@
           }
         }
       }
-    },
-    "Next: %@" : {
-
     },
     "Next: %@ (%@)" : {
       "extractionState" : "stale",
@@ -38536,6 +38393,7 @@
       }
     },
     "No channels configured" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -38694,6 +38552,7 @@
       }
     },
     "No cron jobs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -38836,6 +38695,7 @@
       }
     },
     "No cron jobs configured" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -38988,9 +38848,6 @@
           }
         }
       }
-    },
-    "No files" : {
-
     },
     "No global budget rule configured. Add one below to start tracking." : {
       "extractionState" : "manual",
@@ -39316,6 +39173,7 @@
 
     },
     "No Logs Available" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -39627,9 +39485,6 @@
         }
       }
     },
-    "No matching files" : {
-
-    },
     "No matching models found in the official provider preset." : {
       "localizations" : {
         "zh-Hans" : {
@@ -39805,6 +39660,7 @@
       }
     },
     "No models configured" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -40393,6 +40249,7 @@
       }
     },
     "No sessions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -40551,6 +40408,7 @@
       }
     },
     "No skills detected" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -40710,6 +40568,7 @@
       }
     },
     "No token data" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -41278,6 +41137,7 @@
       }
     },
     "None" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -41420,6 +41280,7 @@
       }
     },
     "Not Configured" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -41988,6 +41849,7 @@
       }
     },
     "Not Linked" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -42284,6 +42146,7 @@
       }
     },
     "Not set" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -42738,13 +42601,8 @@
         }
       }
     },
-    "Offline" : {
-
-    },
-    "Offline — FAQ answers only" : {
-
-    },
     "OK" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -42885,9 +42743,6 @@
           }
         }
       }
-    },
-    "Online" : {
-
     },
     "Open Config File" : {
       "localizations" : {
@@ -43174,6 +43029,7 @@
       }
     },
     "Open File" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -43314,9 +43170,6 @@
           }
         }
       }
-    },
-    "Open in Finder" : {
-
     },
     "Open Outputs Folder" : {
 
@@ -43462,9 +43315,6 @@
           }
         }
       }
-    },
-    "Open Workspace" : {
-
     },
     "OpenClaw" : {
 
@@ -44624,10 +44474,8 @@
         }
       }
     },
-    "Optional" : {
-
-    },
     "Optional. Written to IDENTITY.md as the agent's name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -44923,9 +44771,6 @@
           }
         }
       }
-    },
-    "Output files:" : {
-
     },
     "Output:" : {
       "extractionState" : "stale",
@@ -45384,9 +45229,6 @@
           }
         }
       }
-    },
-    "Paste" : {
-
     },
     "Paste the install command from Skills Market:" : {
       "extractionState" : "stale",
@@ -46282,6 +46124,7 @@
       }
     },
     "Pin" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -46903,6 +46746,7 @@
       }
     },
     "Plugin for %@ is not installed. Please install the plugin first." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -47504,19 +47348,7 @@
         }
       }
     },
-    "Preparing" : {
-
-    },
     "Preparing workspace" : {
-
-    },
-    "Preview" : {
-
-    },
-    "Process ended" : {
-
-    },
-    "Process running" : {
 
     },
     "Profile" : {
@@ -47705,9 +47537,6 @@
           }
         }
       }
-    },
-    "Progress: %@" : {
-
     },
     "Project Research" : {
 
@@ -49639,9 +49468,6 @@
         }
       }
     },
-    "Refreshing..." : {
-
-    },
     "Reinstall" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -50070,10 +49896,8 @@
         }
       }
     },
-    "Remove Agent" : {
-
-    },
     "Remove Channel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -50216,6 +50040,7 @@
       }
     },
     "Remove Cron Job" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -50369,9 +50194,6 @@
         }
       }
     },
-    "Remove from Agent" : {
-
-    },
     "Remove the budget rule for \"%@\"?" : {
       "localizations" : {
         "zh-Hans" : {
@@ -50383,6 +50205,7 @@
       }
     },
     "Rename" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -50603,6 +50426,7 @@
       }
     },
     "Report Issue" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -50886,9 +50710,6 @@
           }
         }
       }
-    },
-    "Requirements Gathering" : {
-
     },
     "Requirements Summary" : {
 
@@ -51195,9 +51016,6 @@
     "Reset Agent Session?" : {
 
     },
-    "Reset Defaults" : {
-
-    },
     "Restart" : {
       "localizations" : {
         "ar" : {
@@ -51494,9 +51312,6 @@
         }
       }
     },
-    "Retry Context Length" : {
-
-    },
     "Retry Start" : {
       "localizations" : {
         "ar" : {
@@ -51638,12 +51453,6 @@
           }
         }
       }
-    },
-    "Retry this task" : {
-
-    },
-    "Reveal in Finder" : {
-
     },
     "Run Now" : {
       "extractionState" : "stale",
@@ -51801,6 +51610,7 @@
       }
     },
     "Run Task" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -52411,6 +52221,7 @@
       }
     },
     "Scan with WeChat to connect" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -52747,6 +52558,7 @@
       }
     },
     "Search logs..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -53867,6 +53679,7 @@
       }
     },
     "Session Target" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -54180,6 +53993,7 @@
       }
     },
     "Set Default" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -54322,6 +54136,7 @@
       }
     },
     "Set Fallback" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -54464,6 +54279,7 @@
       }
     },
     "Set Image" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -54606,6 +54422,7 @@
       }
     },
     "Set Img FB" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -55065,9 +54882,6 @@
         }
       }
     },
-    "Show agents" : {
-
-    },
     "Show Main Window" : {
       "localizations" : {
         "ar" : {
@@ -55211,9 +55025,6 @@
       }
     },
     "Show Outputs" : {
-
-    },
-    "Show Project Files" : {
 
     },
     "Show Terminal" : {
@@ -55384,9 +55195,6 @@
           }
         }
       }
-    },
-    "Skip this task" : {
-
     },
     "Social Media Auto Growth" : {
       "extractionState" : "stale",
@@ -55674,6 +55482,7 @@
       }
     },
     "Start" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -55958,6 +55767,7 @@
       }
     },
     "Start QR Login" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -57132,6 +56942,7 @@
       }
     },
     "Stop" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -57585,9 +57396,6 @@
           }
         }
       }
-    },
-    "Summarizing" : {
-
     },
     "Supported: .ts .js .zip .tgz .tar.gz" : {
       "extractionState" : "stale",
@@ -59005,6 +58813,7 @@
       }
     },
     "The message/instruction to send when the cron job triggers..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -59909,6 +59718,7 @@
       }
     },
     "Timezone" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -60063,6 +59873,7 @@
       }
     },
     "Token" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -60360,6 +60171,7 @@
       }
     },
     "Token Usage" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -61137,6 +60949,7 @@
       }
     },
     "Total:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -61279,6 +61092,7 @@
       }
     },
     "Total: " : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -61443,12 +61257,6 @@
       }
     },
     "Type 'ok' or 'go' in chat to start, or continue discussing to adjust." : {
-
-    },
-    "Type /collab in chat or select Commander to send a task" : {
-
-    },
-    "Typing..." : {
 
     },
     "Unable to connect to login service: %@" : {
@@ -62221,10 +62029,8 @@
         }
       }
     },
-    "Unlimited" : {
-
-    },
     "Unpin" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -62716,9 +62522,6 @@
         }
       }
     },
-    "Use default for the primary account, or enter another ID to add multiple accounts for the same channel." : {
-
-    },
     "Use your own API Key" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -62772,9 +62575,6 @@
 
     },
     "v%@" : {
-
-    },
-    "Verifying" : {
 
     },
     "Version" : {
@@ -63205,6 +63005,7 @@
       }
     },
     "View all (%lld)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -63549,6 +63350,7 @@
       }
     },
     "Waiting for scan..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -63863,6 +63665,7 @@
       }
     },
     "WeChat connected successfully!" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

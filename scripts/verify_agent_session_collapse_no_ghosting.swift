@@ -33,9 +33,14 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 // Agent session rows now expand/collapse inside SidebarCollapsibleRow.
 // Ghosting during collapse is prevented by clipping the animated child
-// block (and the whole row container) instead of an asymmetric transition.
-let collapsibleRowBody = slice(
+// block and the whole row container while using an identity removal transition.
+let sidebarCollapsibleRow = slice(
     dashboard,
+    from: "struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View",
+    to: "// MARK: - Pulsing Dot"
+)
+let collapsibleRowBody = slice(
+    sidebarCollapsibleRow,
     from: "struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View",
     to: "private var rowContent: some View"
 )
@@ -49,6 +54,16 @@ assertContains(
     expandedChildrenBlock,
     ".transition(Self.childTransition)",
     "session rows should keep a soft insertion transition when expanding"
+)
+assertNotContains(
+    sidebarCollapsibleRow,
+    ".transition(.move(edge: .top).combined(with: .opacity))",
+    "collapsing agent/project child rows must not move old titles during removal"
+)
+assertContains(
+    sidebarCollapsibleRow,
+    ".asymmetric(insertion: .opacity, removal: .identity)",
+    "child rows should disappear immediately on collapse while keeping insertion soft"
 )
 assertContains(
     expandedChildrenBlock,
@@ -69,6 +84,11 @@ assertContains(
     afterAnimation,
     ".clipped()",
     "the whole collapsible row container must also be clipped during collapse to avoid ghosting"
+)
+assertContains(
+    sidebarCollapsibleRow,
+    ".clipped()",
+    "collapsible rows should clip animated children during expand/collapse"
 )
 
 print("Agent session collapse ghosting checks passed")

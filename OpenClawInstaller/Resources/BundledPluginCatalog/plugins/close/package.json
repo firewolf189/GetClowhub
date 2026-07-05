@@ -1,0 +1,12 @@
+{
+  "name": "close",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "CRM leads, opportunities, activities, and sales pipeline context",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

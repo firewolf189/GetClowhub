@@ -2,13 +2,15 @@ import SwiftUI
 
 struct ChatTimelineSurface: View {
     let messages: [ChatMessage]
-    @ObservedObject var viewModel: DashboardViewModel
+    @ObservedObject var taskState: TaskActivityState
+    let autoBackgroundAfterSeconds: Int?
     let proxy: ScrollViewProxy
     let columnMaxWidth: CGFloat
     let highlightedMessageId: UUID?
     let highlightedMessageFlashOn: Bool
     let onConfirmEditResend: (ChatMessage, String) -> Void
     let onCancel: (ChatMessage) -> Void
+    let onMoveToBackground: (UUID) -> Void
 
     var body: some View {
         let richMarkdownMessageIds = MarkdownRenderPolicy.recentRichMessageIds(in: messages)
@@ -47,7 +49,9 @@ struct ChatTimelineSurface: View {
                     ForEach(messages.filter { $0.taskStatus == .loading && $0.content.isEmpty }, id: \.id) { loadingMsg in
                         ThinkingIndicator(
                             message: loadingMsg,
-                            viewModel: viewModel
+                            taskState: taskState,
+                            autoBackgroundAfterSeconds: autoBackgroundAfterSeconds,
+                            onMoveToBackground: onMoveToBackground
                         )
                         .id("loading-\(loadingMsg.id)")
                     }

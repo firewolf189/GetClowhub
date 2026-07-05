@@ -1,0 +1,12 @@
+{
+  "name": "chronograph-lp",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Trusted portfolio data for private capital LP teams",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

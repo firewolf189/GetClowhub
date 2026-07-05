@@ -1,0 +1,20 @@
+{
+  "id": "fireflies",
+  "name": "Fireflies",
+  "displayName": "Fireflies",
+  "description": "The Fireflies app brings your meetings and knowledge directly into OpenClaw.",
+  "longDescription": "The Fireflies app brings your meetings and knowledge directly into OpenClaw.\n\nAnalyze any conversation—sales, customer success, product, recruiting—for insights, action items, and sentiment. Track feature requests and pain points, update CRMs or systems of record, and instantly retrieve context from your organization's meetings.\n\nWith Fireflies and OpenClaw, centralize your company knowledge and turn every conversation into searchable, actionable insights.",
+  "version": "1.0.2",
+  "developerName": "Fireflies",
+  "category": "Communication",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://fireflies.ai",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

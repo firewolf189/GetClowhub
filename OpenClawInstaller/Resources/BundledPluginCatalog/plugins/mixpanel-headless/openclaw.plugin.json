@@ -1,0 +1,34 @@
+{
+  "id": "mixpanel-headless",
+  "name": "Mixpanel Headless",
+  "displayName": "Mixpanel Headless",
+  "description": "Analyze Mixpanel data with Python",
+  "longDescription": "Use Mixpanel Headless skills to install and authenticate the mixpanel_headless Python SDK, discover Mixpanel schemas, run segmentation, funnel, retention, flow, and user-profile analyses, and build or inspect Mixpanel dashboards from OpenClaw.",
+  "version": "0.1.2",
+  "developerName": "Mixpanel",
+  "category": "Data & Analytics",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "mixpanel",
+    "analytics",
+    "product-analytics",
+    "python",
+    "data-science",
+    "funnels",
+    "retention",
+    "flows",
+    "dashboards"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://mixpanel.com/home",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

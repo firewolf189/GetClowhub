@@ -1,0 +1,29 @@
+{
+  "id": "google-drive",
+  "name": "Google Drive",
+  "displayName": "Google Drive",
+  "description": "Work across Drive, Docs, Sheets, and Slides",
+  "longDescription": "Use Google Drive as one unified Google file plugin for search, file organization, sharing, and Google Docs, Google Sheets, and Google Slides workflows.",
+  "version": "0.1.7",
+  "developerName": "OpenAI",
+  "category": "Productivity",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "google-drive",
+    "google-docs",
+    "google-sheets",
+    "google-slides",
+    "productivity"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://workspace.google.com/products/drive/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

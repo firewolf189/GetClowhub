@@ -1,0 +1,12 @@
+{
+  "name": "razorpay",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Connect your Razorpay account to access your payment data through conversation.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

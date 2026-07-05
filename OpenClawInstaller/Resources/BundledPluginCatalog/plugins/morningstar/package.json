@@ -1,0 +1,12 @@
+{
+  "name": "morningstar",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Screen, summarize, and compare funds with the Morningstar app.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

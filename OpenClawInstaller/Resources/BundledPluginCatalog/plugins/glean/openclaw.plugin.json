@@ -1,0 +1,27 @@
+{
+  "id": "glean",
+  "name": "Glean",
+  "displayName": "Glean",
+  "description": "Access enterprise knowledge with Glean",
+  "longDescription": "Bring enterprise context to ChatGPT and your AI tools with Glean's Remote MCP server. Search across all your organization's connected data sources—documents, wikis, code repositories, and more. Find employees by name, role, or expertise. Read specific documents, access Gmail and Outlook emails, and lookup meeting details. Custom agent workflows enable powerful automation tailored to your organization. Make Glean your AI assistant's enterprise memory—ensuring ChatGPT and other MCP-enabled applications have deep knowledge of your company's context wherever you work.",
+  "version": "1.0.0",
+  "developerName": "Glean Technologies, Inc.",
+  "category": "Productivity",
+  "capabilities": [
+    "Read"
+  ],
+  "keywords": [
+    "glean",
+    "enterprise-search",
+    "knowledge-management",
+    "mcp"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://glean.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

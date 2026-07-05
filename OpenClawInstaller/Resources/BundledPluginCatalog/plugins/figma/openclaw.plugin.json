@@ -1,0 +1,30 @@
+{
+  "id": "figma",
+  "name": "Figma",
+  "displayName": "Figma",
+  "description": "Design-to-code workflows powered by the Figma integration",
+  "longDescription": "Figma workflows for implementing designs in code, creating Code Connect templates for published Figma components, and generating project-specific design system rules for repeatable Figma-to-code work.",
+  "version": "2.0.10",
+  "developerName": "Figma",
+  "category": "Creativity",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "figma",
+    "design-to-code",
+    "ui-implementation",
+    "code-connect",
+    "design-system"
+  ],
+  "icon": "./assets/logo-padded.png",
+  "homepageURL": "https://www.figma.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

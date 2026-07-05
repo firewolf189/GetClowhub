@@ -1,0 +1,12 @@
+{
+  "name": "similarweb",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Digital market intelligence and web traffic analytics",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

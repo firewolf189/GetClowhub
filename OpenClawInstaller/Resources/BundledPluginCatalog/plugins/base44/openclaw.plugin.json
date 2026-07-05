@@ -1,0 +1,34 @@
+{
+  "id": "base44",
+  "name": "Base44",
+  "displayName": "Base44",
+  "description": "Build and deploy Base44 full-stack apps from OpenClaw",
+  "longDescription": "Build and deploy Base44 full-stack apps with OpenClaw. Includes CLI project management, JavaScript/TypeScript SDK development, and production troubleshooting skills.",
+  "version": "1.0.3-beta.1",
+  "developerName": "base44",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "base44",
+    "full-stack",
+    "sdk",
+    "cli",
+    "deployment",
+    "entities",
+    "backend-functions",
+    "javascript",
+    "typescript"
+  ],
+  "icon": "./assets/logo-padded.png",
+  "homepageURL": "https://base44.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "hubspot",
+  "name": "HubSpot",
+  "displayName": "HubSpot",
+  "description": "Work with your HubSpot data to analyze patterns, create and update records, and manage your CRM operations.",
+  "longDescription": "Work with your HubSpot data to analyze patterns, create and update records, and manage your CRM operations. Read from and write to deals, contacts, companies, tickets, engagements, and other objects you have permission to access. Prepare reports, update deal stages, log calls and emails, create tasks, or review pipeline details before meetings. Use it for quick updates in chat or comprehensive CRM management, all grounded in your actual HubSpot data.",
+  "version": "2.0.3",
+  "developerName": "HubSpot",
+  "category": "Business & Operations",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "hubspot",
+    "crm",
+    "sales",
+    "pipeline",
+    "customer-support"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.hubspot.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

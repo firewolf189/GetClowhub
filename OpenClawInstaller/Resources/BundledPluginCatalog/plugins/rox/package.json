@@ -1,0 +1,12 @@
+{
+  "name": "rox",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Use Rox revenue agents and account intelligence from OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

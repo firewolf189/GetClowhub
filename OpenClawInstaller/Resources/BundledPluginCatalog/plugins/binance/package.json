@@ -1,0 +1,12 @@
+{
+  "name": "binance",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Binance for OpenClaw lets you access and explore Binance public, read-only market data using natural language.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

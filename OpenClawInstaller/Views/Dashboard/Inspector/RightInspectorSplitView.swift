@@ -84,194 +84,6 @@ struct RightInspectorSplitView<Content: View, Sidebar: View>: NSViewControllerRe
     }
 }
 
-struct NestedWorkspaceSplitView<Primary: View, Secondary: View>: View {
-    let totalWidth: CGFloat
-    let primaryWidth: CGFloat
-    let secondaryWidth: CGFloat
-    let primary: Primary
-    let secondary: Secondary
-
-    init(
-        totalWidth: CGFloat,
-        primaryWidth: CGFloat,
-        secondaryWidth: CGFloat,
-        @ViewBuilder primary: () -> Primary,
-        @ViewBuilder secondary: () -> Secondary
-    ) {
-        self.totalWidth = totalWidth
-        self.primaryWidth = primaryWidth
-        self.secondaryWidth = secondaryWidth
-        self.primary = primary()
-        self.secondary = secondary()
-    }
-
-    var body: some View {
-        NestedWorkspaceSplitRepresentable(
-            primaryWidth: primaryWidth,
-            secondaryWidth: secondaryWidth
-        ) {
-            primary
-        } secondary: {
-            secondary
-        }
-        .frame(width: totalWidth)
-    }
-}
-
-private struct NestedWorkspaceSplitRepresentable<Primary: View, Secondary: View>: NSViewControllerRepresentable {
-    let primaryWidth: CGFloat
-    let secondaryWidth: CGFloat
-    let primary: Primary
-    let secondary: Secondary
-
-    init(
-        primaryWidth: CGFloat,
-        secondaryWidth: CGFloat,
-        @ViewBuilder primary: () -> Primary,
-        @ViewBuilder secondary: () -> Secondary
-    ) {
-        self.primaryWidth = primaryWidth
-        self.secondaryWidth = secondaryWidth
-        self.primary = primary()
-        self.secondary = secondary()
-    }
-
-    func makeNSViewController(context: Context) -> NSViewController {
-        let controller = NestedWorkspaceSplitController()
-        controller.loadViewIfNeeded()
-        return controller
-    }
-
-    func updateNSViewController(_ controller: NSViewController, context: Context) {
-        guard let nestedController = controller as? NestedWorkspaceSplitController else { return }
-        nestedController.update(
-            primary: AnyView(primary),
-            secondary: AnyView(secondary),
-            primaryWidth: primaryWidth,
-            secondaryWidth: secondaryWidth
-        )
-    }
-}
-
-private final class NestedWorkspaceSplitController: NSViewController {
-    private let primaryHost = NSHostingController(rootView: AnyView(EmptyView()))
-    private let secondaryClipView = NSView()
-    private let secondaryHost = NSHostingController(rootView: AnyView(EmptyView()))
-
-    private var primaryWidthConstraint: NSLayoutConstraint?
-    private var secondaryWidthConstraint: NSLayoutConstraint?
-    private var secondaryContentWidthConstraint: NSLayoutConstraint?
-    private var hasInstalledLayout = false
-    private var hasAppliedInitialLayout = false
-    private var animationGeneration = 0
-    private let layoutEpsilon: CGFloat = 0.5
-
-    override func loadView() {
-        view = NSView()
-    }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        installLayoutIfNeeded()
-    }
-
-    func update(primary: AnyView, secondary: AnyView, primaryWidth: CGFloat, secondaryWidth: CGFloat) {
-        loadViewIfNeeded()
-        installLayoutIfNeeded()
-
-        primaryHost.rootView = primary
-        secondaryHost.rootView = secondary
-
-        let targetPrimaryWidth = max(0, primaryWidth)
-        let targetWidth = max(0, secondaryWidth)
-        primaryWidthConstraint?.constant = targetPrimaryWidth
-        guard hasAppliedInitialLayout else {
-            setSecondaryWidth(targetWidth)
-            hasAppliedInitialLayout = true
-            return
-        }
-
-        animateSecondaryWidth(to: targetWidth)
-    }
-
-    private func installLayoutIfNeeded() {
-        guard !hasInstalledLayout else { return }
-
-        addChild(primaryHost)
-        addChild(secondaryHost)
-
-        primaryHost.view.translatesAutoresizingMaskIntoConstraints = false
-        secondaryClipView.translatesAutoresizingMaskIntoConstraints = false
-        secondaryClipView.clipsToBounds = true
-        secondaryHost.view.translatesAutoresizingMaskIntoConstraints = false
-
-        view.addSubview(primaryHost.view)
-        view.addSubview(secondaryClipView)
-        secondaryClipView.addSubview(secondaryHost.view)
-
-        let primaryWidthConstraint = primaryHost.view.widthAnchor.constraint(equalToConstant: 0)
-        let secondaryWidthConstraint = secondaryClipView.widthAnchor.constraint(equalToConstant: 0)
-        let secondaryContentWidthConstraint = secondaryHost.view.widthAnchor.constraint(equalToConstant: 0)
-
-        NSLayoutConstraint.activate([
-            primaryHost.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            primaryHost.view.topAnchor.constraint(equalTo: view.topAnchor),
-            primaryHost.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            primaryHost.view.trailingAnchor.constraint(equalTo: secondaryClipView.leadingAnchor),
-            primaryWidthConstraint,
-            secondaryClipView.topAnchor.constraint(equalTo: view.topAnchor),
-            secondaryClipView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            secondaryClipView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            secondaryHost.view.leadingAnchor.constraint(equalTo: secondaryClipView.leadingAnchor),
-            secondaryHost.view.topAnchor.constraint(equalTo: secondaryClipView.topAnchor),
-            secondaryHost.view.bottomAnchor.constraint(equalTo: secondaryClipView.bottomAnchor),
-            secondaryContentWidthConstraint,
-            secondaryWidthConstraint
-        ])
-
-        self.primaryWidthConstraint = primaryWidthConstraint
-        self.secondaryWidthConstraint = secondaryWidthConstraint
-        self.secondaryContentWidthConstraint = secondaryContentWidthConstraint
-        hasInstalledLayout = true
-    }
-
-    private func setSecondaryWidth(_ width: CGFloat) {
-        let clampedWidth = max(0, width)
-        secondaryWidthConstraint?.constant = clampedWidth
-        if clampedWidth > 0 {
-            secondaryContentWidthConstraint?.constant = clampedWidth
-        }
-        view.layoutSubtreeIfNeeded()
-    }
-
-    private func animateSecondaryWidth(to width: CGFloat) {
-        let targetWidth = max(0, width)
-        let currentWidth = secondaryWidthConstraint?.constant ?? 0
-        guard abs(currentWidth - targetWidth) > layoutEpsilon else { return }
-
-        animationGeneration += 1
-        let animationID = animationGeneration
-        if targetWidth >= currentWidth {
-            secondaryContentWidthConstraint?.constant = targetWidth
-        } else if (secondaryContentWidthConstraint?.constant ?? 0) <= 0 {
-            secondaryContentWidthConstraint?.constant = currentWidth
-        }
-
-        view.layoutSubtreeIfNeeded()
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = RightInspectorSplitMetrics.animationDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            context.allowsImplicitAnimation = true
-            self.secondaryWidthConstraint?.animator().constant = targetWidth
-            self.view.layoutSubtreeIfNeeded()
-        } completionHandler: {
-            guard self.animationGeneration == animationID else { return }
-            self.secondaryWidthConstraint?.constant = targetWidth
-            self.secondaryContentWidthConstraint?.constant = targetWidth
-        }
-    }
-}
-
 private final class RightInspectorSplitController: NSViewController {
     private let contentHost = NSHostingController(rootView: AnyView(EmptyView()))
     private let sidebarRail = NSView()
@@ -296,6 +108,7 @@ private final class RightInspectorSplitController: NSViewController {
     private var lastExpandRequestID = 0
     private var lastCollapseRequestID = 0
     private var locallyManagedSidebarWidth: CGFloat?
+    private var dragStartSidebarWidth: CGFloat = 0
     private lazy var sidebarWidthCoordinator = RightInspectorSidebarWidthCoordinator { [weak self] width in
         self?.animateExpandedSidebarWidth(to: width)
     }
@@ -442,6 +255,8 @@ private final class RightInspectorSplitController: NSViewController {
         contentMinWidthConstraint.priority = .defaultHigh
         let separatorWidthConstraint = sidebarSeparator.widthAnchor.constraint(equalToConstant: 1)
         separatorWidthConstraint.priority = .fittingSizeCompression
+        let resizePan = NSPanGestureRecognizer(target: self, action: #selector(handleSidebarResizePan(_:)))
+        sidebarSeparator.addGestureRecognizer(resizePan)
 
         NSLayoutConstraint.activate([
             contentHost.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -471,6 +286,32 @@ private final class RightInspectorSplitController: NSViewController {
         self.sidebarContentWidthConstraint = sidebarContentWidthConstraint
         self.contentMinWidthConstraint = contentMinWidthConstraint
         hasInstalledLayout = true
+    }
+
+    @objc private func handleSidebarResizePan(_ recognizer: NSPanGestureRecognizer) {
+        guard currentIsSidebarExpanded else { return }
+
+        switch recognizer.state {
+        case .began:
+            invalidateSidebarAnimation()
+            dragStartSidebarWidth = sidebarWidthConstraint?.constant ?? resolvedSidebarWidth()
+        case .changed:
+            let translation = recognizer.translation(in: view)
+            let proposedWidth = dragStartSidebarWidth - translation.x
+            let clampedWidth = clampedSidebarWidth(proposedWidth)
+            locallyManagedSidebarWidth = clampedWidth
+            currentSidebarWidth = clampedWidth
+            setSidebarWidth(clampedWidth)
+        case .ended, .cancelled, .failed:
+            let currentWidth = sidebarWidthConstraint?.constant ?? resolvedSidebarWidth()
+            let clampedWidth = clampedSidebarWidth(currentWidth)
+            locallyManagedSidebarWidth = clampedWidth
+            currentSidebarWidth = clampedWidth
+            setSidebarWidth(clampedWidth)
+            dragStartSidebarWidth = 0
+        default:
+            break
+        }
     }
 
     private func setSidebarExpanded(_ isSidebarExpanded: Bool, animated: Bool, completion: (() -> Void)? = nil) {
@@ -510,6 +351,16 @@ private final class RightInspectorSplitController: NSViewController {
         guard upperBound >= currentMinSidebarWidth else { return 0 }
 
         return min(max(currentSidebarWidth, currentMinSidebarWidth), upperBound)
+    }
+
+    private func clampedSidebarWidth(_ width: CGFloat) -> CGFloat {
+        let totalWidth = view.bounds.width
+        let contentMinimumWidth = contentMinWidthConstraint?.constant ?? 360
+        let availableSidebarWidth = totalWidth > 0 ? max(0, totalWidth - contentMinimumWidth) : currentMaxSidebarWidth
+        let upperBound = min(currentMaxSidebarWidth, availableSidebarWidth)
+        guard upperBound >= currentMinSidebarWidth else { return 0 }
+
+        return min(max(width, currentMinSidebarWidth), upperBound)
     }
 
     private func setSidebarWidth(_ width: CGFloat) {

@@ -241,7 +241,7 @@ struct SkillsTabView: View {
             }
             .buttonStyle(.plain)
             .disabled(model.isLoadingSkillCatalog)
-            .help(I18n.t("skills.help.refresh"))
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("skills.help.refresh")))
         }
     }
 
@@ -510,11 +510,20 @@ struct SkillsTabView: View {
                     item: item,
                     installedSkill: installedSkill,
                     isInstalling: model.installingCatalogSkillName == item.name,
+                    isUpgrading: model.upgradingCatalogSkillName == item.name,
                     isRemoving: model.removingSkillName == item.name,
+                    isUpdateAvailable: item.catalogItem.map {
+                        model.isUpdateAvailable(for: $0, installedSkill: installedSkill)
+                    } ?? false,
                     canRemove: installedSkill.map(SkillsTabModel.canRemoveSkill) ?? false,
                     onInstall: {
                         if let catalogItem = item.catalogItem {
                             Task { await model.installCatalogSkill(catalogItem) }
+                        }
+                    },
+                    onUpgrade: {
+                        if let catalogItem = item.catalogItem {
+                            Task { await model.upgradeCatalogSkill(catalogItem) }
                         }
                     },
                     onRemove: {
@@ -707,7 +716,7 @@ private struct CatalogSkillListRow: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isInstalling)
-                .help(I18n.t("catalog.action.install"))
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("catalog.action.install")))
             }
         }
         .padding(.horizontal, 8)
@@ -909,9 +918,12 @@ struct SkillCatalogDetailSheet: View {
     let item: SkillDetailPresentationItem
     let installedSkill: SkillInfo?
     let isInstalling: Bool
+    let isUpgrading: Bool
     let isRemoving: Bool
+    let isUpdateAvailable: Bool
     let canRemove: Bool
     let onInstall: () -> Void
+    let onUpgrade: () -> Void
     let onRemove: () -> Void
     let onClose: () -> Void
 
@@ -929,6 +941,9 @@ struct SkillCatalogDetailSheet: View {
                         if let installedSkill {
                             SkillDetailChip(title: installedSkill.status == .ready ? I18n.t("catalog.status.ready") : I18n.t("catalog.status.missing"))
                         }
+                        if isUpdateAvailable {
+                            SkillDetailChip(title: I18n.t("catalog.status.updateAvailable", fallback: "Update available"))
+                        }
                     }
                 }
 
@@ -944,7 +959,7 @@ struct SkillCatalogDetailSheet: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
-                    .help(I18n.t("catalog.action.close"))
+                    .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("catalog.action.close")))
                 }
             }
             .padding(.bottom, 16)
@@ -1023,17 +1038,33 @@ struct SkillCatalogDetailSheet: View {
             .buttonStyle(SkillPillButtonStyle(tone: .install, isDisabled: isInstalling))
             .disabled(isInstalling)
         } else if canRemove {
-            Button(role: .destructive, action: onRemove) {
-                if isRemoving {
-                    Text(I18n.t("catalog.action.removing"))
-                        .frame(width: 92, height: 30)
-                } else {
-                    Text(I18n.t("catalog.action.uninstall"))
-                        .frame(width: 92, height: 30)
+            HStack(spacing: 8) {
+                if isUpdateAvailable {
+                    Button(action: onUpgrade) {
+                        if isUpgrading {
+                            Text(I18n.t("catalog.action.upgrading", fallback: "Upgrading..."))
+                                .frame(width: 92, height: 30)
+                        } else {
+                            Text(I18n.t("catalog.action.upgrade", fallback: "Upgrade"))
+                                .frame(width: 92, height: 30)
+                        }
+                    }
+                    .buttonStyle(SkillPillButtonStyle(tone: .upgrade, isDisabled: isUpgrading || isRemoving))
+                    .disabled(isUpgrading || isRemoving)
                 }
+
+                Button(role: .destructive, action: onRemove) {
+                    if isRemoving {
+                        Text(I18n.t("catalog.action.removing"))
+                            .frame(width: 92, height: 30)
+                    } else {
+                        Text(I18n.t("catalog.action.uninstall"))
+                            .frame(width: 92, height: 30)
+                    }
+                }
+                .buttonStyle(SkillPillButtonStyle(tone: .destructive, isDisabled: isRemoving || isUpgrading))
+                .disabled(isRemoving || isUpgrading)
             }
-            .buttonStyle(SkillPillButtonStyle(tone: .destructive, isDisabled: isRemoving))
-            .disabled(isRemoving)
         } else {
             Text(I18n.t("catalog.status.installed"))
                 .font(.system(size: 11, weight: .medium))
@@ -1063,6 +1094,7 @@ private struct SkillDetailChip: View {
 private struct SkillPillButtonStyle: ButtonStyle {
     enum Tone {
         case install
+        case upgrade
         case neutral
         case destructive
     }
@@ -1090,7 +1122,7 @@ private struct SkillPillButtonStyle: ButtonStyle {
 
     private var foregroundColor: Color {
         switch tone {
-        case .install:
+        case .install, .upgrade:
             return SkillInstallPalette.amber
         case .neutral:
             return .primary
@@ -1101,7 +1133,7 @@ private struct SkillPillButtonStyle: ButtonStyle {
 
     private var backgroundColor: Color {
         switch tone {
-        case .install:
+        case .install, .upgrade:
             return SkillInstallPalette.amber.opacity(colorScheme == .dark ? 0.18 : 0.12)
         case .neutral:
             return colorScheme == .dark
@@ -1115,7 +1147,7 @@ private struct SkillPillButtonStyle: ButtonStyle {
 
     private var borderColor: Color {
         switch tone {
-        case .install:
+        case .install, .upgrade:
             return SkillInstallPalette.copper.opacity(colorScheme == .dark ? 0.44 : 0.30)
         case .neutral, .destructive:
             return .clear
@@ -1124,7 +1156,7 @@ private struct SkillPillButtonStyle: ButtonStyle {
 
     private var borderWidth: CGFloat {
         switch tone {
-        case .install:
+        case .install, .upgrade:
             return 1
         case .neutral, .destructive:
             return 0

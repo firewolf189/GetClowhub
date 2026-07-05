@@ -1,0 +1,12 @@
+{
+  "name": "game-studio",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Design, prototype, and ship browser games",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

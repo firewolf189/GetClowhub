@@ -1,0 +1,12 @@
+{
+  "name": "render",
+  "version": "0.1.3",
+  "type": "module",
+  "private": true,
+  "description": "Deploy, debug, monitor, and migrate apps on Render.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "skywatch",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Search and explore satellite imagery from top providers including Vantor, Planet, Airbus, and more, all in...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

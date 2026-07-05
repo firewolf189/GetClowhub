@@ -1,0 +1,20 @@
+{
+  "id": "thoughtspot",
+  "name": "ThoughtSpot",
+  "displayName": "ThoughtSpot",
+  "description": "Business intelligence answers, dashboards, metrics, and revenue analysis",
+  "longDescription": "Business intelligence answers, dashboards, metrics, and revenue analysis",
+  "version": "1.0.3",
+  "developerName": "ThoughtSpot",
+  "category": "Data & Analytics",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.thoughtspot.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

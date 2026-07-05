@@ -1,0 +1,28 @@
+{
+  "id": "rox",
+  "name": "Rox",
+  "displayName": "Rox",
+  "description": "Use Rox revenue agents and account intelligence from OpenClaw.",
+  "longDescription": "Rox connects OpenClaw to revenue agent workflows for account intelligence, prospecting, CRM context, recommended actions, and sales workflow automation.",
+  "version": "1.0.3",
+  "developerName": "Rox Data Corp",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [
+    "rox",
+    "sales",
+    "revenue",
+    "gtm",
+    "crm",
+    "account-intelligence",
+    "prospecting"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.rox.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

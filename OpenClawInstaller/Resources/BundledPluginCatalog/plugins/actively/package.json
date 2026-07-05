@@ -1,0 +1,12 @@
+{
+  "name": "actively",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Account intelligence and prospecting signals from Actively",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

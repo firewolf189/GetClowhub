@@ -16,12 +16,12 @@ struct OpenClawInstallationView: View {
 
                 BrandTextView()
 
-                Text("OpenClaw Installation")
+                Text(I18n.t("install.openclaw.title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
                 Text(viewModel.openclawInstaller.installationStatus.isEmpty ?
-                     "Installing OpenClaw via npm..." :
+                     I18n.t("install.openclaw.installing") :
                      viewModel.openclawInstaller.installationStatus)
                     .font(.title3)
                     .foregroundColor(.secondary)
@@ -35,7 +35,7 @@ struct OpenClawInstallationView: View {
                     HStack {
                         Image(systemName: "doc.text.fill")
                             .foregroundColor(.blue)
-                        Text("Installation Log")
+                        Text(I18n.t("install.shared.log"))
                             .font(.headline)
 
                         Spacer()
@@ -44,7 +44,7 @@ struct OpenClawInstallationView: View {
                             HStack(spacing: 6) {
                                 ProgressView()
                                     .scaleEffect(0.7)
-                                Text("Installing...")
+                                Text(I18n.t("catalog.action.installing"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -91,7 +91,7 @@ struct OpenClawInstallationView: View {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundColor(.blue)
 
-                        Text("Installation Progress")
+                        Text(I18n.t("install.shared.progress"))
                             .font(.headline)
 
                         Spacer()
@@ -124,7 +124,7 @@ struct OpenClawInstallationView: View {
                             .font(.title2)
                             .foregroundColor(.red)
 
-                        Text("Installation Failed")
+                        Text(I18n.t("install.shared.failed"))
                             .font(.headline)
                             .foregroundColor(.red)
                     }
@@ -132,7 +132,7 @@ struct OpenClawInstallationView: View {
                     Divider()
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Error Details:")
+                        Text(I18n.t("install.shared.errorDetails"))
                             .font(.subheadline)
                             .fontWeight(.semibold)
 
@@ -142,16 +142,16 @@ struct OpenClawInstallationView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Possible Solutions:")
+                        Text(I18n.t("install.shared.possibleSolutions"))
                             .font(.subheadline)
                             .fontWeight(.semibold)
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("• Ensure Node.js is properly installed")
-                            Text("• Check your npm registry connection")
-                            Text("• Verify network connectivity")
-                            Text("• Check the installation log for details")
-                            Text("• Click 'Retry' to attempt installation again")
+                            Text(I18n.t("install.openclaw.solution.node"))
+                            Text(I18n.t("install.openclaw.solution.npm"))
+                            Text(I18n.t("install.openclaw.solution.network"))
+                            Text(I18n.t("install.openclaw.solution.log"))
+                            Text(I18n.t("install.shared.solution.retry"))
                         }
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -177,7 +177,7 @@ struct OpenClawInstallationView: View {
                             .font(.title2)
                             .foregroundColor(.green)
 
-                        Text("OpenClaw Successfully Installed!")
+                        Text(I18n.t("install.openclaw.success"))
                             .font(.headline)
                             .foregroundColor(.green)
                     }
@@ -189,7 +189,7 @@ struct OpenClawInstallationView: View {
                             HStack {
                                 Image(systemName: "info.circle")
                                     .foregroundColor(.green)
-                                Text("Version:")
+                                Text(I18n.t("install.shared.version"))
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                                 Text(openclawInfo.version)
@@ -200,7 +200,7 @@ struct OpenClawInstallationView: View {
                             HStack {
                                 Image(systemName: "folder")
                                     .foregroundColor(.green)
-                                Text("Location:")
+                                Text(I18n.t("install.shared.location"))
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                                 Text(openclawInfo.path)
@@ -213,10 +213,10 @@ struct OpenClawInstallationView: View {
                             HStack {
                                 Image(systemName: "checkmark.shield")
                                     .foregroundColor(.green)
-                                Text("Status:")
+                                Text(I18n.t("install.shared.status"))
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
-                                Text("Ready for configuration")
+                                Text(I18n.t("install.openclaw.readyForConfig"))
                                     .font(.subheadline)
                                     .foregroundColor(.green)
                             }
@@ -224,7 +224,7 @@ struct OpenClawInstallationView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    Text("You can now proceed to configure OpenClaw settings.")
+                    Text(I18n.t("install.openclaw.configHelp"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.top, 4)
@@ -254,7 +254,7 @@ struct OpenClawInstallationView: View {
                     }) {
                         HStack {
                             Image(systemName: "arrow.clockwise")
-                            Text("Retry")
+                            Text(I18n.t("common.action.retry"))
                         }
                         .frame(width: 140)
                     }
@@ -263,7 +263,7 @@ struct OpenClawInstallationView: View {
                     Button(action: {
                         viewModel.cancelInstallation()
                     }) {
-                        Text("Cancel")
+                        Text(I18n.t("common.action.cancel"))
                             .frame(width: 140)
                     }
                     .buttonStyle(.bordered)
@@ -275,7 +275,7 @@ struct OpenClawInstallationView: View {
                         viewModel.installationState.goToStep(.configuration)
                     }) {
                         HStack {
-                            Text("Continue")
+                            Text(I18n.t("install.action.continue"))
                             Image(systemName: "arrow.right")
                         }
                         .frame(width: 160)

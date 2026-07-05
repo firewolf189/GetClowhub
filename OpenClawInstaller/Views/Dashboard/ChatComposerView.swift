@@ -88,7 +88,7 @@ struct ChatComposerView: View {
                     .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
-            .help(String(localized: "Attach File", bundle: LanguageManager.shared.localizedBundle))
+            .unifiedTooltip(UnifiedTooltipContent(title: String(localized: "Attach File", bundle: LanguageManager.shared.localizedBundle)))
             .disabled(isInputLocked)
 
             Spacer(minLength: 8)

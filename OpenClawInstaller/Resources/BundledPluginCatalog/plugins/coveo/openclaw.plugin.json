@@ -1,0 +1,20 @@
+{
+  "id": "coveo",
+  "name": "Coveo",
+  "displayName": "Coveo",
+  "description": "Search your enterprise content",
+  "longDescription": "Search your enterprise content",
+  "version": "1.0.2",
+  "developerName": "Coveo",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.coveo.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

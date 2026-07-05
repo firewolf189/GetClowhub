@@ -1,0 +1,12 @@
+{
+  "name": "hex",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Search Hex projects and ask Hex Threads questions",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

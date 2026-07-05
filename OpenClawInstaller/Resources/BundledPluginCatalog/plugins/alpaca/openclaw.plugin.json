@@ -1,0 +1,20 @@
+{
+  "id": "alpaca",
+  "name": "Alpaca",
+  "displayName": "Alpaca",
+  "description": "Stop watching the markets.",
+  "longDescription": "Stop watching the markets. Turn your words into insights with Alpaca.\nAsk OpenClaw real market questions and get live answers you can act on, including historical data, snapshots, quotes, and option chain information. Stock, options, and crypto market data embedded right into your conversation so you can turn analysis into automated actions.\n\"How has AAPL's stock performed this quarter vs GOOG?\"\n\"Show me the SPY option chain that expires next Friday.\"\n\"When has BTC's price reached $100k USD this year?\"",
+  "version": "1.0.2",
+  "developerName": "Alpaca",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://alpaca.markets/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -17,11 +17,11 @@ struct CompletionView: View {
 
                 BrandTextView()
 
-                Text("Installation Complete!")
+                Text(I18n.t("install.complete.title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text("OpenClaw has been successfully installed on your Mac")
+                Text(I18n.t("install.complete.subtitle"))
                     .font(.title3)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -31,24 +31,24 @@ struct CompletionView: View {
             // Installation summary
             VStack(spacing: 16) {
                 SummaryRow(
-                    icon: "checkmark.circle.fill",
-                    title: "Node.js",
-                    value: viewModel.systemEnvironment.nodeInfo?.version ?? "Installed",
-                    color: .green
-                )
+                        icon: "checkmark.circle.fill",
+                        title: "Node.js",
+                        value: viewModel.systemEnvironment.nodeInfo?.version ?? I18n.t("install.status.installed"),
+                        color: .green
+                    )
 
                 SummaryRow(
-                    icon: "checkmark.circle.fill",
-                    title: "OpenClaw",
-                    value: viewModel.systemEnvironment.openclawInfo?.version ?? "Installed",
-                    color: .green
-                )
+                        icon: "checkmark.circle.fill",
+                        title: "OpenClaw",
+                        value: viewModel.systemEnvironment.openclawInfo?.version ?? I18n.t("install.status.installed"),
+                        color: .green
+                    )
 
                 if viewModel.installationState.configurationComplete {
                     SummaryRow(
                         icon: "checkmark.circle.fill",
-                        title: "Configuration",
-                        value: "Completed",
+                        title: I18n.t("install.complete.configuration"),
+                        value: I18n.t("install.status.completed"),
                         color: .green
                     )
                 }
@@ -58,14 +58,14 @@ struct CompletionView: View {
                     SummaryRow(
                         icon: "arrow.clockwise.circle.fill",
                         title: "Gateway",
-                        value: "Starting...",
+                        value: I18n.t("install.status.starting"),
                         color: .orange
                     )
                 } else if viewModel.gatewayStarted {
                     SummaryRow(
                         icon: "checkmark.circle.fill",
                         title: "Gateway",
-                        value: "Running",
+                        value: I18n.t("dashboard.status.service.running"),
                         color: .green
                     )
                 } else if let error = viewModel.gatewayError {
@@ -87,7 +87,7 @@ struct CompletionView: View {
                 HStack(spacing: 12) {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Starting OpenClaw Gateway service...")
+                    Text(I18n.t("install.complete.gatewayStarting"))
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
@@ -95,7 +95,7 @@ struct CompletionView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("OpenClaw Gateway 已启动")
+                    Text(I18n.t("install.complete.gatewayStarted"))
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
@@ -108,7 +108,7 @@ struct CompletionView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
-                        Text("Gateway failed to start")
+                        Text(I18n.t("install.complete.gatewayFailed"))
                             .font(.body)
                             .fontWeight(.medium)
                     }
@@ -135,7 +135,7 @@ struct CompletionView: View {
                     }) {
                         HStack {
                             Image(systemName: "arrow.clockwise")
-                            Text("Retry Start")
+                            Text(I18n.t("install.action.retryStart"))
                         }
                         .frame(width: 180)
                     }
@@ -146,7 +146,7 @@ struct CompletionView: View {
                     onFinish?()
                 }) {
                     HStack {
-                        Text("Go to Management")
+                        Text(I18n.t("install.action.goToManagement"))
                         Image(systemName: "arrow.right")
                     }
                     .frame(width: 180)

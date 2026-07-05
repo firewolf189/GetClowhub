@@ -1,0 +1,12 @@
+{
+  "name": "monday-com",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "A powerful MCP connector enabling AI agents to seamlessly interact with monday.com.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

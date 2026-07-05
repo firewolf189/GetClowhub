@@ -1,0 +1,12 @@
+{
+  "name": "responsive",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The Responsive App makes it easy to work with your organization’s data inside OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

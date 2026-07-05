@@ -1,0 +1,30 @@
+{
+  "id": "catalyst-by-zoho",
+  "name": "Catalyst by Zoho",
+  "displayName": "Catalyst by Zoho",
+  "description": "Use Catalyst by Zoho capabilities in OpenClaw.",
+  "longDescription": "Catalyst by Zoho plugin extends OpenClaw with MCP-backed workflows and skills for building, managing, and operating Catalyst projects.",
+  "version": "1.0.1",
+  "developerName": "Catalyst by Zoho",
+  "category": "Developer Tools",
+  "capabilities": [
+    "MCP",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "zoho",
+    "catalyst",
+    "serverless",
+    "mcp",
+    "cloud"
+  ],
+  "icon": "./assets/catalyst_logo.svg",
+  "homepageURL": "https://catalyst.zoho.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

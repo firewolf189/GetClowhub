@@ -1,0 +1,12 @@
+{
+  "name": "sendgrid",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Connector for interacting with the SendGrid email API.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

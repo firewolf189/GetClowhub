@@ -1,0 +1,12 @@
+{
+  "name": "google-calendar",
+  "version": "1.2.3",
+  "type": "module",
+  "private": true,
+  "description": "OpenClaw adapter for Google Calendar scheduling and event-management workflows.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

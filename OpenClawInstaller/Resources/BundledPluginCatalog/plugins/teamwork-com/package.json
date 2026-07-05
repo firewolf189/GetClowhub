@@ -1,0 +1,12 @@
+{
+  "name": "teamwork-com",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Connect to sync Teamwork projects and tasks for use in OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

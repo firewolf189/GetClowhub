@@ -1,0 +1,38 @@
+{
+  "id": "zoom",
+  "name": "Zoom",
+  "displayName": "Zoom",
+  "description": "Use Zoom meeting context and build Zoom integrations.",
+  "longDescription": "Zoom connects OpenClaw to Zoom meeting context through the Zoom app connector and provides developer workflows for planning, building, debugging, and reviewing Zoom integrations across APIs, SDKs, webhooks, WebSockets, bots, and automation use cases.",
+  "version": "1.0.2",
+  "developerName": "Zoom",
+  "category": "Communication",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "zoom",
+    "openclaw-plugin",
+    "connector",
+    "meetings",
+    "transcripts",
+    "recordings",
+    "docs",
+    "developers",
+    "rest-api",
+    "meeting-sdk",
+    "video-sdk",
+    "webhooks",
+    "oauth"
+  ],
+  "icon": "./assets/app-icon.svg",
+  "homepageURL": "https://developers.zoom.us/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "alpaca",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Stop watching the markets.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

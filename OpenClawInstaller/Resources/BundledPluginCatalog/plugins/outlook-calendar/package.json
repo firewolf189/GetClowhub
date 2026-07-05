@@ -1,0 +1,12 @@
+{
+  "name": "outlook-calendar",
+  "version": "0.1.3",
+  "type": "module",
+  "private": true,
+  "description": "Manage Outlook schedules and meeting changes",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

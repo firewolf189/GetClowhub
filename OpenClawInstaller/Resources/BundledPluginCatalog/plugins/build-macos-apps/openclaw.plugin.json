@@ -1,0 +1,36 @@
+{
+  "id": "build-macos-apps",
+  "name": "Build macOS Apps",
+  "displayName": "Build macOS Apps",
+  "description": "Build, debug, instrument, and implement macOS apps with SwiftUI and AppKit guidance",
+  "longDescription": "macOS development workflows for discovering local projects, building and running desktop apps, implementing native SwiftUI scenes, bridging into AppKit when necessary, adding lightweight Logger telemetry, triaging test failures, inspecting signing and entitlements, and debugging desktop-specific build or runtime errors.",
+  "version": "0.1.4",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "macos",
+    "swift",
+    "swiftui",
+    "appkit",
+    "xcode",
+    "swiftpm",
+    "debugging",
+    "codesign",
+    "logging",
+    "telemetry",
+    "oslog"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://openai.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "mixpanel",
+  "version": "2.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Query and analyze Mixpanel",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

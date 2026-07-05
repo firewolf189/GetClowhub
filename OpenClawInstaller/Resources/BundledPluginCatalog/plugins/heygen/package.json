@@ -1,0 +1,12 @@
+{
+  "name": "heygen",
+  "version": "2.2.4",
+  "type": "module",
+  "private": true,
+  "description": "Avatar videos and personalized video messages",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

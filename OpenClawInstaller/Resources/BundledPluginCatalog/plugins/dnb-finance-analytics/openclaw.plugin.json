@@ -1,0 +1,39 @@
+{
+  "id": "dnb-finance-analytics",
+  "name": "D&B Finance Analytics",
+  "displayName": "D&B Finance Analytics",
+  "description": "Credit origination, portfolio risk, company reports, and folder workflows.",
+  "longDescription": "Power commercial credit origination and portfolio management workflows with D&B Finance Analytics' embedded AI decisioning layer. Dun & Bradstreet connects the D&B Commercial Graph with proprietary customer data and credit policies to help evaluate applications, set credit limits, organize portfolio folders, and uncover portfolio risk and opportunity.",
+  "version": "1.0.2",
+  "developerName": "Dun & Bradstreet",
+  "category": "Finance",
+  "capabilities": [
+    "Portfolio search, filtering, aggregation, and sorting",
+    "Company search by name or D-U-N-S number",
+    "Detailed company credit-risk reports",
+    "Company ownership and linkage trees",
+    "Credit application decisioning",
+    "Portfolio folder creation, movement, and organization",
+    "Server-provided Finance Analytics skill discovery"
+  ],
+  "keywords": [
+    "dnb",
+    "dun-bradstreet",
+    "finance-analytics",
+    "business-identity",
+    "company-data",
+    "firmographics",
+    "credit-risk",
+    "corporate-linkage",
+    "portfolio-management",
+    "credit-origination"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.dnb.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

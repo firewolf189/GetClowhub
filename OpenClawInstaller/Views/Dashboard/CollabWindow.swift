@@ -66,10 +66,10 @@ struct CollabWindowView: View {
                     Image(systemName: "arrow.triangle.branch")
                         .font(.system(size: 28))
                         .foregroundColor(.secondary.opacity(0.5))
-                    Text(String(localized: "No collaboration tasks", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.t("collab.empty.title"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text(String(localized: "Type /collab in chat or select Commander to send a task", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.t("collab.empty.detail"))
                         .font(.caption)
                         .foregroundColor(.secondary.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -94,7 +94,7 @@ struct CollabWindowView: View {
                 Image(systemName: "arrow.triangle.branch")
                     .font(.system(size: 16))
                     .foregroundColor(.accentColor)
-                Text("Collab Tasks")
+                Text(I18n.t("collab.title"))
                     .font(.headline)
 
                 // History picker — prominent button
@@ -126,7 +126,7 @@ struct CollabWindowView: View {
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
-                    .help(String(localized: "Collaboration history (\(viewModel.sessionHistory.count))", bundle: LanguageManager.shared.localizedBundle))
+                    .help(I18n.format("collab.history.help", Int64(viewModel.sessionHistory.count)))
                 }
 
                 Spacer()
@@ -144,7 +144,7 @@ struct CollabWindowView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help(String(localized: "Commander Settings", bundle: LanguageManager.shared.localizedBundle))
+                .help(I18n.t("collab.commander.settings"))
                 .popover(isPresented: $showConfigPopover, arrowEdge: .bottom) {
                     commanderConfigPopover
                 }
@@ -156,7 +156,7 @@ struct CollabWindowView: View {
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Collapse panel")
+                    .help(I18n.t("collab.panel.collapse"))
                 }
                 if onClose != nil {
                     Button(action: { onClose?() }) {
@@ -165,7 +165,7 @@ struct CollabWindowView: View {
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Close panel")
+                    .help(I18n.t("collab.panel.close"))
                 }
             }
 
@@ -177,7 +177,7 @@ struct CollabWindowView: View {
 
                 HStack(spacing: 4) {
                     if viewModel.phase == .executing || viewModel.phase == .completed || viewModel.phase == .summarizing || viewModel.phase == .verifying {
-                        Text("Progress: \(viewModel.progressText)")
+                        Text(I18n.format("collab.progress.label", viewModel.progressText))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -194,14 +194,14 @@ struct CollabWindowView: View {
 
     private var phaseStatusText: String {
         switch viewModel.phase {
-        case .clarifying: return "Understanding..."
-        case .researching: return "Researching..."
-        case .decomposing: return "Decomposing..."
-        case .awaitingApproval: return "Awaiting approval"
-        case .executing: return "Running..."
-        case .verifying: return "Verifying..."
-        case .summarizing: return "Summarizing..."
-        case .completed: return "Done"
+        case .clarifying: return I18n.t("collab.phase.understanding")
+        case .researching: return I18n.t("collab.phase.researching")
+        case .decomposing: return I18n.t("collab.phase.decomposing")
+        case .awaitingApproval: return I18n.t("collab.phase.awaitingApproval")
+        case .executing: return I18n.t("collab.phase.running")
+        case .verifying: return I18n.t("collab.phase.verifying")
+        case .summarizing: return I18n.t("collab.phase.summarizing")
+        case .completed: return I18n.t("collab.phase.done")
         }
     }
 
@@ -217,7 +217,7 @@ struct CollabWindowView: View {
                 Image(systemName: viewModel.phase == .clarifying ? "questionmark.circle" : "checkmark.circle.fill")
                     .foregroundColor(viewModel.phase == .clarifying ? .purple : .green)
                     .font(.system(size: 14))
-                Text(String(localized: "Requirements Gathering", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.t("collab.requirements.gathering"))
                     .font(.subheadline.bold())
                     .foregroundColor(viewModel.phase == .clarifying ? .purple : .secondary)
             }
@@ -525,7 +525,7 @@ struct CollabWindowView: View {
             HStack {
                 Image(systemName: "doc.text.fill")
                     .foregroundColor(.green)
-                Text("Final Summary")
+                Text(I18n.t("collab.final.summary"))
                     .font(.subheadline.bold())
             }
 
@@ -549,14 +549,14 @@ struct CollabWindowView: View {
 
     private var commanderConfigPopover: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "Commander Settings", bundle: LanguageManager.shared.localizedBundle))
+            Text(I18n.t("collab.commander.settings"))
                 .font(.headline)
 
             Divider()
 
             // Agent timeout
             VStack(alignment: .leading, spacing: 3) {
-                Text(String(localized: "Agent Timeout", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.t("collab.settings.agentTimeout"))
                     .font(.caption.bold())
                 // Preset minute-level quick picks
                 Picker("", selection: Binding<Int>(
@@ -581,7 +581,7 @@ struct CollabWindowView: View {
                 .labelsHidden()
                 // Custom hour-level input
                 HStack(spacing: 6) {
-                    Text(String(localized: "Custom", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.t("collab.settings.custom"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     TextField("", text: $customTimeoutHours)
@@ -591,7 +591,7 @@ struct CollabWindowView: View {
                         .onSubmit {
                             applyCustomTimeout()
                         }
-                    Text(String(localized: "hours", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.t("collab.settings.hours"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     if !customTimeoutHours.isEmpty, let h = Double(customTimeoutHours), h >= 0.5 {
@@ -600,17 +600,17 @@ struct CollabWindowView: View {
                             .foregroundColor(.green)
                     }
                 }
-                Text(String(localized: "Max execution time per subtask (current: \(viewModel.config.timeoutDisplay))", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.format("collab.settings.timeoutHelp", viewModel.config.timeoutDisplay))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
 
             // Max concurrency
             VStack(alignment: .leading, spacing: 3) {
-                Text(String(localized: "Max Concurrency", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.t("collab.settings.maxConcurrency"))
                     .font(.caption.bold())
                 Picker("", selection: $viewModel.config.maxConcurrency) {
-                    Text(String(localized: "Unlimited", bundle: LanguageManager.shared.localizedBundle)).tag(0)
+                    Text(I18n.t("collab.settings.unlimited")).tag(0)
                     Text("1").tag(1)
                     Text("2").tag(2)
                     Text("3").tag(3)
@@ -618,14 +618,14 @@ struct CollabWindowView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                Text(String(localized: "Max concurrent subtasks (0 = unlimited)", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.t("collab.settings.maxConcurrencyHelp"))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
 
             // Progress history limit
             VStack(alignment: .leading, spacing: 3) {
-                Text(String(localized: "Retry Context Length", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.t("collab.settings.retryContextLength"))
                     .font(.caption.bold())
                 HStack(spacing: 4) {
                     Picker("", selection: $viewModel.config.progressHistoryLimit) {
@@ -636,11 +636,11 @@ struct CollabWindowView: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    Text(String(localized: "chars", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.t("collab.settings.chars"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
-                Text(String(localized: "History length passed to agent on retry", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.t("collab.settings.retryContextHelp"))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -648,7 +648,7 @@ struct CollabWindowView: View {
             Divider()
 
             HStack {
-                Button(String(localized: "Reset Defaults", bundle: LanguageManager.shared.localizedBundle)) {
+                Button(I18n.t("collab.settings.resetDefaults")) {
                     viewModel.config = CommanderConfig()
                     viewModel.config.save()
                     customTimeoutHours = ""
@@ -657,7 +657,7 @@ struct CollabWindowView: View {
 
                 Spacer()
 
-                Button(String(localized: "Save", bundle: LanguageManager.shared.localizedBundle)) {
+                Button(I18n.t("common.action.save")) {
                     applyCustomTimeout()
                     viewModel.config.save()
                     showConfigPopover = false
@@ -724,11 +724,11 @@ struct CollabWindowView: View {
                     Image(systemName: "clock")
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
-                    Text(String(localized: "History", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.t("collab.history.title"))
                         .font(.subheadline.bold())
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(String(localized: "\(viewModel.sessionHistory.count) records", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.format("collab.history.records", Int64(viewModel.sessionHistory.count)))
                         .font(.caption)
                         .foregroundColor(.secondary.opacity(0.7))
                 }
@@ -768,7 +768,7 @@ struct CollabWindowView: View {
                 let completedCount = session.subtasks.filter { $0.status == .completed }.count
                 let totalCount = session.subtasks.count
                 if totalCount > 0 {
-                    Text(String(localized: "\(completedCount)/\(totalCount) subtasks", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.format("collab.history.subtasks", Int64(completedCount), Int64(totalCount)))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -789,11 +789,11 @@ struct CollabWindowView: View {
     private func sessionStatusBadge(_ phase: CollabPhase) -> some View {
         let (text, color): (String, Color) = {
             switch phase {
-            case .completed: return (String(localized: "Done", bundle: LanguageManager.shared.localizedBundle), .green)
-            case .executing: return (String(localized: "Running", bundle: LanguageManager.shared.localizedBundle), .blue)
-            case .verifying: return (String(localized: "Verifying", bundle: LanguageManager.shared.localizedBundle), .orange)
-            case .summarizing: return (String(localized: "Summarizing", bundle: LanguageManager.shared.localizedBundle), .purple)
-            case .clarifying, .researching, .decomposing, .awaitingApproval: return (String(localized: "Preparing", bundle: LanguageManager.shared.localizedBundle), .gray)
+            case .completed: return (I18n.t("collab.phase.done"), .green)
+            case .executing: return (I18n.t("collab.phase.runningPlain"), .blue)
+            case .verifying: return (I18n.t("collab.phase.verifyingPlain"), .orange)
+            case .summarizing: return (I18n.t("collab.phase.summarizingPlain"), .purple)
+            case .clarifying, .researching, .decomposing, .awaitingApproval: return (I18n.t("collab.phase.preparing"), .gray)
             }
         }()
 
@@ -811,7 +811,7 @@ struct CollabWindowView: View {
         HStack {
             if viewModel.isRunning {
                 Button(action: { viewModel.cancelAll() }) {
-                    Label("Cancel All", systemImage: "xmark.circle")
+                    Label(I18n.t("collab.action.cancelAll"), systemImage: "xmark.circle")
                         .font(.caption)
                 }
                 .buttonStyle(.plain)
@@ -865,7 +865,7 @@ struct CollabTaskCard: View {
                             .foregroundColor(.orange)
                     }
                     .buttonStyle(.plain)
-                    .help("Retry this task")
+                    .help(I18n.t("collab.task.retry"))
 
                     // Force complete button — mark failed task as completed to unblock downstream
                     Button(action: {
@@ -876,7 +876,7 @@ struct CollabTaskCard: View {
                             .foregroundColor(.green)
                     }
                     .buttonStyle(.plain)
-                    .help("Mark as completed (unblock downstream tasks)")
+                    .help(I18n.t("collab.task.forceComplete"))
                 }
 
                 // Skip button for pending tasks
@@ -887,7 +887,7 @@ struct CollabTaskCard: View {
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Skip this task")
+                    .help(I18n.t("collab.task.skip"))
                 }
 
                 // Expand/collapse toggle
@@ -920,17 +920,17 @@ struct CollabTaskCard: View {
                                     Circle()
                                         .fill(info.isProcessAlive ? Color.green : Color.gray)
                                         .frame(width: 6, height: 6)
-                                    Text(info.isProcessAlive ? String(localized: "Process running", bundle: LanguageManager.shared.localizedBundle) : String(localized: "Process ended", bundle: LanguageManager.shared.localizedBundle))
+                                    Text(info.isProcessAlive ? I18n.t("collab.process.running") : I18n.t("collab.process.ended"))
                                         .font(.system(size: 9))
                                         .foregroundColor(info.isProcessAlive ? .green : .secondary)
                                 }
                                 if info.outputLineCount > 0 {
-                                    Label(String(localized: "\(info.outputLineCount) lines", bundle: LanguageManager.shared.localizedBundle), systemImage: "text.alignleft")
+                                    Label(I18n.format("collab.process.lines", Int64(info.outputLineCount)), systemImage: "text.alignleft")
                                         .font(.system(size: 9))
                                         .foregroundColor(.secondary)
                                 }
                                 if !info.discoveredFiles.isEmpty {
-                                    Label(String(localized: "\(info.discoveredFiles.count) files", bundle: LanguageManager.shared.localizedBundle), systemImage: "doc")
+                                    Label(I18n.format("collab.process.files", Int64(info.discoveredFiles.count)), systemImage: "doc")
                                         .font(.system(size: 9))
                                         .foregroundColor(.blue)
                                 }
@@ -938,7 +938,7 @@ struct CollabTaskCard: View {
                                     .font(.system(size: 9))
                                     .foregroundColor(.secondary)
                                 if info.isStale {
-                                    Label(String(localized: "Long running", bundle: LanguageManager.shared.localizedBundle), systemImage: "hourglass")
+                                    Label(I18n.t("collab.process.longRunning"), systemImage: "hourglass")
                                         .font(.system(size: 9))
                                         .foregroundColor(.orange)
                                 }
@@ -965,7 +965,7 @@ struct CollabTaskCard: View {
                                 Image(systemName: "doc.fill")
                                     .font(.system(size: 8))
                                     .foregroundColor(.blue)
-                                Text(String(localized: "Output files:", bundle: LanguageManager.shared.localizedBundle))
+                                Text(I18n.t("collab.output.files"))
                                     .font(.system(size: 9, weight: .medium))
                                     .foregroundColor(.blue)
                             }
@@ -978,7 +978,7 @@ struct CollabTaskCard: View {
                         } else if progressInfo?.agentProgress == nil,
                                   progressInfo?.isProcessAlive == true,
                                   (progressInfo?.discoveredFiles ?? []).isEmpty {
-                            Text(String(localized: "Agent running...", bundle: LanguageManager.shared.localizedBundle))
+                            Text(I18n.t("collab.agent.running"))
                                 .font(.system(.caption2, design: .monospaced))
                                 .foregroundColor(.secondary)
                         }
@@ -996,7 +996,7 @@ struct CollabTaskCard: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     if !task.dependsOn.isEmpty {
-                        Text("Depends on: #\(task.dependsOn.map(String.init).joined(separator: ", #"))")
+                        Text(I18n.format("collab.task.dependsOn", task.dependsOn.map(String.init).joined(separator: ", #")))
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -1009,7 +1009,7 @@ struct CollabTaskCard: View {
                     }
 
                     if case .failed(let error) = task.status {
-                        Text("Error: \(error)")
+                        Text(I18n.format("collab.task.error", error))
                             .font(.caption)
                             .foregroundColor(.red)
                     }

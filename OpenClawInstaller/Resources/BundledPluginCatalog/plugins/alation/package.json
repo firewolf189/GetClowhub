@@ -1,0 +1,12 @@
+{
+  "name": "alation",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Data catalog search, lineage, governance, and documentation",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

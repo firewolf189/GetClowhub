@@ -8,6 +8,30 @@ enum PluginCatalogService {
         URL(fileURLWithPath: NSString("~/.openclaw/getclowhub-plugins-catalog").expandingTildeInPath)
     }
 
+    static var bundledCatalogURL: URL? {
+        Bundle.main.url(forResource: "BundledPluginCatalog", withExtension: nil)
+    }
+
+    @discardableResult
+    static func seedBundledCatalogIfNeeded(cacheURL: URL = defaultCacheURL) -> Bool {
+        guard !FileManager.default.fileExists(atPath: cacheURL.path),
+              let bundledCatalogURL else {
+            return false
+        }
+
+        do {
+            try FileManager.default.createDirectory(
+                at: cacheURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.copyItem(at: bundledCatalogURL, to: cacheURL)
+            return true
+        } catch {
+            try? FileManager.default.removeItem(at: cacheURL)
+            return false
+        }
+    }
+
     static func syncCommand(cacheURL: URL = defaultCacheURL) -> String {
         let cachePath = shellQuote(cacheURL.path)
         let parentPath = shellQuote(cacheURL.deletingLastPathComponent().path)
@@ -15,7 +39,7 @@ enum PluginCatalogService {
         return """
         mkdir -p \(parentPath); \
         if [ -d \(cachePath)/.git ]; then \
-        git -C \(cachePath) fetch origin main && git -C \(cachePath) reset --hard origin/main && git -C \(cachePath) clean -fd; \
+        git -C \(cachePath) pull --ff-only origin main; \
         else rm -rf \(cachePath) && git clone --depth 1 \(repo) \(cachePath); fi
         """
     }

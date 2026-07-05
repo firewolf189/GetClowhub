@@ -1,0 +1,20 @@
+{
+  "id": "factset",
+  "name": "FactSet",
+  "displayName": "FactSet",
+  "description": "Financial data, estimates, market analytics, and research context",
+  "longDescription": "Financial data, estimates, market analytics, and research context",
+  "version": "1.0.2",
+  "developerName": "FactSet",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.factset.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

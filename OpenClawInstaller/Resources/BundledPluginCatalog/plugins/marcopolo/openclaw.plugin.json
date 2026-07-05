@@ -1,0 +1,20 @@
+{
+  "id": "marcopolo",
+  "name": "MarcoPolo",
+  "displayName": "MarcoPolo",
+  "description": "MarcoPolo spins up a secure container where OpenClaw can work with your actual data.",
+  "longDescription": "MarcoPolo spins up a secure container where OpenClaw can work with your actual data. Connect to your databases, APIs, S3, lakehouses, CRMs, Jira, logs and much more—using scoped credentials that are never exposed to the model. \n\nOpenClaw gets DuckDB, Python, a shell, and a set of tools to explore, query, transform, and analyze data across systems. The workspace persists over time, so that you can build on your work. \n\nPrep a report, understand your data, debug an issue, or review the latest metrics right here in the conversation.",
+  "version": "1.0.3",
+  "developerName": "Immersa, Inc.",
+  "category": "Developer Tools",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://marcopolo.dev",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

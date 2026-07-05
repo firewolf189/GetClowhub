@@ -1,0 +1,12 @@
+{
+  "name": "box",
+  "version": "0.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Search and reference your documents",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

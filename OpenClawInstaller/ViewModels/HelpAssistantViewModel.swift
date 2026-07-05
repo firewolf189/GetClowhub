@@ -281,104 +281,40 @@ class HelpAssistantViewModel: ObservableObject {
 
     // MARK: - Quick Questions
 
-    func quickQuestions(for tab: DashboardViewModel.DashboardTab) -> [(String, String)] {
+    func quickQuestionKeys(for tab: DashboardViewModel.DashboardTab) -> [String] {
         switch tab {
         case .status:
-            return [
-                ("服务启动不了怎么办？", "What if the service won't start?"),
-                ("如何重启服务？", "How to restart the service?"),
-                ("如何查看系统信息？", "How to view system info?"),
-            ]
+            return ["help.quick.status.start", "help.quick.status.restart", "help.quick.status.systemInfo"]
         case .config:
-            return [
-                ("如何配置模型？", "How to configure models?"),
-                ("如何修改端口？", "How to change the port?"),
-                ("Provider 怎么切换？", "How to switch providers?"),
-            ]
+            return ["help.quick.config.models", "help.quick.config.port", "help.quick.config.provider"]
         case .chat:
-            return [
-                ("如何使用斜杠命令？", "How to use slash commands?"),
-                ("如何切换 AI 助手？", "How to switch AI assistant?"),
-                ("历史消息怎么查看？", "How to view message history?"),
-            ]
+            return ["help.quick.chat.slash", "help.quick.chat.switchAssistant", "help.quick.chat.history"]
         case .cron:
-            return [
-                ("如何创建定时任务？", "How to create a cron job?"),
-                ("Cron 表达式怎么写？", "How to write cron expressions?"),
-                ("如何暂停任务？", "How to pause a task?"),
-            ]
+            return ["help.quick.cron.create", "help.quick.cron.expression", "help.quick.cron.pause"]
         case .persona:
-            return [
-                ("如何编辑 AI 性格？", "How to edit AI personality?"),
-                ("四个文件分别是什么？", "What are the four files?"),
-                ("如何预览效果？", "How to preview changes?"),
-            ]
+            return ["help.quick.persona.edit", "help.quick.persona.files", "help.quick.persona.preview"]
         case .subAgents:
-            return [
-                ("如何创建子代理？", "How to create a sub-agent?"),
-                ("如何在 Chat 中切换 AI？", "How to switch AI in Chat?"),
-                ("如何删除子代理？", "How to delete a sub-agent?"),
-            ]
+            return ["help.quick.subAgents.create", "help.quick.subAgents.switch", "help.quick.subAgents.delete"]
         case .skills:
-            return [
-                ("如何安装新技能？", "How to install a skill?"),
-                ("技能状态含义？", "What do skill statuses mean?"),
-                ("去哪找更多技能？", "Where to find more skills?"),
-            ]
+            return ["help.quick.skills.install", "help.quick.skills.status", "help.quick.skills.findMore"]
         case .models:
-            return [
-                ("如何设置默认模型？", "How to set the default model?"),
-                ("什么是 Fallback？", "What is Fallback?"),
-                ("如何添加图像模型？", "How to add an image model?"),
-            ]
+            return ["help.quick.models.default", "help.quick.models.fallback", "help.quick.models.image"]
         case .channels:
-            return [
-                ("如何连接 Telegram？", "How to connect Telegram?"),
-                ("渠道状态灯含义？", "What do channel status lights mean?"),
-                ("如何删除渠道？", "How to remove a channel?"),
-            ]
+            return ["help.quick.channels.telegram", "help.quick.channels.status", "help.quick.channels.remove"]
         case .plugins:
-            return [
-                ("如何启用插件？", "How to enable a plugin?"),
-                ("有哪些可用插件？", "What plugins are available?"),
-                ("插件状态含义？", "What do plugin statuses mean?"),
-            ]
+            return ["help.quick.plugins.enable", "help.quick.plugins.available", "help.quick.plugins.status"]
         case .logs:
-            return [
-                ("如何搜索日志？", "How to search logs?"),
-                ("日志颜色含义？", "What do log colors mean?"),
-                ("如何导出日志？", "How to export logs?"),
-            ]
+            return ["help.quick.logs.search", "help.quick.logs.colors", "help.quick.logs.export"]
         case .budget:
-            return [
-                ("如何设置预算？", "How to set a budget?"),
-                ("预算告警怎么用？", "How do budget alerts work?"),
-                ("如何查看费用？", "How to view costs?"),
-            ]
+            return ["help.quick.budget.set", "help.quick.budget.alerts", "help.quick.budget.costs"]
         case .billing:
-            return [
-                ("如何查看账单？", "How to view billing?"),
-                ("Key 的消费额度是多少？", "What is the spend limit for a key?"),
-                ("账单多久重置？", "How often does the budget reset?"),
-            ]
+            return ["help.quick.billing.view", "help.quick.billing.limit", "help.quick.billing.reset"]
         case .market:
-            return [
-                ("如何安装智能体？", "How to install an agent?"),
-                ("市场里都有什么？", "What's in the marketplace?"),
-                ("如何卸载智能体？", "How to uninstall an agent?"),
-            ]
+            return ["help.quick.market.install", "help.quick.market.contents", "help.quick.market.uninstall"]
         case .tasksLogs:
-            return [
-                ("如何创建定时任务？", "How to create a cron job?"),
-                ("如何暂停自动化？", "How to pause automation?"),
-                ("如何编辑自动化？", "How to edit automation?"),
-            ]
+            return ["help.quick.tasks.create", "help.quick.tasks.pause", "help.quick.tasks.edit"]
         case .outputs:
-            return [
-                ("Outputs 里显示什么？", "What appears in Outputs?"),
-                ("为什么看不到配置文件？", "Why are config files hidden?"),
-                ("如何打开生成文件？", "How to open generated files?"),
-            ]
+            return ["help.quick.outputs.what", "help.quick.outputs.hidden", "help.quick.outputs.open"]
         }
     }
 

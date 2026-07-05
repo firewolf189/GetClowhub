@@ -1,0 +1,12 @@
+{
+  "name": "windsor-ai",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Windsor.ai connects your marketing and business data sources to OpenClaw so you can ask questions in natural...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

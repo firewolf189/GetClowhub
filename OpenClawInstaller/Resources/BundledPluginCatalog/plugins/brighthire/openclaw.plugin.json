@@ -1,0 +1,29 @@
+{
+  "id": "brighthire",
+  "name": "BrightHire",
+  "displayName": "BrightHire",
+  "description": "Search and analyze BrightHire interviews, candidates, calls, and hiring data.",
+  "longDescription": "Use BrightHire from OpenClaw to retrieve interview intelligence context, inspect calls and candidates, and support hiring workflows with governed access to BrightHire data.",
+  "version": "0.1.1",
+  "developerName": "BrightHire",
+  "category": "Productivity",
+  "capabilities": [
+    "Interactive",
+    "Read"
+  ],
+  "keywords": [
+    "brighthire",
+    "interviews",
+    "hiring",
+    "recruiting",
+    "openclaw"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.brighthire.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

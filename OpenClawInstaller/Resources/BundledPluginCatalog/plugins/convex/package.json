@@ -1,0 +1,12 @@
+{
+  "name": "convex",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Add a backend to JS/TS apps.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

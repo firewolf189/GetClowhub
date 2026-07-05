@@ -37,8 +37,8 @@ expect(
     "DashboardView must render SF Symbol sidebar icons through Image(systemName:)."
 )
 expect(
-    dashboard.contains(".frame(width: 18, height: 18)"),
-    "Automation SF Symbol should remain constrained to the sidebar icon slot."
+    dashboard.contains(".frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: DashboardSidebarMetrics.sidebarIconSlotWidth)"),
+    "Automation SF Symbol should remain constrained to the shared sidebar icon slot."
 )
 expect(
     dashboardViewModel.contains(#"case .tasksLogs: return "clock.badge""#),

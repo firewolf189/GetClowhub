@@ -1,0 +1,12 @@
+{
+  "name": "mt-newswires",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "MT Newswires brings real-time global financial news directly into OpenClaw — providing original, unbiased an...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

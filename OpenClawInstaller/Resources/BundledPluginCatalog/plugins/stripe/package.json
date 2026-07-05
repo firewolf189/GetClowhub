@@ -1,0 +1,12 @@
+{
+  "name": "stripe",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Payments and business tools",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

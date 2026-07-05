@@ -1,0 +1,12 @@
+{
+  "name": "airtable",
+  "version": "0.1.3",
+  "type": "module",
+  "private": true,
+  "description": "Database and operations layer for your agents.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

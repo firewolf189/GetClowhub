@@ -1,0 +1,12 @@
+{
+  "name": "hubspot",
+  "version": "2.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Work with your HubSpot data to analyze patterns, create and update records, and manage your CRM operations.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

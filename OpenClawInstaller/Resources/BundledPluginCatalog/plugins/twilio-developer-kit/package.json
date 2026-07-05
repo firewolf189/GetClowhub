@@ -1,0 +1,12 @@
+{
+  "name": "twilio-developer-kit",
+  "version": "0.2.2",
+  "type": "module",
+  "private": true,
+  "description": "Twilio Skills for building, debugging, and shipping on Twilio",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

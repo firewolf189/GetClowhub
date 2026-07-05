@@ -1,0 +1,19 @@
+{
+  "id": "clickup",
+  "name": "ClickUp",
+  "displayName": "ClickUp",
+  "description": "Turn OpenClaw into your ClickUp command center.",
+  "longDescription": "Turn OpenClaw into your ClickUp command center. Ask anything, find everything, take action - without breaking your flow.\n• Deep workspace search:  Ask questions naturally, get precise answers from across all your work\n• Action in the same breath: Find, create, update, and manage work in OpenClaw\n• Zero context switching:  Go from question to answer to action without leaving the conversation",
+  "version": "1.0.3",
+  "developerName": "ClickUp",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

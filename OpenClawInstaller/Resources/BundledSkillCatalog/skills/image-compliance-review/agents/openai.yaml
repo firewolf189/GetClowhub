@@ -1,0 +1,7 @@
+interface:
+  display_name: "Image Compliance Review"
+  short_description: "Audit image folders, watch mounted uploads, or summarize pass rates"
+  default_prompt: "Use $image-compliance-review to audit this uploaded image folder, set up automatic mounted-folder watching for newly uploaded images, or summarize pass rates from prior review results."
+
+policy:
+  allow_implicit_invocation: true

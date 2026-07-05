@@ -108,7 +108,7 @@ struct MarketplaceDetailView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .disabled(isInstalling)
-                .help(I18n.t("catalog.action.close"))
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("catalog.action.close")))
             }
         }
     }

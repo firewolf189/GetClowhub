@@ -1,0 +1,20 @@
+{
+  "id": "myregistry-com",
+  "name": "MyRegistry.com",
+  "displayName": "MyRegistry.com",
+  "description": "MyRegistry.com helps make gift-giving easy for friends & family to get you the gifts you really want!",
+  "longDescription": "MyRegistry.com helps make gift-giving easy for friends & family to get you the gifts you really want! Create a universal gift list for weddings, baby showers, birthdays, or any celebration and add gifts from any store.",
+  "version": "1.0.3",
+  "developerName": "MyRegistry.com",
+  "category": "Other",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.myregistry.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

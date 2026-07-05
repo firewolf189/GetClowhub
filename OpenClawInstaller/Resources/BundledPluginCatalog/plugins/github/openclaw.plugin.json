@@ -1,0 +1,30 @@
+{
+  "id": "github",
+  "name": "GitHub",
+  "displayName": "GitHub",
+  "description": "Triage PRs, issues, CI, and publish flows",
+  "longDescription": "Use GitHub to inspect repositories, review pull requests, address feedback, debug failing Actions checks, and prepare code changes for review through a connector-first workflow with targeted CLI fallbacks.",
+  "version": "0.1.5",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "github",
+    "pull-request",
+    "code-review",
+    "issues",
+    "ci",
+    "actions"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://github.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

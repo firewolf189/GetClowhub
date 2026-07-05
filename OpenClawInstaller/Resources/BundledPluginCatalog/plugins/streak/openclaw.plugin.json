@@ -1,0 +1,20 @@
+{
+  "id": "streak",
+  "name": "Streak",
+  "displayName": "Streak",
+  "description": "Streak is a CRM built directly into Gmail, so you can track deals, contacts, and workflows from your inbox.",
+  "longDescription": "Streak is a CRM built directly into Gmail, so you can track deals, contacts, and workflows from your inbox.\n\nEmails are logged automatically, pipelines update as conversations move forward, and notes and tasks stay attached to the work they belong to—without copying data into another tool.\n\nDesigned for teams and individuals who manage sales, partnerships, or customer relationships primarily over email and want a clear, up-to-date view of their work.",
+  "version": "1.0.2",
+  "developerName": "Rewardly, Inc.",
+  "category": "Business & Operations",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.streak.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

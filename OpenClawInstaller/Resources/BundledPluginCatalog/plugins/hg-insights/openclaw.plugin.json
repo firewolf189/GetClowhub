@@ -1,0 +1,27 @@
+{
+  "id": "hg-insights",
+  "name": "HG Insights",
+  "displayName": "HG Insights",
+  "description": "Use HG Insights revenue intelligence and GTM signals from OpenClaw.",
+  "longDescription": "HG Insights connects OpenClaw to revenue growth intelligence for market sizing, account prioritization, technographics, spend data, buyer intent, and GTM planning.",
+  "version": "1.0.3",
+  "developerName": "HG Insights",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [
+    "hg-insights",
+    "revenue-growth-intelligence",
+    "gtm",
+    "technographics",
+    "buyer-intent",
+    "account-intelligence"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://hginsights.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

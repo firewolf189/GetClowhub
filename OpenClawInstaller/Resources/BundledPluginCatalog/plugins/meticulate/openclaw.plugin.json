@@ -1,0 +1,19 @@
+{
+  "id": "meticulate",
+  "name": "Meticulate",
+  "displayName": "Meticulate",
+  "description": "Company matching, firmographic lookup, and go-to-market account intelligence",
+  "longDescription": "Company matching, firmographic lookup, and go-to-market account intelligence",
+  "version": "1.0.2",
+  "developerName": "Meticulate",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

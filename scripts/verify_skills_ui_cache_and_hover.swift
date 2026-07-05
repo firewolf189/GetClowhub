@@ -10,6 +10,7 @@ let skillsModelPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashb
 let dashboardViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
 let skillCatalogServicePath = root.appendingPathComponent("OpenClawInstaller/Services/SkillCatalogService.swift")
 let unifiedSearchFieldPath = root.appendingPathComponent("OpenClawInstaller/Views/Shared/UnifiedSearchField.swift")
+let skillsResourcePath = root.appendingPathComponent("OpenClawInstaller/Resources/I18n/en/skills.json")
 
 let viewModel = try String(contentsOf: viewModelPath, encoding: .utf8)
 let skillCatalogItem = try String(contentsOf: skillCatalogItemPath, encoding: .utf8)
@@ -18,6 +19,7 @@ let skillsModel = try String(contentsOf: skillsModelPath, encoding: .utf8)
 let dashboardView = try String(contentsOf: dashboardViewPath, encoding: .utf8)
 let skillCatalogService = try String(contentsOf: skillCatalogServicePath, encoding: .utf8)
 let unifiedSearchField = try String(contentsOf: unifiedSearchFieldPath, encoding: .utf8)
+let skillsResource = try String(contentsOf: skillsResourcePath, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     if !condition() {
@@ -50,6 +52,11 @@ let detailSheet = slice(
     from: "struct SkillCatalogDetailSheet: View",
     to: "private struct SkillDetailChip: View"
 )
+let installedSkillsContent = slice(
+    skillsView,
+    from: "@ViewBuilder\n    private var installedSkillsContent",
+    to: "private func matchesSearch"
+)
 
 require(
     skillsModel.contains("private var hasLoadedSkillCatalog = false"),
@@ -64,19 +71,22 @@ require(
     "Skill market should reuse the loaded catalog unless refresh is explicit."
 )
 require(
-    skillsModel.contains("let shouldSync = forceSync || !FileManager.default.fileExists"),
-    "Skill market should sync only for forced refresh or a missing cache."
+    skillsModel.contains("let didSeedBundledCatalog = !forceSync && SkillCatalogService.seedBundledCatalogIfNeeded()") &&
+        skillsModel.contains("let shouldSync = forceSync || (!didSeedBundledCatalog && !FileManager.default.fileExists"),
+    "Skill market should seed bundled catalog first and sync remotely only for forced refresh or a non-seeded missing cache."
 )
 require(
     skillsView.contains("loadSkillMarket(forceSync: true)"),
     "Refresh action should force catalog sync."
 )
 require(
-    skillsModel.contains(#"notifySuccess(I18n.t("skills.toast.updated"))"#),
+    skillsModel.contains(#"notifySuccess(I18n.t("skills.toast.updated"))"#) &&
+        skillsResource.contains(#""skills.toast.updated""#),
     "Forced skill catalog refresh should show a success toast after updating."
 )
 require(
-    skillsView.contains("UnifiedSearchField(placeholder: I18n.t(\"skills.search.placeholder\"), text: $searchText)") &&
+    skillsView.contains(#"UnifiedSearchField(placeholder: I18n.t("skills.search.placeholder"), text: $searchText)"#) &&
+        skillsResource.contains(#""skills.search.placeholder""#) &&
         unifiedSearchField.contains("RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)") &&
         unifiedSearchField.contains(".stroke(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 1)") &&
         !unifiedSearchField.contains(".clipShape(Capsule())"),
@@ -137,7 +147,8 @@ require(
 require(
     !skillsView.contains("InstalledSection") &&
         !skillsView.contains("installedSections") &&
-        skillsView.contains(#"SkillSectionHeader(title: I18n.t("catalog.section.installed")"#),
+        installedSkillsContent.components(separatedBy: "LazyVStack").count - 1 == 1 &&
+        installedSkillsContent.contains(#"SkillSectionHeader(title: I18n.t("catalog.section.installed")"#),
     "Installed skills should render as one list instead of preserving Catalog/Custom sub-sections."
 )
 require(
@@ -298,7 +309,7 @@ require(
 )
 require(
     detailSheet.contains(#"Text(I18n.t("catalog.action.install"))"#) &&
-        detailSheet.contains(#"I18n.t("catalog.action.uninstall")"#),
+        detailSheet.contains(#"Text(I18n.t("catalog.action.uninstall"))"#),
     "Skill detail sheet should render install and uninstall controls."
 )
 require(
@@ -332,7 +343,9 @@ require(
     skillsView.contains("@State private var showManualInstallSheet = false") &&
         skillsView.contains("manualInstallOverlay") &&
         skillsView.contains("ManualSkillInstallSheet") &&
-        skillsView.contains(#"I18n.t("skills.manual.title")"#),
+        skillsView.contains(#"I18n.t("skills.manual.title")"#) &&
+        skillsView.contains(#".help(I18n.t("skills.help.installFromRepository"))"#) &&
+        skillsResource.contains(#""skills.help.installFromRepository""#),
     "Skills UI should expose manual GitHub repository skill installation from the plus button."
 )
 require(

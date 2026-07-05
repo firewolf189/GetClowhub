@@ -1,0 +1,20 @@
+{
+  "id": "biorender",
+  "name": "BioRender",
+  "displayName": "BioRender",
+  "description": "BioRender helps scientists create professional figures in minutes.",
+  "longDescription": "BioRender helps scientists create professional figures in minutes. Access thousands of scientifically accurate templates and icons directly in OpenClaw to visualize protocols, pathways, molecular structures, and more. Brainstorm with your team, communicate research concepts, or build publication-ready figures for presentations, manuscripts, grant proposals, and posters.",
+  "version": "1.0.2",
+  "developerName": "BioRender",
+  "category": "Creativity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://biorender.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

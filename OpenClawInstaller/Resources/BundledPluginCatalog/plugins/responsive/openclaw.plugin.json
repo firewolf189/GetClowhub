@@ -1,0 +1,20 @@
+{
+  "id": "responsive",
+  "name": "Responsive",
+  "displayName": "Responsive",
+  "description": "The Responsive App makes it easy to work with your organization’s data inside OpenClaw.",
+  "longDescription": "The Responsive App makes it easy to work with your organization’s data inside OpenClaw. Search your Content Library and generate responses so you can move faster with trusted information and without switching tools.",
+  "version": "1.0.3",
+  "developerName": "RFPIO Inc. (d/b/a Responsive)",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.responsive.io",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

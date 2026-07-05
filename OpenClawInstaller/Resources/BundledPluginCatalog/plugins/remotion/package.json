@@ -1,0 +1,12 @@
+{
+  "name": "remotion",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Create motion graphics from prompts",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

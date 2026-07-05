@@ -1,0 +1,20 @@
+{
+  "id": "united-rentals",
+  "name": "United Rentals",
+  "displayName": "United Rentals",
+  "description": "Get the right equipment for the job without guesswork.",
+  "longDescription": "Get the right equipment for the job without guesswork. Share your project details and receive tailored equipment recommendations, along with specifications to support confident selection.",
+  "version": "1.0.3",
+  "developerName": "United Rentals",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.unitedrentals.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

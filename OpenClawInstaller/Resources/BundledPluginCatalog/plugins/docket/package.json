@@ -1,0 +1,12 @@
+{
+  "name": "docket",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Docket AI makes your sales knowledge your instant superpower.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

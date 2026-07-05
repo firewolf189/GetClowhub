@@ -1,0 +1,37 @@
+{
+  "id": "build-web-apps",
+  "name": "Build Web Apps",
+  "displayName": "Build Web Apps",
+  "description": "Build frontend-focused web apps with generated assets, browser testing, payments, and databases",
+  "longDescription": "Use Build Web Apps to create frontend application surfaces with OpenClaw-generated visual assets, verify them with the Browser plugin and built-in app browser, compose shadcn/ui, wire Stripe payments, and design or tune Supabase/Postgres data flows.",
+  "version": "0.1.2",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "build-web-apps",
+    "build",
+    "product-apps",
+    "frontend",
+    "image-generation",
+    "browser-testing",
+    "frontend-debugging",
+    "stripe",
+    "supabase",
+    "shadcn",
+    "full-stack",
+    "frontend-qa"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://openai.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

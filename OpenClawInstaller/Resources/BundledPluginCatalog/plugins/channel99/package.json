@@ -1,0 +1,12 @@
+{
+  "name": "channel99",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Channel99 real time go to market intelligence connects OpenClaw directly to Channel99’s performance marketin...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

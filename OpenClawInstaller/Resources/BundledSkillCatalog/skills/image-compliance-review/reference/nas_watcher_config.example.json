@@ -1,0 +1,35 @@
+{
+  "watch_dir": "/Volumes/your-share/图片",
+  "state_file": ".image-review-watcher/state.json",
+  "batch_dir": ".image-review-watcher/batches",
+  "batch_input_dir": ".image-review-watcher/batch-inputs",
+  "cleanup_batch_input": "on_success",
+  "log_file": ".image-review-watcher/watcher.log",
+  "output_root": "review-output",
+  "poll_seconds": 30,
+  "settle_seconds": 60,
+  "batch_limit": 8,
+  "ignore_dir_names": [
+    ".image-review-watcher",
+    "review-output",
+    "review_reports",
+    "__MACOSX"
+  ],
+  "trigger": {
+    "enabled": true,
+    "cwd": "{project_dir}",
+    "command": [
+      "/absolute/path/to/openclaw",
+      "agent",
+      "--agent",
+      "main",
+      "--timeout",
+      "1800",
+      "--session-id",
+      "image-review-{batch_id}",
+      "--json",
+      "--message",
+      "请使用 image-compliance-review 技能审核新增图片。项目目录：{project_dir}。NAS 原始图片根目录：{watch_dir}。本批隔离输入目录：{batch_input_dir}。本批新增图片清单 JSON：{batch_file}。审核规则：{rules_file}。只审核本批隔离输入目录里的图片；finalize 时 --input 必须使用 {batch_input_dir}，不要使用 NAS 根目录。finalize 时 --output-dir 必须使用 {run_output_dir}，并用 --report-output 写到 {batch_report_file}。每批必须保留结构化结果：{review_results_file}。"
+    ]
+  }
+}

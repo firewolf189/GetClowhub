@@ -1,0 +1,20 @@
+{
+  "id": "lovable",
+  "name": "Lovable",
+  "displayName": "Lovable",
+  "description": "Build and inspect Lovable app projects from connected workspace context",
+  "longDescription": "Build and inspect Lovable app projects from connected workspace context",
+  "version": "1.0.2",
+  "developerName": "Lovable",
+  "category": "Developer Tools",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://lovable.dev",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

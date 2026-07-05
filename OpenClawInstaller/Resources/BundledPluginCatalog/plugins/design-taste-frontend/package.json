@@ -1,0 +1,25 @@
+{
+  "name": "design-taste-frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Frontend design taste guidance for polished product UI decisions",
+  "keywords": [
+    "pi-package",
+    "skills",
+    "frontend",
+    "design",
+    "ui",
+    "taste"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "hyperframes",
+  "name": "HyperFrames by HeyGen",
+  "displayName": "HyperFrames by HeyGen",
+  "description": "Write HTML, render video",
+  "longDescription": "Build videos from HTML with HyperFrames. Author compositions with HTML + CSS + GSAP, use the CLI for init/preview/render/transcribe/tts, install reusable registry blocks and components, follow the GSAP animation reference, and turn any website into a video with the 7-step capture-to-video pipeline.",
+  "version": "0.1.2",
+  "developerName": "HeyGen",
+  "category": "Creativity",
+  "capabilities": [
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "hyperframes",
+    "video",
+    "html",
+    "gsap",
+    "animation",
+    "composition",
+    "rendering",
+    "captions",
+    "tts",
+    "audio-reactive"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://hyperframes.heygen.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

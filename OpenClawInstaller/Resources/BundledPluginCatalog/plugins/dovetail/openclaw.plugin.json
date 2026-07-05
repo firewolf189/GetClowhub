@@ -1,0 +1,20 @@
+{
+  "id": "dovetail",
+  "name": "Dovetail ",
+  "displayName": "Dovetail ",
+  "description": "Connect Dovetail inside OpenClaw to turn customer feedback into decisions without leaving your conversation.",
+  "longDescription": "Connect Dovetail inside OpenClaw to turn customer feedback into decisions without leaving your conversation. Search your Dovetail workspace for relevant projects, notes, docs, and themes, and get results back instantly. Ask things like “Summarize top friction points impacting enterprise renewal conversations” to surface evidence in seconds.",
+  "version": "1.0.3",
+  "developerName": "Dovetail",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://dovetail.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "chronograph-gp",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Trusted portfolio data for private capital GP teams",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

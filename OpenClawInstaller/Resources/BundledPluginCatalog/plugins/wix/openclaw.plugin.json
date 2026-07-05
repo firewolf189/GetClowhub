@@ -1,0 +1,33 @@
+{
+  "id": "wix",
+  "name": "Wix",
+  "displayName": "Wix",
+  "description": "Build Wix apps, headless websites, and manage your Wix business from OpenClaw",
+  "longDescription": "Build and deploy Wix apps and headless websites, and manage your Wix business with OpenClaw. Includes Wix CLI development skills for dashboard extensions, backend APIs, site widgets, service plugins, and data collections. Build headless websites with Wix Headless — from fully-hosted Astro apps to self-hosted in any framework — powered by Wix's backend for eCommerce, bookings, CMS, events, and members. Also includes recipes for Wix business solution management.",
+  "version": "1.1.2",
+  "developerName": "Wix",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "wix",
+    "wix-cli",
+    "wix-mcp",
+    "ecommerce",
+    "cms",
+    "wix-apps",
+    "wix-headless",
+    "headless"
+  ],
+  "icon": "./assets/logo.svg",
+  "homepageURL": "https://dev.wix.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

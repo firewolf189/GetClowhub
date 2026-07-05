@@ -1,0 +1,12 @@
+{
+  "name": "fireflies",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "The Fireflies app brings your meetings and knowledge directly into OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "openspec",
+  "name": "OpenSpec",
+  "displayName": "OpenSpec",
+  "description": "Structured proposal, planning, implementation, and archive workflows for OpenSpec changes",
+  "longDescription": "Use OpenSpec to explore product or engineering changes, write proposals and specs, implement approved changes, and archive completed work. This plugin packages the existing OpenSpec skills as one installable OpenClaw plugin while keeping each workflow entry focused.",
+  "version": "1.0.0",
+  "developerName": "OpenClaw",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "openspec",
+    "proposal",
+    "spec",
+    "tasks",
+    "implementation",
+    "archive",
+    "workflow"
+  ],
+  "systemIcon": "checklist",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "openspec"
+    ]
+  }
+}

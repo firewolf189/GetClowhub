@@ -50,14 +50,22 @@ final class PluginsTabModel: ObservableObject {
         isLoadingPluginCatalog = true
         pluginCatalogError = nil
 
-        let cacheGitURL = PluginCatalogService.defaultCacheURL.appendingPathComponent(".git")
-        let shouldSync = forceSync || !FileManager.default.fileExists(atPath: cacheGitURL.path)
+        let didSeedBundledCatalog = !forceSync && PluginCatalogService.seedBundledCatalogIfNeeded()
+        let cacheExists = FileManager.default.fileExists(atPath: PluginCatalogService.defaultCacheURL.path)
+        let shouldSync = forceSync || (!didSeedBundledCatalog && !cacheExists)
         let syncOutput: String?
         if shouldSync {
             syncOutput = await openclawService.runCommand(
-                "\(PluginCatalogService.syncCommand()) 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'",
+                "(\(PluginCatalogService.syncCommand()) && echo __OPENCLAW_PLUGIN_SYNC_OK__) 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'",
                 timeout: 120
             )
+            if syncOutput?.contains("__OPENCLAW_PLUGIN_SYNC_OK__") != true {
+                let detail = syncOutput?.trimmingCharacters(in: .whitespacesAndNewlines)
+                pluginCatalogError = detail?.isEmpty == false ? detail : I18n.t("plugins.error.refreshFailed")
+                await loadPlugins()
+                isLoadingPluginCatalog = false
+                return
+            }
         } else {
             syncOutput = nil
         }

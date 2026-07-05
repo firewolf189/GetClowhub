@@ -1,0 +1,12 @@
+{
+  "name": "clickup",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Turn OpenClaw into your ClickUp command center.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

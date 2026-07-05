@@ -1,0 +1,36 @@
+{
+  "id": "expo",
+  "name": "Expo",
+  "displayName": "Expo",
+  "description": "Build, deploy, upgrade, and debug Expo and React Native apps",
+  "longDescription": "Official Expo-authored skills for building Expo Router UI, authoring API routes, configuring data fetching and styling, writing Expo native modules, creating dev clients, upgrading Expo SDKs, wiring OpenClaw app Run actions, and deploying Expo apps with EAS workflows, builds, hosting, TestFlight, App Store, and Play Store guidance.",
+  "version": "1.0.2",
+  "developerName": "Expo",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "expo",
+    "react-native",
+    "expo-router",
+    "openclaw-run-actions",
+    "eas",
+    "mobile",
+    "ios",
+    "android",
+    "deployment",
+    "upgrades",
+    "native-modules"
+  ],
+  "icon": "./assets/expo.png",
+  "homepageURL": "https://expo.dev/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "pylon",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Access Pylon's customer support platform directly from OpenClaw to search, manage, and resolve customer issues.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

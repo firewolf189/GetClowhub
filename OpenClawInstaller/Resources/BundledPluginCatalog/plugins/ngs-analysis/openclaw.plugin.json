@@ -1,0 +1,40 @@
+{
+  "id": "ngs-analysis",
+  "name": "Life Sciences NGS Analysis",
+  "displayName": "Life Sciences NGS Analysis",
+  "description": "Guided NGS routing and local execution for sequencing analysis",
+  "longDescription": "A guided intake, routing, and execution plugin for next-generation sequencing workflows. It helps OpenClaw inspect local sequencing inputs, ask only the missing assay-specific questions, choose public or freely accessible runtime-installable packages where possible, check existing tool availability before any install, and execute supported local workflows with validation, logs, manifests, QC reports, and artifact indexes. It includes deeper decision skills for BCL demultiplexing, FASTQ QC execution and interpretation, germline, somatic and UMI-panel DNA variants, bulk RNA-seq count generation and differential expression, ATAC-seq, ChIP-seq/CUT&RUN/CUT&Tag, and embedded post-count scRNA-seq QC.",
+  "version": "1.0.3",
+  "developerName": "OpenAI",
+  "category": "Education & Research",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "ngs",
+    "sequencing",
+    "bioinformatics",
+    "fastq",
+    "bcl",
+    "rnaseq",
+    "scrnaseq",
+    "variant-calling",
+    "atacseq",
+    "chipseq",
+    "microbiome",
+    "metagenomics",
+    "pipeline-routing",
+    "nextflow",
+    "nf-core"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://openai.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

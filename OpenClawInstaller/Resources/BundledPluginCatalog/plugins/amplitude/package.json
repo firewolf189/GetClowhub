@@ -1,0 +1,12 @@
+{
+  "name": "amplitude",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Product analytics and funnels",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

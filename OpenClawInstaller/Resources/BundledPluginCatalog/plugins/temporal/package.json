@@ -1,0 +1,12 @@
+{
+  "name": "temporal",
+  "version": "0.2.2",
+  "type": "module",
+  "private": true,
+  "description": "Develop, run, and manage Temporal applications across the entire platform lifecycle",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

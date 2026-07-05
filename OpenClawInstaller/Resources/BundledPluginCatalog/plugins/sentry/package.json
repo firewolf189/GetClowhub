@@ -1,0 +1,12 @@
+{
+  "name": "sentry",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Inspect recent Sentry issues and events",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

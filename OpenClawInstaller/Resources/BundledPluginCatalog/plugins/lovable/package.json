@@ -1,0 +1,12 @@
+{
+  "name": "lovable",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Build and inspect Lovable app projects from connected workspace context",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

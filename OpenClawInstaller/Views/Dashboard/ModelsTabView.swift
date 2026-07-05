@@ -8,11 +8,11 @@ struct ModelsTabView: View {
             VStack(spacing: 16) {
                 // Header
                 HStack {
-                    Text("Models")
+                    Text(I18n.t("dashboard.models.title"))
                         .font(.headline)
 
                     if !viewModel.models.isEmpty {
-                        Text("(\(viewModel.models.count) configured)")
+                        Text(I18n.format("dashboard.count.configured", Int64(viewModel.models.count)))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -24,7 +24,7 @@ struct ModelsTabView: View {
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.clockwise")
-                            Text("Refresh")
+                            Text(I18n.t("catalog.action.refresh"))
                         }
                     }
                     .buttonStyle(.bordered)
@@ -53,7 +53,7 @@ struct ModelsTabView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                             .scaleEffect(1.2)
-                        Text("Loading models...")
+                        Text(I18n.t("dashboard.models.loading"))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -63,7 +63,7 @@ struct ModelsTabView: View {
                         Image(systemName: "cpu")
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
-                        Text("No models configured")
+                        Text(I18n.t("dashboard.models.empty"))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -104,7 +104,7 @@ struct ModelsTabView: View {
                     HStack {
                         Image(systemName: "terminal")
                             .foregroundColor(.secondary)
-                        Text("For aliases and auth configuration, use:")
+                        Text(I18n.t("dashboard.models.cliHint"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Text("openclaw models --help")
@@ -131,7 +131,7 @@ struct ModelOverviewCard: View {
         HStack(spacing: 24) {
             OverviewItem(
                 icon: "star.fill",
-                label: "Default",
+                label: I18n.t("dashboard.models.default"),
                 value: overview.defaultModel,
                 color: .blue
             )
@@ -140,8 +140,8 @@ struct ModelOverviewCard: View {
 
             OverviewItem(
                 icon: "photo",
-                label: "Image Model",
-                value: overview.imageModel ?? "Not set",
+                label: I18n.t("dashboard.models.imageModel"),
+                value: overview.imageModel ?? I18n.t("dashboard.models.notSet"),
                 color: overview.imageModel != nil ? .green : .secondary
             )
 
@@ -149,8 +149,8 @@ struct ModelOverviewCard: View {
 
             OverviewItem(
                 icon: "arrow.triangle.branch",
-                label: "Fallbacks",
-                value: overview.fallbacks.isEmpty ? "None" : overview.fallbacks,
+                label: I18n.t("dashboard.models.fallbacks"),
+                value: overview.fallbacks.isEmpty ? I18n.t("dashboard.models.none") : overview.fallbacks,
                 color: overview.fallbacks.isEmpty ? .secondary : .orange
             )
 
@@ -158,8 +158,8 @@ struct ModelOverviewCard: View {
 
             OverviewItem(
                 icon: "arrow.triangle.branch",
-                label: "Img Fallbacks",
-                value: overview.imageFallbacks.isEmpty ? "None" : overview.imageFallbacks,
+                label: I18n.t("dashboard.models.imageFallbacks"),
+                value: overview.imageFallbacks.isEmpty ? I18n.t("dashboard.models.none") : overview.imageFallbacks,
                 color: overview.imageFallbacks.isEmpty ? .secondary : .teal
             )
         }
@@ -210,7 +210,7 @@ struct FallbacksCard: View {
         VStack(alignment: .leading, spacing: 10) {
             if !fallbacks.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Fallback Models")
+                    Text(I18n.t("dashboard.models.fallbackModels"))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -229,7 +229,7 @@ struct FallbacksCard: View {
 
             if !imageFallbacks.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Image Fallback Models")
+                    Text(I18n.t("dashboard.models.imageFallbackModels"))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -270,6 +270,7 @@ struct FallbackTag: View {
             }
             .buttonStyle(.plain)
             .disabled(isPerformingAction)
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("dashboard.models.action.remove", fallback: "Remove model")))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -354,19 +355,19 @@ struct ModelRow: View {
                         .fontWeight(model.isDefault ? .bold : .regular)
 
                     if model.isDefault {
-                        BadgeView(text: "DEFAULT", color: .blue)
+                        BadgeView(text: I18n.t("dashboard.models.badge.default"), color: .blue)
                     }
 
                     if isImageModel {
-                        BadgeView(text: "IMAGE", color: .green)
+                        BadgeView(text: I18n.t("dashboard.models.badge.image"), color: .green)
                     }
 
                     if isFallback {
-                        BadgeView(text: "FALLBACK", color: .orange)
+                        BadgeView(text: I18n.t("dashboard.models.badge.fallback"), color: .orange)
                     }
 
                     if isImageFallback {
-                        BadgeView(text: "IMG FB", color: .teal)
+                        BadgeView(text: I18n.t("dashboard.models.badge.imageFallback"), color: .teal)
                     }
                 }
 
@@ -380,13 +381,13 @@ struct ModelRow: View {
                         .foregroundColor(.secondary)
 
                     if model.local {
-                        Label("Local", systemImage: "desktopcomputer")
+                        Label(I18n.t("dashboard.models.local"), systemImage: "desktopcomputer")
                             .font(.caption)
                             .foregroundColor(.purple)
                     }
 
                     if model.authenticated {
-                        Label("Auth", systemImage: "checkmark.shield.fill")
+                        Label(I18n.t("dashboard.models.auth"), systemImage: "checkmark.shield.fill")
                             .font(.caption)
                             .foregroundColor(.green)
                     }
@@ -398,7 +399,7 @@ struct ModelRow: View {
             // Action buttons
             HStack(spacing: 6) {
                 if model.supportsImage {
-                    Button(isImageModel ? "Image Model" : "Set Image") {
+                    Button(isImageModel ? I18n.t("dashboard.models.imageModel") : I18n.t("dashboard.models.action.setImage")) {
                         onSetImage()
                     }
                     .buttonStyle(.bordered)
@@ -406,7 +407,7 @@ struct ModelRow: View {
                     .controlSize(.small)
                     .disabled(isPerformingAction || isImageModel)
 
-                    Button(isImageFallback ? "Img Fallback" : "Set Img FB") {
+                    Button(isImageFallback ? I18n.t("dashboard.models.imageFallbacks") : I18n.t("dashboard.models.action.setImageFallback")) {
                         onAddImageFallback()
                     }
                     .buttonStyle(.bordered)
@@ -415,7 +416,7 @@ struct ModelRow: View {
                     .disabled(isPerformingAction || isImageFallback || isImageModel)
                 }
 
-                Button(isFallback ? "Fallback" : "Set Fallback") {
+                Button(isFallback ? I18n.t("dashboard.models.action.fallback") : I18n.t("dashboard.models.action.setFallback")) {
                     onAddFallback()
                 }
                 .buttonStyle(.bordered)
@@ -424,7 +425,7 @@ struct ModelRow: View {
                 .disabled(isPerformingAction || isFallback || model.isDefault)
 
                 if !model.isDefault {
-                    Button("Set Default") {
+                    Button(I18n.t("dashboard.models.action.setDefault")) {
                         onSetDefault()
                     }
                     .buttonStyle(.bordered)

@@ -1,0 +1,12 @@
+{
+  "name": "apollo",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "B2B prospecting, account research, contacts, and outreach lists",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

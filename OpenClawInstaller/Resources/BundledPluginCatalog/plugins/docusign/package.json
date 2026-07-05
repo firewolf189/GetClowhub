@@ -1,0 +1,12 @@
+{
+  "name": "docusign",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Agreement envelopes, signing status, recipients, and contract dates",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

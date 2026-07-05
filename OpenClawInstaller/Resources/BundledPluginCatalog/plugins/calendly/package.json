@@ -1,0 +1,12 @@
+{
+  "name": "calendly",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Search Calendly meetings, events, and availability.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

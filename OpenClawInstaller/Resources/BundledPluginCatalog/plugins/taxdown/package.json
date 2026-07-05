@@ -1,0 +1,12 @@
+{
+  "name": "taxdown",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "TaxDown te ayuda a resolver dudas fiscales en España, tanto para particulares como autónomos: deducciones,...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

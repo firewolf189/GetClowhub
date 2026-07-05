@@ -1,0 +1,12 @@
+{
+  "name": "quickbooks",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "QuickBooks accounting, invoices, expenses, customers, and payment context",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "quicknode",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Manage your Quicknode infrastructure directly in OpenAI.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -276,7 +276,7 @@ private struct AuthGateView: View {
         case .checking:
             ProgressView()
                 .controlSize(.small)
-            Text("Checking login status")
+            Text(I18n.t("login.status.checking"))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
 
@@ -284,28 +284,28 @@ private struct AuthGateView: View {
             Image(systemName: "person.crop.circle.badge.exclamationmark")
                 .font(.system(size: 34, weight: .regular))
                 .foregroundStyle(.secondary)
-            Text("Sign in to continue")
+            Text(I18n.t("login.status.signIn"))
                 .font(.system(size: 15, weight: .semibold))
-            Button("Log In", action: onLogin)
+            Button(I18n.t("login.action.logIn"), action: onLogin)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
         case .polling:
             ProgressView()
                 .controlSize(.small)
-            Text("Waiting for browser login")
+            Text(I18n.t("login.status.waitingBrowser"))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
-            Button("Reopen Login Page", action: onReopenLogin)
+            Button(I18n.t("login.action.reopen"), action: onReopenLogin)
                 .buttonStyle(.bordered)
 
         case .timeout:
             Image(systemName: "clock.badge.exclamationmark")
                 .font(.system(size: 34, weight: .regular))
                 .foregroundStyle(.orange)
-            Text("Login timed out")
+            Text(I18n.t("login.status.timeout"))
                 .font(.system(size: 15, weight: .semibold))
-            Button("Retry", action: onRetry)
+            Button(I18n.t("common.action.retry"), action: onRetry)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
@@ -319,14 +319,14 @@ private struct AuthGateView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Retry", action: onRetry)
+            Button(I18n.t("common.action.retry"), action: onRetry)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
         case .loggedIn:
             ProgressView()
                 .controlSize(.small)
-            Text("Preparing workspace")
+            Text(I18n.t("login.status.preparingWorkspace"))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -386,7 +386,7 @@ struct InitialView: View {
                 VStack(spacing: 12) {
                     ProgressView()
                         .scaleEffect(1.2)
-                    Text("Uninstalling...")
+                    Text(I18n.t("install.status.uninstalling"))
                         .font(.title3)
                         .foregroundColor(.secondary)
                 }
@@ -395,16 +395,16 @@ struct InitialView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 36))
                         .foregroundColor(.green)
-                    Text("Uninstall Complete")
+                    Text(I18n.t("install.status.uninstallComplete"))
                         .font(.title3)
                         .foregroundColor(.green)
-                    Text("Configuration and login data preserved. Can be restored after reinstallation.")
+                    Text(I18n.t("install.status.dataPreserved"))
                         .font(.caption)
                         .foregroundColor(.secondary)
 
                     Button(action: onStartInstallation) {
                         HStack {
-                            Text("Start Installation")
+                            Text(I18n.t("install.action.start"))
                             Image(systemName: "arrow.right")
                         }
                         .frame(width: 200)
@@ -416,14 +416,14 @@ struct InitialView: View {
                     .scaleEffect(1.2)
             } else if systemEnvironment.openclawInfo != nil {
                 VStack(spacing: 16) {
-                    Text("OpenClaw is installed")
+                    Text(I18n.t("install.status.openclawInstalled"))
                         .font(.title3)
                         .foregroundColor(.green)
 
                     HStack(spacing: 40) {
                         Button(action: onOpenDashboard) {
                             HStack {
-                                Text("Open Dashboard")
+                                Text(I18n.t("install.action.openDashboard"))
                                 Image(systemName: "arrow.right")
                             }
                             .frame(width: 180)
@@ -433,7 +433,7 @@ struct InitialView: View {
                         Button(action: { showUninstallConfirm = true }) {
                             HStack {
                                 Image(systemName: "trash")
-                                Text("Uninstall")
+                                Text(I18n.t("install.action.uninstall"))
                             }
                             .frame(width: 120)
                         }
@@ -443,13 +443,13 @@ struct InitialView: View {
                 }
             } else {
                 VStack(spacing: 16) {
-                    Text("Ready to install OpenClaw")
+                    Text(I18n.t("install.status.readyToInstall"))
                         .font(.title3)
                         .foregroundColor(.secondary)
 
                     Button(action: onStartInstallation) {
                         HStack {
-                            Text("Start Installation")
+                            Text(I18n.t("install.action.start"))
                             Image(systemName: "arrow.right")
                         }
                         .frame(width: 200)
@@ -461,13 +461,13 @@ struct InitialView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .alert("Confirm Uninstall OpenClaw?", isPresented: $showUninstallConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Uninstall", role: .destructive) {
+        .alert(I18n.t("install.alert.uninstallTitle"), isPresented: $showUninstallConfirm) {
+            Button(I18n.t("common.action.cancel"), role: .cancel) {}
+            Button(I18n.t("install.action.uninstall"), role: .destructive) {
                 performUninstall()
             }
         } message: {
-            Text("This will remove OpenClaw, Node.js runtime and log files.\nConfiguration and login data will be preserved.")
+            Text(I18n.t("install.alert.uninstallMessage"))
         }
     }
 

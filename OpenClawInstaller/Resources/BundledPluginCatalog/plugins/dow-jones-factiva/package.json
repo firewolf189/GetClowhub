@@ -1,0 +1,12 @@
+{
+  "name": "dow-jones-factiva",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The Factiva Connector, enables authorized users to search Factiva’s global news archive, including premium...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

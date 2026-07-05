@@ -23,20 +23,20 @@ private struct WorkspaceOutputsPaneHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("Outputs")
+            Text(I18n.t("workspace.outputs.title"))
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
 
             Spacer(minLength: 8)
 
-            WorkspaceHeaderIconButton(action: openFolder, help: "Open in Finder") {
+            WorkspaceHeaderIconButton(action: openFolder, help: I18n.t("workspace.outputs.openInFinder")) {
                 OpenWorkspaceInFinderIcon()
                     .foregroundColor(.secondary)
             }
 
             WorkspaceHeaderIconButton(
                 action: toggleProjectFiles,
-                help: isProjectFilesVisible ? "Hide Project Files" : "Show Project Files"
+                help: isProjectFilesVisible ? I18n.t("workspace.outputs.hideProjectFiles") : I18n.t("workspace.outputs.showProjectFiles")
             ) {
                 SecondaryProjectSidebarIcon()
                     .foregroundColor(isProjectFilesVisible ? .accentColor : .secondary)
@@ -63,7 +63,7 @@ private struct WorkspaceHeaderIconButton<Icon: View>: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(help)
+        .unifiedTooltip(UnifiedTooltipContent(title: help))
     }
 }
 
@@ -181,19 +181,21 @@ struct WorkspaceInspectorPane: View {
     let onDetailWidthChanged: (CGFloat) -> Void
     let openFolder: () -> Void
 
+    @Environment(\.rightInspectorSidebarWidthCoordinator) private var sidebarWidthCoordinator
+
     @State private var editingFilePath: String?
     @State private var detailMode: WorkspaceDetailMode = .none
     @State private var targetDetailMode: WorkspaceDetailMode = .none
     @State private var previewReturnMode: WorkspaceDetailMode = .none
     @State private var editingFileDirty = false
-    @State private var editorFullscreen = false
     @State private var searchText = ""
     @State private var visualDetailWidth: CGFloat = 0
-    @State private var retainedDetailMode: WorkspaceDetailMode = .none
+    @State private var committedDetailWidth: CGFloat = 0
+    @State private var renderedDetailMode: WorkspaceDetailMode = .none
     @State private var detailAnimationGeneration = 0
 
     private var isProjectFilesVisible: Bool {
-        detailMode == .projectTree || retainedDetailMode == .projectTree
+        detailMode == .projectTree || targetDetailMode == .projectTree || renderedDetailMode == .projectTree
     }
 
     var body: some View {
@@ -206,23 +208,31 @@ struct WorkspaceInspectorPane: View {
 
             Divider()
 
-            NestedWorkspaceSplitView(
-                totalWidth: browserWidth + visualDetailWidth,
-                primaryWidth: browserWidth,
-                secondaryWidth: visualDetailWidth
-            ) {
-                WorkspaceFilePanel(
-                    root: root,
-                    editingFilePath: $editingFilePath,
-                    onOpenFile: openWorkspaceFile,
-                    onCloseFile: closeWorkspaceDetail,
-                    editingFileDirty: editingFileDirty,
-                    width: browserWidth
+            GeometryReader { proxy in
+                let layout = WorkspaceInspectorContentLayout(
+                    availableWidth: proxy.size.width,
+                    preferredPrimaryWidth: browserWidth,
+                    preferredSecondaryWidth: visualDetailWidth
                 )
-            } secondary: {
-                detailPanel
+
+                WorkspaceInspectorContentSplit(
+                    totalWidth: layout.totalWidth,
+                    primaryWidth: layout.primaryWidth,
+                    secondaryWidth: layout.secondaryWidth
+                ) {
+                    WorkspaceFilePanel(
+                        root: root,
+                        editingFilePath: $editingFilePath,
+                        onOpenFile: openWorkspaceFile,
+                        onCloseFile: closeWorkspaceDetail,
+                        editingFileDirty: editingFileDirty,
+                        width: layout.primaryWidth
+                    )
+                } secondary: {
+                    detailPanel(width: layout.secondaryContentWidth)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
         .onAppear {
             syncDetailWidth(visualDetailWidth, animated: false)
@@ -233,28 +243,29 @@ struct WorkspaceInspectorPane: View {
     }
 
     @ViewBuilder
-    private var detailPanel: some View {
-        switch retainedDetailMode {
-        case .filePreview(let path):
-            FileEditorPanel(
-                filePath: path,
-                onClose: closeWorkspacePreview,
-                onDirtyChanged: { dirty in
-                    editingFileDirty = dirty
-                },
-                isFullscreen: $editorFullscreen
-            )
-            .id(path)
-        case .projectTree:
-            ProjectFilesPanel(
-                root: root,
-                selectedFilePath: editingFilePath,
-                searchText: $searchText,
-                width: editorWidth,
-                onOpenFile: openWorkspaceFile
-            )
-        case .none:
-            EmptyView()
+    private func detailPanel(width: CGFloat) -> some View {
+        Group {
+            switch renderedDetailMode {
+            case .filePreview(let path):
+                FileEditorPanel(
+                    filePath: path,
+                    onClose: closeWorkspacePreview,
+                    onDirtyChanged: { dirty in
+                        editingFileDirty = dirty
+                    }
+                )
+                .id(path)
+            case .projectTree:
+                ProjectFilesPanel(
+                    root: root,
+                    selectedFilePath: $editingFilePath,
+                    searchText: $searchText,
+                    width: width,
+                    onOpenFile: openWorkspaceFile
+                )
+            case .none:
+                EmptyView()
+            }
         }
     }
 
@@ -285,14 +296,17 @@ struct WorkspaceInspectorPane: View {
         editingFilePath = nil
         previewReturnMode = .none
         editingFileDirty = false
-        searchText = ""
 
         if animated {
-            requestWorkspaceDetail(.none)
+            requestWorkspaceDetail(.none) {
+                searchText = ""
+            }
         } else {
             detailMode = .none
-            retainedDetailMode = .none
+            renderedDetailMode = .none
             visualDetailWidth = 0
+            committedDetailWidth = 0
+            searchText = ""
             syncDetailWidth(0, animated: false)
         }
     }
@@ -312,8 +326,15 @@ struct WorkspaceInspectorPane: View {
 
     private func requestWorkspaceDetail(_ nextMode: WorkspaceDetailMode, completion: (() -> Void)? = nil) {
         targetDetailMode = nextMode
-        if nextMode != .none {
-            retainedDetailMode = nextMode
+
+        if nextMode == .none {
+            if renderedDetailMode == .none {
+                renderedDetailMode = detailMode
+            }
+        } else {
+            if renderedDetailMode != nextMode {
+                renderedDetailMode = nextMode
+            }
         }
 
         let targetWidth: CGFloat = nextMode == .none ? 0 : editorWidth
@@ -321,9 +342,9 @@ struct WorkspaceInspectorPane: View {
             detailMode = nextMode
             completion?()
             if nextMode == .none {
-                retainedDetailMode = .none
+                renderedDetailMode = .none
             } else {
-                retainedDetailMode = nextMode
+                renderedDetailMode = nextMode
             }
         }
     }
@@ -333,19 +354,114 @@ struct WorkspaceInspectorPane: View {
         detailAnimationGeneration += 1
         let animationID = detailAnimationGeneration
 
-        withAnimation(.easeInOut(duration: RightInspectorSplitMetrics.animationDuration)) {
+        if sanitizedWidth > 0 {
             visualDetailWidth = sanitizedWidth
         }
+        syncDetailWidth(sanitizedWidth, animated: true)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + RightInspectorSplitMetrics.animationDuration) {
             guard detailAnimationGeneration == animationID else { return }
-            onDetailWidthChanged(sanitizedWidth)
+            if sanitizedWidth == 0 {
+                visualDetailWidth = 0
+            }
+            committedDetailWidth = sanitizedWidth
+            onDetailWidthChanged(committedDetailWidth)
             completion?()
         }
     }
 
     private func syncDetailWidth(_ detailWidth: CGFloat, animated: Bool) {
-        onDetailWidthChanged(detailWidth)
+        let sanitizedWidth = max(0, detailWidth)
+
+        if animated {
+            sidebarWidthCoordinator.animateSidebarWidth(browserWidth + sanitizedWidth)
+        }
+
+        if !animated {
+            committedDetailWidth = sanitizedWidth
+            onDetailWidthChanged(committedDetailWidth)
+        }
+    }
+}
+
+private struct WorkspaceInspectorContentLayout {
+    let totalWidth: CGFloat
+    let primaryWidth: CGFloat
+    let secondaryWidth: CGFloat
+    let secondaryContentWidth: CGFloat
+
+    init(
+        availableWidth: CGFloat,
+        preferredPrimaryWidth: CGFloat,
+        preferredSecondaryWidth: CGFloat
+    ) {
+        let availableWidth = max(0, availableWidth)
+        let preferredPrimaryWidth = max(0, preferredPrimaryWidth)
+        let preferredSecondaryWidth = max(0, preferredSecondaryWidth)
+
+        guard preferredSecondaryWidth > 0 else {
+            let primaryWidth = min(preferredPrimaryWidth, availableWidth)
+            self.totalWidth = primaryWidth
+            self.primaryWidth = primaryWidth
+            self.secondaryWidth = 0
+            self.secondaryContentWidth = 0
+            return
+        }
+
+        let targetTotalWidth = availableWidth
+        let availableSecondaryWidth = max(0, targetTotalWidth - preferredPrimaryWidth)
+        let targetSecondaryWidth = min(preferredSecondaryWidth, availableSecondaryWidth)
+        let primaryWidth = max(0, targetTotalWidth - targetSecondaryWidth)
+        let secondaryWidth = targetSecondaryWidth
+
+        self.totalWidth = primaryWidth + secondaryWidth
+        self.primaryWidth = primaryWidth
+        self.secondaryWidth = secondaryWidth
+        self.secondaryContentWidth = max(0, secondaryWidth - (secondaryWidth > 0 ? 1 : 0))
+    }
+}
+
+private struct WorkspaceInspectorContentSplit<Primary: View, Secondary: View>: View {
+    let totalWidth: CGFloat
+    let primaryWidth: CGFloat
+    let secondaryWidth: CGFloat
+    let primary: Primary
+    let secondary: Secondary
+
+    init(
+        totalWidth: CGFloat,
+        primaryWidth: CGFloat,
+        secondaryWidth: CGFloat,
+        @ViewBuilder primary: () -> Primary,
+        @ViewBuilder secondary: () -> Secondary
+    ) {
+        self.totalWidth = totalWidth
+        self.primaryWidth = primaryWidth
+        self.secondaryWidth = secondaryWidth
+        self.primary = primary()
+        self.secondary = secondary()
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            primary
+                .frame(width: primaryWidth)
+                .frame(maxHeight: .infinity, alignment: .top)
+
+            if secondaryWidth > 0 {
+                Rectangle()
+                    .fill(Color(NSColor.separatorColor))
+                    .frame(width: 1)
+
+                secondary
+                    .frame(width: max(secondaryWidth - 1, 0), alignment: .leading)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .clipped()
+            }
+        }
+        .frame(width: totalWidth, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .clipped()
     }
 }
 
@@ -356,21 +472,6 @@ private struct WorkspaceFilePanel: View {
     let onCloseFile: () -> Void
     let editingFileDirty: Bool
     let width: CGFloat
-
-    @State private var expandedFolders: Set<String> = []
-
-    // Context menu state
-    @State private var renamingPath: String?
-    @State private var renamingText: String = ""
-    @State private var newItemParent: String?
-    @State private var newItemIsFolder: Bool = false
-    @State private var newItemName: String = ""
-    @State private var clipboardPath: String?
-    @State private var clipboardIsCut: Bool = false
-    @State private var deleteConfirmPath: String?
-    @State private var refreshTrigger: Int = 0
-    @FocusState private var isRenameFocused: Bool
-    @FocusState private var isNewItemFocused: Bool
 
     private static let hiddenAgentConfigFileNames: Set<String> = [
         "AGENTS.md", "IDENTITY.md", "SOUL.md", "MEMORY.md",
@@ -394,46 +495,20 @@ private struct WorkspaceFilePanel: View {
     private var workspacePath: String { root.path }
 
     var body: some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        let visibleItems = buildVisibleItems(root: workspacePath, depth: 0)
-                        if visibleItems.isEmpty {
-                            outputsEmptyState
-                        } else {
-                            ForEach(visibleItems, id: \.item.path) { entry in
-                                fileRowView(item: entry.item, depth: entry.depth)
-                            }
-                        }
-                        if newItemParent == workspacePath {
-                            newItemInputRow(depth: 0)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-                .id(refreshTrigger)
-            }
-            .frame(width: width)
-            .background(Color(NSColor.windowBackgroundColor))
-            .alert("Delete", isPresented: Binding<Bool>(
-                get: { deleteConfirmPath != nil },
-                set: { if !$0 { deleteConfirmPath = nil } }
-            )) {
-                Button("Delete", role: .destructive) {
-                    if let path = deleteConfirmPath {
-                        performDelete(path: path)
-                    }
-                    deleteConfirmPath = nil
-                }
-                Button("Cancel", role: .cancel) {
-                    deleteConfirmPath = nil
-                }
-            } message: {
-                if let path = deleteConfirmPath {
-                    Text("Are you sure you want to delete \"\((path as NSString).lastPathComponent)\"?")
-                }
-            }
+        EditableWorkspaceFileTreePanel(
+            rootPath: workspacePath,
+            selectedFilePath: $editingFilePath,
+            editingFileDirty: editingFileDirty,
+            width: width,
+            searchText: .constant(""),
+            searchDepthLimit: nil,
+            expandRootOnAppear: false,
+            isHiddenItemName: isHiddenWorkspaceItem,
+            shouldShowItem: shouldShowOutputItem,
+            onOpenFile: onOpenFile,
+            onCloseSelectedFile: onCloseFile
+        ) {
+            outputsEmptyState
         }
     }
 
@@ -442,366 +517,12 @@ private struct WorkspaceFilePanel: View {
             Image(systemName: "tray")
                 .font(.system(size: 24))
                 .foregroundColor(.secondary.opacity(0.65))
-            Text("No outputs yet")
+            Text(I18n.t("workspace.outputs.empty"))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 28)
-    }
-
-    private struct DepthItem {
-        let item: FileItem
-        let depth: Int
-    }
-
-    private func buildVisibleItems(root: String, depth: Int) -> [DepthItem] {
-        var result: [DepthItem] = []
-        let items = listDirectory(root)
-        for item in items {
-            result.append(DepthItem(item: item, depth: depth))
-            if item.isDirectory && expandedFolders.contains(item.path) {
-                result.append(contentsOf: buildVisibleItems(root: item.path, depth: depth + 1))
-                // New item input row inside this expanded directory
-                if newItemParent == item.path {
-                    result.append(DepthItem(
-                        item: FileItem(name: "__new_item_placeholder__", path: item.path + "/__new_item__", isDirectory: false),
-                        depth: depth + 1
-                    ))
-                }
-            }
-        }
-        return result
-    }
-
-    @ViewBuilder
-    private func fileRowView(item: FileItem, depth: Int) -> some View {
-        // Placeholder for new item input
-        if item.name == "__new_item_placeholder__" {
-            newItemInputRow(depth: depth)
-        } else {
-            fileRowContent(item: item, depth: depth)
-        }
-    }
-
-    @ViewBuilder
-    private func fileRowContent(item: FileItem, depth: Int) -> some View {
-        let isExpanded = expandedFolders.contains(item.path)
-        let isSelected = editingFilePath == item.path
-        let isDirtyFile = isSelected && editingFileDirty
-        let isRenaming = renamingPath == item.path
-
-        if isRenaming {
-            // Rename mode: standalone row (not inside Button, so Enter works on TextField)
-            HStack(spacing: 6) {
-                if item.isDirectory {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 16)
-                } else {
-                    Spacer().frame(width: 16)
-                }
-
-                workspaceItemIcon(item: item, isExpanded: isExpanded)
-
-                CommitTextField(
-                    text: $renamingText,
-                    onCommit: { value in performRename(oldPath: item.path, newName: value) },
-                    onCancel: { renamingPath = nil; refreshTrigger += 1 }
-                )
-                .frame(height: 22)
-
-                Spacer()
-            }
-            .padding(.leading, CGFloat(depth) * 16 + 12)
-            .padding(.trailing, 12)
-            .padding(.vertical, 7)
-            .background(Color.accentColor.opacity(0.15))
-            .cornerRadius(4)
-        } else {
-            // Normal mode: clickable button row
-            Button(action: {
-                if item.isDirectory {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        if isExpanded {
-                            expandedFolders.remove(item.path)
-                        } else {
-                            expandedFolders.insert(item.path)
-                        }
-                    }
-                } else {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        onOpenFile(item.path)
-                    }
-                }
-            }) {
-                HStack(spacing: 6) {
-                    if item.isDirectory {
-                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 16)
-                    } else {
-                        Spacer().frame(width: 16)
-                    }
-
-                    workspaceItemIcon(item: item, isExpanded: isExpanded)
-
-                    Text(item.name)
-                        .font(.system(size: 13))
-                        .foregroundColor(isSelected ? .white : .primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    if isDirtyFile {
-                        Circle()
-                            .fill(Color.orange)
-                            .frame(width: 6, height: 6)
-                    }
-
-                    Spacer()
-                }
-                .padding(.leading, CGFloat(depth) * 16 + 12)
-                .padding(.trailing, 12)
-                .padding(.vertical, 7)
-                .background(isSelected ? Color.accentColor.opacity(0.85) : Color.clear)
-                .cornerRadius(4)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .contextMenu {
-            Button {
-                let parent = item.isDirectory ? item.path : (item.path as NSString).deletingLastPathComponent
-                beginNewItem(parent: parent, isFolder: false)
-            } label: {
-                Label("New File", systemImage: "doc.badge.plus")
-            }
-
-            Button {
-                let parent = item.isDirectory ? item.path : (item.path as NSString).deletingLastPathComponent
-                beginNewItem(parent: parent, isFolder: true)
-            } label: {
-                Label("New Folder", systemImage: "folder.badge.plus")
-            }
-
-            Divider()
-
-            Button {
-                renamingText = item.name
-                renamingPath = item.path
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    isRenameFocused = true
-                }
-            } label: {
-                Label("Rename", systemImage: "pencil")
-            }
-
-            Divider()
-
-            Button {
-                clipboardPath = item.path
-                clipboardIsCut = true
-            } label: {
-                Label("Cut", systemImage: "scissors")
-            }
-
-            Button {
-                clipboardPath = item.path
-                clipboardIsCut = false
-            } label: {
-                Label("Copy", systemImage: "doc.on.doc")
-            }
-
-            if item.isDirectory, let clip = clipboardPath, !clip.isEmpty {
-                Button {
-                    performPaste(into: item.path)
-                } label: {
-                    Label("Paste", systemImage: "doc.on.clipboard")
-                }
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                deleteConfirmPath = item.path
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-        }
-    }
-
-    // MARK: - New item inline input row
-
-    private func newItemInputRow(depth: Int) -> some View {
-        HStack(spacing: 6) {
-            Spacer().frame(width: 12)
-            Image(systemName: newItemIsFolder ? "folder.badge.plus" : "doc.badge.plus")
-                .font(.system(size: 13))
-                .foregroundColor(.accentColor)
-            CommitTextField(
-                text: $newItemName,
-                placeholder: newItemIsFolder ? "Folder name" : "File name",
-                onCommit: { value in performNewItem(name: value) },
-                onCancel: { cancelNewItem() }
-            )
-            .frame(height: 22)
-        }
-        .padding(.leading, CGFloat(depth) * 16 + 12)
-        .padding(.trailing, 12)
-        .padding(.vertical, 5)
-    }
-
-    // MARK: - File operations
-
-    private func beginNewItem(parent: String, isFolder: Bool) {
-        newItemParent = parent
-        newItemIsFolder = isFolder
-        newItemName = ""
-        expandedFolders.insert(parent)
-        refreshTrigger += 1
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            isNewItemFocused = true
-        }
-    }
-
-    private func cancelNewItem() {
-        newItemParent = nil
-        newItemName = ""
-        refreshTrigger += 1
-    }
-
-    private func performNewItem(name inputName: String) {
-        guard let parent = newItemParent else { return }
-        let name = inputName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { cancelNewItem(); return }
-        let fullPath = (parent as NSString).appendingPathComponent(name)
-        let fm = FileManager.default
-        if newItemIsFolder {
-            try? fm.createDirectory(atPath: fullPath, withIntermediateDirectories: true)
-        } else {
-            fm.createFile(atPath: fullPath, contents: nil)
-        }
-        newItemParent = nil
-        newItemName = ""
-        refreshTrigger += 1
-    }
-
-    private func performRename(oldPath: String, newName inputName: String) {
-        let newName = inputName.trimmingCharacters(in: .whitespaces)
-        guard !newName.isEmpty, newName != (oldPath as NSString).lastPathComponent else {
-            renamingPath = nil
-            refreshTrigger += 1
-            return
-        }
-        let parent = (oldPath as NSString).deletingLastPathComponent
-        let newPath = (parent as NSString).appendingPathComponent(newName)
-        let fm = FileManager.default
-        do {
-            try fm.moveItem(atPath: oldPath, toPath: newPath)
-            if editingFilePath == oldPath {
-                editingFilePath = newPath
-                onOpenFile(newPath)
-            }
-        } catch {}
-        renamingPath = nil
-        refreshTrigger += 1
-    }
-
-    private func performDelete(path: String) {
-        try? FileManager.default.removeItem(atPath: path)
-        if let editing = editingFilePath, editing.hasPrefix(path) {
-            onCloseFile()
-        }
-        if let clip = clipboardPath, clip.hasPrefix(path) {
-            clipboardPath = nil
-        }
-        refreshTrigger += 1
-    }
-
-    private func performPaste(into directory: String) {
-        guard let source = clipboardPath else { return }
-        let name = (source as NSString).lastPathComponent
-        var dest = (directory as NSString).appendingPathComponent(name)
-        let fm = FileManager.default
-
-        // Avoid overwriting: append " copy" if needed
-        if !clipboardIsCut && fm.fileExists(atPath: dest) {
-            let baseName = (name as NSString).deletingPathExtension
-            let ext = (name as NSString).pathExtension
-            var counter = 1
-            repeat {
-                let suffix = counter == 1 ? " copy" : " copy \(counter)"
-                let newName = ext.isEmpty ? "\(baseName)\(suffix)" : "\(baseName)\(suffix).\(ext)"
-                dest = (directory as NSString).appendingPathComponent(newName)
-                counter += 1
-            } while fm.fileExists(atPath: dest)
-        }
-
-        do {
-            if clipboardIsCut {
-                try fm.moveItem(atPath: source, toPath: dest)
-                if let editing = editingFilePath, editing.hasPrefix(source) {
-                    let newEditingPath = editing.replacingOccurrences(of: source, with: dest)
-                    editingFilePath = newEditingPath
-                    onOpenFile(newEditingPath)
-                }
-                clipboardPath = nil
-            } else {
-                try fm.copyItem(atPath: source, toPath: dest)
-            }
-        } catch {}
-
-        expandedFolders.insert(directory)
-        refreshTrigger += 1
-    }
-
-    @ViewBuilder
-    private func workspaceItemIcon(item: FileItem, isExpanded: Bool) -> some View {
-        if item.isDirectory {
-            WorkspaceFolderIcon(isExpanded: isExpanded, size: 20)
-        } else {
-            Image(systemName: fileIcon(for: item.name))
-                .font(.system(size: 17))
-                .foregroundColor(.secondary)
-                .frame(width: 20, height: 20)
-        }
-    }
-
-    private func fileIcon(for name: String) -> String {
-        let ext = (name as NSString).pathExtension.lowercased()
-        switch ext {
-        case "md": return "doc.richtext"
-        case "json": return "curlybraces"
-        case "yaml", "yml": return "list.bullet.rectangle"
-        case "txt": return "doc.text"
-        case "py": return "chevron.left.forwardslash.chevron.right"
-        case "swift": return "swift"
-        case "js", "ts": return "chevron.left.forwardslash.chevron.right"
-        default: return "doc"
-        }
-    }
-
-    private func listDirectory(_ path: String) -> [FileItem] {
-        let fm = FileManager.default
-        guard let names = try? fm.contentsOfDirectory(atPath: path) else { return [] }
-        var items: [FileItem] = []
-        for name in names.sorted() {
-            if isHiddenWorkspaceItem(name: name) { continue }
-            let fullPath = (path as NSString).appendingPathComponent(name)
-            var isDir: ObjCBool = false
-            fm.fileExists(atPath: fullPath, isDirectory: &isDir)
-            let item = FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue)
-            if shouldShowOutputItem(item) {
-                items.append(item)
-            }
-        }
-        // Folders first, then files
-        return items.sorted { a, b in
-            if a.isDirectory != b.isDirectory { return a.isDirectory }
-            return a.name.localizedStandardCompare(b.name) == .orderedAscending
-        }
     }
 
     private func isHiddenWorkspaceItem(name: String) -> Bool {
@@ -864,12 +585,11 @@ private struct WorkspaceFilePanel: View {
 
 private struct ProjectFilesPanel: View {
     let root: WorkspaceSidebarRoot
-    let selectedFilePath: String?
+    @Binding var selectedFilePath: String?
     @Binding var searchText: String
     let width: CGFloat
     let onOpenFile: (String) -> Void
 
-    @State private var expandedFolders: Set<String> = []
     @FocusState private var isSearchFocused: Bool
 
     private static let hiddenNames: Set<String> = [
@@ -880,53 +600,30 @@ private struct ProjectFilesPanel: View {
     private var workspacePath: String { root.path }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.clear)
-                .frame(width: 1)
-                .shadow(color: .black.opacity(0.15), radius: 6, x: -3, y: 0)
+        VStack(alignment: .leading, spacing: 0) {
+            workspaceRootHeader
+            searchField
+            Divider()
 
-            VStack(alignment: .leading, spacing: 0) {
-                workspaceRootHeader
-                searchField
-                Divider()
-
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                        if query.isEmpty {
-                            let visibleItems = buildVisibleItems(root: workspacePath, depth: 0)
-                            if visibleItems.isEmpty {
-                                emptyState
-                            } else {
-                                ForEach(visibleItems, id: \.item.path) { entry in
-                                    fileRow(item: entry.item, depth: entry.depth)
-                                }
-                            }
-                        } else {
-                            let results = searchFiles(root: workspacePath, query: query)
-                            if results.isEmpty {
-                                emptySearchState
-                            } else {
-                                ForEach(results, id: \.path) { item in
-                                    searchResultRow(item)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
+            EditableWorkspaceFileTreePanel(
+                rootPath: workspacePath,
+                selectedFilePath: $selectedFilePath,
+                editingFileDirty: false,
+                width: width,
+                searchText: $searchText,
+                searchDepthLimit: 5,
+                expandRootOnAppear: true,
+                isHiddenItemName: isHiddenProjectItem,
+                shouldShowItem: { _ in true },
+                onOpenFile: onOpenFile,
+                onCloseSelectedFile: {}
+            ) {
+                emptyState
             }
-            .frame(width: width)
-            .background(Color(NSColor.windowBackgroundColor))
         }
-        .onAppear {
-            expandedFolders.insert(workspacePath)
-        }
-        .onChange(of: root) { newRoot in
-            expandedFolders = [newRoot.path]
-            searchText = ""
-        }
+        .frame(width: width)
+        .background(Color(NSColor.windowBackgroundColor))
+        .onChange(of: root) { _ in searchText = "" }
     }
 
     private var workspaceRootHeader: some View {
@@ -940,7 +637,7 @@ private struct ProjectFilesPanel: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.primary)
                     .lineLimit(1)
-                Text(root.isProjectBound ? root.path : "Fallback: \(root.path)")
+                Text(root.isProjectBound ? root.path : I18n.format("workspace.files.fallbackPath", root.path))
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
@@ -959,7 +656,7 @@ private struct ProjectFilesPanel: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
-            TextField("Filter files...", text: $searchText)
+            TextField(I18n.t("workspace.files.filterPlaceholder"), text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .focused($isSearchFocused)
@@ -970,6 +667,7 @@ private struct ProjectFilesPanel: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("common.action.clear", fallback: "Clear")))
             }
         }
         .padding(.horizontal, 10)
@@ -990,7 +688,7 @@ private struct ProjectFilesPanel: View {
             Image(systemName: "folder")
                 .font(.system(size: 24))
                 .foregroundColor(.secondary.opacity(0.65))
-            Text("No files")
+            Text(I18n.t("workspace.files.empty"))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -998,8 +696,137 @@ private struct ProjectFilesPanel: View {
         .padding(.vertical, 28)
     }
 
+    private func isHiddenProjectItem(name: String) -> Bool {
+        name.hasPrefix(".") || Self.hiddenNames.contains(name)
+    }
+}
+
+private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View {
+    let rootPath: String
+    @Binding var selectedFilePath: String?
+    let editingFileDirty: Bool
+    let width: CGFloat
+    @Binding var searchText: String
+    let searchDepthLimit: Int?
+    let expandRootOnAppear: Bool
+    let isHiddenItemName: (String) -> Bool
+    let shouldShowItem: (FileItem) -> Bool
+    let onOpenFile: (String) -> Void
+    let onCloseSelectedFile: () -> Void
+    let emptyState: EmptyState
+
+    @State private var expandedFolders: Set<String> = []
+    @State private var renamingPath: String?
+    @State private var renamingText = ""
+    @State private var newItemParent: String?
+    @State private var newItemIsFolder = false
+    @State private var newItemName = ""
+    @State private var clipboardPath: String?
+    @State private var clipboardIsCut = false
+    @State private var deleteConfirmPath: String?
+    @State private var refreshTrigger = 0
+
+    private static var newItemPlaceholderName: String { "__new_item_placeholder__" }
+
+    init(
+        rootPath: String,
+        selectedFilePath: Binding<String?>,
+        editingFileDirty: Bool,
+        width: CGFloat,
+        searchText: Binding<String>,
+        searchDepthLimit: Int?,
+        expandRootOnAppear: Bool,
+        isHiddenItemName: @escaping (String) -> Bool,
+        shouldShowItem: @escaping (FileItem) -> Bool,
+        onOpenFile: @escaping (String) -> Void,
+        onCloseSelectedFile: @escaping () -> Void,
+        @ViewBuilder emptyState: () -> EmptyState
+    ) {
+        self.rootPath = rootPath
+        self._selectedFilePath = selectedFilePath
+        self.editingFileDirty = editingFileDirty
+        self.width = width
+        self._searchText = searchText
+        self.searchDepthLimit = searchDepthLimit
+        self.expandRootOnAppear = expandRootOnAppear
+        self.isHiddenItemName = isHiddenItemName
+        self.shouldShowItem = shouldShowItem
+        self.onOpenFile = onOpenFile
+        self.onCloseSelectedFile = onCloseSelectedFile
+        self.emptyState = emptyState()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                let query = normalizedSearchText
+                if query.isEmpty {
+                    let visibleItems = buildVisibleItems(root: rootPath, depth: 0)
+                    if visibleItems.isEmpty {
+                        emptyState
+                    } else {
+                        ForEach(visibleItems, id: \.item.path) { entry in
+                            fileRowView(item: entry.item, depth: entry.depth)
+                        }
+                    }
+                    if newItemParent == rootPath {
+                        newItemInputRow(depth: 0)
+                    }
+                } else {
+                    let results = searchFiles(root: rootPath, query: query)
+                    if results.isEmpty {
+                        emptySearchState
+                    } else {
+                        ForEach(results, id: \.path) { item in
+                            searchResultRow(item)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+        }
+        .id(refreshTrigger)
+        .frame(width: width)
+        .background(Color(NSColor.windowBackgroundColor))
+        .alert(I18n.t("common.action.delete"), isPresented: Binding<Bool>(
+            get: { deleteConfirmPath != nil },
+            set: { if !$0 { deleteConfirmPath = nil } }
+        )) {
+            Button(I18n.t("common.action.delete"), role: .destructive) {
+                if let path = deleteConfirmPath {
+                    performDelete(path: path)
+                }
+                deleteConfirmPath = nil
+            }
+            Button(I18n.t("common.action.cancel"), role: .cancel) {
+                deleteConfirmPath = nil
+            }
+        } message: {
+            if let path = deleteConfirmPath {
+                Text(I18n.format("workspace.files.deleteConfirm", (path as NSString).lastPathComponent))
+            }
+        }
+        .onAppear {
+            if expandRootOnAppear {
+                expandedFolders.insert(rootPath)
+            }
+        }
+        .onChange(of: rootPath) { newRootPath in
+            expandedFolders = expandRootOnAppear ? [newRootPath] : []
+            renamingPath = nil
+            newItemParent = nil
+            deleteConfirmPath = nil
+            clipboardPath = nil
+            refreshTrigger += 1
+        }
+    }
+
+    private var normalizedSearchText: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
     private var emptySearchState: some View {
-        Text("No matching files")
+        Text(I18n.t("workspace.files.noMatches"))
             .font(.caption)
             .foregroundColor(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1017,122 +844,312 @@ private struct ProjectFilesPanel: View {
             result.append(DepthItem(item: item, depth: depth))
             if item.isDirectory && expandedFolders.contains(item.path) {
                 result.append(contentsOf: buildVisibleItems(root: item.path, depth: depth + 1))
+                if newItemParent == item.path {
+                    result.append(DepthItem(
+                        item: FileItem(
+                            name: Self.newItemPlaceholderName,
+                            path: item.path + "/__new_item__",
+                            isDirectory: false
+                        ),
+                        depth: depth + 1
+                    ))
+                }
             }
         }
         return result
     }
 
-    private func fileRow(item: FileItem, depth: Int) -> some View {
+    @ViewBuilder
+    private func fileRowView(item: FileItem, depth: Int) -> some View {
+        if item.name == Self.newItemPlaceholderName {
+            newItemInputRow(depth: depth)
+        } else {
+            fileRowContent(item: item, depth: depth, relativePath: nil)
+        }
+    }
+
+    private func fileRowContent(item: FileItem, depth: Int, relativePath: String?) -> some View {
         let isExpanded = expandedFolders.contains(item.path)
         let isSelected = selectedFilePath == item.path
+        let isDirtyFile = isSelected && editingFileDirty
+        let isRenaming = renamingPath == item.path
 
-        return Button(action: {
+        return Group {
+            if isRenaming {
+                renameRow(item: item, depth: depth, isExpanded: isExpanded)
+            } else {
+                Button(action: { activate(item: item, isExpanded: isExpanded) }) {
+                    WorkspaceFileTreeRow(
+                        item: item,
+                        depth: depth,
+                        isExpanded: isExpanded,
+                        isSelected: isSelected,
+                        isDirty: isDirtyFile,
+                        relativePath: relativePath
+                    )
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    fileContextMenu(item: item)
+                }
+            }
+        }
+    }
+
+    private func renameRow(item: FileItem, depth: Int, isExpanded: Bool) -> some View {
+        HStack(spacing: 6) {
             if item.isDirectory {
-                withAnimation(.easeInOut(duration: 0.15)) {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 16)
+            } else {
+                Spacer().frame(width: 16)
+            }
+
+            WorkspaceFileItemIcon(item: item, isExpanded: isExpanded)
+
+            CommitTextField(
+                text: $renamingText,
+                onCommit: { value in performRename(oldPath: item.path, newName: value) },
+                onCancel: { renamingPath = nil; refreshTrigger += 1 }
+            )
+            .frame(height: 22)
+
+            Spacer()
+        }
+        .padding(.leading, CGFloat(depth) * 16 + 12)
+        .padding(.trailing, 12)
+        .padding(.vertical, 7)
+        .background(Color.accentColor.opacity(0.15))
+        .cornerRadius(4)
+    }
+
+    @ViewBuilder
+    private func fileContextMenu(item: FileItem) -> some View {
+        Button {
+            let parent = item.isDirectory ? item.path : (item.path as NSString).deletingLastPathComponent
+            beginNewItem(parent: parent, isFolder: false)
+        } label: {
+            Label(I18n.t("workspace.files.newFile"), systemImage: "doc.badge.plus")
+        }
+
+        Button {
+            let parent = item.isDirectory ? item.path : (item.path as NSString).deletingLastPathComponent
+            beginNewItem(parent: parent, isFolder: true)
+        } label: {
+            Label(I18n.t("workspace.files.newFolder"), systemImage: "folder.badge.plus")
+        }
+
+        Divider()
+
+        Button {
+            renamingText = item.name
+            renamingPath = item.path
+            refreshTrigger += 1
+        } label: {
+            Label(I18n.t("common.action.rename"), systemImage: "pencil")
+        }
+
+        Divider()
+
+        Button {
+            clipboardPath = item.path
+            clipboardIsCut = true
+        } label: {
+            Label(I18n.t("workspace.files.cut"), systemImage: "scissors")
+        }
+
+        Button {
+            clipboardPath = item.path
+            clipboardIsCut = false
+        } label: {
+            Label(I18n.t("workspace.files.copy"), systemImage: "doc.on.doc")
+        }
+
+        if item.isDirectory, let clip = clipboardPath, !clip.isEmpty {
+            Button {
+                performPaste(into: item.path)
+            } label: {
+                Label(I18n.t("workspace.files.paste"), systemImage: "doc.on.clipboard")
+            }
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            deleteConfirmPath = item.path
+        } label: {
+            Label(I18n.t("common.action.delete"), systemImage: "trash")
+        }
+    }
+
+    private func newItemInputRow(depth: Int) -> some View {
+        HStack(spacing: 6) {
+            Spacer().frame(width: 16)
+            Image(systemName: newItemIsFolder ? "folder.badge.plus" : "doc.badge.plus")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .frame(width: 20, height: 20)
+            CommitTextField(
+                text: $newItemName,
+                placeholder: newItemIsFolder ? "Folder name" : "File name",
+                onCommit: { value in performNewItem(name: value) },
+                onCancel: { cancelNewItem() }
+            )
+            .frame(height: 22)
+        }
+        .padding(.leading, CGFloat(depth) * 16 + 12)
+        .padding(.trailing, 12)
+        .padding(.vertical, 5)
+    }
+
+    private func searchResultRow(_ item: FileItem) -> some View {
+        let relativePath = item.path.replacingOccurrences(of: rootPath + "/", with: "")
+        return fileRowContent(
+            item: item,
+            depth: 0,
+            relativePath: relativePath == item.name ? nil : relativePath
+        )
+    }
+
+    private func activate(item: FileItem, isExpanded: Bool) {
+        if item.isDirectory {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                if normalizedSearchText.isEmpty {
                     if isExpanded {
                         expandedFolders.remove(item.path)
                     } else {
                         expandedFolders.insert(item.path)
                     }
-                }
-            } else {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    onOpenFile(item.path)
-                }
-            }
-        }) {
-            HStack(spacing: 6) {
-                if item.isDirectory {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 16)
                 } else {
-                    Spacer().frame(width: 16)
-                }
-
-                projectItemIcon(item: item, isExpanded: isExpanded)
-
-                Text(item.name)
-                    .font(.system(size: 13))
-                    .foregroundColor(isSelected ? .white : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.leading, CGFloat(depth) * 16 + 12)
-            .padding(.trailing, 12)
-            .padding(.vertical, 7)
-            .background(isSelected ? Color.accentColor.opacity(0.85) : Color.clear)
-            .cornerRadius(4)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func searchResultRow(_ item: FileItem) -> some View {
-        let isSelected = selectedFilePath == item.path
-        let relativePath = item.path.replacingOccurrences(of: workspacePath + "/", with: "")
-
-        return Button(action: {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                if item.isDirectory {
                     expandAncestors(for: item.path)
                     searchText = ""
-                } else {
-                    onOpenFile(item.path)
                 }
             }
-        }) {
-            HStack(spacing: 6) {
-                projectItemIcon(item: item, isExpanded: false)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(item.name)
-                        .font(.system(size: 13))
-                        .foregroundColor(isSelected ? .white : .primary)
-                        .lineLimit(1)
-                    if relativePath != item.name {
-                        Text(relativePath)
-                            .font(.system(size: 10))
-                            .foregroundColor(isSelected ? .white.opacity(0.7) : .secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
-
-                Spacer(minLength: 0)
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                onOpenFile(item.path)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .background(isSelected ? Color.accentColor.opacity(0.85) : Color.clear)
-            .cornerRadius(4)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+    }
+
+    private func beginNewItem(parent: String, isFolder: Bool) {
+        newItemParent = parent
+        newItemIsFolder = isFolder
+        newItemName = ""
+        expandedFolders.insert(parent)
+        searchText = ""
+        refreshTrigger += 1
+    }
+
+    private func cancelNewItem() {
+        newItemParent = nil
+        newItemName = ""
+        refreshTrigger += 1
+    }
+
+    private func performNewItem(name inputName: String) {
+        guard let parent = newItemParent else { return }
+        let name = inputName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { cancelNewItem(); return }
+        let fullPath = (parent as NSString).appendingPathComponent(name)
+        let fm = FileManager.default
+        if newItemIsFolder {
+            try? fm.createDirectory(atPath: fullPath, withIntermediateDirectories: true)
+        } else {
+            fm.createFile(atPath: fullPath, contents: nil)
+        }
+        newItemParent = nil
+        newItemName = ""
+        refreshTrigger += 1
+    }
+
+    private func performRename(oldPath: String, newName inputName: String) {
+        let newName = inputName.trimmingCharacters(in: .whitespaces)
+        guard !newName.isEmpty, newName != (oldPath as NSString).lastPathComponent else {
+            renamingPath = nil
+            refreshTrigger += 1
+            return
+        }
+        let parent = (oldPath as NSString).deletingLastPathComponent
+        let newPath = (parent as NSString).appendingPathComponent(newName)
+        do {
+            try FileManager.default.moveItem(atPath: oldPath, toPath: newPath)
+            if selectedFilePath == oldPath {
+                selectedFilePath = newPath
+                onOpenFile(newPath)
+            }
+        } catch {}
+        renamingPath = nil
+        refreshTrigger += 1
+    }
+
+    private func performDelete(path: String) {
+        try? FileManager.default.removeItem(atPath: path)
+        if let selected = selectedFilePath, selected.hasPrefix(path) {
+            selectedFilePath = nil
+            onCloseSelectedFile()
+        }
+        if let clip = clipboardPath, clip.hasPrefix(path) {
+            clipboardPath = nil
+        }
+        refreshTrigger += 1
+    }
+
+    private func performPaste(into directory: String) {
+        guard let source = clipboardPath else { return }
+        let name = (source as NSString).lastPathComponent
+        var destination = (directory as NSString).appendingPathComponent(name)
+        let fm = FileManager.default
+
+        if !clipboardIsCut && fm.fileExists(atPath: destination) {
+            let baseName = (name as NSString).deletingPathExtension
+            let ext = (name as NSString).pathExtension
+            var counter = 1
+            repeat {
+                let suffix = counter == 1 ? " copy" : " copy \(counter)"
+                let copiedName = ext.isEmpty ? "\(baseName)\(suffix)" : "\(baseName)\(suffix).\(ext)"
+                destination = (directory as NSString).appendingPathComponent(copiedName)
+                counter += 1
+            } while fm.fileExists(atPath: destination)
+        }
+
+        do {
+            if clipboardIsCut {
+                try fm.moveItem(atPath: source, toPath: destination)
+                if let selected = selectedFilePath, selected.hasPrefix(source) {
+                    let newSelectedPath = selected.replacingOccurrences(of: source, with: destination)
+                    selectedFilePath = newSelectedPath
+                    onOpenFile(newSelectedPath)
+                }
+                clipboardPath = nil
+            } else {
+                try fm.copyItem(atPath: source, toPath: destination)
+            }
+        } catch {}
+
+        expandedFolders.insert(directory)
+        refreshTrigger += 1
     }
 
     private func expandAncestors(for path: String) {
         var current = path
-        while current != workspacePath && current != "/" {
+        while current != rootPath && current != "/" {
             expandedFolders.insert(current)
             current = (current as NSString).deletingLastPathComponent
         }
-        expandedFolders.insert(workspacePath)
+        expandedFolders.insert(rootPath)
     }
 
     private func searchFiles(root: String, query: String) -> [FileItem] {
         var results: [FileItem] = []
         searchFilesRecursive(directory: root, query: query, depth: 0, results: &results)
-        return results.sorted { a, b in
-            if a.isDirectory != b.isDirectory { return a.isDirectory }
-            return a.name.localizedStandardCompare(b.name) == .orderedAscending
-        }
+        return sortItems(results)
     }
 
     private func searchFilesRecursive(directory: String, query: String, depth: Int, results: inout [FileItem]) {
-        guard depth < 5 else { return }
+        if let searchDepthLimit, depth >= searchDepthLimit { return }
         for item in listDirectory(directory) {
             if item.name.lowercased().contains(query) {
                 results.append(item)
@@ -1146,47 +1163,107 @@ private struct ProjectFilesPanel: View {
     private func listDirectory(_ path: String) -> [FileItem] {
         let fm = FileManager.default
         guard let names = try? fm.contentsOfDirectory(atPath: path) else { return [] }
-        return names.compactMap { name in
-            guard !isHiddenProjectItem(name: name) else { return nil }
+        let items = names.compactMap { name -> FileItem? in
+            guard !isHiddenItemName(name) else { return nil }
             let fullPath = (path as NSString).appendingPathComponent(name)
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: fullPath, isDirectory: &isDir) else { return nil }
-            return FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue)
+            let item = FileItem(name: name, path: fullPath, isDirectory: isDir.boolValue)
+            return shouldShowItem(item) ? item : nil
         }
-        .sorted { a, b in
+        return sortItems(items)
+    }
+
+    private func sortItems(_ items: [FileItem]) -> [FileItem] {
+        items.sorted { a, b in
             if a.isDirectory != b.isDirectory { return a.isDirectory }
             return a.name.localizedStandardCompare(b.name) == .orderedAscending
         }
     }
+}
 
-    private func isHiddenProjectItem(name: String) -> Bool {
-        name.hasPrefix(".") || Self.hiddenNames.contains(name)
-    }
+private struct WorkspaceFileTreeRow: View {
+    let item: FileItem
+    let depth: Int
+    let isExpanded: Bool
+    let isSelected: Bool
+    let isDirty: Bool
+    let relativePath: String?
 
     @ViewBuilder
-    private func projectItemIcon(item: FileItem, isExpanded: Bool) -> some View {
+    var body: some View {
+        HStack(spacing: 6) {
+            if item.isDirectory {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .white.opacity(0.75) : .secondary)
+                    .frame(width: 16)
+            } else {
+                Spacer().frame(width: 16)
+            }
+
+            WorkspaceFileItemIcon(item: item, isExpanded: isExpanded)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.name)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? .white : .primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                if let relativePath {
+                    Text(relativePath)
+                        .font(.system(size: 10))
+                        .foregroundColor(isSelected ? .white.opacity(0.7) : .secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+
+            if isDirty {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 6, height: 6)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, relativePath == nil ? CGFloat(depth) * 16 + 12 : 12)
+        .padding(.trailing, 12)
+        .padding(.vertical, relativePath == nil ? 7 : 5)
+        .background(isSelected ? Color.accentColor.opacity(0.85) : Color.clear)
+        .cornerRadius(4)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct WorkspaceFileItemIcon: View {
+    let item: FileItem
+    let isExpanded: Bool
+
+    var body: some View {
         if item.isDirectory {
             WorkspaceFolderIcon(isExpanded: isExpanded, size: 20)
         } else {
-            Image(systemName: fileIcon(for: item.name))
+            Image(systemName: workspaceFileIconName(for: item.name))
                 .font(.system(size: 17))
                 .foregroundColor(.secondary)
                 .frame(width: 20, height: 20)
         }
     }
+}
 
-    private func fileIcon(for name: String) -> String {
-        let ext = (name as NSString).pathExtension.lowercased()
-        switch ext {
-        case "md": return "doc.richtext"
-        case "json": return "curlybraces"
-        case "yaml", "yml": return "list.bullet.rectangle"
-        case "txt": return "doc.text"
-        case "py": return "chevron.left.forwardslash.chevron.right"
-        case "swift": return "swift"
-        case "js", "ts": return "chevron.left.forwardslash.chevron.right"
-        default: return "doc"
-        }
+private func workspaceFileIconName(for name: String) -> String {
+    let ext = (name as NSString).pathExtension.lowercased()
+    switch ext {
+    case "md": return "doc.richtext"
+    case "json": return "curlybraces"
+    case "yaml", "yml": return "list.bullet.rectangle"
+    case "txt": return "doc.text"
+    case "py": return "chevron.left.forwardslash.chevron.right"
+    case "swift": return "swift"
+    case "js", "ts": return "chevron.left.forwardslash.chevron.right"
+    default: return "doc"
     }
 }
 
@@ -1373,7 +1450,6 @@ private struct FileEditorPanel: View {
     @State private var isLoading = true
     @State private var saveMessage: String?
     @State private var viewMode: FileViewMode = .editor
-    @Binding var isFullscreen: Bool
     @State private var fontSize: CGFloat = 13
     @State private var cursorLine: Int = 1
     @State private var cursorColumn: Int = 1
@@ -1404,59 +1480,52 @@ private struct FileEditorPanel: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.clear)
-                .frame(width: 1)
-                .shadow(color: .black.opacity(0.15), radius: 6, x: -3, y: 0)
+        VStack(spacing: 0) {
+            // Header
+            headerBar
+            Divider()
 
-            VStack(spacing: 0) {
-                // Header
-                headerBar
-                Divider()
-
-                // Content
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                } else if viewMode == .editor {
-                    CodeEditorView(
-                        text: $content,
-                        fontSize: fontSize,
-                        wordWrap: wordWrap,
-                        fileExtension: fileExt,
-                        cursorLine: $cursorLine,
-                        cursorColumn: $cursorColumn
-                    )
-                } else if category.supportsEditing && !["md", "html", "htm"].contains(fileExt.lowercased()) {
-                    // Text/code preview: read-only with syntax highlighting
-                    CodeEditorView(
-                        text: .constant(content),
-                        fontSize: fontSize,
-                        wordWrap: wordWrap,
-                        fileExtension: fileExt,
-                        cursorLine: $cursorLine,
-                        cursorColumn: $cursorColumn,
-                        isReadOnly: true
-                    )
-                } else if fileExt.lowercased() == "md" {
-                    MarkdownPreviewView(markdown: content)
-                } else if ["html", "htm"].contains(fileExt.lowercased()) {
-                    HTMLPreviewView(fileURL: URL(fileURLWithPath: filePath))
-                } else {
-                    QuickLookPreview(url: URL(fileURLWithPath: filePath))
-                }
-
-                // Status bar
-                if viewMode == .editor {
-                    Divider()
-                    statusBar
-                }
+            // Content
+            if isLoading {
+                Spacer()
+                ProgressView()
+                Spacer()
+            } else if viewMode == .editor {
+                CodeEditorView(
+                    text: $content,
+                    fontSize: fontSize,
+                    wordWrap: wordWrap,
+                    fileExtension: fileExt,
+                    cursorLine: $cursorLine,
+                    cursorColumn: $cursorColumn
+                )
+            } else if category.supportsEditing && !["md", "html", "htm"].contains(fileExt.lowercased()) {
+                // Text/code preview: read-only with syntax highlighting
+                CodeEditorView(
+                    text: .constant(content),
+                    fontSize: fontSize,
+                    wordWrap: wordWrap,
+                    fileExtension: fileExt,
+                    cursorLine: $cursorLine,
+                    cursorColumn: $cursorColumn,
+                    isReadOnly: true
+                )
+            } else if fileExt.lowercased() == "md" {
+                MarkdownPreviewView(markdown: content)
+            } else if ["html", "htm"].contains(fileExt.lowercased()) {
+                HTMLPreviewView(fileURL: URL(fileURLWithPath: filePath))
+            } else {
+                QuickLookPreview(url: URL(fileURLWithPath: filePath))
             }
-            .frame(maxWidth: isFullscreen ? .infinity : 480)
-            .background(Color(NSColor.windowBackgroundColor))
+
+            // Status bar
+            if viewMode == .editor {
+                Divider()
+                statusBar
+            }
         }
+        .frame(maxWidth: 480)
+        .background(Color(NSColor.windowBackgroundColor))
         .onAppear { loadFile() }
         .onChange(of: filePath) { _ in loadFile() }
         .onChange(of: isDirty) { dirty in
@@ -1476,12 +1545,13 @@ private struct FileEditorPanel: View {
                 .onTapGesture(count: 2) {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(filePath, forType: .string)
-                    saveMessage = "Path copied"
+                    let copiedMessage = I18n.t("workspace.files.pathCopied")
+                    saveMessage = copiedMessage
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        if saveMessage == "Path copied" { saveMessage = nil }
+                        if saveMessage == copiedMessage { saveMessage = nil }
                     }
                 }
-                .help("Double-click to copy path")
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.files.copyPathHelp")))
 
             if viewMode == .editor && isDirty {
                 Circle()
@@ -1505,7 +1575,7 @@ private struct FileEditorPanel: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Decrease font size (⌘-)")
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.files.decreaseFont")))
 
                 Text("\(Int(fontSize))")
                     .font(.system(size: 10, design: .monospaced))
@@ -1518,7 +1588,7 @@ private struct FileEditorPanel: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Increase font size (⌘+)")
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.files.increaseFont")))
 
                 // Word wrap toggle
                 Button(action: { wordWrap.toggle() }) {
@@ -1527,7 +1597,7 @@ private struct FileEditorPanel: View {
                         .foregroundColor(wordWrap ? .accentColor : .secondary)
                 }
                 .buttonStyle(.plain)
-                .help(wordWrap ? "Disable word wrap" : "Enable word wrap")
+                .unifiedTooltip(UnifiedTooltipContent(title: wordWrap ? I18n.t("workspace.files.disableWordWrap") : I18n.t("workspace.files.enableWordWrap")))
 
                 Divider().frame(height: 16)
             }
@@ -1539,12 +1609,12 @@ private struct FileEditorPanel: View {
                         viewMode = (viewMode == .preview) ? .editor : .preview
                     }
                 }) {
-                    Image(systemName: viewMode == .preview ? "pencil.line" : "eye")
+                    Image(systemName: viewMode == .preview ? "square.and.pencil" : "eye")
                         .font(.system(size: 14))
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help(viewMode == .preview ? "Edit" : "Preview")
+                .unifiedTooltip(UnifiedTooltipContent(title: viewMode == .preview ? I18n.t("common.action.edit") : I18n.t("common.action.preview")))
             }
 
             // Save via Cmd+S (hidden)
@@ -1566,21 +1636,6 @@ private struct FileEditorPanel: View {
                     .hidden()
             }
 
-            // Fullscreen toggle
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isFullscreen.toggle()
-                }
-            }) {
-                Image(systemName: isFullscreen
-                      ? "arrow.down.right.and.arrow.up.left"
-                      : "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help(isFullscreen ? "Exit Fullscreen" : "Fullscreen")
-
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
@@ -1590,6 +1645,7 @@ private struct FileEditorPanel: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("catalog.action.close")))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -1599,7 +1655,7 @@ private struct FileEditorPanel: View {
 
     private var statusBar: some View {
         HStack(spacing: 16) {
-            Text("Ln \(cursorLine), Col \(cursorColumn)")
+            Text(I18n.format("workspace.files.position", Int64(cursorLine), Int64(cursorColumn)))
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundColor(.secondary)
 

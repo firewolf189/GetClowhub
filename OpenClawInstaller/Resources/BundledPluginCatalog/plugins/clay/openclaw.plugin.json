@@ -1,0 +1,28 @@
+{
+  "id": "clay",
+  "name": "Clay",
+  "displayName": "Clay",
+  "description": "Find and enrich GTM accounts, contacts, and prospects.",
+  "longDescription": "Clay connects OpenClaw to your GTM workflows so you can find prospects, enrich leads, summarize account context, and organize outreach signals from Clay data.",
+  "version": "1.0.2",
+  "developerName": "Clay",
+  "category": "Business & Operations",
+  "capabilities": [],
+  "keywords": [
+    "clay",
+    "gtm",
+    "sales",
+    "prospecting",
+    "lead-enrichment",
+    "contacts",
+    "accounts"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.clay.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

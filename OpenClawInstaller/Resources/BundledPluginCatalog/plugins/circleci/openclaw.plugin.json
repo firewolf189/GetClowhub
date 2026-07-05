@@ -1,0 +1,27 @@
+{
+  "id": "circleci",
+  "name": "CircleCI",
+  "displayName": "CircleCI",
+  "description": "Build, test, and deploy any application",
+  "longDescription": "Bring testing, deployment, and CI best practices into OpenClaw",
+  "version": "1.0.4",
+  "developerName": "CircleCI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "circleci",
+    "ci/cd",
+    "ci"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://circleci.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

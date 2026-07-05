@@ -1,0 +1,12 @@
+{
+  "name": "signnow",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Get documents signed faster without switching between tools.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

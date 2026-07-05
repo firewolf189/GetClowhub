@@ -1,0 +1,12 @@
+{
+  "name": "brighthire",
+  "version": "0.1.1",
+  "type": "module",
+  "private": true,
+  "description": "Search and analyze BrightHire interviews, candidates, calls, and hiring data.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

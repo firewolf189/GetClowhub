@@ -1,0 +1,31 @@
+{
+  "id": "deepnote",
+  "name": "Deepnote",
+  "displayName": "Deepnote",
+  "description": "Explore data and automate analysis in Deepnote",
+  "longDescription": "Deepnote gives teams a collaborative workspace for notebooks, SQL, apps, and data workflows. This plugin helps OpenAI work with connected Deepnote projects, inspect and run notebooks, and turn workspace context into useful analysis and shareable results.",
+  "version": "0.1.5",
+  "developerName": "Deepnote",
+  "category": "Data & Analytics",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "deepnote",
+    "chatgpt-app",
+    "openai",
+    "notebooks",
+    "data",
+    "analytics"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://deepnote.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

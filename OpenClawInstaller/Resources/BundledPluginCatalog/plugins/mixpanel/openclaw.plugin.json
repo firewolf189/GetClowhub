@@ -1,0 +1,31 @@
+{
+  "id": "mixpanel",
+  "name": "Mixpanel",
+  "displayName": "Mixpanel",
+  "description": "Query and analyze Mixpanel",
+  "longDescription": "Query and analyze your Mixpanel data directly in ChatGPT. Run segmentation, funnel, and retention analyses, explore your event taxonomy, manage Lexicon metadata, and resolve data quality issues - all without leaving your conversation.\n\nWith the Mixpanel MCP server connected, ChatGPT can reason about your product analytics alongside your code, documents, and decisions. Ask questions in plain language, drill into user behavior, and get answers grounded in your actual data.",
+  "version": "2.0.3",
+  "developerName": "Mixpanel",
+  "category": "Data & Analytics",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "mixpanel",
+    "analytics",
+    "segmentation",
+    "funnels",
+    "retention",
+    "events"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://mixpanel.com/home",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

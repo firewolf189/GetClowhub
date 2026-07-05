@@ -1,0 +1,20 @@
+{
+  "id": "fyxer",
+  "name": "Fyxer",
+  "displayName": "Fyxer",
+  "description": "Fyxer for OpenClaw lets you write emails that sound like you, right from the chat.",
+  "longDescription": "Fyxer for OpenClaw lets you write emails that sound like you, right from the chat. Fyxer learns your writing style from past emails and uses context from your calendar and meeting notes to create personalized email drafts. Just describe what you want to say and get a polished email ready to review and send.",
+  "version": "1.0.2",
+  "developerName": "Fyxer",
+  "category": "Communication",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.fyxer.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

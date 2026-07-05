@@ -1,0 +1,12 @@
+{
+  "name": "brand24",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The Brand24 app in OpenClaw lets marketing and PR teams instantly explore brand mentions, sentiment, and med...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

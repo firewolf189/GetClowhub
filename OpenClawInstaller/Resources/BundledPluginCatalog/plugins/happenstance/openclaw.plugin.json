@@ -1,0 +1,20 @@
+{
+  "id": "happenstance",
+  "name": "Happenstance",
+  "displayName": "Happenstance",
+  "description": "Happenstance searches your professional network using natural language to find the right people.",
+  "longDescription": "Happenstance searches your professional network using natural language to find the right people. Results surface mutual connections and rank by relationship strength, helping you find the warmest intro path. Deep research anyone to get comprehensive profiles with career history and expertise. Ideal for sales, recruiting, venture capital, and business development.",
+  "version": "1.0.3",
+  "developerName": "Happenstance, Inc.",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://happenstance.ai",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

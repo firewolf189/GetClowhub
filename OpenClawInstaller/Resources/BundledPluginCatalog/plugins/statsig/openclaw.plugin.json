@@ -1,0 +1,20 @@
+{
+  "id": "statsig",
+  "name": "Statsig",
+  "displayName": "Statsig",
+  "description": "Bring your Statsig workspace into OpenClaw.",
+  "longDescription": "Bring your Statsig workspace into OpenClaw. Product builders can now explore, manage, and create Statsig experiments, feature gates, dynamic configs, and more directly in OpenClaw conversations.\n\nAsk things like:\n“Move this experiment to 50% rollout.”\n“Turn on this feature gate for all users.”\n“Show me which dynamic configs changed this week.”\n\"Explain how the DAU metric is defined.”\n\nYou can both read and write to Statsig: inspect experiment settings, read metric definitions, update allocations, toggle feature flags, edit targeting rules, and modify dynamic config values directly from OpenClaw.\n\nThe app connects through Statsig’s MCP server and honors your existing Statsig permissions, so you only see and change what you’re authorized to access—across projects, environments, and teams.",
+  "version": "2.0.3",
+  "developerName": "Statsig, LLC",
+  "category": "Developer Tools",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://statsig.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

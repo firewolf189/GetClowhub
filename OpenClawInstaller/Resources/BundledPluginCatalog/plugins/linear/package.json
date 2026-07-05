@@ -1,0 +1,12 @@
+{
+  "name": "linear",
+  "version": "0.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Find and reference issues and projects.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "channel99",
+  "name": "Channel99",
+  "displayName": "Channel99",
+  "description": "Channel99 real time go to market intelligence connects OpenClaw directly to Channel99’s performance marketin...",
+  "longDescription": "Channel99 real time go to market intelligence connects OpenClaw directly to Channel99’s performance marketing intelligence. giving AI assistants real-time access to unified B2B marketing data and insights.. Powered by Channel99’s advanced attribution, account identification, and AI-driven analytics. The Channel99 connection enables natural-language queries that deliver accurate campaign performance, spend efficiency, audience engagement and cross channel attribution insights eliminating manual data pulls, siloed dashboards and complex API engineering. \n\nMarketers, analysts, and business leaders can ask OpenClaw strategic questions like “Which channels drove the most high-value engagement last quarter?” or “Where should we reallocate budget to improve pipeline efficiency?” and get precise, context-aware results powered by Channel99’s industry leading performance data. \n\nDeveloped by Channel99 a B2B marketing technology company dedicated to improving ROI, lowering acquisition costs, and bringing financial transparency to digital marketing investments.",
+  "version": "1.0.3",
+  "developerName": "Channel99 Inc. ",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.channel99.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

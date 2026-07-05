@@ -1,0 +1,20 @@
+{
+  "id": "waldo",
+  "name": "Waldo",
+  "displayName": "Waldo",
+  "description": "Waldo is an AI-powered strategy platform for agencies and brands.",
+  "longDescription": "Waldo is an AI-powered strategy platform for agencies and brands. Run strategy agent, explore collected signals — paid ads, brand mentions, audience conversations, trending topics, and more — and retrieve data across your team's brand spaces.",
+  "version": "1.0.3",
+  "developerName": "Curiosities, Inc.",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.waldo.fyi",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

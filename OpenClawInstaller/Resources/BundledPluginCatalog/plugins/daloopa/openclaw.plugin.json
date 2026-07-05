@@ -1,0 +1,30 @@
+{
+  "id": "daloopa",
+  "name": "Daloopa",
+  "displayName": "Daloopa",
+  "description": "Institutional-grade financial analysis workflows.",
+  "longDescription": "Use Daloopa MCP data to create cited company tearsheets, earnings reviews, valuation work, comp sheets, research notes, and banking-style analysis outputs.",
+  "version": "1.0.3",
+  "developerName": "Daloopa",
+  "category": "Finance",
+  "capabilities": [
+    "Analysis",
+    "Research",
+    "File generation"
+  ],
+  "keywords": [
+    "finance",
+    "equity-research",
+    "earnings",
+    "valuation",
+    "daloopa"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://daloopa.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

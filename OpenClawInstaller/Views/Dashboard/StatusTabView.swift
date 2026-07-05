@@ -50,17 +50,17 @@ struct ServiceStatusCard: View {
                 .fill(statusColor)
                 .frame(width: 12, height: 12)
 
-            Text(viewModel.openclawService.status.rawValue)
+            Text(localizedServiceStatus(viewModel.openclawService.status))
                 .font(.headline)
                 .fontWeight(.bold)
 
             if viewModel.openclawService.status == .running {
-                (Text("Port") + Text(" \(String(viewModel.openclawService.port))"))
+                (Text(I18n.t("dashboard.status.port")) + Text(" \(String(viewModel.openclawService.port))"))
                     .font(.body)
                     .foregroundColor(.secondary)
 
                 if viewModel.openclawService.uptime > 0 {
-                    (Text("Uptime") + Text(" \(formatUptime(viewModel.openclawService.uptime))"))
+                    (Text(I18n.t("dashboard.status.uptime")) + Text(" \(formatUptime(viewModel.openclawService.uptime))"))
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
@@ -69,7 +69,7 @@ struct ServiceStatusCard: View {
             Spacer()
 
             if !viewModel.openclawService.version.isEmpty {
-                (Text("Version") + Text(" \(viewModel.openclawService.version)"))
+                (Text(I18n.t("dashboard.status.version")) + Text(" \(viewModel.openclawService.version)"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -87,6 +87,17 @@ struct ServiceStatusCard: View {
         case .starting, .stopping: return .orange
         case .error: return .red
         case .unknown: return .gray
+        }
+    }
+
+    private func localizedServiceStatus(_ status: ServiceStatus) -> String {
+        switch status {
+        case .running: return I18n.t("dashboard.status.service.running")
+        case .stopped: return I18n.t("dashboard.status.service.stopped")
+        case .starting: return I18n.t("dashboard.status.service.starting")
+        case .stopping: return I18n.t("dashboard.status.service.stopping")
+        case .error: return I18n.t("dashboard.status.service.error")
+        case .unknown: return I18n.t("dashboard.status.service.unknown")
         }
     }
 
@@ -120,7 +131,7 @@ struct ControlButtonsSection: View {
                 }) {
                     HStack {
                         Image(systemName: "play.fill")
-                        Text("Start")
+                        Text(I18n.t("common.action.start"))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -141,7 +152,7 @@ struct ControlButtonsSection: View {
                 }) {
                     HStack {
                         Image(systemName: "stop.fill")
-                        Text("Stop")
+                        Text(I18n.t("common.action.stop"))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -158,7 +169,7 @@ struct ControlButtonsSection: View {
                 }) {
                     HStack {
                         Image(systemName: "arrow.clockwise")
-                        Text("Restart")
+                        Text(I18n.t("common.action.restart"))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -188,7 +199,7 @@ struct AgentSessionsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Agent Sessions", systemImage: "person.3.fill")
+            Label(I18n.t("dashboard.status.agentSessions"), systemImage: "person.3.fill")
                 .font(.headline)
 
             if viewModel.isLoadingSessionsSummary {
@@ -233,11 +244,11 @@ struct AgentSessionsCard: View {
 
                 Divider()
 
-                (Text("Total: ") + Text("\(summary.agents.count)") + Text(" agents"))
+                Text(I18n.format("dashboard.status.totalAgents", Int64(summary.agents.count)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                Text("No sessions")
+                Text(I18n.t("dashboard.status.noSessions"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 60)
@@ -268,7 +279,7 @@ struct CronHealthCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Cron Health", systemImage: "clock.badge")
+            Label(I18n.t("dashboard.status.cronHealth"), systemImage: "clock.badge")
                 .font(.headline)
 
             if viewModel.isLoadingCronJobs {
@@ -282,16 +293,16 @@ struct CronHealthCard: View {
             } else if !viewModel.cronJobs.isEmpty {
                 // Summary line
                 HStack(spacing: 12) {
-                    (Text("Total: ") + Text("\(viewModel.cronJobs.count)"))
+                    Text(I18n.format("dashboard.status.total", Int64(viewModel.cronJobs.count)))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    (Text("Active: ") + Text("\(enabledCount)"))
+                    Text(I18n.format("dashboard.status.active", Int64(enabledCount)))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
                 if let next = nextJob {
-                    (Text("Next: ") + Text("\(next.nextRun) (\(next.name))"))
+                    Text(I18n.format("dashboard.status.next", "\(next.nextRun) (\(next.name))"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -314,7 +325,7 @@ struct CronHealthCard: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             } else {
-                                Text("(disabled)")
+                                Text(I18n.t("dashboard.status.disabledParen"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -322,7 +333,7 @@ struct CronHealthCard: View {
                     }
                 }
             } else {
-                Text("No cron jobs")
+                Text(I18n.t("dashboard.cron.empty.title"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 60)
@@ -342,7 +353,7 @@ struct ChannelStatusCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Channels", systemImage: "bubble.left.and.bubble.right.fill")
+            Label(I18n.t("dashboard.channels.title"), systemImage: "bubble.left.and.bubble.right.fill")
                 .font(.headline)
 
             if viewModel.isLoadingChannels {
@@ -367,7 +378,7 @@ struct ChannelStatusCard: View {
 
                             Spacer()
 
-                            Text(LocalizedStringKey(channelStatusLabel(channel)))
+                            Text(channelStatusLabel(channel))
                                 .font(.caption)
                                 .foregroundColor(channelStatusColor(channel))
                         }
@@ -376,11 +387,11 @@ struct ChannelStatusCard: View {
 
                 Divider()
 
-                (Text("\(viewModel.channels.count) ") + Text("channels"))
+                Text(I18n.format("dashboard.status.channelsCount", Int64(viewModel.channels.count)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                Text("No channels configured")
+                Text(I18n.t("dashboard.channels.empty.title"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 60)
@@ -399,10 +410,10 @@ struct ChannelStatusCard: View {
     }
 
     private func channelStatusLabel(_ channel: ChannelInfo) -> String {
-        if channel.linked { return "Connected" }
-        if channel.configured && !channel.linked { return "Not Linked" }
-        if channel.configured { return "Configured" }
-        return "Not Configured"
+        if channel.linked { return I18n.t("dashboard.channels.status.connected") }
+        if channel.configured && !channel.linked { return I18n.t("dashboard.channels.status.notLinked") }
+        if channel.configured { return I18n.t("dashboard.channels.status.configured") }
+        return I18n.t("dashboard.channels.status.notConfigured")
     }
 }
 
@@ -417,7 +428,7 @@ struct TokenUsageCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Token Usage", systemImage: "chart.bar.fill")
+            Label(I18n.t("dashboard.status.tokenUsage"), systemImage: "chart.bar.fill")
                 .font(.headline)
 
             if viewModel.isLoadingSessionsSummary {
@@ -431,7 +442,7 @@ struct TokenUsageCard: View {
             } else if let summary = viewModel.sessionsSummary {
                 // Totals
                 VStack(spacing: 4) {
-                    tokenRow(label: "Total:", value: summary.totalTokens)
+                    tokenRow(label: I18n.t("dashboard.status.tokenTotal"), value: summary.totalTokens)
                 }
 
                 // Budget status section
@@ -440,7 +451,7 @@ struct TokenUsageCard: View {
 
                     if budget.tokenLimit > 0 {
                         HStack(spacing: 4) {
-                            Text(String(localized: "budget.status.label", defaultValue: "Budget:", bundle: LanguageManager.shared.localizedBundle))
+                            Text(I18n.t("dashboard.status.label.budget"))
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(.secondary)
                             Spacer()
@@ -467,7 +478,7 @@ struct TokenUsageCard: View {
 
                     if budget.costLimit > 0 {
                         HStack(spacing: 4) {
-                            Text(String(localized: "Cost:", bundle: LanguageManager.shared.localizedBundle))
+                            Text(I18n.t("dashboard.status.label.cost"))
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(.secondary)
                             Spacer()
@@ -477,7 +488,7 @@ struct TokenUsageCard: View {
                         }
                     } else if budget.estimatedCost > 0 {
                         HStack(spacing: 4) {
-                            Text(String(localized: "budget.estcost.label", defaultValue: "Est. Cost:", bundle: LanguageManager.shared.localizedBundle))
+                            Text(I18n.t("dashboard.status.label.estimatedCost"))
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(.secondary)
                             Spacer()
@@ -521,7 +532,7 @@ struct TokenUsageCard: View {
                     }
                 }
             } else {
-                Text("No token data")
+                Text(I18n.t("dashboard.status.noTokenData"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 60)
@@ -594,22 +605,22 @@ struct SystemInfoSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("System Information")
+            Text(I18n.t("dashboard.status.systemInformation"))
                 .font(.headline)
 
             VStack(spacing: 8) {
                 InfoRow(
-                    label: "macOS Version",
+                    label: I18n.t("dashboard.status.macosVersion"),
                     value: viewModel.systemEnvironment.osVersion
                 )
 
                 InfoRow(
-                    label: "Architecture",
+                    label: I18n.t("dashboard.status.architecture"),
                     value: viewModel.systemEnvironment.architecture
                 )
 
                 InfoRow(
-                    label: "Available Space",
+                    label: I18n.t("dashboard.status.availableSpace"),
                     value: viewModel.systemEnvironment.availableDiskSpace
                 )
 
@@ -624,7 +635,7 @@ struct SystemInfoSection: View {
 
                 if let openclawInfo = viewModel.systemEnvironment.openclawInfo {
                     InfoRow(
-                        label: "OpenClaw Path",
+                        label: I18n.t("dashboard.status.openClawPath"),
                         value: openclawInfo.path
                     )
                 }

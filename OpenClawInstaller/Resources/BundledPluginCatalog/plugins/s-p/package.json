@@ -1,0 +1,12 @@
+{
+  "name": "s-p",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Company financials, ratings context, market research, and industry data",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

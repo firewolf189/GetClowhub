@@ -1,0 +1,33 @@
+{
+  "id": "remotion",
+  "name": "Remotion",
+  "displayName": "Remotion",
+  "description": "Create motion graphics from prompts",
+  "longDescription": "Build videos programmatically with Remotion and React. Covers animations, timing, audio, captions, 3D, transitions, charts, text effects, and more.",
+  "version": "1.0.3",
+  "developerName": "Remotion",
+  "category": "Creativity",
+  "capabilities": [
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "remotion",
+    "video",
+    "react",
+    "animation",
+    "composition",
+    "rendering",
+    "ffmpeg",
+    "captions",
+    "audio"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://remotion.dev",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

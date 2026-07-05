@@ -1,0 +1,20 @@
+{
+  "id": "omni-analytics",
+  "name": "Omni Analytics",
+  "displayName": "Omni Analytics",
+  "description": "Query Omni using the same semantic model, permissions, and logic defined by your data team directly from OpenClaw.",
+  "longDescription": "Query Omni using the same semantic model, permissions, and logic defined by your data team directly from OpenClaw. Allow internal teams to ask data questions in their AI workflows without logging into Omni directly, while still enforcing row-level security and business definitions.",
+  "version": "1.0.4",
+  "developerName": "Omni Analytics",
+  "category": "Data & Analytics",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.omni.co",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

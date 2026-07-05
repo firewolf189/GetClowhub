@@ -1,0 +1,33 @@
+{
+  "id": "temporal",
+  "name": "Temporal",
+  "displayName": "Temporal",
+  "description": "Develop, run, and manage Temporal applications across the entire platform lifecycle",
+  "longDescription": "Comprehensive guidance for working with Temporal — developing workflows, activities, and workers across Python, TypeScript, Go, and Java SDKs; using the Temporal CLI for local development and operations; running and managing self-hosted Temporal Server; and working with Temporal Cloud for production deployments.",
+  "version": "0.2.2",
+  "developerName": "Temporal",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "temporal",
+    "workflow",
+    "durable-execution",
+    "python",
+    "typescript",
+    "go",
+    "java",
+    "microservices",
+    "distributed-systems"
+  ],
+  "icon": "./assets/temporal-logo.svg",
+  "homepageURL": "https://temporal.io/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

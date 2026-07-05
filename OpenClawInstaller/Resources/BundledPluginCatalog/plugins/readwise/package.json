@@ -1,0 +1,12 @@
+{
+  "name": "readwise",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The official app for Readwise and Reader.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

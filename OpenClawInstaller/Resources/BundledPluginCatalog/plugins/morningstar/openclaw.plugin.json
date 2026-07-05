@@ -1,0 +1,30 @@
+{
+  "id": "morningstar",
+  "name": "Morningstar",
+  "displayName": "Morningstar",
+  "description": "Screen, summarize, and compare funds with the Morningstar app.",
+  "longDescription": "Bundled Morningstar fund workflows for OpenClaw: production screening with normalization, fund returns screening, single-fund deep summaries, and side-by-side comparison for 2 to 4 funds. The plugin links to the reviewed Morningstar ChatGPT app for authenticated data access and includes explicit data-availability disclosures.",
+  "version": "1.0.3",
+  "developerName": "Morningstar",
+  "category": "Finance",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "morningstar",
+    "funds",
+    "etf",
+    "research",
+    "screening"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.morningstar.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

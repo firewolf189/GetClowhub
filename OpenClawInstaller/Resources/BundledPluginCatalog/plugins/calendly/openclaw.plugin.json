@@ -1,0 +1,27 @@
+{
+  "id": "calendly",
+  "name": "Calendly",
+  "displayName": "Calendly",
+  "description": "Search Calendly meetings, events, and availability.",
+  "longDescription": "Calendly connects OpenClaw to your scheduling workflows so you can inspect upcoming meetings, review event details, reason about availability, and summarize attendee follow-ups.",
+  "version": "1.0.2",
+  "developerName": "Calendly",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [
+    "calendly",
+    "calendar",
+    "scheduling",
+    "meetings",
+    "availability",
+    "events"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://calendly.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

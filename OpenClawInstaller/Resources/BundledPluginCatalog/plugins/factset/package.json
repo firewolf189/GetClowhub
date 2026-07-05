@@ -1,0 +1,12 @@
+{
+  "name": "factset",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Financial data, estimates, market analytics, and research context",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

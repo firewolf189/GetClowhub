@@ -1,0 +1,27 @@
+{
+  "id": "otter-ai",
+  "name": "Otter.ai",
+  "displayName": "Otter.ai",
+  "description": "The Otter.ai MCP server connects OpenClaw to your meeting intelligence, enabling search and retrieval of tra...",
+  "longDescription": "The Otter.ai MCP server connects OpenClaw to your meeting intelligence, enabling search and retrieval of transcripts, summaries, action items, and meeting metadata directly within your workflow. Search meetings by keyword, date range, attendee, folder, or channel, then fetch full transcripts with speaker attribution. Use it to prepare for meetings by reviewing past discussions, extract decisions from historical conversations, or synthesize insights across your meeting archive. Supports both personal and enterprise Otter.ai workspaces.",
+  "version": "1.0.3",
+  "developerName": "Otter.ai",
+  "category": "Communication",
+  "capabilities": [],
+  "keywords": [
+    "otter",
+    "meetings",
+    "transcripts",
+    "summaries",
+    "action-items",
+    "productivity"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://otter.ai",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

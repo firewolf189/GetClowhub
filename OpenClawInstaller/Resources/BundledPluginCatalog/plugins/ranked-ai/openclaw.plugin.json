@@ -1,0 +1,20 @@
+{
+  "id": "ranked-ai",
+  "name": "Ranked AI",
+  "displayName": "Ranked AI",
+  "description": "Ranked AI provides industry leading AI SEO & PPC software, with a fully managed service integrated into it.",
+  "longDescription": "Ranked AI provides industry leading AI SEO & PPC software, with a fully managed service integrated into it. We combine AI with industry veterans that know how to help you rank your website on traditional & AI search. Manage your traditional & AI search keywords, audits, backlinks, reports and more with our integrated app.",
+  "version": "1.0.3",
+  "developerName": "Ranked AI, LLC",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.ranked.ai",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

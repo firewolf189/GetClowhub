@@ -90,19 +90,19 @@ assertContains(
     "right inspector should inject the width coordinator through the SwiftUI environment"
 )
 assertContains(
+    workspaceInspector,
+    "private struct WorkspaceInspectorContentSplit<Primary: View, Secondary: View>",
+    "workspace inspector should keep the Outputs primary column in a stable local content split"
+)
+assertNotContains(
     rightInspectorSplit,
     "struct NestedWorkspaceSplitView<Primary: View, Secondary: View>",
-    "workspace inspector should use a nested AppKit split for Outputs plus the secondary project sidebar"
+    "Outputs content should not be hosted by the old nested AppKit split that can collapse the primary column"
 )
-assertContains(
+assertNotContains(
     rightInspectorSplit,
     "private final class NestedWorkspaceSplitController: NSViewController",
-    "nested workspace split should be isolated from the outer chat/right-inspector split controller"
-)
-assertContains(
-    rightInspectorSplit,
-    "private var secondaryWidthConstraint: NSLayoutConstraint?",
-    "nested workspace split should animate only the secondary project column width"
+    "the secondary project column should no longer depend on a second AppKit controller"
 )
 assertContains(
     dashboard,
@@ -450,6 +450,11 @@ assertContains(
 )
 assertContains(
     rightInspectorSplitController,
+    "private var dragStartSidebarWidth: CGFloat = 0",
+    "right inspector resize should track the sidebar width at drag start"
+)
+assertContains(
+    rightInspectorSplitController,
     "private let sidebarClipView = NSView()",
     "right sidebar rail should own a dedicated clipping view for SwiftUI content"
 )
@@ -467,6 +472,16 @@ assertContains(
     rightInspectorSplitController,
     "sidebarRail.addSubview(sidebarSeparator)",
     "right sidebar separator should be installed inside the rail"
+)
+assertContains(
+    rightInspectorSplitController,
+    "NSPanGestureRecognizer(target: self, action: #selector(handleSidebarResizePan(_:)))",
+    "right inspector separator should support dragging to resize the sidebar like a native split"
+)
+assertContains(
+    rightInspectorSplitController,
+    "sidebarSeparator.addGestureRecognizer(resizePan)",
+    "right inspector resize gesture should be attached to the visible separator"
 )
 assertContains(
     rightInspectorSplitController,
@@ -507,6 +522,21 @@ assertContains(
     rightInspectorSplitController,
     "sidebarHost.view.leadingAnchor.constraint(equalTo: sidebarClipView.leadingAnchor)",
     "right sidebar SwiftUI host should be anchored inside the clip view"
+)
+assertContains(
+    rightInspectorSplitController,
+    "@objc private func handleSidebarResizePan(_ recognizer: NSPanGestureRecognizer)",
+    "right inspector should implement a local AppKit resize handler"
+)
+assertContains(
+    rightInspectorSplitController,
+    "let proposedWidth = dragStartSidebarWidth - translation.x",
+    "right inspector resize should grow when dragging its left separator leftward"
+)
+assertContains(
+    rightInspectorSplitController,
+    "locallyManagedSidebarWidth = clampedWidth",
+    "right inspector drag resize should stay layout-local and not enter chat content identity"
 )
 assertContains(
     rightInspectorSplitController,
@@ -778,6 +808,12 @@ let workspaceOutputsPaneHeader = slice(workspaceInspector, from: "private struct
 let workspaceInspectorPane = slice(workspaceInspector, from: "struct WorkspaceInspectorPane: View", to: "private struct WorkspaceFilePanel: View")
 let projectFilesPanel = slice(workspaceInspector, from: "private struct ProjectFilesPanel: View", to: "private struct CommitTextField")
 let openWorkspaceInFinderIcon = slice(workspaceInspector, from: "private struct OpenWorkspaceInFinderIcon: View", to: "private struct SecondaryProjectSidebarIcon: View")
+let fileEditorPanel = slice(workspaceInspector, from: "private struct FileEditorPanel: View", to: "    // MARK: - Status Bar")
+let editableWorkspaceFileTreePanel = slice(
+    workspaceInspector,
+    from: "private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View",
+    to: "private struct WorkspaceFileTreeRow: View"
+)
 for extractedType in [
     "struct WorkspaceInspectorPane: View",
     "struct WorkspaceFilePanel: View",
@@ -930,28 +966,83 @@ assertContains(
 )
 assertContains(
     workspaceInspectorPane,
-    "NestedWorkspaceSplitView(",
-    "secondary project sidebar width changes should be handled by the nested workspace split, not by clipping the whole outer inspector"
+    "WorkspaceInspectorContentSplit(",
+    "secondary project sidebar width changes should be handled inside the inspector content split"
 )
 assertContains(
     workspaceInspectorPane,
-    "primaryWidth: browserWidth",
-    "nested workspace split should receive an explicit primary Outputs column width so the Outputs content is visible before the secondary column opens"
+    "GeometryReader { proxy in",
+    "workspace inspector content should measure the actual available sidebar width before laying out Outputs plus the secondary column"
 )
 assertContains(
     workspaceInspectorPane,
-    "totalWidth: browserWidth + visualDetailWidth",
-    "nested workspace split should receive the full local inspector width so its AppKit container is not inferred as zero-width"
+    "WorkspaceInspectorContentLayout(",
+    "workspace inspector content should use a dedicated layout calculator for narrow-window width allocation"
 )
 assertContains(
     workspaceInspectorPane,
-    "secondaryWidth: visualDetailWidth",
-    "nested workspace split should receive the local secondary column width"
+    "availableWidth: proxy.size.width",
+    "workspace inspector layout should be based on the actual visible inspector width"
+)
+assertContains(
+    workspaceInspector,
+    "let targetTotalWidth = availableWidth",
+    "workspace inspector content should stretch to the actual resized sidebar width instead of capping at the default 280+480 width"
+)
+assertContains(
+    workspaceInspector,
+    "let availableSecondaryWidth = max(0, targetTotalWidth - preferredPrimaryWidth)",
+    "workspace inspector content should collapse the secondary column against the Outputs target width"
+)
+assertNotContains(
+    workspaceInspector,
+    "targetTotalWidth - minimumPrimaryWidth",
+    "workspace inspector secondary column should not keep residual width after the outer inspector reaches the Outputs target width"
+)
+assertContains(
+    workspaceInspector,
+    "let targetSecondaryWidth = min(preferredSecondaryWidth, availableSecondaryWidth)",
+    "workspace inspector secondary width should follow the outer AppKit sidebar animation instead of running an independent SwiftUI width animation"
+)
+assertNotContains(
+    workspaceInspector,
+    "let targetSecondaryWidth = availableSecondaryWidth >= minimumSecondaryWidth",
+    "workspace inspector should not hold the secondary column above its minimum width while the outer sidebar is collapsing"
+)
+assertContains(
+    workspaceInspector,
+    "let primaryWidth = max(0, targetTotalWidth - targetSecondaryWidth)",
+    "workspace inspector Outputs column should move with the animated secondary column instead of jumping between full-width and split layouts"
+)
+assertNotContains(
+    workspaceInspector,
+    "let secondaryWidth = max(0, targetTotalWidth - primaryWidth)",
+    "workspace inspector secondary width should not be derived only from the remaining visible width because that ignores the animation progress"
+)
+assertContains(
+    workspaceInspectorPane,
+    "primaryWidth: layout.primaryWidth",
+    "inspector content split should receive an explicit primary Outputs column width so the Outputs content is visible before the secondary column opens"
+)
+assertContains(
+    workspaceInspectorPane,
+    "totalWidth: layout.totalWidth",
+    "inspector content split should fit the current visible inspector width instead of keeping an oversized fixed layout"
+)
+assertContains(
+    workspaceInspectorPane,
+    "secondaryWidth: layout.secondaryWidth",
+    "secondary project sidebar should shrink when the visible inspector width is narrow"
+)
+assertContains(
+    workspaceInspectorPane,
+    "width: layout.secondaryContentWidth",
+    "project tree content width should follow the clipped secondary column width"
 )
 assertNotContains(
     workspaceInspectorPane,
-    "@Environment(\\.rightInspectorSidebarWidthCoordinator)",
-    "secondary project sidebar should not drive its animation by directly changing the outer inspector split width"
+    "totalWidth: browserWidth + visualDetailWidth",
+    "workspace inspector content should not keep a fixed 280+480 layout that can clip Outputs in narrow windows"
 )
 assertNotContains(
     workspaceInspectorPane,
@@ -967,6 +1058,101 @@ assertContains(
     workspaceInspectorPane,
     "targetDetailMode = nextMode",
     "secondary project sidebar should record the latest requested mode before animation so stale completions cannot win"
+)
+assertContains(
+    workspaceInspectorPane,
+    "@State private var renderedDetailMode: WorkspaceDetailMode = .none",
+    "secondary detail content should have a separate render mode so it can mount before business state commits"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "@State private var detailContentProgress: CGFloat = 0",
+    "secondary detail content visibility should be controlled by clipped width, not a second opacity state"
+)
+assertContains(
+    workspaceInspectorPane,
+    "@State private var committedDetailWidth: CGFloat = 0",
+    "secondary detail close should keep a committed parent width until the collapse animation finishes"
+)
+assertContains(
+    workspaceInspectorPane,
+    "renderedDetailMode = nextMode",
+    "secondary detail content should mount before its open width animation starts"
+)
+assertContains(
+    workspaceInspectorPane,
+    "renderedDetailMode = .none",
+    "secondary detail content should unmount only after the width animation finishes"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "animateDetailContentProgress(to: 0)",
+    "secondary detail content should not disappear before the outer inspector collapse animation finishes"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    ".opacity(detailContentProgress)",
+    "secondary detail content should become visible through width clipping instead of opacity animation"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    ".offset(x: (1 - detailContentProgress) * 10)",
+    "secondary detail content should not run a separate slide animation while the column width is animating"
+)
+assertContains(
+    workspaceInspectorPane,
+    "@Environment(\\.rightInspectorSidebarWidthCoordinator)",
+    "secondary project sidebar should coordinate the outer AppKit inspector width with its local clipped column animation"
+)
+assertContains(
+    workspaceInspectorPane,
+    "sidebarWidthCoordinator.animateSidebarWidth(browserWidth + sanitizedWidth)",
+    "secondary project sidebar should push the outer inspector divider as soon as the local detail-width animation starts"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "withAnimation(.easeInOut(duration: RightInspectorSplitMetrics.animationDuration)) {\n            visualDetailWidth = sanitizedWidth\n        }",
+    "secondary project sidebar should not run a separate SwiftUI width animation in parallel with the AppKit sidebar width animation"
+)
+assertContains(
+    workspaceInspectorPane,
+    "if sanitizedWidth > 0 {\n            visualDetailWidth = sanitizedWidth\n        }",
+    "secondary detail open should prepare the inner detail width before the outer AppKit animation starts"
+)
+assertContains(
+    workspaceInspectorPane,
+    "if sanitizedWidth == 0 {\n                visualDetailWidth = 0\n            }",
+    "secondary detail close should clear the inner detail width only after the outer AppKit animation finishes"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "if animated, sanitizedWidth > 0 {\n            sidebarWidthCoordinator.animateSidebarWidth(browserWidth + sanitizedWidth)",
+    "secondary detail close should animate the outer inspector divider together with the local secondary column"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "let shouldCommitParentWidthImmediately = sanitizedWidth > 0",
+    "secondary detail width should not publish positive or zero parent state before the animation completes"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "if shouldCommitParentWidthImmediately {\n            committedDetailWidth = sanitizedWidth",
+    "secondary detail open should not commit positive parent width before the visible width animation completes"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "guard !shouldCommitParentWidthImmediately else { return }",
+    "secondary detail width commit should not branch between open and close before the animation completes"
+)
+assertContains(
+    workspaceInspectorPane,
+    "DispatchQueue.main.asyncAfter(deadline: .now() + RightInspectorSplitMetrics.animationDuration) {\n            guard detailAnimationGeneration == animationID else { return }\n            if sanitizedWidth == 0 {\n                visualDetailWidth = 0\n            }\n            committedDetailWidth = sanitizedWidth\n            onDetailWidthChanged(committedDetailWidth)",
+    "secondary detail width should commit to parent only after the outer width animation completes"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "onDetailWidthChanged(sanitizedWidth)\n        if animated",
+    "secondary detail close should not publish zero width to DashboardView before the collapse animation completes"
 )
 assertContains(
     workspaceInspectorPane,
@@ -990,6 +1176,11 @@ assertContains(
 )
 assertNotContains(
     workspaceInspectorPane,
+    "detailMode = nextMode\n        animateDetailWidth",
+    "secondary project sidebar should not commit business state before starting its width animation"
+)
+assertNotContains(
+    workspaceInspectorPane,
     "detailMode = .projectTree\n            retainedDetailMode = .projectTree",
     "secondary project sidebar should not commit project-tree business state before the width animation starts"
 )
@@ -1003,14 +1194,14 @@ assertContains(
     "guard detailAnimationGeneration == animationID else { return }",
     "secondary project sidebar should ignore stale local animation completions"
 )
-assertContains(
+assertNotContains(
     workspaceInspectorPane,
     "withAnimation(.easeInOut(duration: RightInspectorSplitMetrics.animationDuration))",
-    "secondary project sidebar should animate its local clipped detail width"
+    "secondary project sidebar should not run a second SwiftUI animation while the outer AppKit width reveals clipped content"
 )
 assertContains(
     projectFilesPanel,
-    "TextField(\"Filter files...\", text: $searchText)",
+    "TextField(I18n.t(\"workspace.files.filterPlaceholder\"), text: $searchText)",
     "project tree search should move inside the secondary project files panel"
 )
 assertContains(
@@ -1035,6 +1226,16 @@ assertContains(
     "right split pane should delegate local Outputs/project-file state to a child inspector pane"
 )
 assertContains(
+    workspaceSidebarPane,
+    ".frame(maxWidth: .infinity, alignment: .top)",
+    "right workspace pane should fill the actual AppKit sidebar width instead of fixing itself to the ideal width"
+)
+assertNotContains(
+    workspaceSidebarPane,
+    ".frame(width: width",
+    "right workspace pane should not force an oversized fixed width that hides Outputs in narrow windows"
+)
+assertContains(
     workspaceInspectorPane,
     "WorkspaceOutputsPaneHeader(",
     "workspace inspector pane should own the Outputs header row"
@@ -1045,29 +1246,107 @@ assertContains(
     "workspace inspector pane should own the Outputs file content"
 )
 assertContains(
-    rightInspectorSplit,
+    workspaceInspector,
     "let primaryWidth: CGFloat",
-    "NestedWorkspaceSplitView should accept an explicit primary column width"
+    "WorkspaceInspectorContentSplit should accept an explicit primary column width"
 )
 assertContains(
-    rightInspectorSplit,
+    workspaceInspector,
     "let totalWidth: CGFloat",
-    "NestedWorkspaceSplitView should accept an explicit total width for the local inspector container"
+    "WorkspaceInspectorContentSplit should accept an explicit total width for the local inspector container"
 )
 assertContains(
-    rightInspectorSplit,
-    "primaryWidthConstraint",
-    "NestedWorkspaceSplitController should keep the primary Outputs column stable with a width constraint"
+    workspaceInspector,
+    ".frame(width: totalWidth, alignment: .topLeading)",
+    "WorkspaceInspectorContentSplit should pin the local container width to the primary plus secondary column widths"
 )
 assertContains(
-    rightInspectorSplit,
-    ".frame(width: totalWidth)",
-    "NestedWorkspaceSplitView should pin the AppKit container width to the primary plus secondary column widths"
+    workspaceInspector,
+    ".frame(width: primaryWidth)",
+    "WorkspaceInspectorContentSplit should keep the primary Outputs column stable with an explicit width"
 )
 assertContains(
-    rightInspectorSplit,
-    "primaryHost.view.widthAnchor.constraint(equalToConstant: 0)",
-    "NestedWorkspaceSplitController should install a primary width constraint instead of relying on implicit AppKit layout"
+    workspaceInspector,
+    ".fill(Color(NSColor.separatorColor))",
+    "WorkspaceInspectorContentSplit should draw a real separator between Outputs and the secondary file column"
+)
+assertNotContains(
+    workspaceInspector,
+    ".fill(Color.clear)\n                .frame(width: 1)\n                .shadow(color: .black.opacity(0.15)",
+    "secondary file panels should not fake their separator with an invisible rectangle and shadow"
+)
+assertContains(
+    workspaceInspector,
+    "private struct WorkspaceFileTreeRow: View",
+    "Outputs and project file lists should share one row component"
+)
+assertContains(
+    workspaceInspector,
+    "private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View",
+    "Outputs and project file lists should share one editable tree component"
+)
+assertContains(
+    workspaceFilePanel,
+    "EditableWorkspaceFileTreePanel(",
+    "Outputs should render through the shared editable file tree"
+)
+assertContains(
+    projectFilesPanel,
+    "EditableWorkspaceFileTreePanel(",
+    "Project files should render through the shared editable file tree"
+)
+for sharedOperation in [
+    "private func beginNewItem(parent: String, isFolder: Bool)",
+    "private func performNewItem(name inputName: String)",
+    "private func performRename(oldPath: String, newName inputName: String)",
+    "private func performDelete(path: String)",
+    "private func performPaste(into directory: String)"
+] {
+    assertContains(
+        editableWorkspaceFileTreePanel,
+        sharedOperation,
+        "file tree operation \(sharedOperation) should live in the shared editable tree component"
+    )
+}
+assertContains(
+    workspaceInspectorPane,
+    "sidebarWidthCoordinator.animateSidebarWidth(browserWidth + sanitizedWidth)",
+    "secondary column expand and collapse should both drive the outer AppKit sidebar width animation first"
+)
+assertNotContains(
+    workspaceInspectorPane,
+    "if animated, sanitizedWidth > 0",
+    "secondary column collapse should not skip the outer AppKit width animation"
+)
+assertNotContains(
+    fileEditorPanel,
+    "@Binding var isFullscreen",
+    "file editor should not keep a fullscreen binding for a non-functional header button"
+)
+assertNotContains(
+    fileEditorPanel,
+    "isFullscreen",
+    "file editor should not retain fullscreen toggle logic"
+)
+assertNotContains(
+    fileEditorPanel,
+    "arrow.up.left.and.arrow.down.right",
+    "file editor should remove the non-functional expand header button"
+)
+assertNotContains(
+    fileEditorPanel,
+    "arrow.down.right.and.arrow.up.left",
+    "file editor should remove the non-functional collapse header button"
+)
+assertContains(
+    fileEditorPanel,
+    "Image(systemName: viewMode == .preview ? \"square.and.pencil\" : \"eye\")",
+    "editable files should use a standard edit/preview toggle icon"
+)
+assertNotContains(
+    fileEditorPanel,
+    "Image(systemName: viewMode == .preview ? \"pencil.line\" : \"eye\")",
+    "editable files should not use the old blue pencil-line edit icon"
 )
 
 assertNotContains(

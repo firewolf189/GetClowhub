@@ -1,0 +1,12 @@
+{
+  "name": "cube",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "With the Cube MCP Server, you can: - Query live Cube data from actuals, budgets, forecasts, variances, and...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

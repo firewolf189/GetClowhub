@@ -1,0 +1,12 @@
+{
+  "name": "intercom",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Customer conversations, contacts, tickets, and support workflows from Intercom",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

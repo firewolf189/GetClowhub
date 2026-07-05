@@ -1,0 +1,12 @@
+{
+  "name": "cloudinary",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Manage, search, and transform your Cloudinary media library — directly from OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

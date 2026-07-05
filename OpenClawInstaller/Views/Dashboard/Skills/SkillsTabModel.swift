@@ -9,9 +9,12 @@ final class SkillsTabModel: ObservableObject {
     @Published var skillCatalog: [SkillCatalogItem] = []
     @Published var isLoadingSkillCatalog = false
     @Published var installingCatalogSkillName: String?
+    @Published var upgradingCatalogSkillName: String?
     @Published var removingSkillName: String?
     @Published var isInstallingManualSkill = false
     @Published var skillCatalogError: String?
+    @Published var skillCatalogRevision: String?
+    @Published var skillInstallStates: [String: SkillInstallStateStore.Entry] = [:]
 
     private let openclawService: OpenClawService
     private let notifySuccess: (String) -> Void
@@ -34,7 +37,7 @@ final class SkillsTabModel: ObservableObject {
             "openclaw skills list 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'"
         )
         let (parsed, summary) = DashboardViewModel.parseSkillsList(output: output)
-        let trustedNames = DashboardViewModel.loadTrustedSkillNames()
+        let trustedNames = SkillTrustStore.load()
         let decorated = parsed.map { skill in
             guard trustedNames.contains(skill.name),
                   SkillSourcePresentation(source: skill.source).kind != .builtIn else {
@@ -59,6 +62,7 @@ final class SkillsTabModel: ObservableObject {
 
     func loadSkillMarket(forceSync: Bool = false) async {
         if hasLoadedSkillCatalog && !forceSync {
+            skillInstallStates = SkillInstallStateStore.load()
             await loadSkills()
             return
         }
@@ -69,7 +73,8 @@ final class SkillsTabModel: ObservableObject {
         skillCatalogError = nil
 
         let cacheGitURL = SkillCatalogService.defaultCacheURL.appendingPathComponent(".git")
-        let shouldSync = forceSync || !FileManager.default.fileExists(atPath: cacheGitURL.path)
+        let didSeedBundledCatalog = !forceSync && SkillCatalogService.seedBundledCatalogIfNeeded()
+        let shouldSync = forceSync || (!didSeedBundledCatalog && !FileManager.default.fileExists(atPath: cacheGitURL.path))
         let syncOutput: String?
         if shouldSync {
             syncOutput = await openclawService.runCommand(
@@ -89,11 +94,14 @@ final class SkillsTabModel: ObservableObject {
 
         do {
             skillCatalog = try SkillCatalogService.parseCatalog(rootURL: SkillCatalogService.defaultCacheURL)
+            skillCatalogRevision = SkillCatalogService.catalogRevision()
+            skillInstallStates = SkillInstallStateStore.load()
             hasLoadedSkillCatalog = true
         } catch {
             let detail = syncOutput?.trimmingCharacters(in: .whitespacesAndNewlines)
             skillCatalogError = detail?.isEmpty == false ? detail : error.localizedDescription
             skillCatalog = []
+            skillCatalogRevision = nil
             hasLoadedSkillCatalog = false
         }
 
@@ -117,12 +125,35 @@ final class SkillsTabModel: ObservableObject {
         installingCatalogSkillName = nil
 
         if output?.contains("__OPENCLAW_SKILL_INSTALL_OK__") == true {
-            DashboardViewModel.markTrustedSkill(item.name)
+            SkillTrustStore.mark(item.name)
+            recordCatalogInstall(for: item)
             await loadSkills()
             notifySuccess(I18n.format("skills.toast.installed", item.name))
         } else {
             let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
             notifyError(I18n.format("skills.toast.installFailed", item.name, trimmed?.isEmpty == false ? trimmed! : I18n.t("common.error.unknown")))
+        }
+    }
+
+    func upgradeCatalogSkill(_ item: SkillCatalogItem) async {
+        guard upgradingCatalogSkillName == nil else { return }
+
+        upgradingCatalogSkillName = item.name
+        let command = SkillCatalogService.installCommand(for: item)
+        let output = await openclawService.runCommand(
+            "(\(command) 2>&1 && echo __OPENCLAW_SKILL_UPGRADE_OK__) | sed 's/\\x1b\\[[0-9;]*m//g'",
+            timeout: 180
+        )
+        upgradingCatalogSkillName = nil
+
+        if output?.contains("__OPENCLAW_SKILL_UPGRADE_OK__") == true {
+            SkillTrustStore.mark(item.name)
+            recordCatalogInstall(for: item)
+            await loadSkills()
+            notifySuccess(I18n.format("skills.toast.upgraded", item.name))
+        } else {
+            let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
+            notifyError(I18n.format("skills.toast.upgradeFailed", item.name, trimmed?.isEmpty == false ? trimmed! : I18n.t("common.error.unknown")))
         }
     }
 
@@ -176,13 +207,35 @@ final class SkillsTabModel: ObservableObject {
         removingSkillName = nil
 
         if output?.contains("__OPENCLAW_SKILL_REMOVE_OK__") == true {
-            DashboardViewModel.unmarkTrustedSkill(skill.name)
+            SkillTrustStore.unmark(skill.name)
+            SkillInstallStateStore.remove(skill.name)
+            skillInstallStates = SkillInstallStateStore.load()
             await loadSkills()
             notifySuccess(I18n.format("skills.toast.removed", skill.name))
         } else {
             let trimmed = output?.trimmingCharacters(in: .whitespacesAndNewlines)
             notifyError(I18n.format("skills.toast.removeFailed", skill.name, trimmed?.isEmpty == false ? trimmed! : I18n.t("common.error.unknown")))
         }
+    }
+
+    func isUpdateAvailable(for item: SkillCatalogItem, installedSkill: SkillInfo?) -> Bool {
+        guard installedSkill != nil else { return false }
+        return SkillInstallStateStore.hasUpdate(
+            skillName: item.name,
+            currentSkillRevision: SkillCatalogService.skillRevision(for: item),
+            currentCatalogRevision: skillCatalogRevision,
+            states: skillInstallStates
+        )
+    }
+
+    private func recordCatalogInstall(for item: SkillCatalogItem) {
+        SkillInstallStateStore.recordInstall(
+            skillName: item.name,
+            skillRevision: SkillCatalogService.skillRevision(for: item),
+            catalogRevision: skillCatalogRevision ?? SkillCatalogService.catalogRevision(),
+            relativePath: item.relativePath
+        )
+        skillInstallStates = SkillInstallStateStore.load()
     }
 
     private static func shellQuote(_ value: String) -> String {

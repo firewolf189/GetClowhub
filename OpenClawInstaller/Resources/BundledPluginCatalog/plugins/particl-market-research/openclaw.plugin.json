@@ -1,0 +1,20 @@
+{
+  "id": "particl-market-research",
+  "name": "Particl Market Research",
+  "displayName": "Particl Market Research",
+  "description": "Particl Market Research helps teams answer ecommerce research questions directly in OpenClaw.",
+  "longDescription": "Particl Market Research helps teams answer ecommerce research questions directly in OpenClaw. It supports company discovery, product catalog research, product detail and variant analysis, market leader discovery, market trend analysis, marketing asset discovery, retail event tracking, sales timeseries, and product mix breakdowns.\n\nThe app uses your authenticated Particl account and returns structured market intelligence data from Particl APIs.",
+  "version": "1.0.3",
+  "developerName": "Particl",
+  "category": "Education & Research",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.particl.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

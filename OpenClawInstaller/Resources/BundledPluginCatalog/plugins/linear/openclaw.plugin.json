@@ -1,0 +1,20 @@
+{
+  "id": "linear",
+  "name": "Linear",
+  "displayName": "Linear",
+  "description": "Find and reference issues and projects.",
+  "longDescription": "Manage issues, projects, and team workflows in Linear from OpenClaw.",
+  "version": "0.0.2",
+  "developerName": "OpenAI",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://linear.app/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "zoominfo",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "B2B company intelligence, contacts, and go-to-market signals",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

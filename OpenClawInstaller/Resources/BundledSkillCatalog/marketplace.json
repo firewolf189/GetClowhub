@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "id": "agent-search",
+      "recommended": true,
+      "tags": [
+        "research",
+        "web",
+        "social",
+        "opencli",
+        "search"
+      ],
+      "order": 10
+    },
+    {
+      "id": "brainstorming",
+      "recommended": true,
+      "tags": [
+        "planning",
+        "design"
+      ],
+      "order": 20
+    },
+    {
+      "id": "dws",
+      "recommended": true,
+      "tags": [
+        "dingtalk",
+        "workspace"
+      ],
+      "order": 30
+    },
+    {
+      "id": "image-compliance-review",
+      "recommended": true,
+      "tags": [
+        "image-review",
+        "compliance"
+      ],
+      "order": 40
+    },
+    {
+      "id": "tax-exemption-ai-review",
+      "recommended": true,
+      "tags": [
+        "tax",
+        "review"
+      ],
+      "order": 50
+    },
+    {
+      "id": "design-taste-frontend",
+      "recommended": true,
+      "tags": [
+        "frontend",
+        "design",
+        "taste"
+      ],
+      "order": 60
+    },
+    {
+      "id": "webwright",
+      "recommended": true,
+      "tags": [
+        "browser",
+        "playwright",
+        "automation"
+      ],
+      "order": 70
+    }
+  ]
+}

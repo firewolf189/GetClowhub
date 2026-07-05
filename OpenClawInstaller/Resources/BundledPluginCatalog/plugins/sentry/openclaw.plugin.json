@@ -1,0 +1,27 @@
+{
+  "id": "sentry",
+  "name": "Sentry",
+  "displayName": "Sentry",
+  "description": "Inspect recent Sentry issues and events",
+  "longDescription": "Use Sentry skills to inspect recent issues, review events, and summarize production errors with a read-only workflow.",
+  "version": "0.1.2",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "sentry",
+    "observability",
+    "triage"
+  ],
+  "icon": "./assets/sentry.png",
+  "homepageURL": "https://sentry.io/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

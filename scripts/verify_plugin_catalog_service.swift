@@ -164,9 +164,9 @@ struct VerifyPluginCatalogService {
 
         let syncCommand = PluginCatalogService.syncCommand(cacheURL: rootURL)
         expect(syncCommand.contains("git clone --depth 1"), "sync command should clone the remote catalog when the cache is missing")
-        expect(syncCommand.contains("fetch origin main"), "sync command should fetch origin/main for existing plugin caches")
-        expect(syncCommand.contains("reset --hard origin/main"), "sync command should let the remote plugin catalog overwrite the local cache")
-        expect(syncCommand.contains("clean -fd"), "sync command should remove stale local cache files that no longer exist upstream")
+        expect(syncCommand.contains("pull --ff-only origin main"), "sync command should fast-forward existing plugin catalog caches")
+        expect(!syncCommand.contains("reset --hard"), "sync command should not force reset the local plugin catalog cache")
+        expect(!syncCommand.contains("clean -fd"), "sync command should not remove local cache files outside a fast-forward update")
         expect(!syncCommand.contains("rsync"), "sync command should not mirror plugin catalog into the app source tree")
         expect(syncCommand.contains("GetClawHubPlugins"), "sync command should stay bound to the user's plugin origin repository")
 

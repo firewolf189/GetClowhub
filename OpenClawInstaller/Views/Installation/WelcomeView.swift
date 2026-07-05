@@ -16,11 +16,11 @@ struct WelcomeView: View {
 
                 BrandTextView()
 
-                Text("Welcome to OpenClaw Installer")
+                Text(I18n.t("install.welcome.title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text("This wizard will guide you through installing OpenClaw on your Mac")
+                Text(I18n.t("install.welcome.subtitle"))
                     .font(.title3)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -31,26 +31,26 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 16) {
                 FeatureRow(
                     icon: "checkmark.circle.fill",
-                    title: "Automated Installation",
-                    description: "Installs Node.js and OpenClaw automatically"
+                    title: I18n.t("install.welcome.feature.automated.title"),
+                    description: I18n.t("install.welcome.feature.automated.description")
                 )
 
                 FeatureRow(
                     icon: "gear.circle.fill",
-                    title: "Easy Configuration",
-                    description: "Guided setup for your OpenClaw instance"
+                    title: I18n.t("install.welcome.feature.configuration.title"),
+                    description: I18n.t("install.welcome.feature.configuration.description")
                 )
 
                 FeatureRow(
                     icon: "shield.checkered",
-                    title: "Secure",
-                    description: "Requires administrator privileges for system-level installation"
+                    title: I18n.t("install.welcome.feature.secure.title"),
+                    description: I18n.t("install.welcome.feature.secure.description")
                 )
 
                 FeatureRow(
                     icon: "clock.fill",
-                    title: "Quick Setup",
-                    description: "Complete installation in just a few minutes"
+                    title: I18n.t("install.welcome.feature.quick.title"),
+                    description: I18n.t("install.welcome.feature.quick.description")
                 )
             }
             .padding(.horizontal, 100)
@@ -62,7 +62,7 @@ struct WelcomeView: View {
                 Button(action: {
                     NSApplication.shared.terminate(nil)
                 }) {
-                    Text("Quit")
+                    Text(I18n.t("install.action.quit"))
                         .frame(width: 120)
                 }
                 .buttonStyle(.bordered)
@@ -71,7 +71,7 @@ struct WelcomeView: View {
                     startInstallation()
                 }) {
                     HStack {
-                        Text("Get Started")
+                        Text(I18n.t("install.action.getStarted"))
                         Image(systemName: "arrow.right")
                     }
                     .frame(width: 160)

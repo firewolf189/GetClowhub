@@ -11,7 +11,7 @@ struct CronTabView: View {
             VStack(spacing: 16) {
                 // Header
                 HStack {
-                    Text("Cron Jobs")
+                    Text(I18n.t("dashboard.cron.title"))
                         .font(.headline)
 
                     if !viewModel.cronJobs.isEmpty {
@@ -25,7 +25,7 @@ struct CronTabView: View {
                     Button(action: { showAddSheet = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "plus")
-                            Text("Add Job")
+                            Text(I18n.t("dashboard.cron.add"))
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -36,14 +36,14 @@ struct CronTabView: View {
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.clockwise")
-                            Text("Refresh")
+                            Text(I18n.t("catalog.action.refresh"))
                         }
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isLoadingCronJobs || viewModel.isPerformingAction)
 
                     if viewModel.isLoadingCronJobs && !viewModel.cronJobs.isEmpty {
-                        Text("Refreshing...")
+                        Text(I18n.t("dashboard.cron.refreshing"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -52,9 +52,9 @@ struct CronTabView: View {
                 if let error = viewModel.cronJobsLoadError, viewModel.cronJobs.isEmpty {
                     CronStateView(
                         systemImage: "exclamationmark.triangle",
-                        title: "Could not load cron jobs",
+                        title: I18n.t("dashboard.cron.loadFailed.title"),
                         detail: error,
-                        actionTitle: "Retry",
+                        actionTitle: I18n.t("common.action.retry"),
                         action: {
                             Task { await viewModel.loadCronJobs() }
                         }
@@ -62,16 +62,16 @@ struct CronTabView: View {
                 } else if !viewModel.hasLoadedCronJobs && viewModel.cronJobs.isEmpty {
                     CronStateView(
                         systemImage: "clock.badge",
-                        title: "Checking cron jobs",
-                        detail: "Reading scheduled automation tasks...",
+                        title: I18n.t("dashboard.cron.checking.title"),
+                        detail: I18n.t("dashboard.cron.checking.detail"),
                         actionTitle: nil,
                         action: nil
                     )
                 } else if viewModel.cronJobs.isEmpty {
                     CronStateView(
                         systemImage: "clock.badge",
-                        title: "No cron jobs configured",
-                        detail: "Add a cron job to schedule automated tasks",
+                        title: I18n.t("dashboard.cron.empty.title"),
+                        detail: I18n.t("dashboard.cron.empty.detail"),
                         actionTitle: nil,
                         action: nil
                     )
@@ -180,7 +180,7 @@ private struct CronInlineWarning: View {
 
             Spacer()
 
-            Button("Retry", action: onRetry)
+            Button(I18n.t("common.action.retry"), action: onRetry)
                 .font(.caption)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -226,7 +226,7 @@ struct CronJobRow: View {
 
                 HStack(spacing: 8) {
                     if !job.agentId.isEmpty {
-                        StatusTag(text: "Agent: \(job.agentId)", color: .blue)
+                        StatusTag(text: I18n.format("dashboard.cron.agentTag", job.agentId), color: .blue)
                     }
 
                     if !job.sessionTarget.isEmpty {
@@ -243,7 +243,7 @@ struct CronJobRow: View {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.right.circle")
                                 .font(.system(size: 10))
-                            Text("Next: \(job.nextRun)")
+                            Text(I18n.format("dashboard.cron.next", job.nextRun))
                                 .font(.caption)
                         }
                         .foregroundColor(.secondary)
@@ -253,7 +253,7 @@ struct CronJobRow: View {
                         HStack(spacing: 4) {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 10))
-                            Text("Last: \(job.lastRun)")
+                            Text(I18n.format("dashboard.cron.last", job.lastRun))
                                 .font(.caption)
                         }
                         .foregroundColor(.secondary)
@@ -278,7 +278,7 @@ struct CronJobRow: View {
             }
             .buttonStyle(.plain)
             .disabled(isPerformingAction)
-            .help(job.enabled ? "Disable" : "Enable")
+            .unifiedTooltip(UnifiedTooltipContent(title: job.enabled ? I18n.t("catalog.action.disable") : I18n.t("catalog.action.enable")))
 
             // Delete button
             Button(action: { showRemoveConfirm = true }) {
@@ -287,11 +287,12 @@ struct CronJobRow: View {
             .buttonStyle(.bordered)
             .tint(.red)
             .disabled(isPerformingAction)
-            .alert("Remove Cron Job", isPresented: $showRemoveConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Remove", role: .destructive) { onRemove() }
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("catalog.action.remove")))
+            .alert(I18n.t("dashboard.cron.alert.removeTitle"), isPresented: $showRemoveConfirm) {
+                Button(I18n.t("catalog.action.cancel"), role: .cancel) {}
+                Button(I18n.t("catalog.action.remove"), role: .destructive) { onRemove() }
             } message: {
-                Text("Are you sure you want to remove the cron job '\(job.name)'? This action cannot be undone.")
+                Text(I18n.format("dashboard.cron.alert.removeMessage", job.name))
             }
         }
         .padding(.horizontal, 16)
@@ -325,12 +326,12 @@ struct AddCronJobSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Add Cron Job")
+                Text(I18n.t("dashboard.cron.sheet.title"))
                     .font(.headline)
 
                 Spacer()
 
-                Button("Cancel") {
+                Button(I18n.t("catalog.action.cancel")) {
                     isPresented = false
                 }
                 .keyboardShortcut(.cancelAction)
@@ -343,42 +344,42 @@ struct AddCronJobSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // Name
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Name")
+                        Text(I18n.t("dashboard.cron.sheet.name"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        TextField("e.g. daily-report", text: $name)
+                        TextField(I18n.t("dashboard.cron.sheet.namePlaceholder"), text: $name)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     // Cron expression
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Cron Expression")
+                        Text(I18n.t("dashboard.cron.sheet.expression"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        TextField("e.g. 0 9 * * *", text: $schedule)
+                        TextField(I18n.t("dashboard.cron.sheet.expressionPlaceholder"), text: $schedule)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(.body, design: .monospaced))
 
-                        Text("Format: minute hour day month weekday (e.g. \"0 9 * * *\" = every day at 9:00 AM)")
+                        Text(I18n.t("dashboard.cron.sheet.expressionHelp"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
 
                     // Timezone
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Timezone")
+                        Text(I18n.t("dashboard.cron.sheet.timezone"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        TextField("e.g. Asia/Shanghai", text: $timezone)
+                        TextField(I18n.t("dashboard.cron.sheet.timezonePlaceholder"), text: $timezone)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     // Agent picker
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Agent")
+                        Text(I18n.t("dashboard.cron.sheet.agent"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
@@ -393,31 +394,31 @@ struct AddCronJobSheet: View {
 
                     // Session Target
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Session Target")
+                        Text(I18n.t("dashboard.cron.sheet.sessionTarget"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
                         Picker("", selection: $sessionTarget) {
-                            Text("Isolated").tag("isolated")
-                            Text("Main").tag("main")
+                            Text(I18n.t("dashboard.cron.sheet.session.isolated")).tag("isolated")
+                            Text(I18n.t("dashboard.cron.sheet.session.main")).tag("main")
                         }
                         .labelsHidden()
                         .pickerStyle(.segmented)
 
-                        Text("Isolated: each run in a separate session. Main: reuse the main session.")
+                        Text(I18n.t("dashboard.cron.sheet.sessionHelp"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
 
                     // Message
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Message")
+                        Text(I18n.t("dashboard.cron.sheet.message"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
                         ZStack(alignment: .topLeading) {
                             if message.isEmpty {
-                                Text("The message/instruction to send when the cron job triggers...")
+                                Text(I18n.t("dashboard.cron.sheet.messagePlaceholder"))
                                     .foregroundColor(Color(NSColor.placeholderTextColor))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 8)
@@ -447,7 +448,7 @@ struct AddCronJobSheet: View {
             HStack {
                 Spacer()
 
-                Button("Add") {
+                Button(I18n.t("common.action.add")) {
                     Task {
                         await viewModel.addCronJob(
                             name: name,

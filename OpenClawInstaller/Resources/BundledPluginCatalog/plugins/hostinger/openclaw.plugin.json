@@ -1,0 +1,20 @@
+{
+  "id": "hostinger",
+  "name": "Hostinger",
+  "displayName": "Hostinger",
+  "description": "Hostinger Horizons lets you build real websites and apps just by describing what you want.",
+  "longDescription": "Hostinger Horizons lets you build real websites and apps just by describing what you want. Designed for people with no technical background, it turns ideas into working products in minutes. When you're happy with the result, launch instantly with one click.",
+  "version": "1.0.3",
+  "developerName": "Hostinger",
+  "category": "Developer Tools",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://hostinger.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

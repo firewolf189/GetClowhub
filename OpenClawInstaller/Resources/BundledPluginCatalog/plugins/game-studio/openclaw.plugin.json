@@ -1,0 +1,33 @@
+{
+  "id": "game-studio",
+  "name": "Game Studio",
+  "displayName": "Game Studio",
+  "description": "Design, prototype, and ship browser games",
+  "longDescription": "Plan, prototype, and build browser games with guided workflows for gameplay systems, UI, asset pipelines, and playtesting across 2D and 3D projects.",
+  "version": "0.1.2",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "games",
+    "phaser",
+    "threejs",
+    "react-three-fiber",
+    "gltf",
+    "rapier",
+    "webgl",
+    "sprites",
+    "playtest"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://openai.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "test-android-apps",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Reproduce issues, inspect UI, and capture performance evidence from Android emulators",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

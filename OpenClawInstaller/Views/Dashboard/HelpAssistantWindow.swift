@@ -71,7 +71,7 @@ struct HelpAssistantView: View {
                 Circle()
                     .fill(viewModel.isServiceRunning ? Color.green : Color.orange)
                     .frame(width: 8, height: 8)
-                Text(viewModel.isServiceRunning ? "Online" : "Offline")
+                Text(viewModel.isServiceRunning ? I18n.t("help.status.online") : I18n.t("help.status.offline"))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -132,18 +132,17 @@ struct HelpAssistantView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.accentColor)
 
-            Text("Hi! I'm GetClawHub Assistant")
+            Text(I18n.t("help.welcome.title"))
                 .font(.headline)
 
-            Text("Ask me anything about using GetClawHub.")
+            Text(I18n.t("help.welcome.subtitle"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 8) {
-                ForEach(quickQuestions, id: \.0) { zh, en in
-                    let isChinese = LanguageManager.shared.currentLocale.language.languageCode?.identifier.hasPrefix("zh") == true
-                    let displayText = isChinese ? zh : en
+                ForEach(quickQuestionKeys, id: \.self) { key in
+                    let displayText = I18n.t(key)
                     Button(action: { viewModel.sendQuestion(displayText) }) {
                         Text(displayText)
                             .font(.caption)
@@ -164,11 +163,11 @@ struct HelpAssistantView: View {
         }
     }
 
-    private var quickQuestions: [(String, String)] {
+    private var quickQuestionKeys: [String] {
         guard let tab = viewModel.currentTab else {
-            return viewModel.quickQuestions(for: .status)
+            return viewModel.quickQuestionKeys(for: .status)
         }
-        return viewModel.quickQuestions(for: tab)
+        return viewModel.quickQuestionKeys(for: tab)
     }
 
     // MARK: - Typing Indicator
@@ -178,7 +177,7 @@ struct HelpAssistantView: View {
             Image(systemName: "ellipsis.bubble.fill")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
-            Text("Typing...")
+            Text(I18n.t("help.status.typing"))
                 .font(.caption)
                 .foregroundColor(.secondary)
             Spacer()
@@ -190,7 +189,7 @@ struct HelpAssistantView: View {
 
     private var inputBar: some View {
         HStack(spacing: 8) {
-            TextField("Ask a question...", text: $viewModel.inputText)
+            TextField(I18n.t("help.input.placeholder"), text: $viewModel.inputText)
                 .textFieldStyle(.plain)
                 .font(.body)
                 .onSubmit {
@@ -205,6 +204,7 @@ struct HelpAssistantView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canSend)
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("common.action.send")))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -221,7 +221,7 @@ struct HelpAssistantView: View {
             Circle()
                 .fill(Color.orange)
                 .frame(width: 6, height: 6)
-            Text("Offline — FAQ answers only")
+            Text(I18n.t("help.status.offlineFaq"))
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
@@ -276,7 +276,7 @@ struct MessageBubble: View {
                 }
                 .contextMenu {
                     Button(action: { performCopy(message.content) }) {
-                        Label("Copy", systemImage: "doc.on.doc")
+                        Label(I18n.t("common.action.copy"), systemImage: "doc.on.doc")
                     }
                 }
 
@@ -290,7 +290,7 @@ struct MessageBubble: View {
                     MessageActionIcon(
                         systemName: copied ? "checkmark" : "doc.on.doc",
                         tint: copied ? .green : .secondary,
-                        help: copied ? "已复制" : "复制",
+                        help: copied ? I18n.t("common.toast.copied") : I18n.t("common.action.copy"),
                         action: { performCopy(message.content) }
                     )
                     // Claude-style: hidden until message hover, fade in on hover.

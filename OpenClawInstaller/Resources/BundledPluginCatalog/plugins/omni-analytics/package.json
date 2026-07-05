@@ -1,0 +1,12 @@
+{
+  "name": "omni-analytics",
+  "version": "1.0.4",
+  "type": "module",
+  "private": true,
+  "description": "Query Omni using the same semantic model, permissions, and logic defined by your data team directly from OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "daloopa",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Institutional-grade financial analysis workflows.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

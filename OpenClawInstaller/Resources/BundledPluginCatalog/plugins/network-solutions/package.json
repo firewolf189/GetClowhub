@@ -1,0 +1,12 @@
+{
+  "name": "network-solutions",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The Network Solutions Domain Search Assistant makes finding an available domain fast, simple, and conversat...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

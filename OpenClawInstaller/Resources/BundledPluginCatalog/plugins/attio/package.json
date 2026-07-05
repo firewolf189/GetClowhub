@@ -1,0 +1,12 @@
+{
+  "name": "attio",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Attio connects OpenClaw directly to your CRM workspace, letting you manage customer relationships through na...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

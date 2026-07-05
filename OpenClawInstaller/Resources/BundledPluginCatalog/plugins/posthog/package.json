@@ -1,0 +1,12 @@
+{
+  "name": "posthog",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Query analytics, flags, experiments, and errors",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

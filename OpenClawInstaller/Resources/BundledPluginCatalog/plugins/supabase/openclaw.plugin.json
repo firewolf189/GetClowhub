@@ -1,0 +1,29 @@
+{
+  "id": "supabase",
+  "name": "Supabase",
+  "displayName": "Supabase",
+  "description": "Supabase skills and MCP tools for OpenClaw",
+  "longDescription": "Official Supabase plugin for OpenClaw. Includes agent skills for Supabase development and Postgres best practices, plus MCP server integration for managing your Supabase projects directly from OpenClaw.",
+  "version": "0.1.10",
+  "developerName": "Supabase",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "supabase",
+    "postgres",
+    "database",
+    "backend",
+    "mcp"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://supabase.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

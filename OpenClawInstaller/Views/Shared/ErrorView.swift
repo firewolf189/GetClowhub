@@ -50,7 +50,7 @@ struct ErrorView: View {
                     Button(action: onRetry) {
                         HStack {
                             Image(systemName: "arrow.clockwise")
-                            Text("Retry")
+                            Text(I18n.t("common.action.retry"))
                         }
                         .frame(width: 120)
                     }
@@ -60,13 +60,13 @@ struct ErrorView: View {
                 // Dismiss button
                 if error.isRetryable {
                     Button(action: onDismiss) {
-                        Text("Cancel")
+                        Text(I18n.t("common.action.cancel"))
                             .frame(width: 120)
                     }
                     .buttonStyle(BorderedButtonStyle())
                 } else {
                     Button(action: onDismiss) {
-                        Text("OK")
+                        Text(I18n.t("common.action.ok"))
                             .frame(width: 120)
                     }
                     .buttonStyle(BorderedProminentButtonStyle())
@@ -78,7 +78,7 @@ struct ErrorView: View {
                 Button(action: reportError) {
                     HStack {
                         Image(systemName: "exclamationmark.bubble")
-                        Text("Report Issue")
+                        Text(I18n.t("error.report.action"))
                     }
                     .font(.caption)
                 }
@@ -112,16 +112,16 @@ struct ErrorView: View {
     private func reportError() {
         // Copy error details to clipboard
         let errorReport = """
-        Error Report
+        \(I18n.t("error.report.contentTitle"))
         ============
         Title: \(error.title)
         Message: \(error.message)
 
-        System Info:
+        \(I18n.t("error.report.contentSystemInfo"))
         - macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)
         - Architecture: \(getArchitecture())
 
-        Please report this issue to the developers.
+        \(I18n.t("error.report.contentPleaseReport"))
         """
 
         let pasteboard = NSPasteboard.general
@@ -130,10 +130,10 @@ struct ErrorView: View {
 
         // Show feedback
         let alert = NSAlert()
-        alert.messageText = "Error Report Copied"
-        alert.informativeText = "Error details have been copied to your clipboard. Please paste them when reporting the issue."
+        alert.messageText = I18n.t("error.report.title")
+        alert.informativeText = I18n.t("error.report.message")
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: I18n.t("common.action.ok"))
         alert.runModal()
     }
 }
@@ -263,7 +263,7 @@ struct ErrorBannerView: View {
                 Button(action: onRetry) {
                     HStack {
                         Image(systemName: "arrow.clockwise")
-                        Text("Retry")
+                        Text(I18n.t("common.action.retry"))
                     }
                     .font(.caption)
                 }

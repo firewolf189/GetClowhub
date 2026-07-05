@@ -1,0 +1,20 @@
+{
+  "id": "shutterstock",
+  "name": "Shutterstock",
+  "displayName": "Shutterstock",
+  "description": "Search licensed stock images, videos, music, and creative assets",
+  "longDescription": "Search licensed stock images, videos, music, and creative assets",
+  "version": "1.0.3",
+  "developerName": "Shutterstock",
+  "category": "Creativity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.shutterstock.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.image-review-watcher</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/absolute/path/to/ImageReview/.codex/skills/image-compliance-review/scripts/watch_nas_images.py</string>
+    <string>--project-dir</string>
+    <string>/absolute/path/to/ImageReview</string>
+    <string>--config</string>
+    <string>/absolute/path/to/ImageReview/config/nas-image-watcher.json</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/absolute/path/to/ImageReview</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/absolute/path/to/ImageReview/.image-review-watcher/launchd.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/absolute/path/to/ImageReview/.image-review-watcher/launchd.err.log</string>
+</dict>
+</plist>

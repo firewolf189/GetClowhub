@@ -73,8 +73,7 @@ struct LogsTabView: View {
             if response == .OK, let url = savePanel.url {
                 let logsString = viewModel.gatewayLogs.joined(separator: "\n")
                 try? logsString.write(to: url, atomically: true, encoding: .utf8)
-                viewModel.showSuccess = true
-                viewModel.successMessage = "Logs exported successfully"
+                viewModel.showSuccessMessage(I18n.t("dashboard.logs.toast.exported"))
             }
         }
     }
@@ -98,7 +97,7 @@ struct LogsToolbar: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
 
-                    TextField("Search logs...", text: $searchText)
+                    TextField(I18n.t("dashboard.logs.searchPlaceholder"), text: $searchText)
                         .textFieldStyle(.plain)
 
                     if !searchText.isEmpty {
@@ -107,6 +106,7 @@ struct LogsToolbar: View {
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
+                        .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("common.action.clear", fallback: "Clear")))
                     }
                 }
                 .padding(8)
@@ -115,7 +115,7 @@ struct LogsToolbar: View {
 
                 // Auto-refresh toggle
                 Toggle(isOn: $isAutoRefresh) {
-                    Label("Auto", systemImage: "arrow.clockwise")
+                    Label(I18n.t("dashboard.logs.auto"), systemImage: "arrow.clockwise")
                 }
                 .toggleStyle(.switch)
                 .frame(width: 100)
@@ -123,18 +123,18 @@ struct LogsToolbar: View {
 
             HStack(spacing: 8) {
                 Button(action: onRefresh) {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label(I18n.t("catalog.action.refresh"), systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .disabled(isLoading)
 
                 Button(action: onExport) {
-                    Label("Export", systemImage: "square.and.arrow.up")
+                    Label(I18n.t("dashboard.logs.export"), systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
 
                 Button(action: onOpenFile) {
-                    Label("Open File", systemImage: "doc.text")
+                    Label(I18n.t("dashboard.logs.openFile"), systemImage: "doc.text")
                 }
                 .buttonStyle(.bordered)
 
@@ -222,11 +222,11 @@ struct EmptyLogsView: View {
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
 
-            Text("No Logs Available")
+            Text(I18n.t("dashboard.logs.empty.title"))
                 .font(.title3)
                 .fontWeight(.medium)
 
-            Text("Logs will appear here when the gateway service is running")
+            Text(I18n.t("dashboard.logs.empty.detail"))
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

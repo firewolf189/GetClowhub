@@ -1,0 +1,12 @@
+{
+  "name": "hyperframes",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Write HTML, render video",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

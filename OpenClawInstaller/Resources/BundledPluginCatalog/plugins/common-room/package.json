@@ -1,0 +1,12 @@
+{
+  "name": "common-room",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Embed complete buyer intelligence directly within OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

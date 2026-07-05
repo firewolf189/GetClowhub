@@ -1,0 +1,12 @@
+{
+  "name": "atlassian-rovo",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Manage Jira and Confluence fast",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

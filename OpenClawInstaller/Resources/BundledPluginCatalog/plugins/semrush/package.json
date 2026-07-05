@@ -1,0 +1,12 @@
+{
+  "name": "semrush",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The Semrush MCP provides structured, quantitative SEO and traffic data for domains, keywords, backlinks, an...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

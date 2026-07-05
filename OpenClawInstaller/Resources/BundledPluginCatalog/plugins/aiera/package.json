@@ -1,0 +1,12 @@
+{
+  "name": "aiera",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Earnings calls, transcripts, financial events, and market commentary",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

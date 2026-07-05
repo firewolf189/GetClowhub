@@ -1,0 +1,12 @@
+{
+  "name": "mixpanel-headless",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "Analyze Mixpanel data with Python",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

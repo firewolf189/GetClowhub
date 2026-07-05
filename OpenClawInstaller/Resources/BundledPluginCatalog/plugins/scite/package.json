@@ -1,0 +1,12 @@
+{
+  "name": "scite",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Scite delivers answers grounded in peer-reviewed research you can verify.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

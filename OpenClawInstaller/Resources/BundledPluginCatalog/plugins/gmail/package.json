@@ -1,0 +1,12 @@
+{
+  "name": "gmail",
+  "version": "0.1.3",
+  "type": "module",
+  "private": true,
+  "description": "Read and manage Gmail",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

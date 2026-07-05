@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 enum SkillCatalogService {
@@ -6,6 +7,30 @@ enum SkillCatalogService {
 
     static var defaultCacheURL: URL {
         URL(fileURLWithPath: NSString("~/.openclaw/getclowhub-skills-catalog").expandingTildeInPath)
+    }
+
+    static var bundledCatalogURL: URL? {
+        Bundle.main.url(forResource: "BundledSkillCatalog", withExtension: nil)
+    }
+
+    @discardableResult
+    static func seedBundledCatalogIfNeeded(cacheURL: URL = defaultCacheURL) -> Bool {
+        guard !FileManager.default.fileExists(atPath: cacheURL.path),
+              let bundledCatalogURL else {
+            return false
+        }
+
+        do {
+            try FileManager.default.createDirectory(
+                at: cacheURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.copyItem(at: bundledCatalogURL, to: cacheURL)
+            return true
+        } catch {
+            try? FileManager.default.removeItem(at: cacheURL)
+            return false
+        }
     }
 
     static func syncCommand(cacheURL: URL = defaultCacheURL) -> String {
@@ -23,6 +48,19 @@ enum SkillCatalogService {
             ? shellQuote(cacheURL.path)
             : shellQuote(repositoryURL)
         return "npx --yes --prefer-offline skills add \(source) --skill \(shellQuote(item.name)) -g -y"
+    }
+
+    static func catalogRevision(cacheURL: URL = defaultCacheURL) -> String? {
+        if FileManager.default.fileExists(atPath: cacheURL.appendingPathComponent(".git").path),
+           let revision = runGitRevisionCommand("git -C \(shellQuote(cacheURL.path)) rev-parse HEAD") {
+            return revision
+        }
+
+        return contentRevision(at: cacheURL)
+    }
+
+    static func skillRevision(for item: SkillCatalogItem, cacheURL: URL = defaultCacheURL) -> String? {
+        contentRevision(at: cacheURL.appendingPathComponent(item.relativePath))
     }
 
     static func manualInstallCommand(for repository: String) throws -> String {
@@ -160,6 +198,55 @@ enum SkillCatalogService {
         }
 
         return trimmed
+    }
+
+    private static func contentRevision(at rootURL: URL) -> String? {
+        guard let enumerator = FileManager.default.enumerator(
+            at: rootURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        var parts: [String] = []
+        for case let fileURL as URL in enumerator {
+            guard (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
+                  let data = try? Data(contentsOf: fileURL) else {
+                continue
+            }
+            parts.append("\(relativePath(from: rootURL, to: fileURL)):\(data.base64EncodedString())")
+        }
+
+        guard !parts.isEmpty else { return nil }
+        let input = parts.sorted().joined(separator: "\n")
+        guard let data = input.data(using: .utf8) else { return nil }
+        return SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    private static func runGitRevisionCommand(_ command: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-lc", command]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return output?.nilIfBlank
     }
 
     private static func catalogSkillDirectories(rootURL: URL) -> [URL] {

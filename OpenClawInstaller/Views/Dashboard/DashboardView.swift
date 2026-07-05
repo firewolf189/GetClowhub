@@ -26,12 +26,13 @@ enum DashboardTypography {
 }
 
 enum DashboardSidebarMetrics {
+    static let sidebarIconSlotWidth: CGFloat = 18
     static let agentAvatarSize: CGFloat = 22
     static let agentTitleSpacing: CGFloat = 10
     static let disclosureChevronWidth: CGFloat = 12
     static let disclosureChevronHeight: CGFloat = 20
-    static let sessionTitleLeadingSpacer: CGFloat = agentAvatarSize + agentTitleSpacing
-    static let sessionRowContentHeight: CGFloat = 20
+    static let sessionTitleLeadingSpacer: CGFloat = sidebarIconSlotWidth + agentTitleSpacing
+    static let sessionRowContentHeight: CGFloat = 24
     static let sessionRowActionSize: CGFloat = 20
     static let sessionRowActionAreaWidth: CGFloat = sessionRowActionSize * 2 + 2
     static let sessionRowVerticalPadding: CGFloat = 4
@@ -95,9 +96,57 @@ private struct RightInspectorContentUpdateID: Hashable {
     let requestedUserMessageJumpId: UUID?
 }
 
+private struct DashboardSessionTitleToolbarChip: View {
+    let activeTab: DashboardViewModel.DashboardTab
+    @ObservedObject var chatState: ChatRuntimeState
+    @ObservedObject var sessionState: SessionNavigationState
+    let onTapMessage: (ChatMessage) -> Void
+
+    private var isChatTabActive: Bool {
+        activeTab == .chat
+    }
+
+    private var currentMessages: [ChatMessage] {
+        chatState.chatMessages(for: sessionState.selectedAgentId)
+    }
+
+    private var currentSessionMetadata: ChatSessionMetadata? {
+        guard let sessionId = sessionState.selectedSessionIdByAgent[sessionState.selectedAgentId] else {
+            return nil
+        }
+        return (sessionState.sessionsByAgent[sessionState.selectedAgentId] ?? []).first { $0.id == sessionId }
+    }
+
+    private var currentSessionTitle: String? {
+        guard isChatTabActive, !currentMessages.isEmpty else { return nil }
+        let title = currentSessionMetadata?.title
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty ? nil : title
+    }
+
+    private var currentSessionUserMessages: [ChatMessage] {
+        guard isChatTabActive else { return [] }
+        return currentMessages.filter { $0.role == .user }
+    }
+
+    var body: some View {
+        if let title = currentSessionTitle {
+            SessionTitleUserMessagesPopover(
+                title: title,
+                messages: currentSessionUserMessages,
+                onTapMessage: onTapMessage
+            )
+        }
+    }
+}
+
 struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @ObservedObject private var taskState: TaskActivityState
+    @ObservedObject private var sessionState: SessionNavigationState
     @StateObject private var createAgentVM: SubAgentsViewModel
+    @State private var recommendedSkillBootstrapper: RecommendedSkillBootstrapper
+    @State private var recommendedPluginBootstrapper: RecommendedPluginBootstrapper
     #if REQUIRE_LOGIN
     @EnvironmentObject var authManager: AuthManager
     #endif
@@ -133,7 +182,11 @@ struct DashboardView: View {
 
     init(viewModel: DashboardViewModel) {
         self.viewModel = viewModel
+        self._taskState = ObservedObject(wrappedValue: viewModel.taskState)
+        self._sessionState = ObservedObject(wrappedValue: viewModel.sessionState)
         _createAgentVM = StateObject(wrappedValue: SubAgentsViewModel(openclawService: viewModel.openclawService))
+        _recommendedSkillBootstrapper = State(wrappedValue: RecommendedSkillBootstrapper(openclawService: viewModel.openclawService))
+        _recommendedPluginBootstrapper = State(wrappedValue: RecommendedPluginBootstrapper(openclawService: viewModel.openclawService))
     }
 
     var body: some View {
@@ -207,8 +260,8 @@ struct DashboardView: View {
                 }
             }
         }
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK", role: .cancel) {}
+        .alert(I18n.t("dashboard.alert.error"), isPresented: $viewModel.showError) {
+            Button(I18n.t("common.action.ok"), role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage)
         }
@@ -248,6 +301,14 @@ struct DashboardView: View {
             viewModel.openclawService.startMonitoring()
             Task {
                 await viewModel.openclawService.fetchVersion()
+                await recommendedSkillBootstrapper.bootstrapRecommendedSkillsIfNeeded()
+                await recommendedPluginBootstrapper.bootstrapRecommendedPluginsIfNeeded()
+            }
+        }
+        .onChange(of: viewModel.openclawService.status) { _, _ in
+            Task {
+                await recommendedSkillBootstrapper.bootstrapRecommendedSkillsIfNeeded()
+                await recommendedPluginBootstrapper.bootstrapRecommendedPluginsIfNeeded()
             }
         }
         .onDisappear {
@@ -261,13 +322,13 @@ struct DashboardView: View {
     private var sidebarState: DashboardSidebarState {
         DashboardSidebarState(
             selectedTab: viewModel.selectedTab,
-            selectedAgentId: viewModel.selectedAgentId,
-            selectedSessionIdByAgent: viewModel.selectedSessionIdByAgent,
-            availableAgents: viewModel.availableAgents,
-            projectSessionsByAgent: viewModel.projectSessionsByAgent,
-            generalSessionsByAgent: viewModel.generalSessionsByAgent,
-            pinnedSessions: viewModel.pinnedSessions,
-            inflightSessionIds: viewModel.inflightSessionIds,
+            selectedAgentId: sessionState.selectedAgentId,
+            selectedSessionIdByAgent: sessionState.selectedSessionIdByAgent,
+            availableAgents: sessionState.availableAgents,
+            projectSessionsByAgent: sessionState.projectSessionsByAgent,
+            generalSessionsByAgent: sessionState.generalSessionsByAgent,
+            pinnedSessions: sessionState.pinnedSessions,
+            inflightSessionIds: taskState.inflightSessionIds,
             serviceStatus: viewModel.openclawService.status,
             serviceVersion: viewModel.openclawService.version,
             settingsShortcut: DashboardSettingsShortcutState(
@@ -348,34 +409,20 @@ struct DashboardView: View {
     }
 
     private var currentSessionMetadata: ChatSessionMetadata? {
-        guard let sessionId = viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId] else {
+        guard let sessionId = sessionState.selectedSessionIdByAgent[sessionState.selectedAgentId] else {
             return nil
         }
-        return (viewModel.sessionsByAgent[viewModel.selectedAgentId] ?? []).first { $0.id == sessionId }
+        return (sessionState.sessionsByAgent[sessionState.selectedAgentId] ?? []).first { $0.id == sessionId }
     }
 
     @ViewBuilder
     private var sessionTitleToolbarChip: some View {
-        if let title = currentSessionTitle {
-            SessionTitleUserMessagesPopover(
-                title: title,
-                messages: currentSessionUserMessages,
-                onTapMessage: jumpToUserMessage
-            )
-        }
-    }
-
-    private var currentSessionTitle: String? {
-        guard isChatTabActive, !viewModel.chatMessages.isEmpty else { return nil }
-        let title = currentSessionMetadata?.title
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return title.isEmpty ? nil : title
-    }
-
-    private var currentSessionUserMessages: [ChatMessage] {
-        guard isChatTabActive else { return [] }
-        return viewModel.chatMessages
-            .filter { $0.role == .user }
+        DashboardSessionTitleToolbarChip(
+            activeTab: activeTab,
+            chatState: viewModel.chatState,
+            sessionState: sessionState,
+            onTapMessage: jumpToUserMessage
+        )
     }
 
     private var hasWorkspaceDetailPanel: Bool {
@@ -411,7 +458,7 @@ struct DashboardView: View {
     private var rightInspectorContentUpdateID: AnyHashable {
         AnyHashable(RightInspectorContentUpdateID(
             selectedTab: viewModel.selectedTab,
-            selectedAgentId: viewModel.selectedAgentId,
+            selectedAgentId: sessionState.selectedAgentId,
             terminalOpen: terminalOpen,
             terminalHeight: terminalHeight,
             selectedSettingsSection: selectedSettingsSection.rawValue,
@@ -441,7 +488,7 @@ struct DashboardView: View {
             )
         }
 
-        let workspacePath = DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
+        let workspacePath = DashboardViewModel.resolveAgentWorkspace(sessionState.selectedAgentId)
         return WorkspaceSidebarRoot(
             displayName: "Agent Workspace",
             path: workspacePath,
@@ -454,7 +501,7 @@ struct DashboardView: View {
     }
 
     private var currentAgentWorkspacePath: String {
-        DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
+        DashboardViewModel.resolveAgentWorkspace(sessionState.selectedAgentId)
     }
 
     private var workspaceSidebarController: WorkspaceSidebarController {
@@ -484,7 +531,7 @@ struct DashboardView: View {
             },
             openFolder: openSelectedWorkspaceFolder
         )
-        .frame(width: width, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .top)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
@@ -853,6 +900,7 @@ struct DashboardView: View {
                                     .foregroundColor(.secondary)
                             }
                             .buttonStyle(.plain)
+                            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("common.action.clear", fallback: "Clear")))
                         }
                     }
                     .padding(.horizontal, 16)
@@ -1127,7 +1175,7 @@ private struct RightOutputsTitlebarAccessory: View {
                     .frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
-            .help(isTerminalOpen ? "Hide Terminal" : "Show Terminal")
+            .unifiedIconTooltip(title: isTerminalOpen ? "Hide Terminal" : "Show Terminal")
 
             Button(action: isExpanded ? close : toggle) {
                 Image(systemName: "sidebar.right")
@@ -1136,7 +1184,7 @@ private struct RightOutputsTitlebarAccessory: View {
                     .frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
-            .help(isExpanded ? "Hide Outputs" : "Show Outputs")
+            .unifiedIconTooltip(title: isExpanded ? "Hide Outputs" : "Show Outputs")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
     }
@@ -1198,24 +1246,24 @@ struct SidebarView: View {
             sidebarBottomBar
         }
         .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
-        .alert("Remove Agent", isPresented: Binding<Bool>(
+        .alert(I18n.t("dashboard.agent.remove.title"), isPresented: Binding<Bool>(
             get: { deleteAgentConfirmId != nil },
             set: { if !$0 { deleteAgentConfirmId = nil } }
         )) {
-            Button("Remove", role: .destructive) {
+            Button(I18n.t("catalog.action.remove"), role: .destructive) {
                 if let agentId = deleteAgentConfirmId {
                     actions.removeAgent(agentId)
                     expandedAgentIds.remove(agentId)
                 }
                 deleteAgentConfirmId = nil
             }
-            Button("Cancel", role: .cancel) {
+            Button(I18n.t("catalog.action.cancel"), role: .cancel) {
                 deleteAgentConfirmId = nil
             }
         } message: {
             if let agentId = deleteAgentConfirmId,
                let agent = state.availableAgents.first(where: { $0.id == agentId }) {
-                Text("Are you sure you want to remove \"\(agent.name)\"? This will delete the agent and its workspace.")
+                Text(I18n.format("dashboard.agent.remove.message", agent.name))
             }
         }
         .onChange(of: state.selectedAgentId) { agentId in
@@ -1254,7 +1302,10 @@ struct SidebarView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .help("Update to v\(sparkleUpdater.latestVersion)")
+                .unifiedTooltip(UnifiedTooltipContent(
+                    title: "Update to v\(sparkleUpdater.latestVersion)",
+                    detail: "Install the latest app update"
+                ))
             }
 
             Spacer()
@@ -1355,7 +1406,7 @@ struct SidebarView: View {
     private func sidebarRowContent(title: String, systemImage: String, assetImage: String? = nil) -> some View {
         HStack(spacing: 10) {
             sidebarIcon(systemImage: systemImage, assetImage: assetImage)
-                .frame(width: 18, height: 18)
+                .frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: DashboardSidebarMetrics.sidebarIconSlotWidth)
             Text(title)
                 .lineLimit(1)
             Spacer()
@@ -1436,11 +1487,11 @@ struct SidebarView: View {
                     actions.togglePinSession(meta.id)
                 },
                 onDeleteIntent: {
-                    confirmingDeleteSessionId = meta.id
+                    setSessionDeleteConfirmation(meta.id)
                 },
                 onDeleteConfirm: {
                     actions.deleteSession(meta.id)
-                    confirmingDeleteSessionId = nil
+                    cancelSessionDeleteConfirmation()
                 }
             )
             .padding(.horizontal, 8)
@@ -1469,6 +1520,7 @@ struct SidebarView: View {
                     if hovering {
                         hoveredSessionId = meta.id
                     } else if hoveredSessionId == meta.id {
+                        cancelSessionDeleteConfirmation()
                         hoveredSessionId = nil
                     }
                 }
@@ -1478,29 +1530,29 @@ struct SidebarView: View {
                     cancelSessionDeleteConfirmation()
                     actions.requestRenameSession(meta)
                 } label: {
-                    Label("Rename", systemImage: "pencil")
+                    Label(I18n.t("dashboard.session.action.rename"), systemImage: "pencil")
                 }
                 Button {
                     actions.togglePinSession(meta.id)
                 } label: {
-                    Label(meta.isPinned ? "Unpin" : "Pin",
+                    Label(meta.isPinned ? I18n.t("dashboard.session.action.unpin") : I18n.t("dashboard.session.action.pin"),
                           systemImage: meta.isPinned ? "pin.slash" : "pin")
                 }
                 Button {
                     actions.exportSession(meta.id)
                 } label: {
-                    Label("Export…", systemImage: "square.and.arrow.up")
+                    Label(I18n.t("dashboard.session.action.export"), systemImage: "square.and.arrow.up")
                 }
                 Divider()
                 Button {
                     actions.archiveSession(meta.id)
                 } label: {
-                    Label("Archive", systemImage: "archivebox")
+                    Label(I18n.t("dashboard.session.action.archive"), systemImage: "archivebox")
                 }
                 Button(role: .destructive) {
-                    confirmingDeleteSessionId = meta.id
+                    setSessionDeleteConfirmation(meta.id)
                 } label: {
-                    Label("Delete", systemImage: "trash")
+                    Label(I18n.t("common.action.delete"), systemImage: "trash")
                 }
             }
         }
@@ -1537,7 +1589,7 @@ struct SidebarView: View {
     private var globalPinnedSessionsSection: some View {
         if !state.pinnedSessions.isEmpty {
             SidebarCollapsibleRow(
-                title: "Pinned",
+                title: I18n.t("dashboard.sidebar.pinned"),
                 titleFont: DashboardTypography.sidebarAgent(active: false),
                 isExpanded: isPinnedSessionsExpanded,
                 rowHeight: 24,
@@ -1574,10 +1626,14 @@ struct SidebarView: View {
         }
 
         HStack(spacing: 6) {
-            HStack(spacing: 6) {
+            HStack(spacing: DashboardSidebarMetrics.agentTitleSpacing) {
+                Image(systemName: "person")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundColor(.primary)
+                    .frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: 20)
                 Text(String(localized: "Agent", bundle: languageManager.localizedBundle))
                     .font(DashboardTypography.sidebarSectionTitle)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundColor(.secondary)
@@ -1591,9 +1647,6 @@ struct SidebarView: View {
             .onTapGesture {
                 toggleAgentSectionCollapse()
             }
-            .help(areAgentsCollapsed
-                  ? String(localized: "Show agents", bundle: languageManager.localizedBundle)
-                    : String(localized: "Hide agents", bundle: languageManager.localizedBundle))
 
         }
         .frame(height: 20)
@@ -1610,7 +1663,7 @@ struct SidebarView: View {
             .buttonStyle(.plain)
             .opacity(isAgentSectionHeaderHovering ? 1 : 0)
             .disabled(!isAgentSectionHeaderHovering)
-            .help(String(localized: "New Agent", bundle: languageManager.localizedBundle))
+            .unifiedTooltip(UnifiedTooltipContent(title: String(localized: "New Agent", bundle: languageManager.localizedBundle)))
         }
         .padding(.horizontal, 8)
         .padding(.top, 10)
@@ -1707,7 +1760,7 @@ struct SidebarView: View {
                         .frame(width: 20, height: 20)
                 }
                 .buttonStyle(.plain)
-                .help("Add Work Folder...")
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("dashboard.agent.addWorkFolder")))
 
                 Button {
                     createSession(for: agent)
@@ -1718,7 +1771,7 @@ struct SidebarView: View {
                         .frame(width: 20, height: 20)
                 }
                 .buttonStyle(.plain)
-                .help(String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle))
+                .unifiedTooltip(UnifiedTooltipContent(title: String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle)))
             },
             children: {
                 sessionsSectionContent(for: agent)
@@ -1728,14 +1781,14 @@ struct SidebarView: View {
             Button {
                 actions.openProject(agent.id)
             } label: {
-                Label("Add Work Folder...", systemImage: "folder.badge.plus")
+                Label(I18n.t("dashboard.agent.addWorkFolder"), systemImage: "folder.badge.plus")
             }
             Divider()
             if canDeleteAgent(agent) {
                 Button(role: .destructive) {
                     deleteAgentConfirmId = agent.id
                 } label: {
-                    Label("Remove Agent", systemImage: "trash")
+                    Label(I18n.t("dashboard.agent.remove.title"), systemImage: "trash")
                 }
             }
         }
@@ -1787,8 +1840,14 @@ struct SidebarView: View {
         return SwiftUI.Color.clear
     }
 
+    private func setSessionDeleteConfirmation(_ sessionId: UUID) {
+        confirmingDeleteSessionId = sessionId
+        hoveredSessionId = sessionId
+    }
+
     private func cancelSessionDeleteConfirmation() {
         confirmingDeleteSessionId = nil
+        hoveredSessionId = nil
     }
 
     private func toggleAgentSectionCollapse() {
@@ -1845,7 +1904,7 @@ struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
     }
 
     private static var childTransition: AnyTransition {
-        .move(edge: .top).combined(with: .opacity)
+        .asymmetric(insertion: .opacity, removal: .identity)
     }
 
     let title: String
@@ -1880,7 +1939,7 @@ struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
     private var rowContent: some View {
         HStack(spacing: DashboardSidebarMetrics.agentTitleSpacing) {
             icon()
-                .frame(width: DashboardSidebarMetrics.agentAvatarSize, height: DashboardSidebarMetrics.agentAvatarSize)
+                .frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: DashboardSidebarMetrics.agentAvatarSize)
 
             Text(title)
                 .font(titleFont)
@@ -2469,6 +2528,9 @@ private struct ChatScrollIntentObserver: NSViewRepresentable {
 
 struct ChatView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @ObservedObject var chatState: ChatRuntimeState
+    @ObservedObject var taskState: TaskActivityState
+    @ObservedObject var sessionState: SessionNavigationState
     @Binding var requestedUserMessageJumpId: UUID?
     @Binding var terminalOpen: Bool
     @Binding var terminalHeight: CGFloat
@@ -2525,6 +2587,9 @@ struct ChatView: View {
         hideAgentPicker: Bool = false
     ) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
+        self._chatState = ObservedObject(wrappedValue: viewModel.chatState)
+        self._taskState = ObservedObject(wrappedValue: viewModel.taskState)
+        self._sessionState = ObservedObject(wrappedValue: viewModel.sessionState)
         self._requestedUserMessageJumpId = requestedUserMessageJumpId
         self._terminalOpen = terminalOpen
         self._terminalHeight = terminalHeight
@@ -2534,18 +2599,22 @@ struct ChatView: View {
 
     /// The currently selected agent (for header bar display).
     private var currentAgent: AgentOption? {
-        viewModel.availableAgents.first { $0.id == viewModel.selectedAgentId }
+        sessionState.availableAgents.first { $0.id == sessionState.selectedAgentId }
     }
 
     /// Workspace path for the terminal. Uses the shared resolver so it stays
     /// faithful to openclaw's resolveAgentWorkspaceDir (handles non-default
     /// "main" → workspace-main, explicit per-agent workspace, etc.).
     private var terminalWorkspacePath: String {
-        DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
+        DashboardViewModel.resolveAgentWorkspace(sessionState.selectedAgentId)
     }
 
     private var currentActiveSessionId: UUID? {
-        viewModel.selectedSessionIdByAgent[viewModel.selectedAgentId]
+        sessionState.selectedSessionIdByAgent[sessionState.selectedAgentId]
+    }
+
+    private var currentMessages: [ChatMessage] {
+        chatState.chatMessages(for: sessionState.selectedAgentId)
     }
 
     private var currentPendingComposerMessages: [PendingComposerMessage] {
@@ -2555,11 +2624,11 @@ struct ChatView: View {
 
     private var currentForegroundTaskMessageId: UUID? {
         guard let sessionId = currentActiveSessionId else { return nil }
-        return viewModel.foregroundTaskIds.first { viewModel.taskSessionMap[$0] == sessionId }
+        return taskState.foregroundTaskId(inSession: sessionId)
     }
 
     private var shouldShowStopButton: Bool {
-        viewModel.isSendingMessage
+        taskState.isSendingMessage
             && inputText.trimmingCharacters(in: .whitespaces).isEmpty
             && attachedFiles.isEmpty
             && currentForegroundTaskMessageId != nil
@@ -2574,8 +2643,9 @@ struct ChatView: View {
     @ViewBuilder
     private func chatScrollContent(proxy: ScrollViewProxy) -> some View {
         let scrollView = ChatTimelineSurface(
-            messages: viewModel.chatMessages,
-            viewModel: viewModel,
+            messages: currentMessages,
+            taskState: taskState,
+            autoBackgroundAfterSeconds: viewModel.autoBackgroundAfterSeconds,
             proxy: proxy,
             columnMaxWidth: Self.layoutMetrics.chatColumnMaxWidth,
             highlightedMessageId: highlightedMessageId,
@@ -2583,7 +2653,8 @@ struct ChatView: View {
             onConfirmEditResend: { original, editedText in
                 viewModel.rewindToMessage(original, replacementText: editedText)
             },
-            onCancel: { viewModel.cancelChat($0.id) }
+            onCancel: { viewModel.cancelChat($0.id) },
+            onMoveToBackground: viewModel.moveTaskToBackground
         )
         .alert(
             "回滚失败",
@@ -2600,7 +2671,7 @@ struct ChatView: View {
         if #available(macOS 14.0, *) {
             scrollView
                 .defaultScrollAnchor(.bottom)
-                .onChange(of: viewModel.chatMessages.count) { _ in
+                .onChange(of: currentMessages.count) { _ in
                     logChatMessagesCountChanged()
                     // Only auto-scroll while the user is following the latest message.
                     if shouldFollowChatBottom {
@@ -2613,7 +2684,7 @@ struct ChatView: View {
                 }
         } else {
             scrollView
-                .onChange(of: viewModel.chatMessages.count) { _ in
+                .onChange(of: currentMessages.count) { _ in
                     logChatMessagesCountChanged()
                     if shouldFollowChatBottom {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -2622,7 +2693,7 @@ struct ChatView: View {
                     }
                 }
                 .onAppear {
-                    if !viewModel.chatMessages.isEmpty {
+                    if !currentMessages.isEmpty {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             scrollToBottomIfAllowed()
                         }
@@ -2723,7 +2794,7 @@ struct ChatView: View {
         let keyword = String(trimmed.dropFirst()).lowercased()
         // Only match when typing the agent name (no space yet)
         guard !keyword.contains(" ") else { return [] }
-        let allAgents = viewModel.availableAgents
+        let allAgents = sessionState.availableAgents
         if keyword.isEmpty { return allAgents }
         return allAgents.filter { $0.name.lowercased().contains(keyword) || $0.id.lowercased().contains(keyword) }
     }
@@ -2732,7 +2803,7 @@ struct ChatView: View {
         if agentJustSelected { return false }
         let trimmed = inputText.trimmingCharacters(in: .whitespaces)
         guard trimmed.hasPrefix("@") else { return false }
-        guard !viewModel.availableAgents.isEmpty else { return false }
+        guard !sessionState.availableAgents.isEmpty else { return false }
         let keyword = String(trimmed.dropFirst())
         // Only show panel while typing agent name (before space)
         if keyword.contains(" ") { return false }
@@ -2774,7 +2845,7 @@ struct ChatView: View {
                     chatScrollContent(proxy: proxy)
                         .onAppear {
                             chatScrollProxy = proxy
-                            if !viewModel.chatMessages.isEmpty && shouldFollowChatBottom {
+                            if !currentMessages.isEmpty && shouldFollowChatBottom {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                     scrollToBottomIfAllowed()
                                 }
@@ -2986,7 +3057,7 @@ struct ChatView: View {
                                             .foregroundColor(.secondary)
                                     }
                                     Spacer()
-                                    if agent.id == viewModel.selectedAgentId {
+                                    if agent.id == sessionState.selectedAgentId {
                                         Image(systemName: "checkmark")
                                             .font(.system(size: 11, weight: .semibold))
                                             .foregroundColor(index == agentSelectedIndex ? .primary : .secondary)
@@ -3130,7 +3201,7 @@ struct ChatView: View {
 
     private var chatContent: some View {
         VStack(spacing: 0) {
-            if viewModel.chatMessages.isEmpty {
+            if currentMessages.isEmpty {
                 emptyChatSurface
             } else {
                 timelineChatSurface
@@ -3454,7 +3525,7 @@ struct ChatView: View {
             }
             viewModel.composerPrefill = nil
         }
-        .onChange(of: viewModel.isSendingMessage) { isSending in
+        .onChange(of: taskState.isSendingMessage) { isSending in
             if !isSending {
                 drainPendingComposerQueueIfPossible()
             }
@@ -3483,7 +3554,7 @@ struct ChatView: View {
                 .transition(.move(edge: .trailing))
             }
         }
-        .onChange(of: viewModel.selectedAgentId) { _ in
+        .onChange(of: sessionState.selectedAgentId) { _ in
             withAnimation(.easeInOut(duration: 0.25)) {
                 viewModel.agentSettingsOpen = false
                 terminalOpen = false
@@ -3520,12 +3591,16 @@ struct ChatView: View {
             return true
         }
 
-        return NativeSelectableTextSelectionRegistry.copyActiveSelection()
+        if NativeSelectableTextSelectionRegistry.copyActiveSelection() {
+            return true
+        }
+
+        return WebViewMarkdownSelectionRegistry.copyActiveSelection()
     }
 
     private var sendButtonFillColor: SwiftUI.Color {
         canSend || shouldShowStopButton
-            ? Color.primary.opacity(0.62)
+            ? Color.black
             : Color(NSColor.quaternaryLabelColor)
     }
 
@@ -3551,7 +3626,7 @@ struct ChatView: View {
         inputText = ""
         attachedFiles = []
 
-        if viewModel.isSendingMessage {
+        if taskState.isSendingMessage {
             enqueuePendingComposerMessage(text: text, attachments: files)
             return
         }
@@ -3563,13 +3638,13 @@ struct ChatView: View {
                 let agentName = String(afterAt[afterAt.startIndex..<spaceIdx])
                 let messageContent = String(afterAt[afterAt.index(after: spaceIdx)...]).trimmingCharacters(in: .whitespaces)
                 // Verify the agent exists
-                if viewModel.availableAgents.contains(where: { $0.name == agentName || $0.id == agentName }) {
+                if sessionState.availableAgents.contains(where: { $0.name == agentName || $0.id == agentName }) {
                     text = messageContent.isEmpty ? "hi, \(agentName)" : messageContent
                 }
             } else {
                 // Just "@agentName" with no message
                 let agentName = afterAt.trimmingCharacters(in: .whitespaces)
-                if viewModel.availableAgents.contains(where: { $0.name == agentName || $0.id == agentName }) {
+                if sessionState.availableAgents.contains(where: { $0.name == agentName || $0.id == agentName }) {
                     text = "hi, \(agentName)"
                 }
             }
@@ -3601,11 +3676,11 @@ struct ChatView: View {
             guard !taskDescription.isEmpty else { return }
 
             // Show user message
-            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+            chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
 
             // Show placeholder
             let clarifyingText = String(localized: "Understanding requirements...", bundle: LanguageManager.shared.localizedBundle)
-            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
+            chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
 
             let collabVM = viewModel.getOrCreateCollabViewModel()
 
@@ -3623,7 +3698,7 @@ struct ChatView: View {
 
         // Route messages to active collab session based on phase (only when on Commander tab)
         // Skip routing when session is stale (not running + not in an interactive phase)
-        if viewModel.selectedAgentId == "commander",
+        if sessionState.selectedAgentId == "commander",
            let collabVM = viewModel.collabViewModel,
            collabVM.session != nil {
             let collabPhase = collabVM.phase
@@ -3632,7 +3707,7 @@ struct ChatView: View {
             if collabVM.isRunning || isInteractivePhase {
                 if collabPhase == .clarifying {
                     // User is answering Commander's clarification questions
-                    viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+                    chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
                     Task {
                         await collabVM.handleClarifyResponse(text)
                     }
@@ -3640,10 +3715,10 @@ struct ChatView: View {
                 }
 
                 if collabPhase == .awaitingApproval {
-                    viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+                    chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
                     let confirmWords = ["确认", "ok", "go", "执行", "开始", "yes", "confirm", "start"]
                     if confirmWords.contains(lower) {
-                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
+                        chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                             role: .assistant,
                             content: String(localized: "Starting task execution...", bundle: LanguageManager.shared.localizedBundle),
                             agentId: "commander"
@@ -3662,10 +3737,10 @@ struct ChatView: View {
 
                 if collabPhase == .executing || collabPhase == .summarizing || collabPhase == .completed {
                     // Route to existing chat handler during/after execution
-                    viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+                    chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
                     Task {
                         if let reply = await collabVM.handleUserMessage(text) {
-                            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
+                            chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                                 role: .assistant,
                                 content: reply,
                                 agentId: "commander"
@@ -3680,45 +3755,45 @@ struct ChatView: View {
 
         // Auto-trigger collab when chatting with Commander (no active collab session)
         // First check intent — simple questions get direct replies without entering collab
-        if viewModel.selectedAgentId == "commander" {
-            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
+        if sessionState.selectedAgentId == "commander" {
+            chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .user, content: text))
 
             let collabVM = viewModel.getOrCreateCollabViewModel()
 
             // Show thinking placeholder
             let thinkingId = UUID()
-            viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: "", agentId: "commander", taskStatus: .loading, id: thinkingId))
-            viewModel.isSendingMessage = true
+            chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: "", agentId: "commander", taskStatus: .loading, id: thinkingId))
+            taskState.isSendingMessage = true
 
             Task {
                 let directReply = await collabVM.checkIntent(text)
 
                 // Remove thinking placeholder
                 await MainActor.run {
-                    if let idx = viewModel.chatMessagesByAgent["commander"]?.firstIndex(where: { $0.id == thinkingId }) {
-                        viewModel.chatMessagesByAgent["commander"]?.remove(at: idx)
+                    if let idx = chatState.chatMessagesByAgent["commander"]?.firstIndex(where: { $0.id == thinkingId }) {
+                        chatState.chatMessagesByAgent["commander"]?.remove(at: idx)
                     }
                 }
 
                 if let reply = directReply {
                     // Commander answered directly — no collab needed
                     await MainActor.run {
-                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(
+                        chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(
                             role: .assistant,
                             content: reply,
                             agentId: "commander"
                         ))
-                        viewModel.isSendingMessage = false
+                        taskState.isSendingMessage = false
                     }
                 } else {
                     // Commander says this needs collab — proceed with full flow
                     await MainActor.run {
                         let clarifyingText = String(localized: "Understanding requirements...", bundle: LanguageManager.shared.localizedBundle)
-                        viewModel.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
+                        chatState.chatMessagesByAgent["commander", default: []].append(ChatMessage(role: .assistant, content: clarifyingText, agentId: "commander"))
 
                         viewModel.showCollabPanel = true
                         viewModel.collabPanelCollapsed = false
-                        viewModel.isSendingMessage = false
+                        taskState.isSendingMessage = false
                     }
                     await collabVM.startCollab(text)
                 }
@@ -3764,7 +3839,7 @@ struct ChatView: View {
     }
 
     private func sendPendingComposerMessage(_ message: PendingComposerMessage) {
-        if viewModel.isSendingMessage {
+        if taskState.isSendingMessage {
             promotePendingComposerMessage(message)
             return
         }
@@ -3788,7 +3863,7 @@ struct ChatView: View {
     }
 
     private func drainPendingComposerQueueIfPossible() {
-        guard !viewModel.isSendingMessage,
+        guard !taskState.isSendingMessage,
               let sessionId = currentActiveSessionId,
               var queue = pendingComposerMessagesBySession[sessionId],
               !queue.isEmpty else {
@@ -3849,7 +3924,7 @@ struct ChatView: View {
     private func beginRenderObservationForCurrentSession() {
         guard let sessionId = currentActiveSessionId else { return }
         renderObservationStartBySession[sessionId] = ContinuousClock.now
-        chatRenderPerfLog.info("phase=session_changed session=\(sessionId.uuidString, privacy: .public) message_count=\(viewModel.chatMessages.count, privacy: .public)")
+        chatRenderPerfLog.info("phase=session_changed session=\(sessionId.uuidString, privacy: .public) message_count=\(currentMessages.count, privacy: .public)")
     }
 
     private func logChatMessagesCountChanged() {
@@ -3858,13 +3933,13 @@ struct ChatView: View {
             renderObservationStartBySession[sessionId] = ContinuousClock.now
         }
         let elapsedText = renderElapsedMillisecondsText(for: sessionId)
-        chatRenderPerfLog.info("phase=messages_count_changed session=\(sessionId.uuidString, privacy: .public) message_count=\(viewModel.chatMessages.count, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
+        chatRenderPerfLog.info("phase=messages_count_changed session=\(sessionId.uuidString, privacy: .public) message_count=\(currentMessages.count, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
     }
 
     private func logScheduledBottomScroll(checkpoint: String) {
         guard let sessionId = currentActiveSessionId else { return }
         let elapsedText = renderElapsedMillisecondsText(for: sessionId)
-        chatRenderPerfLog.info("phase=scheduled_bottom_scroll checkpoint=\(checkpoint, privacy: .public) session=\(sessionId.uuidString, privacy: .public) message_count=\(viewModel.chatMessages.count, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
+        chatRenderPerfLog.info("phase=scheduled_bottom_scroll checkpoint=\(checkpoint, privacy: .public) session=\(sessionId.uuidString, privacy: .public) message_count=\(currentMessages.count, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
     }
 
     private func renderElapsedMillisecondsText(for sessionId: UUID) -> String {
@@ -3873,7 +3948,7 @@ struct ChatView: View {
     }
 
     private func jumpToUserMessage(_ messageId: UUID) {
-        guard viewModel.chatMessages.contains(where: { $0.id == messageId && $0.role == .user }) else { return }
+        guard currentMessages.contains(where: { $0.id == messageId && $0.role == .user }) else { return }
         chatAutoScrollMode = .userDetached
         scheduledBottomScrollGeneration += 1
         withAnimation(.easeInOut(duration: 0.24)) {
@@ -3930,7 +4005,7 @@ struct ChatView: View {
     private func selectAgent(_ agent: AgentOption) {
         agentSelectedIndex = 0
         agentJustSelected = true
-        viewModel.selectedAgentId = agent.id
+        sessionState.selectedAgentId = agent.id
         inputText = "@\(agent.name) "
     }
 
@@ -4095,7 +4170,7 @@ struct ComposerModelSelector: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("Model")
+        .unifiedTooltip(UnifiedTooltipContent(title: "Choose model", detail: modelLabel))
         .anchorPreference(key: ComposerSelectorButtonBoundsKey.self, value: .bounds) { anchor in
             isOpen ? anchor : nil
         }
@@ -4333,7 +4408,9 @@ struct BackgroundTaskNotification: View {
 
 struct ThinkingIndicator: View {
     let message: ChatMessage
-    @ObservedObject var viewModel: DashboardViewModel
+    @ObservedObject var taskState: TaskActivityState
+    let autoBackgroundAfterSeconds: Int?
+    let onMoveToBackground: (UUID) -> Void
     @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
 
@@ -4357,7 +4434,7 @@ struct ThinkingIndicator: View {
             // "Move to Background" button — only visible after 60 seconds
             if showBackgroundButton {
                 Button(action: {
-                    viewModel.moveTaskToBackground(message.id)
+                    onMoveToBackground(message.id)
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down.to.line")
@@ -4394,17 +4471,16 @@ struct ThinkingIndicator: View {
         // gateway-side run is still progressing, so "Thinking 23s"
         // became "Thinking 0s" every time the user clicked back.
         recomputeElapsed()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak viewModel] _ in
-            DispatchQueue.main.async { [weak viewModel] in
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            DispatchQueue.main.async {
                 recomputeElapsed()
                 // Auto-move to background after `autoBackgroundAfterSeconds`
                 // (UserDefaults-backed, default 120). Returns nil if the
                 // user disabled auto-background entirely.
-                if let limit = viewModel?.autoBackgroundAfterSeconds,
+                if let limit = autoBackgroundAfterSeconds,
                    elapsedSeconds >= limit,
-                   let vm = viewModel,
-                   vm.foregroundTaskIds.contains(message.id) {
-                    vm.moveTaskToBackground(message.id)
+                   taskState.foregroundTaskIds.contains(message.id) {
+                    onMoveToBackground(message.id)
                 }
             }
         }
@@ -4572,8 +4648,6 @@ struct MessageActionIcon: View {
     let help: String
     let action: () -> Void
     @State private var hovering = false
-    @State private var showTooltip = false
-    @State private var tooltipTask: DispatchWorkItem?
 
     var body: some View {
         Button(action: action) {
@@ -4588,46 +4662,11 @@ struct MessageActionIcon: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Claude-style tooltip instead of the native `.help()` — the system
-        // tooltip's ~1.5s delay + OS styling felt unresponsive. A compact dark
-        // pill fades in ~0.35s after the cursor settles, sits just above the
-        // icon, and never intercepts clicks. VoiceOver still gets the label via
-        // accessibilityLabel.
         .onHover { h in
             hovering = h
-            tooltipTask?.cancel()
-            if h {
-                let task = DispatchWorkItem {
-                    withAnimation(.easeInOut(duration: 0.1)) { showTooltip = true }
-                }
-                tooltipTask = task
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: task)
-            } else {
-                showTooltip = false
-            }
         }
         .animation(.easeInOut(duration: 0.12), value: hovering)
-        .accessibilityLabel(help)
-        .overlay(alignment: .top) {
-            if showTooltip {
-                Text(help)
-                    .font(.caption2)
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(SwiftUI.Color(white: 0.15))
-                            .shadow(color: SwiftUI.Color.black.opacity(0.28), radius: 4, y: 2)
-                    )
-                    .offset(y: -26)
-                    .transition(.opacity)
-                    .zIndex(100)
-                    .allowsHitTesting(false)
-            }
-        }
+        .unifiedTooltip(UnifiedTooltipContent(title: help))
     }
 }
 
@@ -5022,7 +5061,7 @@ private struct InlineUserMessageEditor: View {
                         .frame(width: 26, height: 24)
                 }
                 .buttonStyle(.plain)
-                .help("取消")
+                .unifiedTooltip(UnifiedTooltipContent(title: "取消"))
 
                 Button(action: onCommit) {
                     Image(systemName: "checkmark")
@@ -5036,7 +5075,7 @@ private struct InlineUserMessageEditor: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .help("确认并发送")
+                .unifiedTooltip(UnifiedTooltipContent(title: "确认并发送"))
             }
         }
     }
@@ -5583,6 +5622,7 @@ struct AttachmentPreview: View {
                     .background(Circle().fill(Color.black.opacity(0.82)))
             }
             .buttonStyle(.plain)
+            .unifiedTooltip(UnifiedTooltipContent(title: "Remove attachment"))
             .padding(.top, 4)
             .padding(.trailing, 5)
         }
@@ -5968,14 +6008,14 @@ private struct OutputsTabView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
-                .help("Refresh")
+                .unifiedTooltip(UnifiedTooltipContent(title: "Refresh"))
                 Button {
                     NSWorkspace.shared.open(URL(fileURLWithPath: workspacePath))
                 } label: {
                     Image(systemName: "arrow.up.forward.square")
                 }
                 .buttonStyle(.plain)
-                .help("Open Outputs Folder")
+                .unifiedTooltip(UnifiedTooltipContent(title: "Open Outputs Folder"))
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 18)
@@ -6235,7 +6275,7 @@ struct SessionDetailsPanel: View {
                     )
             }
             .buttonStyle(.plain)
-            .help("Clear Conversation")
+            .unifiedTooltip(UnifiedTooltipContent(title: "Clear Conversation"))
             .padding(.bottom, 16)
         }
         .frame(width: 52)
@@ -6271,7 +6311,7 @@ struct SessionDetailsPanel: View {
                 )
         }
         .buttonStyle(.plain)
-        .help(expanded ? "Collapse session details" : "Expand session details")
+        .unifiedTooltip(UnifiedTooltipContent(title: expanded ? "Collapse session details" : "Expand session details"))
         .offset(x: -7)  // half-out / half-in; the button visually sits on the divider
     }
 
@@ -6470,7 +6510,7 @@ struct SessionDetailsPanel: View {
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Edit agent")
+                    .unifiedTooltip(UnifiedTooltipContent(title: "Edit agent"))
                 }
                 if let desc = agent?.description, !desc.isEmpty {
                     Text(desc)
@@ -6580,15 +6620,15 @@ struct SessionDetailsPanel: View {
             // Combined section header + count, matching the mockup's
             // single-line "Skills     X / Y enabled" presentation.
             HStack {
-                Text("Skills")
+                Text(I18n.t("dashboard.skills.title"))
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 if summary.total > 0 {
-                    Text("\(summary.ready) / \(summary.total) enabled")
+                    Text(I18n.format("dashboard.skills.enabledCount", Int64(summary.ready), Int64(summary.total)))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
-                    Text("Loading…")
+                    Text(I18n.t("dashboard.skills.loading"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -6596,7 +6636,7 @@ struct SessionDetailsPanel: View {
             .padding(.top, 4)
 
             if visible.isEmpty {
-                Text("No skills detected")
+                Text(I18n.t("dashboard.skills.empty"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
@@ -6639,7 +6679,7 @@ struct SessionDetailsPanel: View {
                     viewModel.selectedTab = .skills
                 } label: {
                     HStack {
-                        Text("View all (\(skills.count))")
+                        Text(I18n.format("dashboard.skills.viewAll", Int64(skills.count)))
                             .font(.caption)
                             .foregroundColor(.accentColor)
                         Image(systemName: "arrow.right")
@@ -6795,11 +6835,11 @@ enum ChatInputMode: String, CaseIterable {
     case task
     case code
 
-    var localizedLabel: LocalizedStringKey {
+    var localizedLabel: String {
         switch self {
-        case .chat: return "Chat"
-        case .task: return "Run Task"
-        case .code: return "Code Mode"
+        case .chat: return I18n.t("dashboard.composer.mode.chat")
+        case .task: return I18n.t("dashboard.composer.mode.task")
+        case .code: return I18n.t("dashboard.composer.mode.code")
         }
     }
 
@@ -6817,7 +6857,7 @@ struct ChatInputModePicker: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text("Mode:")
+            Text(I18n.t("dashboard.composer.mode.label"))
                 .font(.caption)
                 .foregroundColor(.secondary)
             ForEach(ChatInputMode.allCases, id: \.self) { m in
@@ -6878,7 +6918,7 @@ struct ChatSessionRow: View {
             Color.clear
                 .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer)
 
-            Text(meta.title.isEmpty ? String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle) : meta.title)
+            Text(meta.title.isEmpty ? I18n.t("dashboard.session.newChat") : meta.title)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .foregroundColor(.primary)
@@ -6894,9 +6934,9 @@ struct ChatSessionRow: View {
                         .frame(width: DashboardSidebarMetrics.sessionRowActionSize, height: DashboardSidebarMetrics.sessionRowActionSize)
                 }
                 .buttonStyle(.plain)
-                .help(meta.isPinned
-                      ? String(localized: "Unpin", bundle: LanguageManager.shared.localizedBundle)
-                      : String(localized: "Pin", bundle: LanguageManager.shared.localizedBundle))
+                .unifiedTooltip(UnifiedTooltipContent(title: meta.isPinned
+                    ? I18n.t("dashboard.session.action.unpin")
+                    : I18n.t("dashboard.session.action.pin")))
 
                 Button(action: isDeleteConfirming ? onDeleteConfirm : onDeleteIntent) {
                     Image(systemName: isDeleteConfirming ? "trash.fill" : "trash")
@@ -6905,9 +6945,9 @@ struct ChatSessionRow: View {
                         .frame(width: DashboardSidebarMetrics.sessionRowActionSize, height: DashboardSidebarMetrics.sessionRowActionSize)
                 }
                 .buttonStyle(.plain)
-                .help(isDeleteConfirming
-                      ? String(localized: "Confirm delete", bundle: LanguageManager.shared.localizedBundle)
-                      : String(localized: "Delete", bundle: LanguageManager.shared.localizedBundle))
+                .unifiedTooltip(UnifiedTooltipContent(title: isDeleteConfirming
+                    ? I18n.t("dashboard.session.action.confirmDelete")
+                    : I18n.t("common.action.delete")))
             }
             .frame(width: DashboardSidebarMetrics.sessionRowActionAreaWidth, alignment: .trailing)
             .opacity(isHovering || isDeleteConfirming ? 1 : 0)

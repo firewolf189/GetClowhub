@@ -1,0 +1,20 @@
+{
+  "id": "cogedim",
+  "name": "Cogedim",
+  "displayName": "Cogedim",
+  "description": "Cogedim is one of France's leading real estate developers.",
+  "longDescription": "Cogedim is one of France's leading real estate developers. A specialist in off-plan sales (VEFA) for over 60 years, Cogedim guides you every step of the way, from defining your needs to handing over the keys.",
+  "version": "1.0.3",
+  "developerName": "ALTAREA PROMOTION MANAGEMENT",
+  "category": "Other",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.cogedim.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

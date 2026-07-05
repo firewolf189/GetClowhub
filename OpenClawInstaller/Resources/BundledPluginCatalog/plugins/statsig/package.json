@@ -1,0 +1,12 @@
+{
+  "name": "statsig",
+  "version": "2.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Bring your Statsig workspace into OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

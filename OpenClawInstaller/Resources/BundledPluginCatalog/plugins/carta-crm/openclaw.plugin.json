@@ -1,0 +1,20 @@
+{
+  "id": "carta-crm",
+  "name": "Carta CRM",
+  "displayName": "Carta CRM",
+  "description": "Carta CRM helps investment teams stay on top of deal flow by keeping deals, companies, and relationships in...",
+  "longDescription": "Carta CRM helps investment teams stay on top of deal flow by keeping deals, companies, and relationships in one place. Track opportunities through each stage, capture meeting notes and key takeaways alongside the right deal or contact, and quickly find past context when you need it.",
+  "version": "1.0.3",
+  "developerName": "Carta Inc.",
+  "category": "Business & Operations",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://carta.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

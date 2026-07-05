@@ -1,0 +1,12 @@
+{
+  "name": "highlevel",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "HighLevel gives agencies a unified CRM, automation, and client communication platform.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

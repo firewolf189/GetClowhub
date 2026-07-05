@@ -1,0 +1,41 @@
+{
+  "id": "context-mode",
+  "name": "Context Mode",
+  "displayName": "Context Mode",
+  "description": "Reduce context-window load with routed tool output, sandboxed execution, indexed search, and session memory",
+  "longDescription": "Context Mode adds ctx_* tools, routing rules, hooks, and skills that keep large command output out of the model context. It can execute shell, Python, JavaScript, and other supported languages in a sandbox, index command and web output into a searchable FTS5 knowledge base, fetch and index web pages, inspect session stats, run diagnostics, and restore useful session context across compactions.",
+  "version": "1.0.168",
+  "developerName": "Mert Koseoglu",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "context",
+    "mcp",
+    "sandbox",
+    "search",
+    "fts5",
+    "bm25",
+    "hooks",
+    "skills",
+    "openclaw"
+  ],
+  "systemIcon": "rectangle.compress.vertical",
+  "icon": "./assets/context-mode.svg",
+  "homepageURL": "https://github.com/mksglu/context-mode",
+  "repositoryURL": "https://github.com/mksglu/context-mode",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable or disable Context Mode."
+      }
+    }
+  }
+}

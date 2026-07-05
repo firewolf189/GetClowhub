@@ -1,0 +1,12 @@
+{
+  "name": "outlook-email",
+  "version": "0.1.3",
+  "type": "module",
+  "private": true,
+  "description": "Triage Outlook inboxes and draft replies",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

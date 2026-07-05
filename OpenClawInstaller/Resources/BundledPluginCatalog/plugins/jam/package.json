@@ -1,0 +1,12 @@
+{
+  "name": "jam",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Screen record with context",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

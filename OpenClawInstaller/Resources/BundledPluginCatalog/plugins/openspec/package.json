@@ -1,0 +1,25 @@
+{
+  "name": "openspec",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "OpenSpec workflow skills for exploration, proposal, implementation, and archival",
+  "keywords": [
+    "pi-package",
+    "skills",
+    "openspec",
+    "proposal",
+    "planning",
+    "workflow"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

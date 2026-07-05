@@ -1,0 +1,27 @@
+{
+  "id": "teams",
+  "name": "Teams",
+  "displayName": "Teams",
+  "description": "Summarize Teams and draft follow-ups",
+  "longDescription": "Use Teams to summarize chats, extract actions, and draft channel or meeting follow-ups through the connected Microsoft Teams app.",
+  "version": "0.1.3",
+  "developerName": "OpenAI",
+  "category": "Communication",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "teams",
+    "chat",
+    "microsoft"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.microsoft.com/en-us/microsoft-teams/group-chat-software",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

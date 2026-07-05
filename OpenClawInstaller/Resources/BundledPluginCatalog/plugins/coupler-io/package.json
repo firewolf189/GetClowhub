@@ -1,0 +1,12 @@
+{
+  "name": "coupler-io",
+  "version": "1.0.2",
+  "type": "module",
+  "private": true,
+  "description": "Analyze multi-channel marketing, financial, sales, e-commerce, and other business data within OpenClaw by co...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

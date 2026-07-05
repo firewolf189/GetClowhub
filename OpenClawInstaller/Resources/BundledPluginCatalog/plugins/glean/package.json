@@ -1,0 +1,12 @@
+{
+  "name": "glean",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Access enterprise knowledge with Glean",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

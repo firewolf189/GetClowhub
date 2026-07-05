@@ -1,0 +1,12 @@
+{
+  "name": "build-macos-apps",
+  "version": "0.1.4",
+  "type": "module",
+  "private": true,
+  "description": "Build, debug, instrument, and implement macOS apps with SwiftUI and AppKit guidance",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "hg-insights",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Use HG Insights revenue intelligence and GTM signals from OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "superhuman",
+  "version": "0.1.2",
+  "type": "module",
+  "private": true,
+  "description": "The most productive email app ever, for Gmail & Outlook",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

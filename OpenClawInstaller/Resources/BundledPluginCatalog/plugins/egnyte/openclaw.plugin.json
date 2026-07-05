@@ -1,0 +1,20 @@
+{
+  "id": "egnyte",
+  "name": "Egnyte",
+  "displayName": "Egnyte",
+  "description": "Work with documents and files stored in Egnyte directly from OpenClaw.",
+  "longDescription": "Work with documents and files stored in Egnyte directly from OpenClaw. Search across folders, retrieve relevant files, and extract key information to answer questions or generate summaries.\n\nQuickly surface insights from contracts, reports, and internal documents. Combine information from multiple files to create concise summaries, stakeholder updates, or draft written content grounded in your team’s internal materials.",
+  "version": "1.0.3",
+  "developerName": "Egnyte Inc",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.egnyte.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

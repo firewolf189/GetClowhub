@@ -1,0 +1,25 @@
+{
+  "id": "atlassian-rovo",
+  "name": "Atlassian Rovo",
+  "displayName": "Atlassian Rovo",
+  "description": "Manage Jira and Confluence fast",
+  "longDescription": "Manage Jira and Confluence fast",
+  "version": "1.0.2",
+  "developerName": "Atlassian",
+  "category": "Productivity",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "atlassian"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.atlassian.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

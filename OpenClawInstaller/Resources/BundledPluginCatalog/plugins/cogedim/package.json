@@ -1,0 +1,12 @@
+{
+  "name": "cogedim",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Cogedim is one of France's leading real estate developers.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

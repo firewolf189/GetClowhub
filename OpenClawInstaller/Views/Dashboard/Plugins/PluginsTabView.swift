@@ -36,15 +36,16 @@ struct PluginDetailPresentationItem: Identifiable {
     static func fromInstalled(_ plugin: PluginInfo, catalogItem: PluginCatalogItem?) -> PluginDetailPresentationItem {
         let section = PluginLibrarySection.section(for: plugin, catalogItem: catalogItem)
         let localizedCatalog = catalogItem.map { I18n.pluginDisplay(for: $0) }
+        let fallback = InstalledPluginFallbackDisplay(plugin: plugin)
         let description = localizedCatalog?.description.nilIfBlank
-            ?? I18n.t("plugins.fallback.installedPlugin")
+            ?? fallback.description
 
         return PluginDetailPresentationItem(
             id: "installed-\(plugin.pluginId)",
             name: catalogItem?.name ?? plugin.pluginId,
-            displayName: localizedCatalog?.displayName ?? plugin.channel,
+            displayName: localizedCatalog?.displayName ?? fallback.displayName,
             description: description,
-            documentationMarkdown: localizedCatalog?.longDescription.nilIfBlank ?? Self.installedPluginMarkdown(plugin),
+            documentationMarkdown: localizedCatalog?.longDescription.nilIfBlank ?? fallback.documentationMarkdown,
             sourceTitle: section.localizedTitle,
             catalogItem: catalogItem,
             installedPlugin: plugin,
@@ -53,18 +54,6 @@ struct PluginDetailPresentationItem: Identifiable {
         )
     }
 
-    @MainActor
-    private static func installedPluginMarkdown(_ plugin: PluginInfo) -> String {
-        """
-        **Plugin ID:** `\(plugin.pluginId)`
-
-        **Status:** \(plugin.enabled ? I18n.t("catalog.status.loaded") : I18n.t("catalog.status.disabled"))
-
-        **Source:** `\(plugin.source.isEmpty ? I18n.t("common.value.unknown") : plugin.source)`
-
-        **Version:** \(plugin.version.isEmpty ? I18n.t("common.value.unknown") : plugin.version)
-        """
-    }
 }
 
 struct PluginsTabView: View {
@@ -118,14 +107,6 @@ struct PluginsTabView: View {
                 )
             )
         }
-    }
-
-    private var filteredRecommendedCatalogItems: [PluginCatalogItem] {
-        filteredCatalogItems.filter(\.isRecommended)
-    }
-
-    private var filteredBuiltInCatalogItems: [PluginCatalogItem] {
-        filteredCatalogItems.filter { !$0.isRecommended }
     }
 
     private func filteredInstalledPlugins(using lookup: PluginLookupIndex) -> [PluginInfo] {
@@ -249,7 +230,7 @@ struct PluginsTabView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(model.isLoadingPlugins || model.isPerformingAction)
-                .help(I18n.t("plugins.help.updateInstalled"))
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("plugins.help.updateInstalled")))
             }
 
             Button {
@@ -261,7 +242,7 @@ struct PluginsTabView: View {
             }
             .buttonStyle(.plain)
             .disabled(model.isPerformingAction)
-            .help(I18n.t("plugins.help.installCustom"))
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("plugins.help.installCustom")))
 
             Button {
                 Task { await model.loadPluginMarket(forceSync: true) }
@@ -278,7 +259,7 @@ struct PluginsTabView: View {
             }
             .buttonStyle(.plain)
             .disabled(model.isLoadingPluginCatalog || model.isLoadingPlugins)
-            .help(I18n.t("plugins.help.refresh"))
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("plugins.help.refresh")))
         }
     }
 
@@ -295,22 +276,29 @@ struct PluginsTabView: View {
     @ViewBuilder
     private var content: some View {
         let lookup = pluginLookupIndex
-        let installedPlugins = filteredInstalledPlugins(using: lookup)
-        let customPlugins = customInstalledPlugins(from: installedPlugins, using: lookup)
-        let sections = installedSections(from: installedPlugins, using: lookup)
 
         switch displayMode {
         case .recommend:
-            recommendedPluginsContent(lookup: lookup)
+            let recommendedItems = filteredCatalogItems.filter(\.isRecommended)
+            recommendedPluginsContent(items: recommendedItems, lookup: lookup)
         case .all:
-            allPluginsContent(customPlugins: customPlugins, lookup: lookup)
+            let catalogItems = filteredCatalogItems
+            let customPlugins = customInstalledPlugins(
+                from: filteredInstalledPlugins(using: lookup),
+                using: lookup
+            )
+            allPluginsContent(catalogItems: catalogItems, customPlugins: customPlugins, lookup: lookup)
         case .installed:
+            let sections = installedSections(
+                from: filteredInstalledPlugins(using: lookup),
+                using: lookup
+            )
             installedPluginsContent(sections: sections, lookup: lookup)
         }
     }
 
     @ViewBuilder
-    private func recommendedPluginsContent(lookup: PluginLookupIndex) -> some View {
+    private func recommendedPluginsContent(items: [PluginCatalogItem], lookup: PluginLookupIndex) -> some View {
         if model.isLoadingPluginCatalog && model.pluginCatalog.isEmpty {
             PluginLoadingStateView(text: I18n.t("plugins.loading.catalog"))
         } else if let error = model.pluginCatalogError, model.pluginCatalog.isEmpty {
@@ -319,7 +307,7 @@ struct PluginsTabView: View {
                 title: I18n.t("plugins.empty.catalogLoadFailed"),
                 detail: error
             )
-        } else if filteredRecommendedCatalogItems.isEmpty {
+        } else if items.isEmpty {
             EmptyPluginStateView(
                 systemImage: "puzzlepiece",
                 title: model.pluginCatalog.isEmpty ? I18n.t("plugins.empty.noRecommended") : I18n.t("plugins.empty.noMatchingRecommended"),
@@ -328,14 +316,14 @@ struct PluginsTabView: View {
         } else {
             catalogSection(
                 title: PluginLibrarySection.recommend.localizedTitle,
-                items: filteredRecommendedCatalogItems,
+                items: items,
                 lookup: lookup
             )
         }
     }
 
     @ViewBuilder
-    private func allPluginsContent(customPlugins: [PluginInfo], lookup: PluginLookupIndex) -> some View {
+    private func allPluginsContent(catalogItems: [PluginCatalogItem], customPlugins: [PluginInfo], lookup: PluginLookupIndex) -> some View {
         if model.isLoadingPluginCatalog && model.pluginCatalog.isEmpty {
             PluginLoadingStateView(text: I18n.t("plugins.loading.catalog"))
         } else if let error = model.pluginCatalogError,
@@ -353,31 +341,7 @@ struct PluginsTabView: View {
                 detail: nil
             )
         } else {
-            VStack(alignment: .leading, spacing: 26) {
-                if !filteredRecommendedCatalogItems.isEmpty {
-                    catalogSection(
-                        title: PluginLibrarySection.recommend.localizedTitle,
-                        items: filteredRecommendedCatalogItems,
-                        lookup: lookup
-                    )
-                }
-
-                if !filteredBuiltInCatalogItems.isEmpty {
-                    catalogSection(
-                        title: PluginLibrarySection.builtIn.localizedTitle,
-                        items: filteredBuiltInCatalogItems,
-                        lookup: lookup
-                    )
-                }
-
-                if !customPlugins.isEmpty {
-                    installedSection(
-                        title: PluginLibrarySection.custom.localizedTitle,
-                        items: customPlugins,
-                        lookup: lookup
-                    )
-                }
-            }
+            allPluginSection(catalogItems: catalogItems, customPlugins: customPlugins, lookup: lookup)
         }
     }
 
@@ -392,12 +356,133 @@ struct PluginsTabView: View {
                 detail: nil
             )
         } else {
-            VStack(alignment: .leading, spacing: 26) {
-                ForEach(sections) { section in
-                    installedSection(title: section.title, items: section.items, lookup: lookup)
+            installedPluginSection(sections: sections, lookup: lookup)
+        }
+    }
+
+    private func installedPluginSection(sections: [InstalledSection], lookup: PluginLookupIndex) -> some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(sections.enumerated()), id: \.element.id) { sectionIndex, section in
+                pluginSectionHeader(
+                    title: section.title,
+                    count: section.items.count,
+                    isFirst: sectionIndex == 0
+                )
+
+                ForEach(Array(section.items.enumerated()), id: \.element.id) { itemIndex, plugin in
+                    let catalogItem = lookup.catalogItem(for: plugin)
+
+                    InstalledPluginListRow(
+                        plugin: plugin,
+                        catalogItem: catalogItem,
+                        onOpen: {
+                            presentPluginDetail(PluginDetailPresentationItem.fromInstalled(plugin, catalogItem: catalogItem))
+                        }
+                    )
+
+                    if itemIndex < section.items.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
                 }
             }
         }
+    }
+
+    private func allPluginSection(catalogItems: [PluginCatalogItem], customPlugins: [PluginInfo], lookup: PluginLookupIndex) -> some View {
+        let recommendedItems = catalogItems.filter(\.isRecommended)
+        let builtInItems = catalogItems.filter { !$0.isRecommended }
+
+        return LazyVStack(alignment: .leading, spacing: 0) {
+            if !recommendedItems.isEmpty {
+                pluginSectionHeader(
+                    title: PluginLibrarySection.recommend.localizedTitle,
+                    count: recommendedItems.count,
+                    isFirst: true
+                )
+
+                ForEach(Array(recommendedItems.enumerated()), id: \.element.id) { index, item in
+                    let installedPlugin = lookup.installedPlugin(for: item)
+
+                    CatalogPluginListRow(
+                        item: item,
+                        installedPlugin: installedPlugin,
+                        isInstalling: model.installingCatalogPluginName == item.name,
+                        onInstall: {
+                            Task { await model.installCatalogPlugin(item) }
+                        },
+                        onOpen: {
+                            presentPluginDetail(PluginDetailPresentationItem.fromCatalog(item, installedPlugin: installedPlugin))
+                        }
+                    )
+
+                    if index < recommendedItems.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+
+            if !builtInItems.isEmpty {
+                pluginSectionHeader(
+                    title: PluginLibrarySection.builtIn.localizedTitle,
+                    count: builtInItems.count,
+                    isFirst: recommendedItems.isEmpty
+                )
+
+                ForEach(Array(builtInItems.enumerated()), id: \.element.id) { index, item in
+                    let installedPlugin = lookup.installedPlugin(for: item)
+
+                    CatalogPluginListRow(
+                        item: item,
+                        installedPlugin: installedPlugin,
+                        isInstalling: model.installingCatalogPluginName == item.name,
+                        onInstall: {
+                            Task { await model.installCatalogPlugin(item) }
+                        },
+                        onOpen: {
+                            presentPluginDetail(PluginDetailPresentationItem.fromCatalog(item, installedPlugin: installedPlugin))
+                        }
+                    )
+
+                    if index < builtInItems.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+
+            if !customPlugins.isEmpty {
+                pluginSectionHeader(
+                    title: PluginLibrarySection.custom.localizedTitle,
+                    count: customPlugins.count,
+                    isFirst: recommendedItems.isEmpty && builtInItems.isEmpty
+                )
+
+                ForEach(Array(customPlugins.enumerated()), id: \.element.id) { index, plugin in
+                    let catalogItem = lookup.catalogItem(for: plugin)
+
+                    InstalledPluginListRow(
+                        plugin: plugin,
+                        catalogItem: catalogItem,
+                        onOpen: {
+                            presentPluginDetail(PluginDetailPresentationItem.fromInstalled(plugin, catalogItem: catalogItem))
+                        }
+                    )
+
+                    if index < customPlugins.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+        }
+    }
+
+    private func pluginSectionHeader(title: String, count: Int, isFirst: Bool) -> some View {
+        PluginSectionHeader(title: title, count: count)
+            .padding(.top, isFirst ? 0 : 26)
+            .padding(.bottom, 10)
     }
 
     private func catalogSection(title: String, items: [PluginCatalogItem], lookup: PluginLookupIndex) -> some View {
@@ -417,31 +502,6 @@ struct PluginsTabView: View {
                         },
                         onOpen: {
                             presentPluginDetail(PluginDetailPresentationItem.fromCatalog(item, installedPlugin: installedPlugin))
-                        }
-                    )
-
-                    if index < items.count - 1 {
-                        Divider()
-                            .padding(.leading, 56)
-                    }
-                }
-            }
-        }
-    }
-
-    private func installedSection(title: String, items: [PluginInfo], lookup: PluginLookupIndex) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            PluginSectionHeader(title: title, count: items.count)
-
-            LazyVStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, plugin in
-                    let catalogItem = lookup.catalogItem(for: plugin)
-
-                    InstalledPluginListRow(
-                        plugin: plugin,
-                        catalogItem: catalogItem,
-                        onOpen: {
-                            presentPluginDetail(PluginDetailPresentationItem.fromInstalled(plugin, catalogItem: catalogItem))
                         }
                     )
 
@@ -707,9 +767,12 @@ private struct CatalogPluginListRow: View {
             } else {
                 Button(action: onInstall) {
                     if isInstalling {
-                        Text(I18n.t("catalog.action.installing"))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                        ShimmeringStatusText(
+                            text: I18n.t("catalog.action.installing"),
+                            font: .system(size: 12, weight: .medium),
+                            highlightOpacity: 0.62
+                        )
+                        .lineLimit(1)
                             .frame(width: 74, height: 28)
                     } else {
                         Image(systemName: "plus")
@@ -728,7 +791,7 @@ private struct CatalogPluginListRow: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isInstalling)
-                .help(I18n.t("catalog.action.install"))
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("catalog.action.install")))
             }
         }
         .padding(.horizontal, 8)
@@ -737,7 +800,6 @@ private struct CatalogPluginListRow: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(rowBackground)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
@@ -761,17 +823,18 @@ private struct InstalledPluginListRow: View {
 
     var body: some View {
         let display = catalogItem.map { I18n.pluginDisplay(for: $0) }
+        let fallback = InstalledPluginFallbackDisplay(plugin: plugin)
 
         HStack(spacing: 14) {
             PluginCatalogIcon(systemIconName: catalogItem?.systemIconName, iconURL: catalogItem?.iconURL, size: 32)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(display?.displayName ?? plugin.channel)
+                Text(display?.displayName ?? fallback.displayName)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                Text(display?.description.nilIfBlank ?? plugin.pluginId)
+                Text(display?.description.nilIfBlank ?? fallback.description)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -787,7 +850,6 @@ private struct InstalledPluginListRow: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(rowBackground)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
         .onHover { hovering in
@@ -799,6 +861,142 @@ private struct InstalledPluginListRow: View {
         colorScheme == .dark
             ? Color.white.opacity(isHovered ? 0.075 : 0)
             : Color.black.opacity(isHovered ? 0.065 : 0)
+    }
+}
+
+private struct InstalledPluginFallbackDisplay {
+    enum Family {
+        case provider
+        case browser
+        case speech
+        case memory
+        case proxy
+        case runtime
+        case plugin
+    }
+
+    let displayName: String
+    let description: String
+    let documentationMarkdown: String
+    let family: Family
+
+    init(plugin: PluginInfo) {
+        let normalizedChannel = Self.readableName(from: plugin.channel)
+        let normalizedID = Self.readableName(from: plugin.pluginId)
+        let baseName = normalizedChannel.nilIfBlank ?? normalizedID.nilIfBlank ?? plugin.channel
+        let family = Self.family(for: plugin)
+        let displayName = Self.displayName(for: plugin, baseName: baseName, family: family)
+        let description = Self.description(for: displayName, family: family)
+
+        self.displayName = displayName
+        self.description = description
+        self.documentationMarkdown = Self.documentationMarkdown(
+            displayName: displayName,
+            description: description,
+            plugin: plugin
+        )
+        self.family = family
+    }
+
+    private static func family(for plugin: PluginInfo) -> Family {
+        let haystack = [plugin.channel, plugin.pluginId, plugin.source]
+            .joined(separator: " ")
+            .lowercased()
+
+        if haystack.contains("browser") {
+            return .browser
+        }
+        if haystack.contains("speech") || haystack.contains("elevenlabs") || haystack.contains("deepgram") {
+            return .speech
+        }
+        if haystack.contains("memory") {
+            return .memory
+        }
+        if haystack.contains("proxy") {
+            return .proxy
+        }
+        if haystack.contains("runtime") || haystack.contains("core") {
+            return .runtime
+        }
+        if haystack.contains("provider") {
+            return .provider
+        }
+        return .plugin
+    }
+
+    private static func displayName(for plugin: PluginInfo, baseName: String, family: Family) -> String {
+        let trimmed = baseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return plugin.channel }
+
+        switch family {
+        case .provider:
+            return trimmed.localizedCaseInsensitiveContains("provider") ? trimmed : "\(trimmed) Provider"
+        case .browser:
+            return trimmed.localizedCaseInsensitiveContains("browser") ? trimmed : "\(trimmed) Browser"
+        case .speech:
+            return trimmed.localizedCaseInsensitiveContains("speech") ? trimmed : "\(trimmed) Speech"
+        case .memory:
+            return trimmed.localizedCaseInsensitiveContains("memory") ? trimmed : "\(trimmed) Memory"
+        case .proxy:
+            return trimmed.localizedCaseInsensitiveContains("proxy") ? trimmed : "\(trimmed) Proxy"
+        case .runtime, .plugin:
+            return trimmed
+        }
+    }
+
+    private static func description(for displayName: String, family: Family) -> String {
+        switch family {
+        case .provider:
+            return "Model provider for connecting OpenClaw to \(displayName.replacingOccurrences(of: " Provider", with: "")) models."
+        case .browser:
+            return "Browser automation capability for opening pages, inspecting content, and interacting with websites."
+        case .speech:
+            return "Speech capability for transcription, voice, or audio-related model workflows."
+        case .memory:
+            return "Memory storage capability for retaining reusable context across OpenClaw sessions."
+        case .proxy:
+            return "Proxy capability for routing model requests through a compatible provider or local service."
+        case .runtime:
+            return "Core runtime capability used by OpenClaw to provide built-in plugin behavior."
+        case .plugin:
+            return I18n.t("plugins.fallback.installedPlugin")
+        }
+    }
+
+    private static func documentationMarkdown(displayName: String, description: String, plugin: PluginInfo) -> String {
+        var lines = [
+            description,
+            "",
+            "**Plugin ID:** `\(plugin.pluginId)`",
+            "",
+            "**Status:** \(plugin.enabled ? I18n.t("catalog.status.loaded") : I18n.t("catalog.status.disabled"))"
+        ]
+
+        if !plugin.version.isEmpty {
+            lines.append("")
+            lines.append("**Version:** \(plugin.version)")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static func readableName(from rawValue: String) -> String {
+        let withoutScope = rawValue
+            .split(separator: "/")
+            .last
+            .map(String.init) ?? rawValue
+        let strippedSuffixes = ["-provider", "-plugin"]
+            .reduce(withoutScope) { partial, suffix in
+                partial.hasSuffix(suffix) ? String(partial.dropLast(suffix.count)) : partial
+            }
+        return strippedSuffixes
+            .split { $0 == "-" || $0 == "_" }
+            .map { word in
+                let rawWord = String(word)
+                guard rawWord.count > 2 else { return rawWord.uppercased() }
+                return rawWord.prefix(1).uppercased() + rawWord.dropFirst()
+            }
+            .joined(separator: " ")
     }
 }
 
@@ -974,7 +1172,7 @@ struct PluginCatalogDetailSheet: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
-                    .help(I18n.t("catalog.action.close"))
+                    .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("catalog.action.close")))
                 }
             }
             .padding(.bottom, 16)
@@ -1051,8 +1249,13 @@ struct PluginCatalogDetailSheet: View {
         if installedPlugin == nil {
             Button(action: onInstall) {
                 if isInstalling {
-                    Text(I18n.t("catalog.action.installing"))
-                        .frame(width: 92, height: 30)
+                    ShimmeringStatusText(
+                        text: I18n.t("catalog.action.installing"),
+                        font: .system(size: 12, weight: .medium),
+                        highlightOpacity: 0.62
+                    )
+                    .lineLimit(1)
+                    .frame(width: 92, height: 30)
                 } else if item.catalogItem?.isOpenClawInstallable == false {
                     Text(I18n.t("catalog.status.unavailable"))
                         .frame(width: 92, height: 30)
@@ -1234,12 +1437,12 @@ enum PluginPreset: String, CaseIterable {
         }
     }
 
-    /// Keywords to match against installed plugin's pluginId, channel name, or source
+    /// Keywords to match against installed plugin's pluginId or channel name.
     var matchKeywords: [String] {
         switch self {
         case .custom: return []
-        case .dingtalk: return ["dingtalk", "@openclaw-china/dingtalk"]
-        case .weixin: return ["weixin", "openclaw-weixin", "@tencent-weixin/openclaw-weixin"]
+        case .dingtalk: return ["dingtalk"]
+        case .weixin: return ["weixin", "openclaw-weixin"]
         }
     }
 }
@@ -1270,9 +1473,8 @@ struct InstallPluginSheet: View {
         return model.plugins.contains { plugin in
             let id = plugin.pluginId.lowercased()
             let name = plugin.channel.lowercased()
-            let source = plugin.source.lowercased()
             return keywords.contains { keyword in
-                id.contains(keyword) || name.contains(keyword) || source.contains(keyword)
+                id.contains(keyword) || name.contains(keyword)
             }
         }
     }

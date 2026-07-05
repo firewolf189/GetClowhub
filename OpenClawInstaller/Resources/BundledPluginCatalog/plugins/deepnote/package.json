@@ -1,0 +1,12 @@
+{
+  "name": "deepnote",
+  "version": "0.1.5",
+  "type": "module",
+  "private": true,
+  "description": "Explore data and automate analysis in Deepnote",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

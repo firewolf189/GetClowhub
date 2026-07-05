@@ -1,0 +1,20 @@
+{
+  "id": "network-solutions",
+  "name": "Network Solutions",
+  "displayName": "Network Solutions",
+  "description": "The Network Solutions Domain Search Assistant makes finding an available domain fast, simple, and conversat...",
+  "longDescription": "The Network Solutions Domain Search Assistant makes finding an available domain fast, simple, and conversational. Instead of searching one name at a time, users can describe their idea in plain language and instantly check domain availability across relevant extensions. The assistant helps refine names, suggest alternatives, and quickly identify options that are ready to register.\n\nBuilt to remove friction and frustration from domain discovery, this chat-powered experience keeps users moving forward when names are taken and surfaces smarter, brand-ready options in real time. Whether you’re launching a business, starting a personal project, or exploring new ideas, Network Solutions helps you go from concept to available domain with confidence.",
+  "version": "1.0.3",
+  "developerName": "Network Solutions",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.networksolutions.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

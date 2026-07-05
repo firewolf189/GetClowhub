@@ -1,0 +1,12 @@
+{
+  "name": "happenstance",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Happenstance searches your professional network using natural language to find the right people.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

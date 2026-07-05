@@ -1,0 +1,20 @@
+{
+  "id": "chronograph-lp",
+  "name": "Chronograph LP",
+  "displayName": "Chronograph LP",
+  "description": "Trusted portfolio data for private capital LP teams",
+  "longDescription": "Chronograph LP provides portfolio monitoring and analytics for private capital Limited Partner users. Access trusted private markets portfolio data, from underlying portfolio companies and assets to funds, vehicles, commitments, and more.",
+  "version": "1.0.3",
+  "developerName": "Chronograph",
+  "category": "Finance",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.chronograph.pe/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

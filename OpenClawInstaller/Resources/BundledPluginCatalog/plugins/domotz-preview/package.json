@@ -1,0 +1,12 @@
+{
+  "name": "domotz-preview",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Monitor and manage your network infrastructure through natural language.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

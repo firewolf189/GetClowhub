@@ -1,0 +1,12 @@
+{
+  "name": "base44",
+  "version": "1.0.3-beta.1",
+  "type": "module",
+  "private": true,
+  "description": "Build and deploy Base44 full-stack apps from OpenClaw",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

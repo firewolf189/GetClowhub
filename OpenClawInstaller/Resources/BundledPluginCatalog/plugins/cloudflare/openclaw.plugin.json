@@ -1,0 +1,34 @@
+{
+  "id": "cloudflare",
+  "name": "Cloudflare",
+  "displayName": "Cloudflare",
+  "description": "Cloudflare platform guidance with official MCP",
+  "longDescription": "Bring Cloudflare platform guidance into OpenClaw with curated skills for the broader platform, Wrangler CLI, and the Agents SDK, plus the official Cloudflare API MCP server for authenticated access to live account data and workflows across Workers, Pages, storage, AI, networking, security, and analytics services.",
+  "version": "0.1.2",
+  "developerName": "Cloudflare",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "cloudflare",
+    "workflow",
+    "deployment",
+    "edge-functions",
+    "edge",
+    "analytics",
+    "wrangler",
+    "agents-sdk",
+    "serverless",
+    "ai-gateway"
+  ],
+  "icon": "./assets/cloudflare.png",
+  "homepageURL": "https://workers.cloudflare.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

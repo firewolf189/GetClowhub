@@ -1,0 +1,12 @@
+{
+  "name": "otter-ai",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "The Otter.ai MCP server connects OpenClaw to your meeting intelligence, enabling search and retrieval of tra...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

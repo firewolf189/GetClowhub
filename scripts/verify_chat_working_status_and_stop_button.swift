@@ -7,12 +7,14 @@ let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboar
 let composerURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
 let timelineURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift")
 let workStatusURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/WorkStatusHeader.swift")
+let shimmeringStatusURL = root.appendingPathComponent("OpenClawInstaller/Views/Shared/ShimmeringStatusText.swift")
 let viewModelURL = root.appendingPathComponent("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
 let localizableURL = root.appendingPathComponent("OpenClawInstaller/Localizable.xcstrings")
 let dashboard = try String(contentsOf: dashboardURL, encoding: .utf8)
 let composer = try String(contentsOf: composerURL, encoding: .utf8)
 let timeline = try String(contentsOf: timelineURL, encoding: .utf8)
 let workStatus = try String(contentsOf: workStatusURL, encoding: .utf8)
+let shimmeringStatus = try String(contentsOf: shimmeringStatusURL, encoding: .utf8)
 let viewModel = try String(contentsOf: viewModelURL, encoding: .utf8)
 let localizable = try String(contentsOf: localizableURL, encoding: .utf8)
 
@@ -50,7 +52,7 @@ let workStatusHeader = slice(
 let isolatedElapsedWorkStatusText = slice(
     workStatus,
     from: "private struct IsolatedElapsedWorkStatusText: View",
-    to: "private struct ShimmeringWorkStatusText: View"
+    to: "private struct ActivitySummaryRows: View"
 )
 
 require(dashboard.contains("private var currentForegroundTaskMessageId: UUID?"), "chat view should expose the current foreground task message id")
@@ -91,17 +93,17 @@ require(chatBubble.contains("message.completedAt != nil"), "assistant completed 
 require(workStatus.contains("Worked for"), "finished English work status should read Worked for")
 require(localizable.contains(#""Worked for %@"#), "finished work status should have a localized Worked for key")
 require(localizable.contains(#""value" : "已运行 %@"#), "finished Chinese work status should read 已运行")
-require(workStatus.contains("private struct ShimmeringWorkStatusText: View"), "active working status should have a dedicated shimmer text view")
+require(shimmeringStatus.contains("struct ShimmeringStatusText: View"), "active working status should have a dedicated reusable shimmer text view")
 require(workStatus.contains("private struct IsolatedElapsedWorkStatusText: View"), "active seconds display should be isolated into a fixed-size leaf view")
 require(!workStatusHeader.contains("TimelineView(.periodic(from: start, by: 1))"), "working-status header should not refresh its whole layout every second")
 require(isolatedElapsedWorkStatusText.contains("TimelineView(.periodic(from: start, by: 1))"), "isolated seconds text should own the one-second timeline")
-require(isolatedElapsedWorkStatusText.contains("ShimmeringWorkStatusText(")
+require(isolatedElapsedWorkStatusText.contains("ShimmeringStatusText(")
         && isolatedElapsedWorkStatusText.contains("text: WorkStatusDurationText.status("),
         "isolated active seconds should render through the shimmer text view")
 require(isolatedElapsedWorkStatusText.contains(".monospacedDigit()"), "isolated seconds text should use monospaced digits")
 require(isolatedElapsedWorkStatusText.contains(".frame(width: Self.reservedWidth"), "isolated seconds text should reserve a stable width")
-require(workStatus.contains("LinearGradient("), "shimmer text should use a moving linear gradient highlight")
-require(workStatus.contains("withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false))"), "shimmer text should animate the highlight continuously")
+require(shimmeringStatus.contains("LinearGradient("), "shimmer text should use a moving linear gradient highlight")
+require(shimmeringStatus.contains("withAnimation(.linear(duration: duration).repeatForever(autoreverses: false))"), "shimmer text should animate the highlight continuously")
 
 require(!chatBubble.contains("ProgressView()"), "chat bubble streaming/background rows should not render spinner progress views")
 require(!chatBubble.contains("onCancel?(message)"), "chat bubble should not expose cancel buttons while streaming/background")

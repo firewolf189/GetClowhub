@@ -1,0 +1,42 @@
+{
+  "id": "superpowers",
+  "name": "Superpowers",
+  "displayName": "Superpowers",
+  "description": "Planning, TDD, debugging, and delivery workflows for coding agents",
+  "longDescription": "Use Superpowers to guide agent work through brainstorming, implementation planning, test-driven development, systematic debugging, parallel execution, code review, subagent-driven development, and finish-the-branch workflows. This plugin preserves the upstream Superpowers skills package as one installable OpenClaw plugin instead of splitting each skill into a separate catalog item.",
+  "version": "6.1.0",
+  "developerName": "Jesse Vincent",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "brainstorming",
+    "subagent-driven-development",
+    "skills",
+    "planning",
+    "tdd",
+    "debugging",
+    "code-review",
+    "workflow",
+    "superpowers"
+  ],
+  "icon": "./assets/superpowers-small.svg",
+  "homepageURL": "https://github.com/obra/Superpowers",
+  "repositoryURL": "https://github.com/obra/Superpowers",
+  "configSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "superpowers"
+    ]
+  }
+}

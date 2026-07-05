@@ -1,0 +1,12 @@
+{
+  "name": "united-rentals",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Get the right equipment for the job without guesswork.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "picsart",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Image editing, creative assets, and design workflows from Picsart",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

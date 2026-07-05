@@ -1,0 +1,23 @@
+{
+  "id": "datadog",
+  "name": "Datadog (Preview)",
+  "displayName": "Datadog (Preview)",
+  "description": "Investigate logs, metrics, traces, and incidents",
+  "longDescription": "Analyze, investigate, and act on your Datadog telemetry directly from OpenClaw using natural language. Ask questions about your production applications, identify, visualize, and remediate issues in your critical services. Run agentic loops to ensure you continue to maintain good observability and service management posture.",
+  "version": "0.1.2",
+  "developerName": "Datadog",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Writes"
+  ],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://www.datadoghq.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

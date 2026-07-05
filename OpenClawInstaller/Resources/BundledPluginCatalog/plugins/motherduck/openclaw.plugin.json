@@ -1,0 +1,20 @@
+{
+  "id": "motherduck",
+  "name": "MotherDuck",
+  "displayName": "MotherDuck",
+  "description": "Connect AI assistants to your MotherDuck data warehouse.",
+  "longDescription": "Connect AI assistants to your MotherDuck data warehouse. Explore, visualize, and manage data using natural language–no SQL skills required. Create Dives: interactive visualizations that let you save and share answers with your team, staying up-to-date with your latest data. Works with real-world data without requiring semantic models or pre-configuration. Your AI assistant acts like a data analyst, exploring, validating, analyzing, and visualizing data iteratively to answer your questions.",
+  "version": "1.0.2",
+  "developerName": "MotherDuck Corporation",
+  "category": "Data & Analytics",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://motherduck.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -38,7 +38,8 @@ let sidebarMainList = slice(dashboard, from: "private var sidebarMainList: some 
 let navRow = slice(dashboard, from: "private func navRow", to: "private func sidebarRowContent")
 let agentSectionContent = slice(dashboard, from: "private var agentSectionContent: some View", to: "// MARK: - Sidebar Bottom Bar")
 let sessionsSectionContent = slice(dashboard, from: "private func sessionsSectionContent(for agent: AgentOption) -> some View", to: "// MARK: - Agent Section Content")
-let agentSidebarRow = slice(dashboard, from: "private func agentSidebarRow(_ agent: AgentOption) -> some View", to: "private func agentRowWithContextMenu")
+let agentSidebarRow = slice(dashboard, from: "private func agentSidebarRow(_ agent: AgentOption) -> some View", to: "private func canDeleteAgent")
+let sidebarRowContent = slice(dashboard, from: "private func sidebarRowContent", to: "@ViewBuilder\n    private func sidebarIcon")
 let sidebarCollapsibleRow = slice(dashboard, from: "struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View", to: "// MARK: - Pulsing Dot")
 
 assertNotContains(
@@ -57,9 +58,14 @@ assertContains(
     "agent title spacing should use the shared sidebar metric"
 )
 assertContains(
+    sidebarCollapsibleRow,
+    ".frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: DashboardSidebarMetrics.agentAvatarSize)",
+    "agent rows should use the standard sidebar icon slot for horizontal alignment while preserving the larger avatar drawing height"
+)
+assertContains(
     dashboard,
-    "static let sessionRowContentHeight: CGFloat = 20",
-    "session row vertical content height should be 20pt"
+    "static let sessionRowContentHeight: CGFloat = 24",
+    "session row vertical content height should match agent and project row height"
 )
 assertContains(
     dashboard,
@@ -73,8 +79,18 @@ assertContains(
 )
 assertContains(
     dashboard,
-    "static let sessionTitleLeadingSpacer: CGFloat = agentAvatarSize + agentTitleSpacing",
-    "session title spacer should match the agent icon area so text aligns with agent names"
+    "static let sidebarIconSlotWidth: CGFloat = 18",
+    "sidebar rows should share the standard 18pt leading icon slot"
+)
+assertContains(
+    dashboard,
+    "static let sessionTitleLeadingSpacer: CGFloat = sidebarIconSlotWidth + agentTitleSpacing",
+    "session title spacer should match the standard sidebar icon slot so text aligns with navigation rows"
+)
+assertContains(
+    sidebarRowContent,
+    ".frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: DashboardSidebarMetrics.sidebarIconSlotWidth)",
+    "standard sidebar rows should use the shared leading icon slot metric"
 )
 assertContains(
     dashboard,
@@ -85,6 +101,31 @@ assertContains(
     agentSectionContent,
     ".font(DashboardTypography.sidebarSectionTitle)",
     "Agent section title should use the shared larger typography token"
+)
+assertContains(
+    agentSectionContent,
+    #"Image(systemName: "person")"#,
+    "Agent section title should use the configured agent section system icon"
+)
+assertContains(
+    agentSectionContent,
+    "HStack(spacing: DashboardSidebarMetrics.agentTitleSpacing)",
+    "Agent section title should use the same shared icon-title spacing metric as sidebar rows"
+)
+assertContains(
+    agentSectionContent,
+    ".font(.system(size: 15, weight: .regular))",
+    "Agent section title icon should be larger than the old 12pt size"
+)
+assertContains(
+    agentSectionContent,
+    ".frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: 20)",
+    "Agent section title icon should use the standard sidebar icon slot so the title aligns with navigation rows"
+)
+assertContains(
+    agentSectionContent,
+    ".foregroundColor(.primary)",
+    "Agent section title icon and text should match surrounding row contrast"
 )
 assertContains(
     agentSectionContent,
@@ -138,7 +179,7 @@ assertNotContains(
 )
 assertContains(
     sidebarMainList,
-    "onOpenGlobalSessionSearch()",
+    "actions.openGlobalSessionSearch()",
     "left sidebar must expose the global chat search entry point"
 )
 assertContains(
@@ -153,17 +194,17 @@ assertContains(
 )
 assertContains(
     sidebarMainList,
-    "cancelSessionDeleteConfirmation()\n                    viewModel.createNewSession()\n                    selectedTab = .chat",
+    "cancelSessionDeleteConfirmation()\n                    actions.createNewSession()\n                    actions.selectTab(.chat)",
     "New chat should cancel pending delete confirmation and still switch the main pane to chat"
 )
 assertContains(
     sidebarMainList,
-    "cancelSessionDeleteConfirmation()\n                    onOpenGlobalSessionSearch()",
+    "cancelSessionDeleteConfirmation()\n                    actions.openGlobalSessionSearch()",
     "Search chats should cancel pending delete confirmation before opening search"
 )
 assertContains(
     navRow,
-    "cancelSessionDeleteConfirmation()\n            selectedTab = tab",
+    "cancelSessionDeleteConfirmation()\n            actions.selectTab(tab)",
     "sidebar navigation rows should cancel pending delete confirmation and still switch to their tab"
 )
 assertContains(
@@ -213,8 +254,8 @@ assertContains(
 )
 assertContains(
     dashboard,
-    #".transition(.move(edge: .top).combined(with: .opacity))"#,
-    "agent session lists must animate when expanding or collapsing"
+    #".asymmetric(insertion: .opacity, removal: .identity)"#,
+    "agent session lists should fade in but avoid moving old titles during collapse"
 )
 assertContains(
     sidebarCollapsibleRow,
@@ -264,7 +305,7 @@ assertContains(
 assertContains(
     sessionRow,
     "Color.clear\n                .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer)",
-    "session row text should reserve the agent avatar column so session titles align with agent titles"
+    "session row text should reserve the standard sidebar icon column so session titles align with navigation rows"
 )
 assertContains(
     sessionRow,

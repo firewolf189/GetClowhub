@@ -56,10 +56,147 @@ func placeholderSignature(_ value: String) -> [String] {
         if token == "%%" {
             return nil
         }
+        if token.contains(" ") {
+            return nil
+        }
         return token.replacingOccurrences(
             of: #"^%(\d+\$)"#,
             with: "%",
             options: .regularExpression
+        )
+    }
+}
+
+func isPluginCatalogFieldThatMustBeLocalized(_ key: String) -> Bool {
+    guard key.hasPrefix("plugins.catalog.") else { return false }
+    return key.hasSuffix(".description")
+        || key.hasSuffix(".longDescription")
+        || key.hasSuffix(".category")
+        || key.range(of: #"\.capabilities\.\d+$"#, options: .regularExpression) != nil
+}
+
+func isSkillCatalogFieldThatMustBeLocalized(_ key: String) -> Bool {
+    guard key.hasPrefix("skills.catalog.") else { return false }
+    return key.hasSuffix(".description") || key.hasSuffix(".content")
+}
+
+func isAgentCatalogFieldThatMustBeLocalized(_ key: String) -> Bool {
+    let uiPrefixes = ["agents.search.", "agents.empty.", "agents.detail.", "agents.action.", "agents.alert."]
+    guard !uiPrefixes.contains(where: { key.hasPrefix($0) }) else { return false }
+    return key.range(
+        of: #"^agents\.[a-z0-9.]+\.(description|division|vibe|whenToUse|content)$"#,
+        options: .regularExpression
+    ) != nil
+}
+
+func isDynamicCatalogField(_ namespace: String, _ key: String) -> Bool {
+    switch namespace {
+    case "plugins":
+        return key.hasPrefix("plugins.catalog.")
+    case "skills":
+        return key.hasPrefix("skills.catalog.")
+    case "agents":
+        let uiPrefixes = ["agents.search.", "agents.empty.", "agents.detail.", "agents.action.", "agents.alert."]
+        guard !uiPrefixes.contains(where: { key.hasPrefix($0) }) else { return false }
+        return key.range(
+            of: #"^agents\.[a-z0-9.]+\.(name|division|description|vibe|specialty|whenToUse|content)$"#,
+            options: .regularExpression
+        ) != nil
+    default:
+        return false
+    }
+}
+
+func isCatalogFieldThatMustBeLocalized(namespace: String, key: String) -> Bool {
+    switch namespace {
+    case "plugins":
+        return isPluginCatalogFieldThatMustBeLocalized(key)
+    case "skills":
+        return isSkillCatalogFieldThatMustBeLocalized(key)
+    case "agents":
+        return isAgentCatalogFieldThatMustBeLocalized(key)
+    default:
+        return false
+    }
+}
+
+func containsCJK(_ value: String) -> Bool {
+    value.unicodeScalars.contains { scalar in
+        (0x4E00...0x9FFF).contains(Int(scalar.value))
+            || (0x3400...0x4DBF).contains(Int(scalar.value))
+    }
+}
+
+func englishWordCount(_ value: String) -> Int {
+    let pattern = #"[A-Za-z]{3,}"#
+    let regex = try! NSRegularExpression(pattern: pattern)
+    let range = NSRange(value.startIndex..<value.endIndex, in: value)
+    return regex.numberOfMatches(in: value, range: range)
+}
+
+func englishTokens(_ value: String) -> Set<String> {
+    let pattern = #"[A-Za-z][A-Za-z0-9.+-]{2,}"#
+    let regex = try! NSRegularExpression(pattern: pattern)
+    let range = NSRange(value.startIndex..<value.endIndex, in: value)
+    let ignored: Set<String> = [
+        "ai",
+        "api",
+        "app",
+        "apps",
+        "ios",
+        "macos",
+        "mcp",
+        "openclaw",
+        "swiftui",
+        "ui",
+        "web"
+    ]
+    return Set(regex.matches(in: value, range: range).compactMap { match in
+        guard let tokenRange = Range(match.range, in: value) else { return nil }
+        let token = String(value[tokenRange]).lowercased()
+        return ignored.contains(token) ? nil : token
+    })
+}
+
+func hasHighEnglishSourceOverlap(localized: String, english: String) -> Bool {
+    let source = englishTokens(english)
+    guard source.count >= 3 else { return false }
+    let localizedTokens = englishTokens(localized)
+    guard !localizedTokens.isEmpty else { return false }
+    let overlap = source.intersection(localizedTokens).count
+    return Double(overlap) / Double(source.count) >= 0.6
+}
+
+func assertLocalizedPluginCatalogValue(
+    language: String,
+    namespace: String,
+    key: String,
+    localized: String,
+    english: String,
+    path: String
+) {
+    let trimmedLocalized = localized.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmedEnglish = english.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedEnglish.isEmpty else { return }
+
+    let preservedTechnicalTerms: Set<String> = ["MCP"]
+    if preservedTechnicalTerms.contains(trimmedEnglish) {
+        return
+    }
+
+    require(
+        trimmedLocalized != trimmedEnglish,
+        "\(path) keeps English \(namespace) catalog text for \(key)"
+    )
+
+    if language == "zh-Hans" || language == "zh-Hant" {
+        require(
+            containsCJK(trimmedLocalized),
+            "\(path) should contain Chinese text for \(key)"
+        )
+        require(
+            !hasHighEnglishSourceOverlap(localized: trimmedLocalized, english: trimmedEnglish),
+            "\(path) looks like pseudo-localized \(namespace) text for \(key): \(trimmedLocalized)"
         )
     }
 }
@@ -106,12 +243,25 @@ for language in languages {
         require(extra.isEmpty, "\(path) has keys not present in English fallback: \(extra.sorted().prefix(8).joined(separator: ", "))")
 
         for key in english.keys {
-            let basePlaceholders = placeholderSignature(english[key] ?? "")
-            let localizedPlaceholders = placeholderSignature(json[key] ?? "")
-            require(
-                basePlaceholders == localizedPlaceholders,
-                "\(path) placeholder mismatch for \(key): expected \(basePlaceholders), got \(localizedPlaceholders)"
-            )
+            if !isDynamicCatalogField(namespace, key) {
+                let basePlaceholders = placeholderSignature(english[key] ?? "")
+                let localizedPlaceholders = placeholderSignature(json[key] ?? "")
+                require(
+                    basePlaceholders == localizedPlaceholders,
+                    "\(path) placeholder mismatch for \(key): expected \(basePlaceholders), got \(localizedPlaceholders)"
+                )
+            }
+
+            if language != "en", isCatalogFieldThatMustBeLocalized(namespace: namespace, key: key) {
+                assertLocalizedPluginCatalogValue(
+                    language: language,
+                    namespace: namespace,
+                    key: key,
+                    localized: json[key] ?? "",
+                    english: english[key] ?? "",
+                    path: path
+                )
+            }
         }
     }
 }
@@ -162,12 +312,96 @@ for forbidden in ["Text(\"Settings\")", "Text(\"Local user\")", "Label(\"Model\"
 }
 
 let dashboardView = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-for token in ["I18n.skillDisplay", "localizedSkillDescription", "localizedSkillHelp", "loadSkillMarket()"] {
+for token in [
+    "I18n.skillDisplay",
+    "localizedSkillDescription",
+    "localizedSkillHelp",
+    "loadSkillMarket()",
+    "I18n.t(\"dashboard.alert.error\")",
+    "I18n.t(\"dashboard.agent.remove.title\")",
+    "I18n.t(\"dashboard.session.action.rename\")",
+    "I18n.t(\"dashboard.sidebar.pinned\")",
+    "I18n.t(\"dashboard.skills.title\")",
+    "I18n.t(\"dashboard.composer.mode.label\")"
+] {
     require(dashboardView.contains(token), "DashboardView skill surfaces should contain \(token)")
 }
 require(dashboardView.split(separator: "\n").filter { $0.contains("Task { await viewModel.loadSkills() }") || $0.contains("await viewModel.loadSkills()") }.isEmpty, "DashboardView skill display surfaces should load the catalog through loadSkillMarket() before rendering localized skill descriptions")
 for forbidden in ["Text(skill.description)", ".help(skill.description.isEmpty ? skill.name : skill.description)"] {
     require(!dashboardView.contains(forbidden), "DashboardView skill surfaces should not show raw skill descriptions when a catalog localization exists: \(forbidden)")
+}
+for forbidden in [
+    ".alert(\"Error\"",
+    ".alert(\"Remove Agent\"",
+    "Button(\"OK\"",
+    "Label(\"Rename\"",
+    "Label(\"Export…\"",
+    "Label(\"Archive\"",
+    "Label(\"Delete\"",
+    "title: \"Pinned\"",
+    ".help(\"Add Work Folder...\"",
+    "Label(\"Add Work Folder...\"",
+    "Text(\"Skills\")",
+    "Text(\"Loading…\")",
+    "Text(\"No skills detected\")",
+    "Text(\"Mode:\")",
+    "return \"Run Task\"",
+    "return \"Code Mode\""
+] {
+    require(!dashboardView.contains(forbidden), "DashboardView still has hardcoded dashboard UI text: \(forbidden)")
+}
+
+let dashboardI18nTargets: [(String, [String], [String])] = [
+    (
+        "OpenClawInstaller/Views/Dashboard/CronTabView.swift",
+        ["I18n.t(\"dashboard.cron.", "I18n.format(\"dashboard.cron.", "I18n.t(\"catalog.action."],
+        ["Text(\"Cron Jobs\")", "Text(\"Add Job\")", "Text(\"Refreshing...\")", "Button(\"Retry\"", ".alert(\"Remove Cron Job\"", "Text(\"Add Cron Job\")", "Text(\"Name\")", "Text(\"Cron Expression\")", "Text(\"Session Target\")", "Text(\"Message\")", "Button(\"Add\")"]
+    ),
+    (
+        "OpenClawInstaller/Views/Dashboard/ChannelsTabView.swift",
+        ["I18n.t(\"dashboard.channels.", "I18n.format(\"dashboard.channels.", "I18n.t(\"catalog.action."],
+        ["Text(\"Channels\")", "Text(\"Add Channel\")", "Text(\"Loading channels...\")", "Text(\"No channels configured\")", "Text(\"Add a channel to get started\")", ".alert(\"Remove Channel\"", "\"Configured\"", "\"Not Configured\"", "\"Linked\"", "\"Not Linked\""]
+    ),
+    (
+        "OpenClawInstaller/Views/Dashboard/ModelsTabView.swift",
+        ["I18n.t(\"dashboard.models.", "I18n.t(\"catalog.action."],
+        ["Text(\"Models\")", "Text(\"Loading models...\")", "Text(\"No models configured\")", "Text(\"For aliases and auth configuration, use:\")", "label: \"Default\"", "label: \"Image Model\"", "label: \"Fallbacks\"", "Text(\"Fallback Models\")", "Button(\"Set Default\")"]
+    ),
+    (
+        "OpenClawInstaller/Views/Dashboard/StatusTabView.swift",
+        ["I18n.t(\"dashboard.status.", "I18n.format(\"dashboard.status."],
+        ["Text(\"Port\")", "Text(\"Uptime\")", "Text(\"Version\")", "Text(\"Start\")", "Text(\"Stop\")", "Text(\"Restart\")", "Label(\"Agent Sessions\"", "Label(\"Cron Health\"", "Label(\"Token Usage\"", "Text(\"No token data\")", "Text(\"System Information\")"]
+    ),
+    (
+        "OpenClawInstaller/Views/Dashboard/LogsTabView.swift",
+        ["I18n.t(\"dashboard.logs."],
+        ["TextField(\"Search logs...\"", "Label(\"Auto\"", "Label(\"Refresh\"", "Label(\"Export\"", "Label(\"Open File\"", "Text(\"No Logs Available\")", "Text(\"Logs will appear here when the gateway service is running\")", "Logs exported successfully"]
+    ),
+    (
+        "OpenClawInstaller/Views/Dashboard/Inspector/WorkspaceInspectorPane.swift",
+        ["I18n.t(\"workspace.", "I18n.format(\"workspace.", "I18n.t(\"common.action."],
+        ["Text(\"Outputs\")", ".alert(\"Delete\"", "Text(\"No outputs yet\")", "Label(\"New File\"", "Label(\"New Folder\"", "Label(\"Rename\"", "Label(\"Cut\"", "Label(\"Copy\"", "Label(\"Paste\"", "TextField(\"Filter files...\"", "Text(\"No files\")", "Text(\"No matching files\")", ".help(\"Double-click to copy path\")"]
+    ),
+    (
+        "OpenClawInstaller/Views/Dashboard/ProjectWorkspace/AgentProjectFolderRow.swift",
+        ["I18n.t(\"workspace."],
+        [".help(\"New chat in project\")", "Label(\"New chat in project\"", "Label(\"Reveal in Finder\"", "Label(\"Remove from Agent\""]
+    ),
+    (
+        "OpenClawInstaller/Views/Shared/ErrorView.swift",
+        ["I18n.t(\"common.action.", "I18n.t(\"error."],
+        ["Text(\"Retry\")", "Text(\"Cancel\")", "Text(\"OK\")", "Text(\"Report Issue\")", "Error Report Copied", "Error details have been copied to your clipboard"]
+    )
+]
+
+for (path, requiredTokens, forbiddenTokens) in dashboardI18nTargets {
+    let source = read(path)
+    for token in requiredTokens {
+        require(source.contains(token), "\(path) should use unified i18n token \(token)")
+    }
+    for token in forbiddenTokens {
+        require(!source.contains(token), "\(path) still has hardcoded user-visible text: \(token)")
+    }
 }
 
 print("Unified i18n resources verification passed")

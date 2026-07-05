@@ -70,6 +70,7 @@ func slug(_ value: String) -> String {
 }
 
 let requiredFields = ["name", "division", "description", "vibe", "specialty", "whenToUse", "content"]
+let fieldsAllowedToPreserveEnglish = Set(["name", "specialty"])
 
 for agent in agents {
     guard let agentID = agent["id"] as? String else {
@@ -86,7 +87,7 @@ for agent in agents {
             fputs("FAIL: unified agents i18n is missing \(key)\n", stderr)
             exit(1)
         }
-        if field != "content" {
+        if !fieldsAllowedToPreserveEnglish.contains(field) {
             require(localizedValue != sourceValue, "\(key) still matches the English source text")
         }
     }

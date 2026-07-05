@@ -1,0 +1,30 @@
+{
+  "id": "asana",
+  "name": "Asana",
+  "displayName": "Asana",
+  "description": "Read and manage Asana",
+  "longDescription": "Work with your Asana tasks, subtasks, comments, due dates, and project details to create summaries, understand priorities, and prepare clear status updates.",
+  "version": "0.1.3",
+  "developerName": "Asana, Inc.",
+  "category": "Productivity",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "asana",
+    "tasks",
+    "project-management",
+    "productivity",
+    "collaboration",
+    "work-management"
+  ],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://asana.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

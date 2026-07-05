@@ -1,0 +1,12 @@
+{
+  "name": "third-bridge",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Seamlessly incorporate critical context and trusted insights from industry experts as part of your financia...",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

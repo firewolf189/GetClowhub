@@ -1,0 +1,12 @@
+{
+  "name": "notion",
+  "version": "0.1.3",
+  "type": "module",
+  "private": true,
+  "description": "Notion workflows for specs, research, meetings, and knowledge capture",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

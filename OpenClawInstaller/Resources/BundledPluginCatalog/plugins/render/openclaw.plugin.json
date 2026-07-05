@@ -1,0 +1,30 @@
+{
+  "id": "render",
+  "name": "Render",
+  "displayName": "Render",
+  "description": "Deploy, debug, monitor, and migrate apps on Render.",
+  "longDescription": "Provides skills for deploying apps with Blueprints, debugging failed deploys, monitoring service health and metrics, building Render Workflows, and migrating from Heroku.",
+  "version": "0.1.3",
+  "developerName": "Render",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "render",
+    "deploy",
+    "cloud",
+    "blueprint",
+    "monitoring",
+    "debugging"
+  ],
+  "icon": "./assets/logo.svg",
+  "homepageURL": "https://render.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

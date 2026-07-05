@@ -92,7 +92,7 @@ require(
 )
 require(
     source.contains("ChatTimelineSurface(") &&
-        source.contains("messages: viewModel.chatMessages"),
+        source.contains("messages: currentMessages"),
     "ChatView should pass messages into ChatTimelineSurface instead of mixing timeline layout with composer input state."
 )
 require(

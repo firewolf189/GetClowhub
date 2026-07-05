@@ -1,0 +1,12 @@
+{
+  "name": "particl-market-research",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "description": "Particl Market Research helps teams answer ecommerce research questions directly in OpenClaw.",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

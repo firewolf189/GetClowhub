@@ -1,0 +1,12 @@
+{
+  "name": "build-web-data-visualization",
+  "version": "0.1.21",
+  "type": "module",
+  "private": true,
+  "description": "Design, build, test, and export web data visualizations",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.adapter.js"
+    ]
+  }
+}

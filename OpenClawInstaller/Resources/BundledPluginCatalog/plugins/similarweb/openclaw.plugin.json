@@ -1,0 +1,20 @@
+{
+  "id": "similarweb",
+  "name": "Similarweb",
+  "displayName": "Similarweb",
+  "description": "Digital market intelligence and web traffic analytics",
+  "longDescription": "Digital market intelligence and web traffic analytics",
+  "version": "1.0.2",
+  "developerName": "Similarweb",
+  "category": "Data & Analytics",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.similarweb.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

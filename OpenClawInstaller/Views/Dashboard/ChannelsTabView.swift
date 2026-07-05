@@ -10,11 +10,11 @@ struct ChannelsTabView: View {
             VStack(spacing: 16) {
                 // Header
                 HStack {
-                    Text("Channels")
+                    Text(I18n.t("dashboard.channels.title"))
                         .font(.headline)
 
                     if !viewModel.channels.isEmpty {
-                        Text("(\(viewModel.channels.count) configured)")
+                        Text(I18n.format("dashboard.count.configured", Int64(viewModel.channels.count)))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -24,7 +24,7 @@ struct ChannelsTabView: View {
                     Button(action: { showAddSheet = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "plus")
-                            Text("Add Channel")
+                            Text(I18n.t("dashboard.channels.add"))
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -35,7 +35,7 @@ struct ChannelsTabView: View {
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.clockwise")
-                            Text("Refresh")
+                            Text(I18n.t("catalog.action.refresh"))
                         }
                     }
                     .buttonStyle(.bordered)
@@ -46,7 +46,7 @@ struct ChannelsTabView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                             .scaleEffect(1.2)
-                        Text("Loading channels...")
+                        Text(I18n.t("dashboard.channels.loading"))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -56,9 +56,9 @@ struct ChannelsTabView: View {
                         Image(systemName: "bubble.left.and.bubble.right")
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
-                        Text("No channels configured")
+                        Text(I18n.t("dashboard.channels.empty.title"))
                             .foregroundColor(.secondary)
-                        Text("Add a channel to get started")
+                        Text(I18n.t("dashboard.channels.empty.detail"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -133,13 +133,13 @@ struct ChannelRow: View {
                 // Status tags
                 HStack(spacing: 6) {
                     StatusTag(
-                        text: channel.configured ? "Configured" : "Not Configured",
+                        text: channel.configured ? I18n.t("dashboard.channels.status.configured") : I18n.t("dashboard.channels.status.notConfigured"),
                         color: channel.configured ? .green : .orange
                     )
 
                     if channel.configured {
                         StatusTag(
-                            text: channel.linked ? "Linked" : "Not Linked",
+                            text: channel.linked ? I18n.t("dashboard.channels.status.linked") : I18n.t("dashboard.channels.status.notLinked"),
                             color: channel.linked ? .green : .orange
                         )
                     }
@@ -170,11 +170,11 @@ struct ChannelRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .alert("Remove Channel", isPresented: $showRemoveConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Remove", role: .destructive) { onRemove() }
+        .alert(I18n.t("dashboard.channels.alert.removeTitle"), isPresented: $showRemoveConfirm) {
+            Button(I18n.t("catalog.action.cancel"), role: .cancel) {}
+            Button(I18n.t("catalog.action.remove"), role: .destructive) { onRemove() }
         } message: {
-            Text("Are you sure you want to remove the \(channel.name) channel? This will delete its configuration.")
+            Text(I18n.format("dashboard.channels.alert.removeMessage", channel.name))
         }
     }
 
@@ -251,21 +251,40 @@ struct AddChannelSheet: View {
         selectedChannel == "weixin"
     }
 
-    /// Map channel type to expected plugin ID
-    private var expectedPluginId: String {
+    /// Map channel type to known plugin ids/package aliases.
+    private var expectedPluginAliases: [String] {
         switch selectedChannel {
-        case "weixin": return "openclaw-weixin"
-        default: return selectedChannel
+        case "dingtalk": return ["dingtalk"]
+        case "weixin": return ["weixin", "openclaw-weixin"]
+        default: return [selectedChannel]
         }
     }
 
     /// Check if the plugin for the selected channel is installed
     private var isPluginInstalled: Bool {
         if !pluginsLoaded { return true } // Don't block while loading
-        let target = expectedPluginId.lowercased()
         return viewModel.plugins.contains { plugin in
-            plugin.pluginId.lowercased() == target
+            Self.pluginMatchesChannel(plugin, aliases: expectedPluginAliases)
         }
+    }
+
+    private static func pluginMatchesChannel(_ plugin: PluginInfo, aliases: [String]) -> Bool {
+        let fields = [plugin.pluginId, plugin.channel]
+            .map(normalizedPluginLookupText)
+
+        return aliases
+            .map(normalizedPluginLookupText)
+            .contains { alias in
+                fields.contains { field in
+                    field == alias || field.contains(alias)
+                }
+            }
+    }
+
+    private static func normalizedPluginLookupText(_ value: String) -> String {
+        value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
     }
 
     private var canAdd: Bool {
@@ -285,12 +304,12 @@ struct AddChannelSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text(String(localized: "Add Channel", bundle: LanguageManager.shared.localizedBundle))
+                Text(I18n.t("dashboard.channels.add"))
                     .font(.headline)
 
                 Spacer()
 
-                Button(String(localized: "Cancel", bundle: LanguageManager.shared.localizedBundle)) {
+                Button(I18n.t("catalog.action.cancel")) {
                     viewModel.resetWeixinLogin()
                     isPresented = false
                 }
@@ -303,7 +322,7 @@ struct AddChannelSheet: View {
             VStack(alignment: .leading, spacing: 16) {
                 // Channel picker
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(String(localized: "Channel Type", bundle: LanguageManager.shared.localizedBundle))
+                    Text(I18n.t("dashboard.channels.sheet.channelType"))
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -326,7 +345,7 @@ struct AddChannelSheet: View {
                 // Plugin not installed warning
                 if !isPluginInstalled {
                     Label(
-                        String(localized: "Plugin for \(selectedChannel.capitalized) is not installed. Please install the plugin first.", bundle: LanguageManager.shared.localizedBundle),
+                        I18n.format("dashboard.channels.sheet.pluginMissing", selectedChannel.capitalized),
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .font(.caption)
@@ -343,11 +362,11 @@ struct AddChannelSheet: View {
                                     .font(.system(size: 48))
                                     .foregroundColor(.secondary)
 
-                                Text(String(localized: "Click the button below to start WeChat QR login", bundle: LanguageManager.shared.localizedBundle))
+                                Text(I18n.t("dashboard.channels.sheet.qr.startHelp"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
 
-                                Button(String(localized: "Start QR Login", bundle: LanguageManager.shared.localizedBundle)) {
+                                Button(I18n.t("dashboard.channels.sheet.qr.start")) {
                                     viewModel.loginWeixinChannel()
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -359,7 +378,7 @@ struct AddChannelSheet: View {
                         case .waitingScan:
                             if let qrImage = viewModel.weixinQRImage {
                                 VStack(spacing: 8) {
-                                    Text(String(localized: "Scan with WeChat to connect", bundle: LanguageManager.shared.localizedBundle))
+                                    Text(I18n.t("dashboard.channels.sheet.qr.scan"))
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
 
@@ -374,7 +393,7 @@ struct AddChannelSheet: View {
                                     HStack(spacing: 8) {
                                         ProgressView()
                                             .scaleEffect(0.7)
-                                        Text(String(localized: "Waiting for scan...", bundle: LanguageManager.shared.localizedBundle))
+                                        Text(I18n.t("dashboard.channels.sheet.qr.waiting"))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
@@ -384,7 +403,7 @@ struct AddChannelSheet: View {
                                 VStack(spacing: 8) {
                                     ProgressView()
                                         .scaleEffect(1.2)
-                                    Text(String(localized: "Generating QR code...", bundle: LanguageManager.shared.localizedBundle))
+                                    Text(I18n.t("dashboard.channels.sheet.qr.generating"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -398,11 +417,11 @@ struct AddChannelSheet: View {
                                     .font(.system(size: 48))
                                     .foregroundColor(.green)
 
-                                Text(String(localized: "WeChat connected successfully!", bundle: LanguageManager.shared.localizedBundle))
+                                Text(I18n.t("dashboard.channels.sheet.qr.success"))
                                     .font(.subheadline)
                                     .fontWeight(.medium)
 
-                                Button(String(localized: "Done", bundle: LanguageManager.shared.localizedBundle)) {
+                                Button(I18n.t("dashboard.channels.sheet.done")) {
                                     viewModel.resetWeixinLogin()
                                     isPresented = false
                                 }
@@ -422,7 +441,7 @@ struct AddChannelSheet: View {
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
 
-                                Button(String(localized: "Retry", bundle: LanguageManager.shared.localizedBundle)) {
+                                Button(I18n.t("common.action.retry")) {
                                     viewModel.loginWeixinChannel()
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -433,24 +452,24 @@ struct AddChannelSheet: View {
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(String(localized: "Account ID", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.accountId"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
                         TextField("default", text: $accountId)
                             .textFieldStyle(.roundedBorder)
 
-                        Text(String(localized: "Use default for the primary account, or enter another ID to add multiple accounts for the same channel.", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.accountHelp"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(String(localized: "Display Name", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.displayName"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        TextField(String(localized: "Optional", bundle: LanguageManager.shared.localizedBundle), text: $displayName)
+                        TextField(I18n.t("dashboard.channels.sheet.optional"), text: $displayName)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -458,38 +477,38 @@ struct AddChannelSheet: View {
                 if usesAppKeyAuth {
                     // Credential inputs
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(String(localized: "App Key", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.appKey"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        SecureField(String(localized: "Enter App Key", bundle: LanguageManager.shared.localizedBundle), text: $appKey)
+                        SecureField(I18n.t("dashboard.channels.sheet.enterAppKey"), text: $appKey)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(String(localized: "App Secret", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.appSecret"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        SecureField(String(localized: "Enter App Secret", bundle: LanguageManager.shared.localizedBundle), text: $appSecret)
+                        SecureField(I18n.t("dashboard.channels.sheet.enterAppSecret"), text: $appSecret)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     Text(selectedChannel == "dingtalk"
-                         ? String(localized: "Go to DingTalk Open Platform to create an app and get the App Key and App Secret.", bundle: LanguageManager.shared.localizedBundle)
-                         : String(localized: "Go to Feishu Open Platform to create an app and get the App ID and App Secret.", bundle: LanguageManager.shared.localizedBundle))
+                         ? I18n.t("dashboard.channels.sheet.dingtalkHelp")
+                         : I18n.t("dashboard.channels.sheet.feishuHelp"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(String(localized: "Token", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.token"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        SecureField(String(localized: "Enter bot token or API key", bundle: LanguageManager.shared.localizedBundle), text: $token)
+                        SecureField(I18n.t("dashboard.channels.sheet.enterToken"), text: $token)
                             .textFieldStyle(.roundedBorder)
 
-                        Text(String(localized: "For Telegram/Discord: bot token. For Slack: bot token (xoxb-...). Other channels may require different credentials.", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.tokenHelp"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -498,7 +517,7 @@ struct AddChannelSheet: View {
                 // Tip (not for Weixin)
                 if !usesQRLogin {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(String(localized: "For channels with complex setup (Slack, Matrix, etc.), use the command line:", bundle: LanguageManager.shared.localizedBundle))
+                        Text(I18n.t("dashboard.channels.sheet.cliHelp"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Text("openclaw channels add --channel <type> --help")
@@ -517,7 +536,7 @@ struct AddChannelSheet: View {
                 HStack {
                     Spacer()
 
-                    Button(String(localized: "Add", bundle: LanguageManager.shared.localizedBundle)) {
+                    Button(I18n.t("common.action.add")) {
                         Task {
                             if usesAppKeyAuth {
                                 await viewModel.addChannel(
@@ -546,9 +565,7 @@ struct AddChannelSheet: View {
         }
         .frame(width: 480)
         .task {
-            if viewModel.plugins.isEmpty {
-                await viewModel.loadPlugins()
-            }
+            await viewModel.loadPlugins()
             pluginsLoaded = true
         }
     }

@@ -1,0 +1,20 @@
+{
+  "id": "dow-jones-factiva",
+  "name": "Dow Jones Factiva",
+  "displayName": "Dow Jones Factiva",
+  "description": "The Factiva Connector, enables authorized users to search Factiva’s global news archive, including premium...",
+  "longDescription": "The Factiva Connector, enables authorized users to search Factiva’s global news archive, including premium Dow Jones sources, and incorporate insights from that content into their OpenClaw responses.  \n\nUsers can research companies, industries, and markets and ground their  answers in licensed content, complete with citations and direct links to original articles.\n\nA subscription to Factiva is required. \n\nFactiva content may not be shared outside your organization or used for machine learning or AI training purposes. This connector may only be used with your organization’s OpenClaw instance.",
+  "version": "1.0.3",
+  "developerName": "Factiva, Inc.",
+  "category": "Education & Research",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.dowjones.com/business-intelligence/factiva/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

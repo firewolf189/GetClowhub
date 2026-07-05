@@ -1,0 +1,27 @@
+{
+  "id": "slack",
+  "name": "Slack",
+  "displayName": "Slack",
+  "description": "Read and manage Slack",
+  "longDescription": "Use Slack to summarize channels, draft messages, and organize team conversations through the connected Slack integration.",
+  "version": "0.1.2",
+  "developerName": "OpenAI",
+  "category": "Communication",
+  "capabilities": [
+    "Interactive",
+    "Write"
+  ],
+  "keywords": [
+    "slack",
+    "chat",
+    "collaboration"
+  ],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://slack.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

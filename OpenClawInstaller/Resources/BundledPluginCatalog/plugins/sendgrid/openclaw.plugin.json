@@ -1,0 +1,20 @@
+{
+  "id": "sendgrid",
+  "name": "SendGrid",
+  "displayName": "SendGrid",
+  "description": "Connector for interacting with the SendGrid email API.",
+  "longDescription": "Connector for interacting with the SendGrid email API.",
+  "version": "0.1.2",
+  "developerName": "OpenAI",
+  "category": "Developer Tools",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/app-icon.png",
+  "homepageURL": "https://sendgrid.com/",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

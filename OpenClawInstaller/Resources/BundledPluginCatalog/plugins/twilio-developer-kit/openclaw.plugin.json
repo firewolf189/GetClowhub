@@ -1,0 +1,42 @@
+{
+  "id": "twilio-developer-kit",
+  "name": "Twilio Developer Kit",
+  "displayName": "Twilio Developer Kit",
+  "description": "Twilio Skills for building, debugging, and shipping on Twilio",
+  "longDescription": "Procedural knowledge that guides AI coding agents to the right Twilio APIs for any use case. Covers channel selection, production best practices, compliance requirements, and common pitfalls across Messaging, Voice, Verify, SendGrid, and 30+ products. Skills follow a progressive disclosure architecture — your agent sees lightweight metadata at startup and loads full guidance only when a task matches.",
+  "version": "0.2.2",
+  "developerName": "Twilio",
+  "category": "Developer Tools",
+  "capabilities": [
+    "Read",
+    "Write"
+  ],
+  "keywords": [
+    "twilio",
+    "sms",
+    "voice",
+    "whatsapp",
+    "rcs",
+    "messaging",
+    "verify",
+    "sendgrid",
+    "email",
+    "compliance",
+    "conversation-relay",
+    "conversation-memory",
+    "conversation-intelligence",
+    "conversation-orchestrator",
+    "agent-connect",
+    "enterprise-knowledge",
+    "apple-messages-for-business",
+    "api"
+  ],
+  "icon": "./assets/logo.svg",
+  "homepageURL": "https://www.twilio.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

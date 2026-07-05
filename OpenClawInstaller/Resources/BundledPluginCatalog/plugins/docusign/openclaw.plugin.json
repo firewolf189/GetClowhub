@@ -1,0 +1,20 @@
+{
+  "id": "docusign",
+  "name": "Docusign",
+  "displayName": "Docusign",
+  "description": "Agreement envelopes, signing status, recipients, and contract dates",
+  "longDescription": "Agreement envelopes, signing status, recipients, and contract dates",
+  "version": "1.0.3",
+  "developerName": "Docusign",
+  "category": "Productivity",
+  "capabilities": [],
+  "keywords": [],
+  "icon": "./assets/logo.png",
+  "homepageURL": "https://www.docusign.com",
+  "repositoryURL": "https://github.com/zephyrwing-ai/GetClawHubPlugins",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
