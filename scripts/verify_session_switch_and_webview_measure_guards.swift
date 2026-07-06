@@ -24,9 +24,9 @@ func slice(_ text: String, from start: String, to end: String) -> String {
     return String(text[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let selectableMarkdown = read("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let selectableMarkdown = read("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
 let switchSession = slice(
     viewModel,
     from: "func switchSession(to sessionId: UUID)",

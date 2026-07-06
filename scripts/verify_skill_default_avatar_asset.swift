@@ -3,27 +3,29 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let skillsView = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Skills")
+    .appendingPathComponent("Views")
     .appendingPathComponent("SkillsTabView.swift")
 let dashboardView = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Dashboard")
     .appendingPathComponent("DashboardView.swift")
 let dashboardViewModel = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("ViewModels")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Dashboard")
     .appendingPathComponent("DashboardViewModel.swift")
 let configView = root
     .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
     .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
     .appendingPathComponent("ConfigTabView.swift")
 let appAppearance = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Models")
+    .appendingPathComponent("DesignSystem")
     .appendingPathComponent("AppAppearance.swift")
 
 func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

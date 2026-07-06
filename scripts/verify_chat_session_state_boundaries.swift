@@ -22,12 +22,12 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
     }
 }
 
-let dashboardViewModel = try contents("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let chatRuntimeState = try contents("OpenClawInstaller/ViewModels/ChatRuntimeState.swift")
-let taskActivityState = try contents("OpenClawInstaller/ViewModels/TaskActivityState.swift")
-let sessionNavigationState = try contents("OpenClawInstaller/ViewModels/SessionNavigationState.swift")
-let dashboardView = try contents("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let chatTimelineSurface = try contents("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift")
+let dashboardViewModel = try contents("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let chatRuntimeState = try contents("OpenClawInstaller/Features/Chat/State/ChatRuntimeState.swift")
+let taskActivityState = try contents("OpenClawInstaller/Features/Chat/State/TaskActivityState.swift")
+let sessionNavigationState = try contents("OpenClawInstaller/Features/Sessions/State/SessionNavigationState.swift")
+let dashboardView = try contents("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let chatTimelineSurface = try contents("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
 
 let dashboardPublishedBlockedNames = [
     "chatMessagesByAgent",
@@ -112,10 +112,12 @@ for name in [
 }
 
 try require(
-    dashboardViewModel.contains("let chatState = ChatRuntimeState()") &&
-        dashboardViewModel.contains("let taskState = TaskActivityState()") &&
-        dashboardViewModel.contains("let sessionState = SessionNavigationState()"),
-    "DashboardViewModel should compose chat/task/session stores without publishing their high-churn fields itself."
+    dashboardViewModel.contains("let chatViewModel = ChatViewModel()") &&
+        dashboardViewModel.contains("let sessionNavigationViewModel = SessionNavigationViewModel()") &&
+        dashboardViewModel.contains("var chatState: ChatRuntimeState { chatViewModel.runtimeState }") &&
+        dashboardViewModel.contains("var taskState: TaskActivityState { chatViewModel.taskState }") &&
+        dashboardViewModel.contains("var sessionState: SessionNavigationState { sessionNavigationViewModel.state }"),
+    "DashboardViewModel should compose chat/session feature view models and expose only compatibility facades for high-churn stores."
 )
 
 try require(

@@ -24,7 +24,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let sessionChangeHandler = slice(
     dashboard,
     from: ".onChange(of: currentActiveSessionId)",

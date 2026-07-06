@@ -5,11 +5,19 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let configURL = root
     .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
     .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
     .appendingPathComponent("ConfigTabView.swift")
+let settingsShellURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Views")
+    .appendingPathComponent("SettingsShellView.swift")
 
 let config = try String(contentsOf: configURL, encoding: .utf8)
+let settingsShell = try String(contentsOf: settingsShellURL, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     if !condition() {
@@ -28,20 +36,21 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let settingsSidebar = slice(
-    config,
+    settingsShell,
     from: "private struct SettingsSectionSidebar: View",
     to: "private struct SettingsSectionRow: View"
 )
 
 require(
-    config.contains("private struct SettingsSectionRow: View"),
+    !config.contains("private struct SettingsSectionSidebar: View") &&
+        settingsShell.contains("private struct SettingsSectionRow: View"),
     "Settings sidebar should use a dedicated row view so the full hit area is enforced in one place."
 )
 
 let settingsRow = slice(
-    config,
+    settingsShell,
     from: "private struct SettingsSectionRow: View",
-    to: "private struct SettingsCard<Content: View>: View"
+    to: "private extension SettingsShellView"
 )
 
 require(

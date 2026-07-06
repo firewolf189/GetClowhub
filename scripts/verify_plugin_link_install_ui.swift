@@ -1,8 +1,8 @@
 import Foundation
 
-let pluginsTabURL = URL(fileURLWithPath: "OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
-let pluginsModelURL = URL(fileURLWithPath: "OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabModel.swift")
-let viewModelURL = URL(fileURLWithPath: "OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let pluginsTabURL = URL(fileURLWithPath: "OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
+let pluginsModelURL = URL(fileURLWithPath: "OpenClawInstaller/Features/Plugins/ViewModels/PluginListViewModel.swift")
+let viewModelURL = URL(fileURLWithPath: "OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 let pluginsTab = try String(contentsOf: pluginsTabURL, encoding: .utf8)
 let pluginsModel = try String(contentsOf: pluginsModelURL, encoding: .utf8)
 let viewModel = try String(contentsOf: viewModelURL, encoding: .utf8)

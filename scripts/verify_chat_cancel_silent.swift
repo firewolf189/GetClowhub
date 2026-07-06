@@ -23,8 +23,8 @@ func slice(_ source: String, from start: String, to end: String) -> String {
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = try read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let viewModel = try read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 
 let abortBranch = slice(
     viewModel,

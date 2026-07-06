@@ -3,7 +3,7 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let sourceURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
+let sourceURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
 let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {

@@ -29,14 +29,14 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let dashboardViewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let config = read("OpenClawInstaller/Views/Dashboard/ConfigTabView.swift")
-let plugins = read("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
-let workspaceInspector = read("OpenClawInstaller/Views/Dashboard/Inspector/WorkspaceInspectorPane.swift")
-let agentProjectFolderRow = read("OpenClawInstaller/Views/Dashboard/ProjectWorkspace/AgentProjectFolderRow.swift")
-let agentAvatarImage = read("OpenClawInstaller/Views/Shared/AgentAvatarImage.swift")
-let workspaceFolderIcon = read("OpenClawInstaller/Views/Shared/WorkspaceFolderIcon.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboardViewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let config = read("OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift")
+let plugins = read("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
+let workspaceInspector = read("OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift")
+let agentProjectFolderRow = read("OpenClawInstaller/Features/Workspace/Views/ProjectWorkspace/AgentProjectFolderRow.swift")
+let agentAvatarImage = read("OpenClawInstaller/DesignSystem/Icons/AgentAvatarImage.swift")
+let workspaceFolderIcon = read("OpenClawInstaller/DesignSystem/Icons/WorkspaceFolderIcon.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 let assetBase = "OpenClawInstaller/Assets.xcassets"
 expect(dashboard.contains(#"navRow(.plugins, title: String(localized: "Plugins", bundle: languageManager.localizedBundle), systemImage: "powerplug.portrait")"#), "Dashboard sidebar Plugins row should use the system powerplug.portrait icon")

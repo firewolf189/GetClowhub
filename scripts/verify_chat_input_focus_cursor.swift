@@ -30,9 +30,9 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let subAgents = read("OpenClawInstaller/Views/Agent/SubAgentsTabView.swift")
-let chatComposer = read("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let subAgents = read("OpenClawInstaller/Features/Agents/SubAgents/SubAgentsTabView.swift")
+let chatComposer = read("OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift")
 
 let typography = slice(
     dashboard,

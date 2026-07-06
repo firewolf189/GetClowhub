@@ -6,7 +6,7 @@ import Foundation
 // embedded test harness via swiftc, run the binary, and propagate its status.
 
 let repoRoot = FileManager.default.currentDirectoryPath
-let processorSource = "\(repoRoot)/OpenClawInstaller/Services/AttachmentProcessor.swift"
+let processorSource = "\(repoRoot)/OpenClawInstaller/Features/Chat/Services/AttachmentProcessor.swift"
 
 guard FileManager.default.fileExists(atPath: processorSource) else {
     fputs("FAIL: AttachmentProcessor.swift not found at \(processorSource)\n", stderr)
@@ -14,7 +14,7 @@ guard FileManager.default.fileExists(atPath: processorSource) else {
 }
 
 // Static checks on the view model wiring first (cheap).
-let dashboardSource = try String(contentsOfFile: "\(repoRoot)/OpenClawInstaller/ViewModels/DashboardViewModel.swift", encoding: .utf8)
+let dashboardSource = try String(contentsOfFile: "\(repoRoot)/OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift", encoding: .utf8)
 guard dashboardSource.contains("AttachmentProcessor") else {
     fputs("FAIL: DashboardViewModel should delegate attachment processing\n", stderr)
     exit(1)

@@ -7,8 +7,8 @@ import Foundation
 
 let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let appSources = [
-    "OpenClawInstaller/Services/PluginCatalogService.swift",
-    "OpenClawInstaller/Models/PluginCatalogItem.swift",
+    "OpenClawInstaller/Features/Plugins/Services/PluginCatalogService.swift",
+    "OpenClawInstaller/Features/Plugins/Models/PluginCatalogItem.swift",
 ]
 
 let driverSource = #"""

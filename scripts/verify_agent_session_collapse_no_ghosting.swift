@@ -30,7 +30,17 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let agentSectionContent = slice(
+    dashboard,
+    from: "private var agentSectionContent: some View",
+    to: "// MARK: - Sidebar Bottom Bar"
+)
+let collapsedAgentsBlock = slice(
+    agentSectionContent,
+    from: "if !areAgentsCollapsed {",
+    to: ".animation(.spring(response: 0.28, dampingFraction: 0.86), value: areAgentsCollapsed)"
+)
 // Agent session rows now expand/collapse inside SidebarCollapsibleRow.
 // Ghosting during collapse is prevented by clipping the animated child
 // block and the whole row container while using an identity removal transition.
@@ -89,6 +99,21 @@ assertContains(
     sidebarCollapsibleRow,
     ".clipped()",
     "collapsible rows should clip animated children during expand/collapse"
+)
+assertContains(
+    collapsedAgentsBlock,
+    ".transition(.asymmetric(insertion: .opacity, removal: .identity))",
+    "collapsing the Agent section should not move old agent rows during removal"
+)
+assertContains(
+    collapsedAgentsBlock,
+    ".clipped()",
+    "the whole Agent section list should clip during title-level collapse to avoid ghosting"
+)
+assertNotContains(
+    agentSectionContent,
+    ".transition(.move(edge: .top).combined(with: .opacity))",
+    "Agent title collapse must not use a moving removal transition that can leave ghosted titles"
 )
 
 print("Agent session collapse ghosting checks passed")

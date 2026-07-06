@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		3564104A2F5802970045A6F7 /* InstallationWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564103B2F5802970045A6F7 /* InstallationWizardView.swift */; };
 		3564104B2F5802970045A6F7 /* ConfigTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410332F5802970045A6F7 /* ConfigTabView.swift */; };
+		SSSV000000000000000001 /* SettingsShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSSV000000000000000002 /* SettingsShellView.swift */; };
 		3564104C2F5802970045A6F7 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410452F5802970045A6F7 /* AppDelegate.swift */; };
 		3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410282F5802970045A6F7 /* CommandExecutor.swift */; };
 		3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410252F5802970045A6F7 /* SystemEnvironment.swift */; };
@@ -32,19 +33,37 @@
 		356410602F5802970045A6F7 /* NodeInstallationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564103C2F5802970045A6F7 /* NodeInstallationView.swift */; };
 		356410612F5802970045A6F7 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410302F5802970045A6F7 /* DashboardViewModel.swift */; };
 		DM01AB01C2D3E4F5A6B70001 /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */; };
-		WX01AB01C2D3E4F5A6B70001 /* DashboardViewModel+WeixinLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = WX01AB02C2D3E4F5A6B70002 /* DashboardViewModel+WeixinLogin.swift */; };
-		PL01AB01C2D3E4F5A6B70001 /* DashboardViewModel+PluginManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = PL01AB02C2D3E4F5A6B70002 /* DashboardViewModel+PluginManagement.swift */; };
-		CH01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ChannelManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = CH01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChannelManagement.swift */; };
-		CR01AB01C2D3E4F5A6B70001 /* DashboardViewModel+CronManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR01AB02C2D3E4F5A6B70002 /* DashboardViewModel+CronManagement.swift */; };
-		BG01AB01C2D3E4F5A6B70001 /* DashboardViewModel+BudgetManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = BG01AB02C2D3E4F5A6B70002 /* DashboardViewModel+BudgetManagement.swift */; };
-		MM01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ModelManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = MM01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ModelManagement.swift */; };
-		SK01AB01C2D3E4F5A6B70001 /* DashboardViewModel+SkillsManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = SK01AB02C2D3E4F5A6B70002 /* DashboardViewModel+SkillsManagement.swift */; };
-		AS01AB01C2D3E4F5A6B70001 /* DashboardViewModel+AgentSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AS01AB02C2D3E4F5A6B70002 /* DashboardViewModel+AgentSettings.swift */; };
-		ST01AB01C2D3E4F5A6B70001 /* DashboardViewModel+StatusMonitoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST01AB02C2D3E4F5A6B70002 /* DashboardViewModel+StatusMonitoring.swift */; };
-		IF01AB01C2D3E4F5A6B70001 /* DashboardViewModel+InFlightRuns.swift in Sources */ = {isa = PBXBuildFile; fileRef = IF01AB02C2D3E4F5A6B70002 /* DashboardViewModel+InFlightRuns.swift */; };
-		CP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ConfigProviderLogs.swift in Sources */ = {isa = PBXBuildFile; fileRef = CP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ConfigProviderLogs.swift */; };
-		SP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+SessionPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = SP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+SessionPersistence.swift */; };
-		HP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ChatHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = HP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChatHelpers.swift */; };
+		CHMODEL00000000000001 /* ChannelInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHMODEL00000000000002 /* ChannelInfo.swift */; };
+		MDMODEL00000000000001 /* ModelInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDMODEL00000000000002 /* ModelInfo.swift */; };
+		CHMSG000000000000001 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHMSG000000000000002 /* ChatMessage.swift */; };
+		CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CTM000000000000000000002 /* ChatTimelineModels.swift */; };
+		CHEVT000000000000001 /* ChatActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHEVT000000000000002 /* ChatActivityEvent.swift */; };
+		SKINFO00000000000001 /* SkillInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKINFO00000000000002 /* SkillInfo.swift */; };
+		AGOPT000000000000001 /* AgentOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGOPT000000000000002 /* AgentOption.swift */; };
+		PMGRP000000000000001 /* ProviderModelGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = PMGRP000000000000002 /* ProviderModelGroup.swift */; };
+		CRINFO00000000000001 /* CronJobInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CRINFO00000000000002 /* CronJobInfo.swift */; };
+		SSUMM000000000000001 /* SessionsSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSUMM000000000000002 /* SessionsSummary.swift */; };
+		CHATVM00000000000001 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHATVM00000000000002 /* ChatViewModel.swift */; };
+		SNAVVM00000000000001 /* SessionNavigationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SNAVVM00000000000002 /* SessionNavigationViewModel.swift */; };
+		CHLVM000000000000001 /* ChannelListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHLVM000000000000002 /* ChannelListViewModel.swift */; };
+		WXVM0000000000000001 /* WeixinChannelViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = WXVM0000000000000002 /* WeixinChannelViewModel.swift */; };
+		CRJVM000000000000001 /* CronJobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CRJVM000000000000002 /* CronJobsViewModel.swift */; };
+		STSUMVM0000000000001 /* StatusSummaryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = STSUMVM0000000000002 /* StatusSummaryViewModel.swift */; };
+		MDSETVM0000000000001 /* ModelSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDSETVM0000000000002 /* ModelSettingsViewModel.swift */; };
+		WX01AB01C2D3E4F5A6B70001 /* WeixinLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = WX01AB02C2D3E4F5A6B70002 /* WeixinLogin.swift */; };
+		PL01AB01C2D3E4F5A6B70001 /* PluginManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = PL01AB02C2D3E4F5A6B70002 /* PluginManagement.swift */; };
+		CH01AB01C2D3E4F5A6B70001 /* ChannelManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = CH01AB02C2D3E4F5A6B70002 /* ChannelManagement.swift */; };
+		CR01AB01C2D3E4F5A6B70001 /* CronManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR01AB02C2D3E4F5A6B70002 /* CronManagement.swift */; };
+		BG01AB01C2D3E4F5A6B70001 /* BudgetManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = BG01AB02C2D3E4F5A6B70002 /* BudgetManagement.swift */; };
+		MM01AB01C2D3E4F5A6B70001 /* ModelManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = MM01AB02C2D3E4F5A6B70002 /* ModelManagement.swift */; };
+		SK01AB01C2D3E4F5A6B70001 /* SkillsManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = SK01AB02C2D3E4F5A6B70002 /* SkillsManagement.swift */; };
+		AGSET01C2D3E4F5A6B70001 /* AgentSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGSET02C2D3E4F5A6B70002 /* AgentSettings.swift */; };
+		AS01AB01C2D3E4F5A6B70001 /* ProviderModelSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AS01AB02C2D3E4F5A6B70002 /* ProviderModelSettings.swift */; };
+		ST01AB01C2D3E4F5A6B70001 /* StatusMonitoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST01AB02C2D3E4F5A6B70002 /* StatusMonitoring.swift */; };
+		IF01AB01C2D3E4F5A6B70001 /* InFlightRuns.swift in Sources */ = {isa = PBXBuildFile; fileRef = IF01AB02C2D3E4F5A6B70002 /* InFlightRuns.swift */; };
+		CP01AB01C2D3E4F5A6B70001 /* ConfigProviderLogs.swift in Sources */ = {isa = PBXBuildFile; fileRef = CP01AB02C2D3E4F5A6B70002 /* ConfigProviderLogs.swift */; };
+		SP01AB01C2D3E4F5A6B70001 /* SessionPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = SP01AB02C2D3E4F5A6B70002 /* SessionPersistence.swift */; };
+		HP01AB01C2D3E4F5A6B70001 /* ChatHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = HP01AB02C2D3E4F5A6B70002 /* ChatHelpers.swift */; };
 		356410622F5802970045A6F7 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102D2F5802970045A6F7 /* PermissionManager.swift */; };
 		356410632F5802970045A6F7 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410412F5802970045A6F7 /* ErrorView.swift */; };
 		356410642F5802970045A6F7 /* OpenClawService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102C2F5802970045A6F7 /* OpenClawService.swift */; };
@@ -118,7 +137,7 @@
 		PLCAT0000000000000003 /* PluginCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLCAT0000000000000004 /* PluginCatalogService.swift */; };
 		PLBUNDLE0000000000001 /* BundledPluginCatalog in Resources */ = {isa = PBXBuildFile; fileRef = PLBUNDLE0000000000002 /* BundledPluginCatalog */; };
 		PLBOOT000000000000001 /* RecommendedPluginBootstrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLBOOT000000000000002 /* RecommendedPluginBootstrapper.swift */; };
-		PLGMOD000000000000001 /* PluginsTabModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLGMOD000000000000002 /* PluginsTabModel.swift */; };
+		PLGMOD000000000000001 /* PluginListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLGMOD000000000000002 /* PluginListViewModel.swift */; };
 		PLINF0000000000000001 /* PluginInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLINF0000000000000002 /* PluginInfo.swift */; };
 		PLPAR0000000000000001 /* PluginListParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLPAR0000000000000002 /* PluginListParser.swift */; };
 		PMFS0001C2D3E4F5A6B70001 /* ProviderModelFetchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PMFS0002C2D3E4F5A6B70002 /* ProviderModelFetchService.swift */; };
@@ -135,13 +154,19 @@
 		SKBOOT000000000000001 /* RecommendedSkillBootstrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKBOOT000000000000002 /* RecommendedSkillBootstrapper.swift */; };
 		SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000002 /* SkillCatalogItem.swift */; };
 		SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCAT0000000000000004 /* SkillCatalogService.swift */; };
+		SKPARSE0000000000001 /* SkillsParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKPARSE0000000000002 /* SkillsParser.swift */; };
 		SKINST000000000000001 /* SkillInstallStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKINST000000000000002 /* SkillInstallStateStore.swift */; };
-		SKLMOD000000000000001 /* SkillsTabModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKLMOD000000000000002 /* SkillsTabModel.swift */; };
+		SKLMOD000000000000001 /* SkillsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKLMOD000000000000002 /* SkillsViewModel.swift */; };
 		SKSRC0000000000000001 /* SkillSourcePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKSRC0000000000000002 /* SkillSourcePresentation.swift */; };
 		SKTRUST00000000000001 /* SkillTrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKTRUST00000000000002 /* SkillTrustStore.swift */; };
 		SMV000000000000000000001 /* SelectableMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SMV000000000000000000002 /* SelectableMarkdownView.swift */; };
 		SRMS0001D1E2F3A4B5C60001 /* SemanticRepoMapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SRMS0002D1E2F3A4B5C60002 /* SemanticRepoMapService.swift */; };
+		SSBILL000000000000001 /* SettingsShortcutBillingSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSBILL000000000000002 /* SettingsShortcutBillingSummary.swift */; };
 		SSPN000000000000000001 /* SettingsShortcutPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSPN000000000000000002 /* SettingsShortcutPanel.swift */; };
+		SSMN000000000000000001 /* SettingsShortcutMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSMN000000000000000002 /* SettingsShortcutMenu.swift */; };
+		SSRW000000000000000001 /* SettingsShortcutRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSRW000000000000000002 /* SettingsShortcutRows.swift */; };
+		SSST000000000000000001 /* SettingsShortcutStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSST000000000000000002 /* SettingsShortcutStyle.swift */; };
+		SSSTATE000000000000001 /* SettingsShortcutState.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSSTATE000000000000002 /* SettingsShortcutState.swift */; };
 		STP000000000000000000001 /* SessionTitleUserMessagesPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = STP000000000000000000002 /* SessionTitleUserMessagesPopover.swift */; };
 		TSSTATE000000000000001 /* TaskActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSSTATE000000000000002 /* TaskActivityState.swift */; };
 		USCH0000000000000001 /* UnifiedSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = USCH0000000000000002 /* UnifiedSearchField.swift */; };
@@ -154,147 +179,172 @@
 
 /* Begin PBXFileReference section */
 		356410142F58023C0045A6F7 /* GetClawHub.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GetClawHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		356410222F5802970045A6F7 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
-		356410232F5802970045A6F7 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		356410242F5802970045A6F7 /* InstallationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationState.swift; sourceTree = "<group>"; };
-		356410252F5802970045A6F7 /* SystemEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemEnvironment.swift; sourceTree = "<group>"; };
-		356410282F5802970045A6F7 /* CommandExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandExecutor.swift; sourceTree = "<group>"; };
-		356410292F5802970045A6F7 /* DiagnosticService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticService.swift; sourceTree = "<group>"; };
-		3564102A2F5802970045A6F7 /* NodeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInstaller.swift; sourceTree = "<group>"; };
-		3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawInstaller.swift; sourceTree = "<group>"; };
-		3564102C2F5802970045A6F7 /* OpenClawService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawService.swift; sourceTree = "<group>"; };
-		3564102D2F5802970045A6F7 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
-		3564102E2F5802970045A6F7 /* SparkleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleUpdater.swift; sourceTree = "<group>"; };
-		356410302F5802970045A6F7 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
-		DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
-		WX01AB02C2D3E4F5A6B70002 /* DashboardViewModel+WeixinLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+WeixinLogin.swift"; sourceTree = "<group>"; };
-		PL01AB02C2D3E4F5A6B70002 /* DashboardViewModel+PluginManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+PluginManagement.swift"; sourceTree = "<group>"; };
-		CH01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChannelManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+ChannelManagement.swift"; sourceTree = "<group>"; };
-		CR01AB02C2D3E4F5A6B70002 /* DashboardViewModel+CronManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+CronManagement.swift"; sourceTree = "<group>"; };
-		BG01AB02C2D3E4F5A6B70002 /* DashboardViewModel+BudgetManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+BudgetManagement.swift"; sourceTree = "<group>"; };
-		MM01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ModelManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+ModelManagement.swift"; sourceTree = "<group>"; };
-		SK01AB02C2D3E4F5A6B70002 /* DashboardViewModel+SkillsManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+SkillsManagement.swift"; sourceTree = "<group>"; };
-		AS01AB02C2D3E4F5A6B70002 /* DashboardViewModel+AgentSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+AgentSettings.swift"; sourceTree = "<group>"; };
-		ST01AB02C2D3E4F5A6B70002 /* DashboardViewModel+StatusMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+StatusMonitoring.swift"; sourceTree = "<group>"; };
-		IF01AB02C2D3E4F5A6B70002 /* DashboardViewModel+InFlightRuns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+InFlightRuns.swift"; sourceTree = "<group>"; };
-		CP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ConfigProviderLogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+ConfigProviderLogs.swift"; sourceTree = "<group>"; };
-		SP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+SessionPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+SessionPersistence.swift"; sourceTree = "<group>"; };
-		HP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChatHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardViewModel+ChatHelpers.swift"; sourceTree = "<group>"; };
-		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationViewModel.swift; sourceTree = "<group>"; };
-		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigTabView.swift; sourceTree = "<group>"; };
-		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
-		356410352F5802970045A6F7 /* LogsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsTabView.swift; sourceTree = "<group>"; };
-		356410362F5802970045A6F7 /* StatusTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusTabView.swift; sourceTree = "<group>"; };
-		356410382F5802970045A6F7 /* CompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionView.swift; sourceTree = "<group>"; };
-		356410392F5802970045A6F7 /* ConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationView.swift; sourceTree = "<group>"; };
-		3564103A2F5802970045A6F7 /* EnvironmentCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentCheckView.swift; sourceTree = "<group>"; };
-		3564103B2F5802970045A6F7 /* InstallationWizardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationWizardView.swift; sourceTree = "<group>"; };
-		3564103C2F5802970045A6F7 /* NodeInstallationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInstallationView.swift; sourceTree = "<group>"; };
-		3564103D2F5802970045A6F7 /* OpenClawInstallationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawInstallationView.swift; sourceTree = "<group>"; };
-		3564103E2F5802970045A6F7 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
-		356410412F5802970045A6F7 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
-		356410432F5802970045A6F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		356410452F5802970045A6F7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		356410222F5802970045A6F7 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Shared/Models/AppError.swift"; sourceTree = SOURCE_ROOT; };
+		356410232F5802970045A6F7 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Shared/Models/AppSettings.swift"; sourceTree = SOURCE_ROOT; };
+		356410242F5802970045A6F7 /* InstallationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/InstallationState.swift"; sourceTree = SOURCE_ROOT; };
+		356410252F5802970045A6F7 /* SystemEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/SystemEnvironment.swift"; sourceTree = SOURCE_ROOT; };
+		356410282F5802970045A6F7 /* CommandExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/CommandExecutor.swift"; sourceTree = SOURCE_ROOT; };
+		356410292F5802970045A6F7 /* DiagnosticService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/DiagnosticService.swift"; sourceTree = SOURCE_ROOT; };
+		3564102A2F5802970045A6F7 /* NodeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/NodeInstaller.swift"; sourceTree = SOURCE_ROOT; };
+		3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/OpenClawInstaller.swift"; sourceTree = SOURCE_ROOT; };
+		3564102C2F5802970045A6F7 /* OpenClawService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/OpenClawService.swift"; sourceTree = SOURCE_ROOT; };
+		3564102D2F5802970045A6F7 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/PermissionManager.swift"; sourceTree = SOURCE_ROOT; };
+		3564102E2F5802970045A6F7 /* SparkleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/SparkleUpdater.swift"; sourceTree = SOURCE_ROOT; };
+			356410302F5802970045A6F7 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardModels.swift"; sourceTree = SOURCE_ROOT; };
+			CHMODEL00000000000002 /* ChannelInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/Models/ChannelInfo.swift"; sourceTree = SOURCE_ROOT; };
+			MDMODEL00000000000002 /* ModelInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/Models/ModelInfo.swift"; sourceTree = SOURCE_ROOT; };
+			CHMSG000000000000002 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatMessage.swift"; sourceTree = SOURCE_ROOT; };
+			CTM000000000000000000002 /* ChatTimelineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift"; sourceTree = SOURCE_ROOT; };
+			CHEVT000000000000002 /* ChatActivityEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatActivityEvent.swift"; sourceTree = SOURCE_ROOT; };
+			SKINFO00000000000002 /* SkillInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Models/SkillInfo.swift"; sourceTree = SOURCE_ROOT; };
+			AGOPT000000000000002 /* AgentOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Models/AgentOption.swift"; sourceTree = SOURCE_ROOT; };
+			PMGRP000000000000002 /* ProviderModelGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/Models/ProviderModelGroup.swift"; sourceTree = SOURCE_ROOT; };
+			CRINFO00000000000002 /* CronJobInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Cron/Models/CronJobInfo.swift"; sourceTree = SOURCE_ROOT; };
+			CHATVM00000000000002 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/ViewModels/ChatViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			SNAVVM00000000000002 /* SessionNavigationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/ViewModels/SessionNavigationViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			CHLVM000000000000002 /* ChannelListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/ViewModels/ChannelListViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			WXVM0000000000000002 /* WeixinChannelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/Implementations/Weixin/WeixinChannelViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			CRJVM000000000000002 /* CronJobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Cron/ViewModels/CronJobsViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			MDSETVM0000000000002 /* ModelSettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/ViewModels/ModelSettingsViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			WX01AB02C2D3E4F5A6B70002 /* WeixinLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/Implementations/Weixin/WeixinLogin.swift"; sourceTree = SOURCE_ROOT; };
+		PL01AB02C2D3E4F5A6B70002 /* PluginManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/PluginManagement.swift"; sourceTree = SOURCE_ROOT; };
+		CH01AB02C2D3E4F5A6B70002 /* ChannelManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/Core/ChannelManagement.swift"; sourceTree = SOURCE_ROOT; };
+		CR01AB02C2D3E4F5A6B70002 /* CronManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Cron/CronManagement.swift"; sourceTree = SOURCE_ROOT; };
+		BG01AB02C2D3E4F5A6B70002 /* BudgetManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Budget/BudgetManagement.swift"; sourceTree = SOURCE_ROOT; };
+		MM01AB02C2D3E4F5A6B70002 /* ModelManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/ModelManagement.swift"; sourceTree = SOURCE_ROOT; };
+		SK01AB02C2D3E4F5A6B70002 /* SkillsManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/SkillsManagement.swift"; sourceTree = SOURCE_ROOT; };
+		AGSET02C2D3E4F5A6B70002 /* AgentSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Core/AgentSettings.swift"; sourceTree = SOURCE_ROOT; };
+		AS01AB02C2D3E4F5A6B70002 /* ProviderModelSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelSettings.swift"; sourceTree = SOURCE_ROOT; };
+		ST01AB02C2D3E4F5A6B70002 /* StatusMonitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/StatusMonitoring.swift"; sourceTree = SOURCE_ROOT; };
+		IF01AB02C2D3E4F5A6B70002 /* InFlightRuns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/InFlightRuns.swift"; sourceTree = SOURCE_ROOT; };
+		CP01AB02C2D3E4F5A6B70002 /* ConfigProviderLogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ConfigProviderLogs.swift"; sourceTree = SOURCE_ROOT; };
+		SP01AB02C2D3E4F5A6B70002 /* SessionPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/SessionPersistence.swift"; sourceTree = SOURCE_ROOT; };
+		HP01AB02C2D3E4F5A6B70002 /* ChatHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/ChatHelpers.swift"; sourceTree = SOURCE_ROOT; };
+		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/InstallationViewModel.swift"; sourceTree = SOURCE_ROOT; };
+		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift"; sourceTree = SOURCE_ROOT; };
+		SSSV000000000000000002 /* SettingsShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Views/SettingsShellView.swift"; sourceTree = SOURCE_ROOT; };
+		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardView.swift"; sourceTree = SOURCE_ROOT; };
+		356410352F5802970045A6F7 /* LogsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/Views/LogsTabView.swift"; sourceTree = SOURCE_ROOT; };
+		356410362F5802970045A6F7 /* StatusTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/Views/StatusTabView.swift"; sourceTree = SOURCE_ROOT; };
+		356410382F5802970045A6F7 /* CompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/Views/CompletionView.swift"; sourceTree = SOURCE_ROOT; };
+		356410392F5802970045A6F7 /* ConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/Views/ConfigurationView.swift"; sourceTree = SOURCE_ROOT; };
+		3564103A2F5802970045A6F7 /* EnvironmentCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/Views/EnvironmentCheckView.swift"; sourceTree = SOURCE_ROOT; };
+		3564103B2F5802970045A6F7 /* InstallationWizardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/Views/InstallationWizardView.swift"; sourceTree = SOURCE_ROOT; };
+		3564103C2F5802970045A6F7 /* NodeInstallationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/Views/NodeInstallationView.swift"; sourceTree = SOURCE_ROOT; };
+		3564103D2F5802970045A6F7 /* OpenClawInstallationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/Views/OpenClawInstallationView.swift"; sourceTree = SOURCE_ROOT; };
+		3564103E2F5802970045A6F7 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/Views/WelcomeView.swift"; sourceTree = SOURCE_ROOT; };
+		356410412F5802970045A6F7 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/ErrorView.swift"; sourceTree = SOURCE_ROOT; };
+		356410432F5802970045A6F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/Legacy/ContentView.swift"; sourceTree = SOURCE_ROOT; };
+		356410452F5802970045A6F7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/App/AppDelegate.swift"; sourceTree = SOURCE_ROOT; };
 		356410462F5802970045A6F7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		356410472F5802970045A6F7 /* OpenClawInstallerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawInstallerApp.swift; sourceTree = "<group>"; };
-		356410662F5802970045A6F7 /* PluginsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsTabView.swift; sourceTree = "<group>"; };
-		356410682F5802970045A6F7 /* ChannelsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelsTabView.swift; sourceTree = "<group>"; };
-		3564106A2F5802970045A6F7 /* ModelsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsTabView.swift; sourceTree = "<group>"; };
+		356410472F5802970045A6F7 /* OpenClawInstallerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/App/OpenClawInstallerApp.swift"; sourceTree = SOURCE_ROOT; };
+		356410662F5802970045A6F7 /* PluginsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift"; sourceTree = SOURCE_ROOT; };
+		356410682F5802970045A6F7 /* ChannelsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/Views/ChannelsTabView.swift"; sourceTree = SOURCE_ROOT; };
+		3564106A2F5802970045A6F7 /* ModelsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/ModelsTabView.swift"; sourceTree = SOURCE_ROOT; };
 		3564106C2F5802970045A6F7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		3564106E2F5802970045A6F7 /* ProviderPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPreset.swift; sourceTree = "<group>"; };
+		3564106E2F5802970045A6F7 /* ProviderPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/ProviderPreset.swift"; sourceTree = SOURCE_ROOT; };
 		3564106F2F5802970045A6F7 /* providers_preset.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = providers_preset.json; sourceTree = "<group>"; };
-		356410732F5802970045A6F7 /* SkillsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsTabView.swift; sourceTree = "<group>"; };
-		356410782F5802970045A6F7 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
-		3564107A2F5802970045A6F7 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		35641B012F7A02970045A6F7 /* MarketplaceOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceOverviewView.swift; sourceTree = "<group>"; };
-		A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputsSidebarLayoutMetrics.swift; sourceTree = "<group>"; };
-		AGAV0000000000000002 /* AgentAvatarImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentAvatarImage.swift; sourceTree = "<group>"; };
-		AMR000000000000000000002 /* AssistantMessageRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantMessageRenderer.swift; sourceTree = "<group>"; };
-		APFROW000000000000002 /* AgentProjectFolderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProjectFolderRow.swift; sourceTree = "<group>"; };
-		APPA0000000000000002 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
-		APWS0002D1E2F3A4B5C60002 /* ProjectWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspace.swift; sourceTree = "<group>"; };
-		ATTP0002C2D3E4F5A6B70002 /* AttachmentProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentProcessor.swift; sourceTree = "<group>"; };
-		B1C2D3E4F5A6478990A1B2C3 /* PersonaTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaTabView.swift; sourceTree = "<group>"; };
-		B2C3D4E5F6A7491A0B1C2D3E /* HelpFAQ.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpFAQ.swift; sourceTree = "<group>"; };
+		356410732F5802970045A6F7 /* SkillsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift"; sourceTree = SOURCE_ROOT; };
+		356410782F5802970045A6F7 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Localization/LanguageManager.swift"; sourceTree = SOURCE_ROOT; };
+		3564107A2F5802970045A6F7 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "OpenClawInstaller/Localization/Resources/Localizable.xcstrings"; sourceTree = SOURCE_ROOT; };
+		35641B012F7A02970045A6F7 /* MarketplaceOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Marketplace/MarketplaceOverviewView.swift"; sourceTree = SOURCE_ROOT; };
+		A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/Sidebar/OutputsSidebarLayoutMetrics.swift"; sourceTree = SOURCE_ROOT; };
+		AGAV0000000000000002 /* AgentAvatarImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Icons/AgentAvatarImage.swift"; sourceTree = SOURCE_ROOT; };
+		AMR000000000000000000002 /* AssistantMessageRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift"; sourceTree = SOURCE_ROOT; };
+		APFROW000000000000002 /* AgentProjectFolderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Views/ProjectWorkspace/AgentProjectFolderRow.swift"; sourceTree = SOURCE_ROOT; };
+		APPA0000000000000002 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/AppAppearance.swift"; sourceTree = SOURCE_ROOT; };
+		APWS0002D1E2F3A4B5C60002 /* ProjectWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Models/ProjectWorkspace.swift"; sourceTree = SOURCE_ROOT; };
+		ATTP0002C2D3E4F5A6B70002 /* AttachmentProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Services/AttachmentProcessor.swift"; sourceTree = SOURCE_ROOT; };
+		B1C2D3E4F5A6478990A1B2C3 /* PersonaTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Persona/PersonaTabView.swift"; sourceTree = SOURCE_ROOT; };
+		B2C3D4E5F6A7491A0B1C2D3E /* HelpFAQ.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Help/HelpFAQ.swift"; sourceTree = SOURCE_ROOT; };
 		B5C6D7E8F9A04E4A6B7C8D9E /* 用户指南.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "用户指南.md"; sourceTree = "<group>"; };
-		BD01AA02B1C2D3E4F5A60002 /* BudgetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetModels.swift; sourceTree = "<group>"; };
-		BD01AA04B1C2D3E4F5A60004 /* BudgetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetService.swift; sourceTree = "<group>"; };
-		BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTabView.swift; sourceTree = "<group>"; };
-		C011AB01D1E2F3A4B5C60002 /* CommanderConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommanderConfig.swift; sourceTree = "<group>"; };
-		C011AB02A1B2C3D4E5F60002 /* CollabModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabModels.swift; sourceTree = "<group>"; };
-		C011AB04A1B2C3D4E5F60004 /* CollabViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabViewModel.swift; sourceTree = "<group>"; };
-		C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabWindow.swift; sourceTree = "<group>"; };
+		BD01AA02B1C2D3E4F5A60002 /* BudgetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Budget/Models/BudgetModels.swift"; sourceTree = SOURCE_ROOT; };
+		BD01AA04B1C2D3E4F5A60004 /* BudgetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Budget/BudgetService.swift"; sourceTree = SOURCE_ROOT; };
+		BD01AA06B1C2D3E4F5A60006 /* BudgetTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Budget/Views/BudgetTabView.swift"; sourceTree = SOURCE_ROOT; };
+		C011AB01D1E2F3A4B5C60002 /* CommanderConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Persona/CommanderConfig.swift"; sourceTree = SOURCE_ROOT; };
+		C011AB02A1B2C3D4E5F60002 /* CollabModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Collab/Models/CollabModels.swift"; sourceTree = SOURCE_ROOT; };
+		C011AB04A1B2C3D4E5F60004 /* CollabViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Collab/CollabViewModel.swift"; sourceTree = SOURCE_ROOT; };
+		C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Collab/Views/CollabWindow.swift"; sourceTree = SOURCE_ROOT; };
 		C011AB08A1B2C3D4E5F60008 /* commander-persona.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "commander-persona.md"; sourceTree = "<group>"; };
-		C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronTabView.swift; sourceTree = "<group>"; };
-		CACT0000000000000002 /* CatalogActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogActionButton.swift; sourceTree = "<group>"; };
-		CCV000000000000000000002 /* ChatComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComposerView.swift; sourceTree = "<group>"; };
-		CDOT0000000000000002 /* CursorDotOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorDotOverlay.swift; sourceTree = "<group>"; };
-		COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawCoreManifest.swift; sourceTree = "<group>"; };
-		COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawCoreUpgradeCoordinator.swift; sourceTree = "<group>"; };
+		C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Cron/Views/CronTabView.swift"; sourceTree = SOURCE_ROOT; };
+		CACT0000000000000002 /* CatalogActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CatalogActionButton.swift"; sourceTree = SOURCE_ROOT; };
+		CCV000000000000000000002 /* ChatComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift"; sourceTree = SOURCE_ROOT; };
+		CDOT0000000000000002 /* CursorDotOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CursorDotOverlay.swift"; sourceTree = SOURCE_ROOT; };
+		COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/OpenClawCoreManifest.swift"; sourceTree = SOURCE_ROOT; };
+		COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawCoreUpgradeCoordinator.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000006 /* openclaw-core-version.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "openclaw-core-version.json"; sourceTree = "<group>"; };
-		CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
-		CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionStore.swift; sourceTree = "<group>"; };
-		CS01AA06D1E2F3A4B5C60006 /* ChatSessionSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionSearch.swift; sourceTree = "<group>"; };
-		CSSTATE000000000000002 /* ChatRuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRuntimeState.swift; sourceTree = "<group>"; };
-		CTV000000000000000000002 /* ChatTimelineSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatTimelineSurface.swift; sourceTree = "<group>"; };
-		D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpAssistantViewModel.swift; sourceTree = "<group>"; };
-		D4E5F6A7B8C9401A2B3C4D5E /* SubAgentsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubAgentsTabView.swift; sourceTree = "<group>"; };
+		CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Models/ChatSession.swift"; sourceTree = SOURCE_ROOT; };
+		CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Services/ChatSessionStore.swift"; sourceTree = SOURCE_ROOT; };
+		CS01AA06D1E2F3A4B5C60006 /* ChatSessionSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Models/ChatSessionSearch.swift"; sourceTree = SOURCE_ROOT; };
+		CSSTATE000000000000002 /* ChatRuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/ChatRuntimeState.swift"; sourceTree = SOURCE_ROOT; };
+		CTV000000000000000000002 /* ChatTimelineSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift"; sourceTree = SOURCE_ROOT; };
+		D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Help/HelpAssistantViewModel.swift"; sourceTree = SOURCE_ROOT; };
+		D4E5F6A7B8C9401A2B3C4D5E /* SubAgentsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/SubAgents/SubAgentsTabView.swift"; sourceTree = SOURCE_ROOT; };
 		DESIGN000100000000000000 /* DesignSystems */ = {isa = PBXFileReference; lastKnownFileType = folder; path = DesignSystems; sourceTree = SOURCE_ROOT; };
-		DESIGNMGR000000000000000 /* DesignSystemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystemManager.swift; sourceTree = "<group>"; };
-		DI01AB02C2D3E4F5A6B70002 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdentity.swift; sourceTree = "<group>"; };
-		DI01AB04C2D3E4F5A6B70004 /* DeviceAuthTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceAuthTokenStore.swift; sourceTree = "<group>"; };
-		DMOD0000000000000002 /* DashboardModalOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModalOverlay.swift; sourceTree = "<group>"; };
-		ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
-		F1E2D3C4B5A647389021A3B4 /* UninstallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallManager.swift; sourceTree = "<group>"; };
-		F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpAssistantWindow.swift; sourceTree = "<group>"; };
-		GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
-		GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayWorkspaceContext.swift; sourceTree = "<group>"; };
-		I18NSVC00000000000002 /* I18nService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = I18nService.swift; sourceTree = "<group>"; };
+		DESIGNMGR000000000000000 /* DesignSystemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/DesignSystemManager.swift"; sourceTree = SOURCE_ROOT; };
+		DI01AB02C2D3E4F5A6B70002 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Auth/DeviceIdentity.swift"; sourceTree = SOURCE_ROOT; };
+		DI01AB04C2D3E4F5A6B70004 /* DeviceAuthTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Auth/DeviceAuthTokenStore.swift"; sourceTree = SOURCE_ROOT; };
+		DMOD0000000000000002 /* DashboardModalOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/DashboardModalOverlay.swift"; sourceTree = SOURCE_ROOT; };
+		ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Auth/AuthManager.swift"; sourceTree = SOURCE_ROOT; };
+		F1E2D3C4B5A647389021A3B4 /* UninstallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/UninstallManager.swift"; sourceTree = SOURCE_ROOT; };
+		F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Help/Views/HelpAssistantWindow.swift"; sourceTree = SOURCE_ROOT; };
+		GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayClient.swift"; sourceTree = SOURCE_ROOT; };
+		GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/GatewayWorkspaceContext.swift"; sourceTree = SOURCE_ROOT; };
+		I18NSVC00000000000002 /* I18nService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Localization/I18nService.swift"; sourceTree = SOURCE_ROOT; };
 		I18NRES00000000000002 /* I18n */ = {isa = PBXFileReference; lastKnownFileType = folder; path = I18n; sourceTree = "<group>"; };
-		IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingTabView.swift; sourceTree = "<group>"; };
-		IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReviewBatchStore.swift; sourceTree = "<group>"; };
-		MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembershipManager.swift; sourceTree = "<group>"; };
-		MDH000000000000000000002 /* MarkdownHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownHTML.swift; sourceTree = "<group>"; };
-		MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceAgent.swift; sourceTree = "<group>"; };
-		MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceDetailView.swift; sourceTree = "<group>"; };
+		IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Account/BillingTabView.swift"; sourceTree = SOURCE_ROOT; };
+		IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Services/ImageReviewBatchStore.swift"; sourceTree = SOURCE_ROOT; };
+		MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Auth/MembershipManager.swift"; sourceTree = SOURCE_ROOT; };
+		MDH000000000000000000002 /* MarkdownHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Markdown/MarkdownHTML.swift"; sourceTree = SOURCE_ROOT; };
+		MP01AD01E4F5A6B7C8D90001 /* MarketplaceAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Marketplace/MarketplaceAgent.swift"; sourceTree = SOURCE_ROOT; };
+		MP01AD03E4F5A6B7C8D90003 /* MarketplaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Marketplace/MarketplaceDetailView.swift"; sourceTree = SOURCE_ROOT; };
 		MP01AD05E4F5A6B7C8D90005 /* marketplace_agents.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = marketplace_agents.json; sourceTree = "<group>"; };
 		MP01AD07E4F5A6B7C8D90007 /* marketplace_agents.i18n.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = marketplace_agents.i18n.json; sourceTree = "<group>"; };
-		MPVW0000000000000002 /* MarketplaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketplaceView.swift; sourceTree = "<group>"; };
-		PLCAT0000000000000002 /* PluginCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCatalogItem.swift; sourceTree = "<group>"; };
-		PLCAT0000000000000004 /* PluginCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCatalogService.swift; sourceTree = "<group>"; };
+		MPVW0000000000000002 /* MarketplaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Marketplace/MarketplaceView.swift"; sourceTree = SOURCE_ROOT; };
+		PLCAT0000000000000002 /* PluginCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/Models/PluginCatalogItem.swift"; sourceTree = SOURCE_ROOT; };
+		PLCAT0000000000000004 /* PluginCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/Services/PluginCatalogService.swift"; sourceTree = SOURCE_ROOT; };
 		PLBUNDLE0000000000002 /* BundledPluginCatalog */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BundledPluginCatalog; sourceTree = "<group>"; };
-		PLBOOT000000000000002 /* RecommendedPluginBootstrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendedPluginBootstrapper.swift; sourceTree = "<group>"; };
-		PLGMOD000000000000002 /* PluginsTabModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsTabModel.swift; sourceTree = "<group>"; };
-		PLINF0000000000000002 /* PluginInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginInfo.swift; sourceTree = "<group>"; };
-		PLPAR0000000000000002 /* PluginListParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginListParser.swift; sourceTree = "<group>"; };
-		PMFS0002C2D3E4F5A6B70002 /* ProviderModelFetchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelFetchService.swift; sourceTree = "<group>"; };
-		PSCB0000000000000002 /* ProjectSessionContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSessionContextBuilder.swift; sourceTree = "<group>"; };
-		PWCTX0000000000000002 /* ProjectWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceContext.swift; sourceTree = "<group>"; };
-		PWPICK000000000000002 /* ProjectWorkspacePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePicker.swift; sourceTree = "<group>"; };
-		PWREG0000000000000002 /* ProjectRegistryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRegistryStore.swift; sourceTree = "<group>"; };
-		PWSVC0000000000000002 /* ProjectWorkspaceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceService.swift; sourceTree = "<group>"; };
-		RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightInspectorSplitView.swift; sourceTree = "<group>"; };
-		SCSV0000000000000002 /* SmoothScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmoothScrollView.swift; sourceTree = "<group>"; };
-		SHIM0000000000000002 /* ShimmeringStatusText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmeringStatusText.swift; sourceTree = "<group>"; };
-		SNSTATE000000000000002 /* SessionNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNavigationState.swift; sourceTree = "<group>"; };
+		PLBOOT000000000000002 /* RecommendedPluginBootstrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/Services/RecommendedPluginBootstrapper.swift"; sourceTree = SOURCE_ROOT; };
+		PLGMOD000000000000002 /* PluginListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/ViewModels/PluginListViewModel.swift"; sourceTree = SOURCE_ROOT; };
+		PLINF0000000000000002 /* PluginInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/Models/PluginInfo.swift"; sourceTree = SOURCE_ROOT; };
+		PLPAR0000000000000002 /* PluginListParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Plugins/Services/PluginListParser.swift"; sourceTree = SOURCE_ROOT; };
+		PMFS0002C2D3E4F5A6B70002 /* ProviderModelFetchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelFetchService.swift"; sourceTree = SOURCE_ROOT; };
+		PSCB0000000000000002 /* ProjectSessionContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/ProjectSessionContextBuilder.swift"; sourceTree = SOURCE_ROOT; };
+		PWCTX0000000000000002 /* ProjectWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Models/ProjectWorkspaceContext.swift"; sourceTree = SOURCE_ROOT; };
+		PWPICK000000000000002 /* ProjectWorkspacePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Views/ProjectWorkspace/ProjectWorkspacePicker.swift"; sourceTree = SOURCE_ROOT; };
+		PWREG0000000000000002 /* ProjectRegistryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/ProjectRegistryStore.swift"; sourceTree = SOURCE_ROOT; };
+		PWSVC0000000000000002 /* ProjectWorkspaceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/ProjectWorkspaceService.swift"; sourceTree = SOURCE_ROOT; };
+		RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorSplitView.swift"; sourceTree = SOURCE_ROOT; };
+		SCSV0000000000000002 /* SmoothScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/SmoothScrollView.swift"; sourceTree = SOURCE_ROOT; };
+		SHIM0000000000000002 /* ShimmeringStatusText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/ShimmeringStatusText.swift"; sourceTree = SOURCE_ROOT; };
+		SNSTATE000000000000002 /* SessionNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/State/SessionNavigationState.swift"; sourceTree = SOURCE_ROOT; };
 		SKBUNDLE0000000000002 /* BundledSkillCatalog */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BundledSkillCatalog; sourceTree = "<group>"; };
-		SKBOOT000000000000002 /* RecommendedSkillBootstrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendedSkillBootstrapper.swift; sourceTree = "<group>"; };
-		SKCAT0000000000000002 /* SkillCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogItem.swift; sourceTree = "<group>"; };
-		SKCAT0000000000000004 /* SkillCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCatalogService.swift; sourceTree = "<group>"; };
-		SKINST000000000000002 /* SkillInstallStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillInstallStateStore.swift; sourceTree = "<group>"; };
-		SKLMOD000000000000002 /* SkillsTabModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsTabModel.swift; sourceTree = "<group>"; };
-		SKSRC0000000000000002 /* SkillSourcePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillSourcePresentation.swift; sourceTree = "<group>"; };
-		SKTRUST00000000000002 /* SkillTrustStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillTrustStore.swift; sourceTree = "<group>"; };
-		SMV000000000000000000002 /* SelectableMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableMarkdownView.swift; sourceTree = "<group>"; };
-		SRMS0002D1E2F3A4B5C60002 /* SemanticRepoMapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticRepoMapService.swift; sourceTree = "<group>"; };
-		SSPN000000000000000002 /* SettingsShortcutPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsShortcutPanel.swift; sourceTree = "<group>"; };
-		STP000000000000000000002 /* SessionTitleUserMessagesPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTitleUserMessagesPopover.swift; sourceTree = "<group>"; };
-		TSSTATE000000000000002 /* TaskActivityState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskActivityState.swift; sourceTree = "<group>"; };
-		USCH0000000000000002 /* UnifiedSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedSearchField.swift; sourceTree = "<group>"; };
-		UTIP0000000000000002 /* UnifiedTooltip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedTooltip.swift; sourceTree = "<group>"; };
-		WFIC0000000000000002 /* WorkspaceFolderIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFolderIcon.swift; sourceTree = "<group>"; };
-		WIPANE000000000000002 /* WorkspaceInspectorPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceInspectorPane.swift; sourceTree = "<group>"; };
-		WSH000000000000000000002 /* WorkStatusHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkStatusHeader.swift; sourceTree = "<group>"; };
+		SKBOOT000000000000002 /* RecommendedSkillBootstrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Services/RecommendedSkillBootstrapper.swift"; sourceTree = SOURCE_ROOT; };
+			SKCAT0000000000000002 /* SkillCatalogItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Models/SkillCatalogItem.swift"; sourceTree = SOURCE_ROOT; };
+			SKCAT0000000000000004 /* SkillCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Services/SkillCatalogService.swift"; sourceTree = SOURCE_ROOT; };
+			SKPARSE0000000000002 /* SkillsParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Services/SkillsParser.swift"; sourceTree = SOURCE_ROOT; };
+			SKINST000000000000002 /* SkillInstallStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Services/SkillInstallStateStore.swift"; sourceTree = SOURCE_ROOT; };
+		SKLMOD000000000000002 /* SkillsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/ViewModels/SkillsViewModel.swift"; sourceTree = SOURCE_ROOT; };
+		SKSRC0000000000000002 /* SkillSourcePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Models/SkillSourcePresentation.swift"; sourceTree = SOURCE_ROOT; };
+			SKTRUST00000000000002 /* SkillTrustStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Services/SkillTrustStore.swift"; sourceTree = SOURCE_ROOT; };
+			SMV000000000000000000002 /* SelectableMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift"; sourceTree = SOURCE_ROOT; };
+			SRMS0002D1E2F3A4B5C60002 /* SemanticRepoMapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/SemanticRepoMapService.swift"; sourceTree = SOURCE_ROOT; };
+			SSUMM000000000000002 /* SessionsSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/Models/SessionsSummary.swift"; sourceTree = SOURCE_ROOT; };
+			SSBILL000000000000002 /* SettingsShortcutBillingSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutBillingSummary.swift"; sourceTree = SOURCE_ROOT; };
+			SSPN000000000000000002 /* SettingsShortcutPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutPanel.swift"; sourceTree = SOURCE_ROOT; };
+			SSMN000000000000000002 /* SettingsShortcutMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutMenu.swift"; sourceTree = SOURCE_ROOT; };
+			SSRW000000000000000002 /* SettingsShortcutRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutRows.swift"; sourceTree = SOURCE_ROOT; };
+			SSST000000000000000002 /* SettingsShortcutStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutStyle.swift"; sourceTree = SOURCE_ROOT; };
+			SSSTATE000000000000002 /* SettingsShortcutState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutState.swift"; sourceTree = SOURCE_ROOT; };
+			STSUMVM0000000000002 /* StatusSummaryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/ViewModels/StatusSummaryViewModel.swift"; sourceTree = SOURCE_ROOT; };
+			STP000000000000000000002 /* SessionTitleUserMessagesPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Views/SessionTitleUserMessagesPopover.swift"; sourceTree = SOURCE_ROOT; };
+		TSSTATE000000000000002 /* TaskActivityState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/TaskActivityState.swift"; sourceTree = SOURCE_ROOT; };
+		USCH0000000000000002 /* UnifiedSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/UnifiedSearchField.swift"; sourceTree = SOURCE_ROOT; };
+		UTIP0000000000000002 /* UnifiedTooltip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/UnifiedTooltip.swift"; sourceTree = SOURCE_ROOT; };
+		WFIC0000000000000002 /* WorkspaceFolderIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Icons/WorkspaceFolderIcon.swift"; sourceTree = SOURCE_ROOT; };
+		WIPANE000000000000002 /* WorkspaceInspectorPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift"; sourceTree = SOURCE_ROOT; };
+		WSH000000000000000000002 /* WorkStatusHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/WorkStatusHeader.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -389,6 +439,7 @@
 					PLBOOT000000000000002 /* RecommendedPluginBootstrapper.swift */,
 					SKBOOT000000000000002 /* RecommendedSkillBootstrapper.swift */,
 					SKCAT0000000000000004 /* SkillCatalogService.swift */,
+				SKPARSE0000000000002 /* SkillsParser.swift */,
 				SKINST000000000000002 /* SkillInstallStateStore.swift */,
 				SKTRUST00000000000002 /* SkillTrustStore.swift */,
 				3564102E2F5802970045A6F7 /* SparkleUpdater.swift */,
@@ -406,19 +457,37 @@
 				C011AB04A1B2C3D4E5F60004 /* CollabViewModel.swift */,
 				356410302F5802970045A6F7 /* DashboardViewModel.swift */,
 				DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */,
-				WX01AB02C2D3E4F5A6B70002 /* DashboardViewModel+WeixinLogin.swift */,
-				PL01AB02C2D3E4F5A6B70002 /* DashboardViewModel+PluginManagement.swift */,
-				CH01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChannelManagement.swift */,
-				CR01AB02C2D3E4F5A6B70002 /* DashboardViewModel+CronManagement.swift */,
-				BG01AB02C2D3E4F5A6B70002 /* DashboardViewModel+BudgetManagement.swift */,
-				MM01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ModelManagement.swift */,
-				SK01AB02C2D3E4F5A6B70002 /* DashboardViewModel+SkillsManagement.swift */,
-				AS01AB02C2D3E4F5A6B70002 /* DashboardViewModel+AgentSettings.swift */,
-				ST01AB02C2D3E4F5A6B70002 /* DashboardViewModel+StatusMonitoring.swift */,
-				IF01AB02C2D3E4F5A6B70002 /* DashboardViewModel+InFlightRuns.swift */,
-				CP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ConfigProviderLogs.swift */,
-				SP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+SessionPersistence.swift */,
-				HP01AB02C2D3E4F5A6B70002 /* DashboardViewModel+ChatHelpers.swift */,
+				CHMODEL00000000000002 /* ChannelInfo.swift */,
+				MDMODEL00000000000002 /* ModelInfo.swift */,
+				CHMSG000000000000002 /* ChatMessage.swift */,
+				CTM000000000000000000002 /* ChatTimelineModels.swift */,
+				CHEVT000000000000002 /* ChatActivityEvent.swift */,
+				SKINFO00000000000002 /* SkillInfo.swift */,
+				AGOPT000000000000002 /* AgentOption.swift */,
+				PMGRP000000000000002 /* ProviderModelGroup.swift */,
+				CRINFO00000000000002 /* CronJobInfo.swift */,
+				SSUMM000000000000002 /* SessionsSummary.swift */,
+				CHATVM00000000000002 /* ChatViewModel.swift */,
+				SNAVVM00000000000002 /* SessionNavigationViewModel.swift */,
+				CHLVM000000000000002 /* ChannelListViewModel.swift */,
+				WXVM0000000000000002 /* WeixinChannelViewModel.swift */,
+				CRJVM000000000000002 /* CronJobsViewModel.swift */,
+				STSUMVM0000000000002 /* StatusSummaryViewModel.swift */,
+				MDSETVM0000000000002 /* ModelSettingsViewModel.swift */,
+				WX01AB02C2D3E4F5A6B70002 /* WeixinLogin.swift */,
+				PL01AB02C2D3E4F5A6B70002 /* PluginManagement.swift */,
+				CH01AB02C2D3E4F5A6B70002 /* ChannelManagement.swift */,
+				CR01AB02C2D3E4F5A6B70002 /* CronManagement.swift */,
+				BG01AB02C2D3E4F5A6B70002 /* BudgetManagement.swift */,
+				MM01AB02C2D3E4F5A6B70002 /* ModelManagement.swift */,
+				SK01AB02C2D3E4F5A6B70002 /* SkillsManagement.swift */,
+				AGSET02C2D3E4F5A6B70002 /* AgentSettings.swift */,
+				AS01AB02C2D3E4F5A6B70002 /* ProviderModelSettings.swift */,
+				ST01AB02C2D3E4F5A6B70002 /* StatusMonitoring.swift */,
+				IF01AB02C2D3E4F5A6B70002 /* InFlightRuns.swift */,
+				CP01AB02C2D3E4F5A6B70002 /* ConfigProviderLogs.swift */,
+				SP01AB02C2D3E4F5A6B70002 /* SessionPersistence.swift */,
+				HP01AB02C2D3E4F5A6B70002 /* ChatHelpers.swift */,
 				D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */,
 				356410312F5802970045A6F7 /* InstallationViewModel.swift */,
 				SNSTATE000000000000002 /* SessionNavigationState.swift */,
@@ -435,6 +504,7 @@
 				356410682F5802970045A6F7 /* ChannelsTabView.swift */,
 				C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */,
 				356410332F5802970045A6F7 /* ConfigTabView.swift */,
+				SSSV000000000000000002 /* SettingsShellView.swift */,
 				C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */,
 				AMR000000000000000000002 /* AssistantMessageRenderer.swift */,
 				CCV000000000000000000002 /* ChatComposerView.swift */,
@@ -450,7 +520,12 @@
 				3564106A2F5802970045A6F7 /* ModelsTabView.swift */,
 				PLGTAB000000000000000 /* Plugins */,
 				PWVIEWGRP000000000000 /* ProjectWorkspace */,
+				SSBILL000000000000002 /* SettingsShortcutBillingSummary.swift */,
 				SSPN000000000000000002 /* SettingsShortcutPanel.swift */,
+				SSMN000000000000000002 /* SettingsShortcutMenu.swift */,
+				SSRW000000000000000002 /* SettingsShortcutRows.swift */,
+				SSST000000000000000002 /* SettingsShortcutStyle.swift */,
+				SSSTATE000000000000002 /* SettingsShortcutState.swift */,
 				STP000000000000000000002 /* SessionTitleUserMessagesPopover.swift */,
 				SMV000000000000000000002 /* SelectableMarkdownView.swift */,
 				SKLTAB000000000000000 /* Skills */,
@@ -567,7 +642,7 @@
 			isa = PBXGroup;
 			children = (
 				356410662F5802970045A6F7 /* PluginsTabView.swift */,
-				PLGMOD000000000000002 /* PluginsTabModel.swift */,
+				PLGMOD000000000000002 /* PluginListViewModel.swift */,
 			);
 			path = Plugins;
 			sourceTree = "<group>";
@@ -606,7 +681,7 @@
 			isa = PBXGroup;
 			children = (
 				356410732F5802970045A6F7 /* SkillsTabView.swift */,
-				SKLMOD000000000000002 /* SkillsTabModel.swift */,
+				SKLMOD000000000000002 /* SkillsViewModel.swift */,
 			);
 			path = Skills;
 			sourceTree = "<group>";
@@ -733,6 +808,7 @@
 			files = (
 				3564104A2F5802970045A6F7 /* InstallationWizardView.swift in Sources */,
 				3564104B2F5802970045A6F7 /* ConfigTabView.swift in Sources */,
+				SSSV000000000000000001 /* SettingsShellView.swift in Sources */,
 				3564104C2F5802970045A6F7 /* AppDelegate.swift in Sources */,
 				3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */,
 				3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */,
@@ -768,23 +844,41 @@
 				3564105F2F5802970045A6F7 /* ConfigurationView.swift in Sources */,
 				356410602F5802970045A6F7 /* NodeInstallationView.swift in Sources */,
 				356410612F5802970045A6F7 /* DashboardViewModel.swift in Sources */,
+				CHLVM000000000000001 /* ChannelListViewModel.swift in Sources */,
+				SNAVVM00000000000001 /* SessionNavigationViewModel.swift in Sources */,
+				CHATVM00000000000001 /* ChatViewModel.swift in Sources */,
 				CSSTATE000000000000001 /* ChatRuntimeState.swift in Sources */,
 				SNSTATE000000000000001 /* SessionNavigationState.swift in Sources */,
 				TSSTATE000000000000001 /* TaskActivityState.swift in Sources */,
 				DM01AB01C2D3E4F5A6B70001 /* DashboardModels.swift in Sources */,
-				WX01AB01C2D3E4F5A6B70001 /* DashboardViewModel+WeixinLogin.swift in Sources */,
-				PL01AB01C2D3E4F5A6B70001 /* DashboardViewModel+PluginManagement.swift in Sources */,
-				CH01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ChannelManagement.swift in Sources */,
-				CR01AB01C2D3E4F5A6B70001 /* DashboardViewModel+CronManagement.swift in Sources */,
-				BG01AB01C2D3E4F5A6B70001 /* DashboardViewModel+BudgetManagement.swift in Sources */,
-				MM01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ModelManagement.swift in Sources */,
-				SK01AB01C2D3E4F5A6B70001 /* DashboardViewModel+SkillsManagement.swift in Sources */,
-				AS01AB01C2D3E4F5A6B70001 /* DashboardViewModel+AgentSettings.swift in Sources */,
-				ST01AB01C2D3E4F5A6B70001 /* DashboardViewModel+StatusMonitoring.swift in Sources */,
-				IF01AB01C2D3E4F5A6B70001 /* DashboardViewModel+InFlightRuns.swift in Sources */,
-				CP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ConfigProviderLogs.swift in Sources */,
-				SP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+SessionPersistence.swift in Sources */,
-				HP01AB01C2D3E4F5A6B70001 /* DashboardViewModel+ChatHelpers.swift in Sources */,
+				SSUMM000000000000001 /* SessionsSummary.swift in Sources */,
+				CRINFO00000000000001 /* CronJobInfo.swift in Sources */,
+				PMGRP000000000000001 /* ProviderModelGroup.swift in Sources */,
+				AGOPT000000000000001 /* AgentOption.swift in Sources */,
+				SKINFO00000000000001 /* SkillInfo.swift in Sources */,
+				CHEVT000000000000001 /* ChatActivityEvent.swift in Sources */,
+				CHMSG000000000000001 /* ChatMessage.swift in Sources */,
+				CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */,
+				MDMODEL00000000000001 /* ModelInfo.swift in Sources */,
+				CHMODEL00000000000001 /* ChannelInfo.swift in Sources */,
+				WX01AB01C2D3E4F5A6B70001 /* WeixinLogin.swift in Sources */,
+				WXVM0000000000000001 /* WeixinChannelViewModel.swift in Sources */,
+				PL01AB01C2D3E4F5A6B70001 /* PluginManagement.swift in Sources */,
+				CH01AB01C2D3E4F5A6B70001 /* ChannelManagement.swift in Sources */,
+				CR01AB01C2D3E4F5A6B70001 /* CronManagement.swift in Sources */,
+				CRJVM000000000000001 /* CronJobsViewModel.swift in Sources */,
+				BG01AB01C2D3E4F5A6B70001 /* BudgetManagement.swift in Sources */,
+				MM01AB01C2D3E4F5A6B70001 /* ModelManagement.swift in Sources */,
+				MDSETVM0000000000001 /* ModelSettingsViewModel.swift in Sources */,
+				SK01AB01C2D3E4F5A6B70001 /* SkillsManagement.swift in Sources */,
+				AGSET01C2D3E4F5A6B70001 /* AgentSettings.swift in Sources */,
+				AS01AB01C2D3E4F5A6B70001 /* ProviderModelSettings.swift in Sources */,
+				ST01AB01C2D3E4F5A6B70001 /* StatusMonitoring.swift in Sources */,
+				STSUMVM0000000000001 /* StatusSummaryViewModel.swift in Sources */,
+				IF01AB01C2D3E4F5A6B70001 /* InFlightRuns.swift in Sources */,
+				CP01AB01C2D3E4F5A6B70001 /* ConfigProviderLogs.swift in Sources */,
+				SP01AB01C2D3E4F5A6B70001 /* SessionPersistence.swift in Sources */,
+				HP01AB01C2D3E4F5A6B70001 /* ChatHelpers.swift in Sources */,
 				356410622F5802970045A6F7 /* PermissionManager.swift in Sources */,
 				356410632F5802970045A6F7 /* ErrorView.swift in Sources */,
 				AGAV0000000000000001 /* AgentAvatarImage.swift in Sources */,
@@ -799,13 +893,13 @@
 				356410642F5802970045A6F7 /* OpenClawService.swift in Sources */,
 				356410652F5802970045A6F7 /* StatusTabView.swift in Sources */,
 				356410672F5802970045A6F7 /* PluginsTabView.swift in Sources */,
-				PLGMOD000000000000001 /* PluginsTabModel.swift in Sources */,
+				PLGMOD000000000000001 /* PluginListViewModel.swift in Sources */,
 				PLBOOT000000000000001 /* RecommendedPluginBootstrapper.swift in Sources */,
 				356410692F5802970045A6F7 /* ChannelsTabView.swift in Sources */,
 				D2E3F4A5B6C7489901D2E3F4 /* CronTabView.swift in Sources */,
 				3564106B2F5802970045A6F7 /* ModelsTabView.swift in Sources */,
 				356410742F5802970045A6F7 /* SkillsTabView.swift in Sources */,
-				SKLMOD000000000000001 /* SkillsTabModel.swift in Sources */,
+				SKLMOD000000000000001 /* SkillsViewModel.swift in Sources */,
 				PLCAT0000000000000001 /* PluginCatalogItem.swift in Sources */,
 				PLCAT0000000000000003 /* PluginCatalogService.swift in Sources */,
 				PLINF0000000000000001 /* PluginInfo.swift in Sources */,
@@ -813,6 +907,7 @@
 				SKBOOT000000000000001 /* RecommendedSkillBootstrapper.swift in Sources */,
 				SKCAT0000000000000001 /* SkillCatalogItem.swift in Sources */,
 				SKCAT0000000000000003 /* SkillCatalogService.swift in Sources */,
+				SKPARSE0000000000001 /* SkillsParser.swift in Sources */,
 				SKINST000000000000001 /* SkillInstallStateStore.swift in Sources */,
 				SKTRUST00000000000001 /* SkillTrustStore.swift in Sources */,
 				356410702F5802970045A6F7 /* ProviderPreset.swift in Sources */,
@@ -845,7 +940,12 @@
 				PWSVC0000000000000001 /* ProjectWorkspaceService.swift in Sources */,
 				PSCB0000000000000001 /* ProjectSessionContextBuilder.swift in Sources */,
 				GWCTX0000000000000001 /* GatewayWorkspaceContext.swift in Sources */,
+				SSBILL000000000000001 /* SettingsShortcutBillingSummary.swift in Sources */,
 				SSPN000000000000000001 /* SettingsShortcutPanel.swift in Sources */,
+				SSMN000000000000000001 /* SettingsShortcutMenu.swift in Sources */,
+				SSRW000000000000000001 /* SettingsShortcutRows.swift in Sources */,
+				SSST000000000000000001 /* SettingsShortcutStyle.swift in Sources */,
+				SSSTATE000000000000001 /* SettingsShortcutState.swift in Sources */,
 				APFROW000000000000001 /* AgentProjectFolderRow.swift in Sources */,
 				PWPICK000000000000001 /* ProjectWorkspacePicker.swift in Sources */,
 				DI01AB01C2D3E4F5A6B70001 /* DeviceIdentity.swift in Sources */,

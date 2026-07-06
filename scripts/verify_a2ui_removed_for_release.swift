@@ -22,12 +22,14 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
 }
 
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
-let dashboardViewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
+let dashboardViewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let assistantRenderer = read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
 
 let removedPaths = [
     "OpenClawInstaller/Models/A2UICardPayload.swift",
-    "OpenClawInstaller/Views/Dashboard/A2UICardView.swift"
+    "OpenClawInstaller/Views/Dashboard/A2UICardView.swift",
+    "OpenClawInstaller/Features/Chat/Markdown/A2UICardView.swift",
+    "OpenClawInstaller/Shared/Models/A2UICardPayload.swift"
 ]
 
 for path in removedPaths {

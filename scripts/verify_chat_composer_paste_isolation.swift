@@ -3,9 +3,9 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let composerURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
-let timelineURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift")
+let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let composerURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift")
+let timelineURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
 
 guard let source = try? String(contentsOf: dashboardURL, encoding: .utf8) else {
     fatalError("Could not read DashboardView.swift")

@@ -23,8 +23,8 @@ func slice(_ source: String, from start: String, to end: String) -> String {
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = try read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let viewModel = try read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 
 let chatMessage = slice(
     viewModel,
@@ -37,7 +37,7 @@ let sendLoop = slice(
     to: "// Stream ended without a terminal event"
 )
 // WorkStatusHeader (and ActivitySummaryRows) were extracted into their own file.
-let workStatusHeader = try read("OpenClawInstaller/Views/Dashboard/WorkStatusHeader.swift")
+let workStatusHeader = try read("OpenClawInstaller/Features/Chat/Views/WorkStatusHeader.swift")
 let chatBubble = slice(
     dashboard,
     from: "struct ChatBubble: View",

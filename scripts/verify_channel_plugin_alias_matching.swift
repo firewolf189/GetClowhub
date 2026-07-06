@@ -3,7 +3,7 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let channelsPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChannelsTabView.swift")
+let channelsPath = root.appendingPathComponent("OpenClawInstaller/Features/Channels/Views/ChannelsTabView.swift")
 let channels = try String(contentsOf: channelsPath, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
@@ -27,25 +27,46 @@ let addChannelSheet = slice(
     from: "struct AddChannelSheet: View",
     to: "#Preview"
 )
+let addChannelAliases = slice(
+    channels,
+    from: "private var expectedPluginAliases",
+    to: "private var requiredPluginInstallSpec"
+)
+let channelMatcher = slice(
+    channels,
+    from: "private static func pluginMatchesChannel",
+    to: "private static func normalizedPluginLookupText"
+)
+let installSpec = slice(
+    channels,
+    from: "private var requiredPluginInstallSpec",
+    to: "/// Check if the plugin for the selected channel is installed"
+)
 
 require(
     addChannelSheet.contains("private var expectedPluginAliases: [String]"),
     "AddChannelSheet should map each channel to all known plugin aliases."
 )
 require(
-    addChannelSheet.contains("case \"dingtalk\": return [\"dingtalk\"]"),
+    addChannelAliases.contains("case \"dingtalk\": return [\"dingtalk\"]"),
     "DingTalk should only match the normalized channel/plugin id."
 )
 require(
-    !addChannelSheet.contains("@openclaw-china/dingtalk"),
+    !addChannelAliases.contains("@openclaw-china/dingtalk") &&
+        !channelMatcher.contains("@openclaw-china/dingtalk"),
     "DingTalk detection should not depend on the scoped npm package alias."
 )
 require(
-    addChannelSheet.contains("case \"weixin\": return [\"weixin\", \"openclaw-weixin\"]"),
+    installSpec.contains("case \"dingtalk\": return \"@openclaw-china/dingtalk\""),
+    "DingTalk install flow should know the npm package spec."
+)
+require(
+    addChannelAliases.contains("case \"weixin\": return [\"weixin\", \"openclaw-weixin\"]"),
     "Weixin should match normalized channel/plugin ids without source package aliases."
 )
 require(
-    !addChannelSheet.contains("@tencent-weixin/openclaw-weixin"),
+    !addChannelAliases.contains("@tencent-weixin/openclaw-weixin") &&
+        !channelMatcher.contains("@tencent-weixin/openclaw-weixin"),
     "Weixin detection should not depend on the scoped npm package alias."
 )
 require(

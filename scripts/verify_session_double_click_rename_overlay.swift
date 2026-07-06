@@ -30,8 +30,8 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let sharedOverlay = read("OpenClawInstaller/Views/Shared/DashboardModalOverlay.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let sharedOverlay = read("OpenClawInstaller/DesignSystem/Components/DashboardModalOverlay.swift")
 let dashboardBody = slice(dashboard, from: "var body: some View", to: "private var activeTab")
 let beginRename = slice(dashboard, from: "private func beginSessionRename", to: "private func saveSessionRename")
 let saveRename = slice(dashboard, from: "private func saveSessionRename", to: "private func dismissSessionRename")

@@ -29,9 +29,9 @@ func slice(_ text: String, from start: String, to end: String) -> String {
     return String(text[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let renderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
-let selectableSource = read("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let renderer = read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
+let selectableSource = read("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
 let chatBubble = slice(dashboard, from: "struct ChatBubble: View", to: "private struct InlineUserMessageEditor: View")
 let assistantContent = slice(renderer, from: "struct AssistantMessageContentView: View", to: "// MARK: - Native Markdown View")
 let selectableMarkdown = slice(selectableSource, from: "struct SelectableMarkdownView: View", to: "private class ScrollThroughWebView")

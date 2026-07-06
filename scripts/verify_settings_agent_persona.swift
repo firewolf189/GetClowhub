@@ -5,8 +5,9 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let configURL = root
     .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
     .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
     .appendingPathComponent("ConfigTabView.swift")
 
 let config = try String(contentsOf: configURL, encoding: .utf8)

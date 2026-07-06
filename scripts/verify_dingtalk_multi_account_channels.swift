@@ -24,8 +24,9 @@ func slice(_ source: String, from start: String, to end: String) -> String {
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let channelsView = try read("OpenClawInstaller/Views/Dashboard/ChannelsTabView.swift")
-let dashboardVM = try read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let channelsView = try read("OpenClawInstaller/Features/Channels/Views/ChannelsTabView.swift")
+let dashboardVM = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let channelManagement = try read("OpenClawInstaller/Features/Channels/Core/ChannelManagement.swift")
 
 let addChannelSheet = slice(
     channelsView,
@@ -33,19 +34,19 @@ let addChannelSheet = slice(
     to: "#Preview"
 )
 let appKeyAdd = slice(
-    dashboardVM,
+    channelManagement,
     from: "func addChannel(\n        channelType: String,\n        appKey: String,\n        appSecret: String",
     to: "/// Remove a channel"
 )
 let removeChannel = slice(
-    dashboardVM,
+    channelManagement,
     from: "func removeChannel(_ channel: ChannelInfo) async",
     to: "/// Set enabled=false"
 )
 let disableChannel = slice(
-    dashboardVM,
+    channelManagement,
     from: "private func disableChannelInConfig",
-    to: "// MARK: - Weixin QR Login"
+    to: "private nonisolated static func normalizedChannelAccountId"
 )
 
 require(
@@ -54,10 +55,11 @@ require(
     "AddChannelSheet should collect account id and display name."
 )
 require(
-    addChannelSheet.contains("Account ID") &&
-        addChannelSheet.contains("Display Name") &&
+    addChannelSheet.contains("dashboard.channels.sheet.accountId") &&
+        addChannelSheet.contains("dashboard.channels.sheet.displayName") &&
+        addChannelSheet.contains("dashboard.channels.sheet.accountHelp") &&
         addChannelSheet.contains("default"),
-    "AddChannelSheet should explain the default account and expose account fields."
+    "AddChannelSheet should expose localized account id/display name fields and explain the default account."
 )
 require(
     addChannelSheet.contains("accountId: accountId") &&
@@ -65,7 +67,7 @@ require(
     "AddChannelSheet should pass account id and display name into addChannel."
 )
 require(
-    dashboardVM.contains("private nonisolated static let defaultChannelAccountId = \"default\""),
+    channelManagement.contains("private nonisolated static let defaultChannelAccountId = \"default\""),
     "DashboardViewModel should centralize the default channel account id."
 )
 require(

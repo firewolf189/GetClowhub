@@ -30,13 +30,13 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let persona = read("OpenClawInstaller/Views/Agent/PersonaTabView.swift")
-let subAgents = read("OpenClawInstaller/Views/Agent/SubAgentsTabView.swift")
-let marketplaceOverview = read("OpenClawInstaller/Views/Dashboard/MarketplaceOverviewView.swift")
-let marketplaceDetail = read("OpenClawInstaller/Views/Dashboard/MarketplaceDetailView.swift")
-let marketplaceAgent = read("OpenClawInstaller/Models/MarketplaceAgent.swift")
-let avatarView = read("OpenClawInstaller/Views/Shared/AgentAvatarImage.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let persona = read("OpenClawInstaller/Features/Agents/Persona/PersonaTabView.swift")
+let subAgents = read("OpenClawInstaller/Features/Agents/SubAgents/SubAgentsTabView.swift")
+let marketplaceOverview = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceOverviewView.swift")
+let marketplaceDetail = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceDetailView.swift")
+let marketplaceAgent = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceAgent.swift")
+let avatarView = read("OpenClawInstaller/DesignSystem/Icons/AgentAvatarImage.swift")
 
 let collapsedPanel = slice(dashboard, from: "private var collapsedBody: some View", to: "private var edgeChevronHandle: some View")
 let agentCard = slice(dashboard, from: "private var agentCard: some View", to: "} label: {")

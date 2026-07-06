@@ -17,8 +17,8 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let dashboardViewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboardViewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 
 expect(
     dashboard.contains(#"navRow(.tasksLogs, title: String(localized: "Automation", bundle: languageManager.localizedBundle), systemImage: "clock.badge")"#),

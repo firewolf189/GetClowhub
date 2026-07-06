@@ -3,13 +3,13 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let viewModelPath = root.appendingPathComponent("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let skillCatalogItemPath = root.appendingPathComponent("OpenClawInstaller/Models/SkillCatalogItem.swift")
-let skillsViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabView.swift")
-let skillsModelPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabModel.swift")
-let dashboardViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let skillCatalogServicePath = root.appendingPathComponent("OpenClawInstaller/Services/SkillCatalogService.swift")
-let unifiedSearchFieldPath = root.appendingPathComponent("OpenClawInstaller/Views/Shared/UnifiedSearchField.swift")
+let viewModelPath = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let skillCatalogItemPath = root.appendingPathComponent("OpenClawInstaller/Features/Skills/Models/SkillCatalogItem.swift")
+let skillsViewPath = root.appendingPathComponent("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
+let skillsModelPath = root.appendingPathComponent("OpenClawInstaller/Features/Skills/ViewModels/SkillsViewModel.swift")
+let dashboardViewPath = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let skillCatalogServicePath = root.appendingPathComponent("OpenClawInstaller/Features/Skills/Services/SkillCatalogService.swift")
+let unifiedSearchFieldPath = root.appendingPathComponent("OpenClawInstaller/DesignSystem/Components/UnifiedSearchField.swift")
 let skillsResourcePath = root.appendingPathComponent("OpenClawInstaller/Resources/I18n/en/skills.json")
 
 let viewModel = try String(contentsOf: viewModelPath, encoding: .utf8)
@@ -59,7 +59,7 @@ let installedSkillsContent = slice(
 )
 
 require(
-    skillsModel.contains("private var hasLoadedSkillCatalog = false"),
+    skillsModel.contains("var hasLoadedSkillCatalog = false"),
     "Skill catalog should remember when the catalog is already loaded."
 )
 require(
@@ -234,9 +234,9 @@ require(
     "Skill detail overlay should fill the whole dashboard window and center the narrower sheet."
 )
 require(
-    skillsView.contains("@StateObject private var model: SkillsTabModel") &&
+    skillsView.contains("@StateObject private var model: SkillsViewModel") &&
         skillsView.contains("@State private var selectedSkillDetailItem: SkillDetailPresentationItem?"),
-    "SkillsTabView should keep module-local model and detail state."
+    "SkillsTabView should keep module-local view model and detail state."
 )
 require(
     skillsView.contains(".font(.system(size: 22, weight: .semibold))"),
@@ -352,7 +352,7 @@ require(
     skillsModel.contains("@Published var isInstallingManualSkill = false") &&
         skillsModel.contains("func installManualSkill") &&
         skillsModel.contains("SkillCatalogService.manualInstallCommand"),
-    "SkillsTabModel should keep manual repository skill installation state and actions."
+    "SkillsViewModel should keep manual repository skill installation state and actions."
 )
 require(
     skillCatalogService.contains("manualInstallCommand") &&

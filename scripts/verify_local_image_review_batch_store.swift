@@ -6,7 +6,7 @@ import Foundation
 
 let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let appSources = [
-    "OpenClawInstaller/Services/ImageReviewBatchStore.swift",
+    "OpenClawInstaller/Features/Chat/Services/ImageReviewBatchStore.swift",
 ]
 
 let driverSource = #"""

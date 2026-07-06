@@ -17,8 +17,9 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
-let cronView = read("OpenClawInstaller/Views/Dashboard/CronTabView.swift")
-let dashboardViewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let cronView = read("OpenClawInstaller/Features/Cron/Views/CronTabView.swift")
+let cronViewModel = read("OpenClawInstaller/Features/Cron/ViewModels/CronJobsViewModel.swift")
+let cronManagement = read("OpenClawInstaller/Features/Cron/CronManagement.swift")
 
 require(
     !cronView.contains("ProgressView()"),
@@ -45,31 +46,31 @@ require(
     "Cron load-error state should expose a retry action."
 )
 require(
-    cronView.contains("Refreshing..."),
+    cronView.contains(#"I18n.t("dashboard.cron.refreshing")"#),
     "Cron tab should show a quiet refresh label when existing jobs are refreshing."
 )
 
 require(
-    dashboardViewModel.contains("@Published var hasLoadedCronJobs = false"),
-    "DashboardViewModel should track whether cron jobs have completed at least one load."
+    cronViewModel.contains("@Published var hasLoadedCronJobs = false"),
+    "CronJobsViewModel should track whether cron jobs have completed at least one load."
 )
 require(
-    dashboardViewModel.contains("@Published var cronJobsLoadError: String?"),
-    "DashboardViewModel should expose cron list load errors to the UI."
+    cronViewModel.contains("@Published var cronJobsLoadError: String?"),
+    "CronJobsViewModel should expose cron list load errors to the UI."
 )
 require(
-    dashboardViewModel.contains("defer {") &&
-        dashboardViewModel.contains("isLoadingCronJobs = false") &&
-        dashboardViewModel.contains("hasLoadedCronJobs = true"),
+    cronManagement.contains("defer {") &&
+        cronManagement.contains("isLoadingCronJobs = false") &&
+        cronManagement.contains("hasLoadedCronJobs = true"),
     "loadCronJobs should always clear loading and mark the first load as complete."
 )
 require(
-    dashboardViewModel.contains("cronJobsLoadError = Self.cronJobLoadErrorMessage(output: output)"),
+    cronManagement.contains("cronJobsLoadError = Self.cronJobLoadErrorMessage(output: output)"),
     "loadCronJobs should set a user-facing error when the cron list output is not parseable."
 )
 require(
-    dashboardViewModel.contains("cronJobListOutputContainsJSON"),
-    "DashboardViewModel should distinguish an empty JSON list from invalid command output."
+    cronManagement.contains("cronJobListOutputContainsJSON"),
+    "Cron management should distinguish an empty JSON list from invalid command output."
 )
 
 print("Cron static loading state verification passed")

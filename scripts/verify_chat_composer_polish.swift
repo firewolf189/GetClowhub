@@ -40,13 +40,13 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let chatComposer = read("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
-let markdownHTML = read("OpenClawInstaller/Views/Dashboard/MarkdownHTML.swift")
-let rightInspectorSplit = read("OpenClawInstaller/Views/Dashboard/Inspector/RightInspectorSplitView.swift")
-let workspaceInspectorPane = read("OpenClawInstaller/Views/Dashboard/Inspector/WorkspaceInspectorPane.swift")
-let config = read("OpenClawInstaller/Views/Dashboard/ConfigTabView.swift")
-let metrics = read("OpenClawInstaller/Views/Dashboard/OutputsSidebarLayoutMetrics.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let chatComposer = read("OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift")
+let markdownHTML = read("OpenClawInstaller/Features/Chat/Markdown/MarkdownHTML.swift")
+let rightInspectorSplit = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorSplitView.swift")
+let workspaceInspectorPane = read("OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift")
+let config = read("OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift")
+let metrics = read("OpenClawInstaller/Features/Dashboard/Sidebar/OutputsSidebarLayoutMetrics.swift")
 let layoutScript = read("scripts/verify_outputs_sidebar_layout.swift")
 let rightOutputsTitlebarAccessory = slice(dashboard, from: "private struct RightOutputsTitlebarAccessory: View", to: "// MARK: - Sidebar")
 

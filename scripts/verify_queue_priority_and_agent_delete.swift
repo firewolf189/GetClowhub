@@ -32,8 +32,8 @@ func sliceAfter(_ source: String, anchor: String, from start: String, to end: St
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = try read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let subAgents = try read("OpenClawInstaller/Views/Agent/SubAgentsTabView.swift")
+let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let subAgents = try read("OpenClawInstaller/Features/Agents/SubAgents/SubAgentsTabView.swift")
 
 let composerInputCard = slice(
     dashboard,

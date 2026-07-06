@@ -47,9 +47,9 @@ func sliceFrom(_ haystack: String, from start: String) -> String {
     return String(haystack[startRange.lowerBound...])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let rightInspectorSplit = read("OpenClawInstaller/Views/Dashboard/Inspector/RightInspectorSplitView.swift")
-let workspaceInspector = read("OpenClawInstaller/Views/Dashboard/Inspector/WorkspaceInspectorPane.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let rightInspectorSplit = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorSplitView.swift")
+let workspaceInspector = read("OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 let dashboardView = slice(dashboard, from: "struct DashboardView: View", to: "// MARK: - Sidebar")
 let rightInspectorContentUpdateID = slice(

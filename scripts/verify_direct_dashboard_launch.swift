@@ -1,7 +1,7 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let appURL = root.appendingPathComponent("OpenClawInstaller/OpenClawInstallerApp.swift")
+let appURL = root.appendingPathComponent("OpenClawInstaller/App/OpenClawInstallerApp.swift")
 
 guard let source = try? String(contentsOf: appURL, encoding: .utf8) else {
     fatalError("Could not read OpenClawInstallerApp.swift")

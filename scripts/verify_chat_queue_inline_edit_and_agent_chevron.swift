@@ -3,8 +3,8 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let viewModelURL = root.appendingPathComponent("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let viewModelURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 
 let dashboard = try String(contentsOf: dashboardURL, encoding: .utf8)
 let viewModel = try String(contentsOf: viewModelURL, encoding: .utf8)

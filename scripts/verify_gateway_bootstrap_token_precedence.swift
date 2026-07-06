@@ -5,7 +5,8 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let gatewayClientPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Services")
+    .appendingPathComponent("Core")
+    .appendingPathComponent("Gateway")
     .appendingPathComponent("GatewayClient.swift")
 
 guard let source = try? String(contentsOf: gatewayClientPath, encoding: .utf8) else {

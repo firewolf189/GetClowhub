@@ -91,7 +91,7 @@ mv node-${VERSION}-darwin-${ARCH}.tar.gz OpenClawInstaller/Resources/
 ```
 
 ### 3. 更新代码
-编辑 `OpenClawInstaller/Services/NodeInstaller.swift`:
+编辑 `OpenClawInstaller/Core/Install/NodeInstaller.swift`:
 ```swift
 private let bundledNodeVersion = "v24.15.0"  // 更新版本号
 ```

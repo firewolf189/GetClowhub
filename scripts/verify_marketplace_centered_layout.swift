@@ -3,8 +3,8 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let overviewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarketplaceOverviewView.swift")
-let detailPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarketplaceDetailView.swift")
+let overviewPath = root.appendingPathComponent("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceOverviewView.swift")
+let detailPath = root.appendingPathComponent("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceDetailView.swift")
 
 let overview = try String(contentsOf: overviewPath, encoding: .utf8)
 let detail = try String(contentsOf: detailPath, encoding: .utf8)

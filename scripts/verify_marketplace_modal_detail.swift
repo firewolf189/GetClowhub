@@ -3,11 +3,11 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let dashboardPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let marketplacePath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarketplaceView.swift")
-let overviewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarketplaceOverviewView.swift")
-let detailPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarketplaceDetailView.swift")
-let modalPath = root.appendingPathComponent("OpenClawInstaller/Views/Shared/DashboardModalOverlay.swift")
+let dashboardPath = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let marketplacePath = root.appendingPathComponent("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceView.swift")
+let overviewPath = root.appendingPathComponent("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceOverviewView.swift")
+let detailPath = root.appendingPathComponent("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceDetailView.swift")
+let modalPath = root.appendingPathComponent("OpenClawInstaller/DesignSystem/Components/DashboardModalOverlay.swift")
 let projectPath = root.appendingPathComponent("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {

@@ -22,38 +22,43 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let appSettings = read("OpenClawInstaller/Models/AppSettings.swift")
+let dashboardViewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let configProviderLogs = read("OpenClawInstaller/Features/Settings/ConfigProviderLogs.swift")
+let providerModelSettings = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelSettings.swift")
+let appSettings = read("OpenClawInstaller/Shared/Models/AppSettings.swift")
 
 let initializerBlock = slice(
-    viewModel,
+    dashboardViewModel,
     from: "// Initialize edited values from real config",
     to: "// Forward nested ObservableObject changes"
 )
 let syncFields = slice(
-    viewModel,
+    configProviderLogs,
     from: "func syncEditedFieldsFromSettings()",
     to: "    /// Reload from disk and sync fields."
 )
 let loadModelsForSettings = slice(
-    viewModel,
+    providerModelSettings,
     from: "func loadModelsForSettings() async",
-    to: "    /// Save a persona file"
+    to: "    private func localProviderModelGroups()"
 )
+
 require(
     initializerBlock.contains("refreshAvailableModelsForCurrentProvider()"),
     "DashboardViewModel init must hydrate composer models from saved provider models before any CLI refresh"
 )
 require(
     syncFields.contains("refreshAvailableModelsForCurrentProvider()"),
-    "syncEditedFieldsFromSettings must hydrate availableModelsForSettings from configuredModels after reload/save"
+    "syncEditedFieldsFromSettings must hydrate available model lists from configuredModels after reload/save"
 )
 require(
-    loadModelsForSettings.contains("let localModels = localModelOptionsForActiveProvider()"),
+    loadModelsForSettings.contains("let localGroups = localProviderModelGroups()") &&
+        loadModelsForSettings.contains("let localModels = localModelOptionsForActiveProvider()"),
     "loadModelsForSettings must compute local provider fallback before reading CLI models"
 )
 require(
-    loadModelsForSettings.contains("mergeModelOptions(base: localModels, overlay: scopedModels)"),
+    loadModelsForSettings.contains("availableModelGroups = mergeModelGroups(base: localGroups, overlay: models)") &&
+        loadModelsForSettings.contains("mergeModelOptions(base: localModels, overlay: scopedModels)"),
     "loadModelsForSettings must merge same-provider CLI metadata into local models instead of replacing the list"
 )
 require(
@@ -61,16 +66,16 @@ require(
     "loadModelsForSettings must not shrink saved custom/official models to a partial non-empty CLI result"
 )
 require(
-    viewModel.contains("private func mergeModelOptions(base: [ModelOption], overlay: [ModelOption]) -> [ModelOption]"),
-    "DashboardViewModel must provide a provider-scoped merge helper for local models plus CLI metadata"
+    providerModelSettings.contains("private func mergeModelOptions(base: [ModelOption], overlay: [ModelOption]) -> [ModelOption]"),
+    "ProviderModelSettings must provide a provider-scoped merge helper for local models plus CLI metadata"
 )
 require(
-    viewModel.contains("private func localModelOptionsForActiveProvider() -> [ModelOption]"),
-    "DashboardViewModel must expose one local provider-model fallback used by init, sync, and CLI refresh"
+    providerModelSettings.contains("private func localModelOptionsForActiveProvider() -> [ModelOption]"),
+    "ProviderModelSettings must expose one local provider-model fallback used by init, sync, and CLI refresh"
 )
 
 let localFallback = slice(
-    viewModel,
+    providerModelSettings,
     from: "private func localModelOptionsForActiveProvider()",
     to: "    private func activeModelProviderKey()"
 )
@@ -84,12 +89,20 @@ require(
     "official provider fallback must use bundled/local provider preset models when config models are missing"
 )
 require(
+    providerModelSettings.contains("first?.runtimeId"),
+    "startup fallback must hydrate the active composer model with a runtime model id"
+)
+require(
     appSettings.contains(#"if newSettings.activeServiceSource == "getclawhub""#),
     "AppSettings.loadFromFile must populate configuredModels for the active official provider"
 )
 require(
     appSettings.contains(#"providers["getclawhub"] as? [String: Any]"#),
     "AppSettings.loadFromFile must read GetClawHub provider models from openclaw.json when present"
+)
+require(
+    appSettings.contains("mergedRuntimeModelEntries"),
+    "AppSettings.saveToFile must keep all configured provider models available to gateway runtime selection"
 )
 
 print("Provider model startup fallback verification passed")

@@ -16,9 +16,9 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let timeline = read("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift")
-let workStatus = read("OpenClawInstaller/Views/Dashboard/WorkStatusHeader.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let timeline = read("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
+let workStatus = read("OpenClawInstaller/Features/Chat/Views/WorkStatusHeader.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 require(

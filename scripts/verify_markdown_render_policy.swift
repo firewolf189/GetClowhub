@@ -1,15 +1,15 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let rendererURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
-let selectableURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
-let markdownHTMLURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarkdownHTML.swift")
-let helpURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/HelpAssistantWindow.swift")
-let timelineURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift")
+let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let rendererURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
+let selectableURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
+let markdownHTMLURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/MarkdownHTML.swift")
+let helpURL = root.appendingPathComponent("OpenClawInstaller/Features/Help/Views/HelpAssistantWindow.swift")
+let timelineModelsURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift")
 
-guard let timeline = try? String(contentsOf: timelineURL, encoding: .utf8) else {
-    fputs("FAIL: unable to read ChatTimelineSurface.swift\n", stderr)
+guard let timelineModels = try? String(contentsOf: timelineModelsURL, encoding: .utf8) else {
+    fputs("FAIL: unable to read ChatTimelineModels.swift\n", stderr)
     exit(1)
 }
 guard let dashboard = try? String(contentsOf: dashboardURL, encoding: .utf8) else {
@@ -86,14 +86,14 @@ expectContains(
     "WKWebView eligibility should be calculated from the full message list"
 )
 expectContains(
-    timeline,
+    timelineModels,
     "let richMarkdownMessageIds = MarkdownRenderPolicy.recentRichMessageIds(in: messages)",
-    "Chat list should compute recent rich-message eligibility once per list render"
+    "Chat timeline snapshot should compute recent rich-message eligibility once before layout"
 )
 expectContains(
-    timeline,
+    timelineModels,
     "allowsRichMarkdown: richMarkdownMessageIds.contains(message.id)",
-    "Each chat bubble should receive explicit WKWebView eligibility"
+    "Each chat row model should receive explicit WKWebView eligibility"
 )
 expectContains(
     dashboard,
@@ -102,7 +102,7 @@ expectContains(
 )
 expectContains(
     dashboard,
-    "allowsRichMarkdown || isRichMarkdownActivated",
+    "message.allowsRichMarkdown || isRichMarkdownActivated",
     "Manual activation should temporarily allow WKWebView for an older message"
 )
 expectContains(

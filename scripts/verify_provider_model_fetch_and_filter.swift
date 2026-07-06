@@ -22,15 +22,17 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let config = read("OpenClawInstaller/Views/Dashboard/ConfigTabView.swift")
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let fetchService = read("OpenClawInstaller/Services/ProviderModelFetchService.swift")
+let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let providerModelSettings = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelSettings.swift")
+let configProviderLogs = read("OpenClawInstaller/Features/Settings/ConfigProviderLogs.swift")
+let config = read("OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let fetchService = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelFetchService.swift")
 
 let loadModelsForSettings = slice(
-    viewModel,
+    providerModelSettings,
     from: "func loadModelsForSettings() async",
-    to: "    /// Save a persona file"
+    to: "    private func localProviderModelGroups()"
 )
 let composerSelector = slice(
     dashboard,
@@ -68,15 +70,15 @@ require(
     "dashboard view model must publish provider model fetch result/error text"
 )
 require(
-    viewModel.contains("func fetchModelsForSelectedProvider() async"),
+    configProviderLogs.contains("func fetchModelsForSelectedProvider() async"),
     "dashboard view model must expose an explicit custom provider fetch action"
 )
 require(
-    viewModel.contains("private func activeModelProviderKey() -> String"),
+    providerModelSettings.contains("private func activeModelProviderKey() -> String"),
     "dashboard view model must compute the active model provider key"
 )
 require(
-    viewModel.contains("private func modelsForActiveProvider(from models: [ModelOption]) -> [ModelOption]"),
+    providerModelSettings.contains("private func modelsForActiveProvider(from models: [ModelOption]) -> [ModelOption]"),
     "dashboard view model must filter model choices to the active provider"
 )
 require(

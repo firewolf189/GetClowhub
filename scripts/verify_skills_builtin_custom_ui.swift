@@ -5,9 +5,9 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let skillsViewPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Skills")
+    .appendingPathComponent("Views")
     .appendingPathComponent("SkillsTabView.swift")
 
 let text = try String(contentsOf: skillsViewPath, encoding: .utf8)

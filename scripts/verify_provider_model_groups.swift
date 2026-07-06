@@ -22,14 +22,18 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let appSettings = read("OpenClawInstaller/Models/AppSettings.swift")
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let appSettings = read("OpenClawInstaller/Shared/Models/AppSettings.swift")
+let dashboardViewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let providerModelSettings = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelSettings.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let membershipManager = read("OpenClawInstaller/Core/Auth/MembershipManager.swift")
+let configTabView = read("OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift")
+let configProviderLogs = read("OpenClawInstaller/Features/Settings/ConfigProviderLogs.swift")
 
 let loadModelsForSettings = slice(
-    viewModel,
+    providerModelSettings,
     from: "func loadModelsForSettings() async",
-    to: "    /// Save a persona file"
+    to: "    private func localProviderModelGroups()"
 )
 let composerPanel = slice(
     dashboard,
@@ -55,37 +59,47 @@ require(
     "provider model source loading must include saved custom provider snapshots"
 )
 require(
-    viewModel.contains("struct ProviderModelGroup"),
-    "DashboardViewModel must define a provider model group view model"
+    dashboardViewModel.contains("var availableModelGroups: [ProviderModelGroup]"),
+    "DashboardViewModel must expose grouped models through ModelSettingsViewModel"
 )
 require(
-    viewModel.contains("@Published var availableModelGroups: [ProviderModelGroup]"),
-    "DashboardViewModel must publish grouped models for the composer"
+    providerModelSettings.contains("private func localProviderModelGroups() -> [ProviderModelGroup]"),
+    "ProviderModelSettings must derive grouped models from local config and provider presets"
 )
 require(
-    viewModel.contains("private func localProviderModelGroups() -> [ProviderModelGroup]"),
-    "DashboardViewModel must derive grouped models from local config and provider presets"
-)
-require(
-    viewModel.contains(#"displayName: "Custom""#),
+    providerModelSettings.contains(#"displayName: "Custom""#),
     "custom and user-configured provider models must be grouped under Custom"
 )
 require(
-    viewModel.contains("providerKeys.contains($0.key)") && !viewModel.contains(#"group.providerKey == "custom" && $0.key != "getclawhub""#),
+    providerModelSettings.contains("providerKeys.contains($0.key)") &&
+        !providerModelSettings.contains(#"group.providerKey == "custom" && $0.key != "getclawhub""#),
     "Custom group must not absorb every non-GetClawHub CLI model; it can only merge already configured provider keys"
 )
 require(
-    viewModel.contains(#"displayName: "GetClawHub""#),
+    providerModelSettings.contains(#"displayName: "GetClawHub""#),
     "official GetClawHub models must be grouped separately"
 )
 require(
-    viewModel.contains("private func filterAllowedGetClawHubModels(_ models: [PresetModel]) -> [PresetModel]"),
-    "GetClawHub group must apply membership allow-list to saved and preset models"
+    membershipManager.contains("func allowedGetClawHubModelIDs() -> [String]") &&
+        membershipManager.contains("apiKeys.last(where: { $0.isActive })") &&
+        membershipManager.contains("if let membership, !membership.models.isEmpty"),
+    "MembershipManager must centralize GetClawHub allow-list priority as active key models, then membership models"
 )
 require(
-    viewModel.contains("getclawhubModels = filterAllowedGetClawHubModels(getclawhubModels)") &&
-        viewModel.contains("return filterAllowedGetClawHubModels(allPresetModels)"),
-    "GetClawHub saved config and preset fallback must share the same allow-list filter"
+    membershipManager.contains("func filterAllowedGetClawHubModels(_ models: [PresetModel]) -> [PresetModel]"),
+    "MembershipManager must provide the shared official model filter"
+)
+require(
+    providerModelSettings.contains("membershipManager.filterAllowedGetClawHubModels(models)") &&
+        configTabView.contains("membershipManager.filterAllowedGetClawHubModels(officialPresetModels)") &&
+        configProviderLogs.contains("membershipManager.filterAllowedGetClawHubModels(allPresetModels)"),
+    "Composer, official settings card, and save flow must share the same GetClawHub model allow-list filter"
+)
+require(
+    !providerModelSettings.contains("membershipManager?.membership?.models") &&
+        !configProviderLogs.contains("membershipManager?.membership?.models") &&
+        !configTabView.contains("activeOfficialModelAllowList"),
+    "GetClawHub model filtering must not keep separate membership-only allow-list implementations"
 )
 require(
     loadModelsForSettings.contains("let localGroups = localProviderModelGroups()"),
@@ -96,7 +110,7 @@ require(
     "loadModelsForSettings must merge CLI metadata into groups instead of replacing visible groups"
 )
 require(
-    viewModel.contains("availableModelsForSettings = flattenModelGroups("),
+    providerModelSettings.contains("availableModelsForSettings = flattenModelGroups("),
     "legacy flat model list must be a projection of the grouped source"
 )
 require(

@@ -17,13 +17,13 @@ do {
     try require(FileManager.default.fileExists(atPath: catalogResource.appendingPathComponent(".agents/plugins/marketplace.json").path), "bundled plugin catalog should include marketplace manifest")
     try require(FileManager.default.fileExists(atPath: catalogResource.appendingPathComponent("plugins/context-mode/openclaw.plugin.json").path), "bundled plugin catalog should include recommended plugin files")
 
-    let service = try read("OpenClawInstaller/Services/PluginCatalogService.swift")
+    let service = try read("OpenClawInstaller/Features/Plugins/Services/PluginCatalogService.swift")
     try require(service.contains("bundledCatalogURL"), "PluginCatalogService should expose a bundled catalog URL")
     try require(service.contains("seedBundledCatalogIfNeeded"), "PluginCatalogService should seed the local catalog cache from bundled resources")
     try require(service.contains("BundledPluginCatalog"), "PluginCatalogService should look for the BundledPluginCatalog resource")
     try require(service.contains("fileExists(atPath: cacheURL.path)"), "bundled catalog seeding should only run when the user cache is missing")
 
-    let bootstrapper = try read("OpenClawInstaller/Services/RecommendedPluginBootstrapper.swift")
+    let bootstrapper = try read("OpenClawInstaller/Features/Plugins/Services/RecommendedPluginBootstrapper.swift")
     try require(bootstrapper.contains("final class RecommendedPluginBootstrapper"), "recommended plugin bootstrapper should exist")
     try require(bootstrapper.contains("getclowhub-recommended-plugins-bootstrap.json"), "recommended plugin bootstrapper should write a marker file")
     try require(bootstrapper.contains("PluginCatalogService.seedBundledCatalogIfNeeded"), "recommended plugin bootstrapper should prepare the local plugin catalog before installing")
@@ -35,7 +35,7 @@ do {
     try require(!bootstrapper.contains("plugins enable"), "recommended plugin bootstrapper should not change enabled plugin state")
     try require(!bootstrapper.contains("plugins disable"), "recommended plugin bootstrapper should not change disabled plugin state")
 
-    let dashboard = try read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+    let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
     try require(dashboard.contains("RecommendedPluginBootstrapper"), "DashboardView should hold a recommended plugin bootstrapper")
     try require(dashboard.contains("bootstrapRecommendedPluginsIfNeeded"), "DashboardView should trigger recommended plugin bootstrap when OpenClaw is running")
 

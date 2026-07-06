@@ -3,8 +3,8 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let pluginsPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
-let skillsPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabView.swift")
+let pluginsPath = root.appendingPathComponent("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
+let skillsPath = root.appendingPathComponent("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
 let plugins = try String(contentsOf: pluginsPath, encoding: .utf8)
 let skills = try String(contentsOf: skillsPath, encoding: .utf8)
 

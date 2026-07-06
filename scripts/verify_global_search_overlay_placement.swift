@@ -5,7 +5,7 @@ private func fail(_ message: String) -> Never {
     exit(1)
 }
 
-let path = "OpenClawInstaller/Views/Dashboard/DashboardView.swift"
+let path = "OpenClawInstaller/Features/Dashboard/DashboardView.swift"
 let source = try String(contentsOfFile: path, encoding: .utf8)
 
 guard let dashboardStart = source.range(of: "struct DashboardView: View")?.lowerBound,

@@ -1,9 +1,9 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let manifestModelURL = root.appendingPathComponent("OpenClawInstaller/Models/OpenClawCoreManifest.swift")
-let coordinatorURL = root.appendingPathComponent("OpenClawInstaller/Services/OpenClawCoreUpgradeCoordinator.swift")
-let appURL = root.appendingPathComponent("OpenClawInstaller/OpenClawInstallerApp.swift")
+let manifestModelURL = root.appendingPathComponent("OpenClawInstaller/Core/Install/OpenClawCoreManifest.swift")
+let coordinatorURL = root.appendingPathComponent("OpenClawInstaller/Core/Update/OpenClawCoreUpgradeCoordinator.swift")
+let appURL = root.appendingPathComponent("OpenClawInstaller/App/OpenClawInstallerApp.swift")
 let manifestURL = root.appendingPathComponent("OpenClawInstaller/Resources/openclaw-core-version.json")
 let releaseURL = root.appendingPathComponent("RELEASE.md")
 

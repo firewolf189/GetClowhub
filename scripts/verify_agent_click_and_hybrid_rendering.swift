@@ -38,8 +38,8 @@ func optionalSlice(_ haystack: String, from start: String, to end: String) -> St
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let assistantRenderer = read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
 
 let agentSidebarRow = slice(
     dashboard,

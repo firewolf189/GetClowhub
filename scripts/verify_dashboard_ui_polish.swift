@@ -30,11 +30,11 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let selectableMarkdown = read("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
-let markdownHTML = read("OpenClawInstaller/Views/Dashboard/MarkdownHTML.swift")
-let composerView = read("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
-let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let selectableMarkdown = read("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
+let markdownHTML = read("OpenClawInstaller/Features/Chat/Markdown/MarkdownHTML.swift")
+let composerView = read("OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift")
+let assistantRenderer = read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
 // AgentListRow was generalized into SidebarCollapsibleRow; the expand/chevron
 // contract lives there now.
 let agentListRow = slice(

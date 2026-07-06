@@ -92,9 +92,9 @@ func isAgentCatalogFieldThatMustBeLocalized(_ key: String) -> Bool {
 func isDynamicCatalogField(_ namespace: String, _ key: String) -> Bool {
     switch namespace {
     case "plugins":
-        return key.hasPrefix("plugins.catalog.")
+        return key.hasPrefix("plugins.catalog.") || key.hasPrefix("plugins.installed.")
     case "skills":
-        return key.hasPrefix("skills.catalog.")
+        return key.hasPrefix("skills.catalog.") || key.hasPrefix("skills.installed.")
     case "agents":
         let uiPrefixes = ["agents.search.", "agents.empty.", "agents.detail.", "agents.action.", "agents.alert."]
         guard !uiPrefixes.contains(where: { key.hasPrefix($0) }) else { return false }
@@ -211,12 +211,12 @@ func supportedLanguageIDs(from source: String) -> [String] {
     }
 }
 
-let languageManager = read("OpenClawInstaller/Services/LanguageManager.swift")
+let languageManager = read("OpenClawInstaller/Localization/LanguageManager.swift")
 let languages = supportedLanguageIDs(from: languageManager).filter { $0 != "system" }
 require(!languages.isEmpty, "LanguageManager should expose supported languages")
 
-require(exists("OpenClawInstaller/Services/I18nService.swift"), "I18nService.swift should exist")
-let service = read("OpenClawInstaller/Services/I18nService.swift")
+require(exists("OpenClawInstaller/Localization/I18nService.swift"), "I18nService.swift should exist")
+let service = read("OpenClawInstaller/Localization/I18nService.swift")
 for token in ["enum I18n", "func t(", "func markdown(", "localeCandidates", "LanguageManager.shared.currentLocale.identifier", "String(format:"] {
     require(service.contains(token), "I18nService should contain \(token)")
 }
@@ -270,11 +270,12 @@ let pbx = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 require(pbx.contains("I18nService.swift in Sources"), "Xcode project should compile I18nService.swift")
 require(pbx.contains("I18n in Resources"), "Xcode project should bundle I18n resources")
 
-let marketplace = read("OpenClawInstaller/Models/MarketplaceAgent.swift")
+let marketplace = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceAgent.swift")
 require(marketplace.contains("I18n.agentDisplay"), "MarketplaceAgent should localize display through unified I18n")
 require(!marketplace.contains("marketplace_agents.i18n"), "MarketplaceAgent should not load the old marketplace_agents.i18n overlay directly")
 
-let skillsView = read("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabView.swift")
+let i18nService = read("OpenClawInstaller/Localization/I18nService.swift")
+let skillsView = read("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
 for token in ["@EnvironmentObject private var languageManager: LanguageManager", "I18n.skillDisplay", "I18n.t(\"skills.", "localizedSearchFields"] {
     require(skillsView.contains(token), "SkillsTabView should contain \(token)")
 }
@@ -284,12 +285,13 @@ for forbidden in ["Text(\"Skills\")", "UnifiedSearchField(placeholder: \"Search 
 let catalogSkillRow = slice(skillsView, from: "private struct CatalogSkillListRow: View", to: "private struct InstalledSkillListRow: View")
 let installedSkillRow = slice(skillsView, from: "private struct InstalledSkillListRow: View", to: "private struct InstalledStatusMark: View")
 require(catalogSkillRow.contains("let display = I18n.skillDisplay(for: item)"), "CatalogSkillListRow should resolve localized skill display once")
-require(installedSkillRow.contains("let display = catalogItem.map { I18n.skillDisplay(for: $0) }"), "InstalledSkillListRow should resolve localized catalog display when available")
+require(installedSkillRow.contains("let display = I18n.installedSkillDisplay(for: skill, catalogItem: catalogItem)"), "InstalledSkillListRow should resolve installed skill display through unified I18n")
+require(i18nService.contains("return skillDisplay(for: catalogItem, localeID: localeID)"), "I18n.installedSkillDisplay should resolve localized catalog display when available")
 for forbidden in ["Text(item.displayName)", "Text(item.description)", "Text(catalogItem?.displayName ?? skill.name)", "Text(catalogItem?.description.nilIfBlank ?? skill.description.nilIfBlank ?? I18n.t(\"skills.fallback.installedSkill\"))"] {
     require(!(catalogSkillRow + installedSkillRow).contains(forbidden), "SkillsTabView catalog rows should use I18n.skillDisplay instead of raw catalog text: \(forbidden)")
 }
 
-let pluginsView = read("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
+let pluginsView = read("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
 for token in ["@EnvironmentObject private var languageManager: LanguageManager", "I18n.pluginDisplay", "I18n.t(\"plugins.", "localizedSearchFields"] {
     require(pluginsView.contains(token), "PluginsTabView should contain \(token)")
 }
@@ -297,8 +299,8 @@ for forbidden in ["Text(\"Plugins\")", "UnifiedSearchField(placeholder: \"Search
     require(!pluginsView.contains(forbidden), "PluginsTabView still has hardcoded UI text: \(forbidden)")
 }
 
-let marketplaceOverview = read("OpenClawInstaller/Views/Dashboard/MarketplaceOverviewView.swift")
-let marketplaceDetail = read("OpenClawInstaller/Views/Dashboard/MarketplaceDetailView.swift")
+let marketplaceOverview = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceOverviewView.swift")
+let marketplaceDetail = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceDetailView.swift")
 for token in ["I18n.t(\"agents.search.placeholder\")", "I18n.t(\"agents.empty.noMatching\")", "I18n.t(\"agents.action.recruit\")"] {
     require((marketplaceOverview + marketplaceDetail).contains(token), "AgentsMarket views should contain \(token)")
 }
@@ -306,12 +308,18 @@ for forbidden in ["String(localized: \"Search agents", "String(localized: \"No m
     require(!(marketplaceOverview + marketplaceDetail).contains(forbidden), "AgentsMarket still has hardcoded localized UI through old entry: \(forbidden)")
 }
 
-let settingsShortcutPanel = read("OpenClawInstaller/Views/Dashboard/SettingsShortcutPanel.swift")
+let settingsShortcutPanel = [
+    "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutPanel.swift",
+    "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutMenu.swift",
+    "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutRows.swift",
+    "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutStyle.swift",
+    "OpenClawInstaller/Features/Settings/Shortcut/SettingsShortcutState.swift"
+].map(read).joined(separator: "\n")
 for forbidden in ["Text(\"Settings\")", "Text(\"Local user\")", "Label(\"Model\"", "Button(\"Configure\")", "Text(\"No models loaded\")", "Text(\"No billing data yet\")", "Text(\"No local budget rule\")", "Button(\"Edit budget rules\")"] {
     require(!settingsShortcutPanel.contains(forbidden), "SettingsShortcutPanel still has hardcoded UI text: \(forbidden)")
 }
 
-let dashboardView = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let dashboardView = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 for token in [
     "I18n.skillDisplay",
     "localizedSkillDescription",
@@ -353,42 +361,42 @@ for forbidden in [
 
 let dashboardI18nTargets: [(String, [String], [String])] = [
     (
-        "OpenClawInstaller/Views/Dashboard/CronTabView.swift",
+        "OpenClawInstaller/Features/Cron/Views/CronTabView.swift",
         ["I18n.t(\"dashboard.cron.", "I18n.format(\"dashboard.cron.", "I18n.t(\"catalog.action."],
         ["Text(\"Cron Jobs\")", "Text(\"Add Job\")", "Text(\"Refreshing...\")", "Button(\"Retry\"", ".alert(\"Remove Cron Job\"", "Text(\"Add Cron Job\")", "Text(\"Name\")", "Text(\"Cron Expression\")", "Text(\"Session Target\")", "Text(\"Message\")", "Button(\"Add\")"]
     ),
     (
-        "OpenClawInstaller/Views/Dashboard/ChannelsTabView.swift",
+        "OpenClawInstaller/Features/Channels/Views/ChannelsTabView.swift",
         ["I18n.t(\"dashboard.channels.", "I18n.format(\"dashboard.channels.", "I18n.t(\"catalog.action."],
         ["Text(\"Channels\")", "Text(\"Add Channel\")", "Text(\"Loading channels...\")", "Text(\"No channels configured\")", "Text(\"Add a channel to get started\")", ".alert(\"Remove Channel\"", "\"Configured\"", "\"Not Configured\"", "\"Linked\"", "\"Not Linked\""]
     ),
     (
-        "OpenClawInstaller/Views/Dashboard/ModelsTabView.swift",
+        "OpenClawInstaller/Features/Settings/ProviderModels/ModelsTabView.swift",
         ["I18n.t(\"dashboard.models.", "I18n.t(\"catalog.action."],
         ["Text(\"Models\")", "Text(\"Loading models...\")", "Text(\"No models configured\")", "Text(\"For aliases and auth configuration, use:\")", "label: \"Default\"", "label: \"Image Model\"", "label: \"Fallbacks\"", "Text(\"Fallback Models\")", "Button(\"Set Default\")"]
     ),
     (
-        "OpenClawInstaller/Views/Dashboard/StatusTabView.swift",
+        "OpenClawInstaller/Features/Status/Views/StatusTabView.swift",
         ["I18n.t(\"dashboard.status.", "I18n.format(\"dashboard.status."],
         ["Text(\"Port\")", "Text(\"Uptime\")", "Text(\"Version\")", "Text(\"Start\")", "Text(\"Stop\")", "Text(\"Restart\")", "Label(\"Agent Sessions\"", "Label(\"Cron Health\"", "Label(\"Token Usage\"", "Text(\"No token data\")", "Text(\"System Information\")"]
     ),
     (
-        "OpenClawInstaller/Views/Dashboard/LogsTabView.swift",
+        "OpenClawInstaller/Features/Status/Views/LogsTabView.swift",
         ["I18n.t(\"dashboard.logs."],
         ["TextField(\"Search logs...\"", "Label(\"Auto\"", "Label(\"Refresh\"", "Label(\"Export\"", "Label(\"Open File\"", "Text(\"No Logs Available\")", "Text(\"Logs will appear here when the gateway service is running\")", "Logs exported successfully"]
     ),
     (
-        "OpenClawInstaller/Views/Dashboard/Inspector/WorkspaceInspectorPane.swift",
+        "OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift",
         ["I18n.t(\"workspace.", "I18n.format(\"workspace.", "I18n.t(\"common.action."],
         ["Text(\"Outputs\")", ".alert(\"Delete\"", "Text(\"No outputs yet\")", "Label(\"New File\"", "Label(\"New Folder\"", "Label(\"Rename\"", "Label(\"Cut\"", "Label(\"Copy\"", "Label(\"Paste\"", "TextField(\"Filter files...\"", "Text(\"No files\")", "Text(\"No matching files\")", ".help(\"Double-click to copy path\")"]
     ),
     (
-        "OpenClawInstaller/Views/Dashboard/ProjectWorkspace/AgentProjectFolderRow.swift",
+        "OpenClawInstaller/Features/Workspace/Views/ProjectWorkspace/AgentProjectFolderRow.swift",
         ["I18n.t(\"workspace."],
         [".help(\"New chat in project\")", "Label(\"New chat in project\"", "Label(\"Reveal in Finder\"", "Label(\"Remove from Agent\""]
     ),
     (
-        "OpenClawInstaller/Views/Shared/ErrorView.swift",
+        "OpenClawInstaller/DesignSystem/Components/ErrorView.swift",
         ["I18n.t(\"common.action.", "I18n.t(\"error."],
         ["Text(\"Retry\")", "Text(\"Cancel\")", "Text(\"OK\")", "Text(\"Report Issue\")", "Error Report Copied", "Error details have been copied to your clipboard"]
     )

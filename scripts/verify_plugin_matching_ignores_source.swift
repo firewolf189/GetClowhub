@@ -3,8 +3,8 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let pluginsPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
-let channelsPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChannelsTabView.swift")
+let pluginsPath = root.appendingPathComponent("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
+let channelsPath = root.appendingPathComponent("OpenClawInstaller/Features/Channels/Views/ChannelsTabView.swift")
 let plugins = try String(contentsOf: pluginsPath, encoding: .utf8)
 let channels = try String(contentsOf: channelsPath, encoding: .utf8)
 
@@ -32,7 +32,7 @@ let channelMatcher = slice(
 let addChannelAliases = slice(
     channels,
     from: "private var expectedPluginAliases",
-    to: "/// Check if the plugin for the selected channel is installed"
+    to: "private var requiredPluginInstallSpec"
 )
 let presetMatcher = slice(
     plugins,
@@ -67,6 +67,8 @@ require(
 require(
     !addChannelAliases.contains("@openclaw-china/") &&
         !addChannelAliases.contains("@tencent-weixin/") &&
+        !channelMatcher.contains("@openclaw-china/") &&
+        !channelMatcher.contains("@tencent-weixin/") &&
         !presetKeywords.contains("@openclaw-china/") &&
         !presetKeywords.contains("@tencent-weixin/"),
     "Plugin matching aliases must not retain scoped package prefixes."

@@ -3,8 +3,8 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let detailPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/MarketplaceDetailView.swift")
-let sharedButtonPath = root.appendingPathComponent("OpenClawInstaller/Views/Shared/CatalogActionButton.swift")
+let detailPath = root.appendingPathComponent("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceDetailView.swift")
+let sharedButtonPath = root.appendingPathComponent("OpenClawInstaller/DesignSystem/Components/CatalogActionButton.swift")
 let projectPath = root.appendingPathComponent("OpenClawInstaller.xcodeproj/project.pbxproj")
 let detail = try String(contentsOf: detailPath, encoding: .utf8)
 let sharedButton = (try? String(contentsOf: sharedButtonPath, encoding: .utf8)) ?? ""

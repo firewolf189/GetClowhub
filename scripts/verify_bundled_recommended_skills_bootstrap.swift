@@ -69,17 +69,17 @@ for entry in bundledEntries {
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 require(project.contains("BundledSkillCatalog in Resources"), "Xcode project should copy BundledSkillCatalog as an app resource")
 
-let catalogService = read("OpenClawInstaller/Services/SkillCatalogService.swift")
+let catalogService = read("OpenClawInstaller/Features/Skills/Services/SkillCatalogService.swift")
 require(catalogService.contains("static var bundledCatalogURL"), "SkillCatalogService should expose bundled catalog URL")
 require(catalogService.contains("seedBundledCatalogIfNeeded"), "SkillCatalogService should seed the local catalog cache from bundled resources")
 require(catalogService.contains("copyItem(at: bundledCatalogURL, to: cacheURL)"), "SkillCatalogService should copy bundled catalog into the normal cache path")
 
-let trustStore = read("OpenClawInstaller/Services/SkillTrustStore.swift")
+let trustStore = read("OpenClawInstaller/Features/Skills/Services/SkillTrustStore.swift")
 require(trustStore.contains("getclawhub-trusted-skills.json"), "SkillTrustStore should own the trusted skills marker path")
 require(trustStore.contains("static func mark"), "SkillTrustStore should expose mark")
 require(trustStore.contains("static func unmark"), "SkillTrustStore should expose unmark")
 
-let bootstrapper = read("OpenClawInstaller/Services/RecommendedSkillBootstrapper.swift")
+let bootstrapper = read("OpenClawInstaller/Features/Skills/Services/RecommendedSkillBootstrapper.swift")
 require(bootstrapper.contains(#"Bundle.main.url(forResource: "BundledSkillCatalog""#), "bootstrapper should load bundled catalog from app resources")
 require(bootstrapper.contains("SkillCatalogService.parseCatalog(rootURL:"), "bootstrapper should parse bundled catalog through SkillCatalogService")
 require(bootstrapper.contains("SkillCatalogService.installCommand(for:"), "bootstrapper should reuse catalog install command")
@@ -89,22 +89,21 @@ require(bootstrapper.contains("SkillTrustStore.mark"), "bootstrapper should mark
 require(bootstrapper.contains("getclowhub-recommended-skills-bootstrap.json"), "bootstrapper should persist a one-time bootstrap marker")
 require(bootstrapper.contains("__OPENCLAW_RECOMMENDED_SKILL_INSTALL_OK__"), "bootstrapper should use an install success sentinel")
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 require(dashboard.contains("RecommendedSkillBootstrapper"), "DashboardView should own the recommended skill bootstrapper")
 require(dashboard.contains("bootstrapRecommendedSkillsIfNeeded"), "DashboardView should trigger recommended skill bootstrap after dashboard appears")
 
-let skillsModel = read("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabModel.swift")
-require(skillsModel.contains("SkillTrustStore.load"), "SkillsTabModel should read trusted skills from SkillTrustStore")
-require(skillsModel.contains("SkillTrustStore.mark"), "SkillsTabModel should mark installed catalog skills through SkillTrustStore")
-require(skillsModel.contains("SkillTrustStore.unmark"), "SkillsTabModel should unmark removed skills through SkillTrustStore")
-require(skillsModel.contains("seedBundledCatalogIfNeeded"), "SkillsTabModel should use bundled catalog cache before first remote sync")
-require(skillsModel.contains("forceSync || (!didSeedBundledCatalog && !FileManager.default.fileExists"), "SkillsTabModel should avoid remote sync after seeding bundled catalog unless refresh is explicit")
+let skillsModel = read("OpenClawInstaller/Features/Skills/ViewModels/SkillsViewModel.swift")
+require(skillsModel.contains("SkillTrustStore.load"), "SkillsViewModel should read trusted skills from SkillTrustStore")
+require(skillsModel.contains("SkillTrustStore.mark"), "SkillsViewModel should mark installed catalog skills through SkillTrustStore")
+require(skillsModel.contains("SkillTrustStore.unmark"), "SkillsViewModel should unmark removed skills through SkillTrustStore")
+require(skillsModel.contains("seedBundledCatalogIfNeeded"), "SkillsViewModel should use bundled catalog cache before first remote sync")
+require(skillsModel.contains("forceSync || (!didSeedBundledCatalog && !FileManager.default.fileExists"), "SkillsViewModel should avoid remote sync after seeding bundled catalog unless refresh is explicit")
 
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-require(viewModel.contains("SkillTrustStore.load"), "DashboardViewModel legacy skill flow should read trusted skills from SkillTrustStore")
-require(viewModel.contains("SkillTrustStore.mark"), "DashboardViewModel legacy skill flow should mark trusted skills through SkillTrustStore")
-require(viewModel.contains("SkillTrustStore.unmark"), "DashboardViewModel legacy skill flow should unmark trusted skills through SkillTrustStore")
-require(viewModel.contains("seedBundledCatalogIfNeeded"), "DashboardViewModel legacy skill flow should use bundled catalog cache before first remote sync")
+let dashboardSkillFacade = read("OpenClawInstaller/Features/Skills/SkillsManagement.swift")
+require(dashboardSkillFacade.contains("await skillsViewModel.loadSkillMarket"), "DashboardViewModel legacy skill market entry should delegate to SkillsViewModel")
+require(dashboardSkillFacade.contains("await skillsViewModel.installCatalogSkill"), "DashboardViewModel legacy skill install entry should delegate to SkillsViewModel")
+require(dashboardSkillFacade.contains("SkillTrustStore.load"), "Dashboard compatibility helpers should still expose trusted skill loading")
 
 let cacheMarketplacePath = "/Users/zephyrwing/.openclaw/getclowhub-skills-catalog/marketplace.json"
 if let cacheMarketplaceText = try? String(contentsOfFile: cacheMarketplacePath, encoding: .utf8) {

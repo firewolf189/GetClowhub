@@ -27,9 +27,9 @@ func slice(_ text: String, from start: String, to end: String) -> String {
     return String(text[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let updater = read("OpenClawInstaller/Services/SparkleUpdater.swift")
-let app = read("OpenClawInstaller/OpenClawInstallerApp.swift")
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let updater = read("OpenClawInstaller/Core/Update/SparkleUpdater.swift")
+let app = read("OpenClawInstaller/App/OpenClawInstallerApp.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let topHeader = slice(
     dashboard,
     from: "private var sidebarTopHeader: some View",

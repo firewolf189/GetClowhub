@@ -30,8 +30,8 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let chatComposer = read("OpenClawInstaller/Views/Dashboard/ChatComposerView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let chatComposer = read("OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift")
 
 let emptySurface = slice(dashboard, from: "private var emptyChatSurface: some View", to: "private var timelineChatSurface: some View")
 let dismissLayer = slice(dashboard, from: "private var composerSelectorDismissLayer: some View", to: "private var chatContent: some View")

@@ -16,8 +16,8 @@ func require(_ condition: Bool, _ message: String) {
     }
 }
 
-let dashboard = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let gateway = read("OpenClawInstaller/Services/GatewayClient.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let gateway = read("OpenClawInstaller/Core/Gateway/GatewayClient.swift")
 
 require(
     dashboard.contains("let chatSendStart = ContinuousClock.now"),

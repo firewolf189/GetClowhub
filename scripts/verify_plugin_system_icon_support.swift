@@ -5,12 +5,12 @@ import Foundation
 
 let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let appSources = [
-    "OpenClawInstaller/Services/PluginCatalogService.swift",
-    "OpenClawInstaller/Models/PluginCatalogItem.swift",
-    "OpenClawInstaller/Services/I18nService.swift",
-    "OpenClawInstaller/Services/LanguageManager.swift",
-    "OpenClawInstaller/Models/MarketplaceAgent.swift",
-    "OpenClawInstaller/Models/SkillCatalogItem.swift",
+    "OpenClawInstaller/Features/Plugins/Services/PluginCatalogService.swift",
+    "OpenClawInstaller/Features/Plugins/Models/PluginCatalogItem.swift",
+    "OpenClawInstaller/Localization/I18nService.swift",
+    "OpenClawInstaller/Localization/LanguageManager.swift",
+    "OpenClawInstaller/Features/Agents/Marketplace/MarketplaceAgent.swift",
+    "OpenClawInstaller/Features/Skills/Models/SkillCatalogItem.swift",
 ]
 
 let driverSource = #"""
@@ -22,15 +22,15 @@ struct VerifyPluginSystemIconSupport {
         let projectURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let catalogURL = URL(fileURLWithPath: NSString("~/.openclaw/getclowhub-plugins-catalog").expandingTildeInPath)
 
-        let itemModel = try read(projectURL.appendingPathComponent("OpenClawInstaller/Models/PluginCatalogItem.swift"))
+        let itemModel = try read(projectURL.appendingPathComponent("OpenClawInstaller/Features/Plugins/Models/PluginCatalogItem.swift"))
         expect(itemModel.contains("let systemIconName: String?"), "PluginCatalogItem should store a system icon name")
 
-        let catalogService = try read(projectURL.appendingPathComponent("OpenClawInstaller/Services/PluginCatalogService.swift"))
+        let catalogService = try read(projectURL.appendingPathComponent("OpenClawInstaller/Features/Plugins/Services/PluginCatalogService.swift"))
         expect(catalogService.contains("let systemIcon: String?"), "OpenClawPluginManifest should decode systemIcon")
         expect(catalogService.contains("systemIconName:"), "PluginCatalogService should pass systemIcon into PluginCatalogItem")
         expect(catalogService.contains("forKey: .systemIcon"), "OpenClawPluginManifest should read the systemIcon JSON key")
 
-        let pluginsView = try read(projectURL.appendingPathComponent("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift"))
+        let pluginsView = try read(projectURL.appendingPathComponent("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift"))
         expect(pluginsView.contains("systemIconName: item.systemIconName"), "catalog rows should pass systemIconName to PluginCatalogIcon")
         expect(pluginsView.contains("systemIconName: catalogItem?.systemIconName"), "installed rows should pass catalog systemIconName to PluginCatalogIcon")
         expect(pluginsView.contains("Image(systemName: systemIconName)"), "PluginCatalogIcon should render SF Symbols before file icons")

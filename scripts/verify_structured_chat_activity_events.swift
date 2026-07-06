@@ -15,8 +15,8 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
-let gateway = try read("OpenClawInstaller/Services/GatewayClient.swift")
-let viewModel = try read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let gateway = try read("OpenClawInstaller/Core/Gateway/GatewayClient.swift")
+let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 
 require(gateway.contains("\"caps\": [\"tool-events\"]"), "macOS gateway connect should subscribe to structured tool events")
 require(gateway.contains("case activity(runId: String, sessionKey: String?, event: GatewayActivityEvent)"), "gateway chat events should include structured activity")

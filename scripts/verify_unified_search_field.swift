@@ -5,31 +5,27 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let sharedSearchPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Shared")
+    .appendingPathComponent("DesignSystem")
+    .appendingPathComponent("Components")
     .appendingPathComponent("UnifiedSearchField.swift")
 let skillsPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Skills")
+    .appendingPathComponent("Views")
     .appendingPathComponent("SkillsTabView.swift")
 let pluginsPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Plugins")
+    .appendingPathComponent("Views")
     .appendingPathComponent("PluginsTabView.swift")
 let marketplaceOverviewPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Agents")
+    .appendingPathComponent("Marketplace")
     .appendingPathComponent("MarketplaceOverviewView.swift")
-let dashboardPath = root
-    .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
-    .appendingPathComponent("DashboardView.swift")
 let projectPath = root
     .appendingPathComponent("OpenClawInstaller.xcodeproj")
     .appendingPathComponent("project.pbxproj")
@@ -53,7 +49,6 @@ let sharedSearch = read(sharedSearchPath)
 let skills = read(skillsPath)
 let plugins = read(pluginsPath)
 let marketplaceOverview = read(marketplaceOverviewPath)
-let dashboard = read(dashboardPath)
 let project = read(projectPath)
 
 require(
@@ -89,10 +84,11 @@ require(
     "Marketplace overview should use UnifiedSearchField with its localized placeholder."
 )
 require(
-    dashboard.contains("UnifiedSearchField(") &&
-        dashboard.contains(#"String(localized: "Search agents...", bundle: languageManager.localizedBundle)"#) &&
-        !dashboard.contains(#"TextField("Search agents...", text: $marketplaceSearchText)"#),
-    "Dashboard marketplace list should use UnifiedSearchField instead of hand-written search chrome."
+    marketplaceOverview.contains("UnifiedSearchField(") &&
+        marketplaceOverview.contains(#"placeholder: I18n.t("agents.search.placeholder")"#) &&
+        !marketplaceOverview.contains(#"TextField("Search agents", text: $searchText)"#) &&
+        !marketplaceOverview.contains(#"TextField("Search agents...", text: $searchText)"#),
+    "Marketplace feature should use UnifiedSearchField instead of hand-written search chrome."
 )
 require(
     project.contains("UnifiedSearchField.swift in Sources") &&

@@ -5,12 +5,12 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let overlayPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Shared")
+    .appendingPathComponent("DesignSystem")
+    .appendingPathComponent("Components")
     .appendingPathComponent("CursorDotOverlay.swift")
 let dashboardPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Dashboard")
     .appendingPathComponent("DashboardView.swift")
 let projectPath = root

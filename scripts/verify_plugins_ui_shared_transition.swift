@@ -3,19 +3,20 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let pluginsViewURL = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Plugins")
+    .appendingPathComponent("Views")
     .appendingPathComponent("PluginsTabView.swift")
 let dashboardViewURL = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Dashboard")
     .appendingPathComponent("DashboardView.swift")
 let configViewURL = root
     .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
     .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
     .appendingPathComponent("ConfigTabView.swift")
 
 let pluginsView = try String(contentsOf: pluginsViewURL, encoding: .utf8)
@@ -47,7 +48,7 @@ require(
     "PluginsTabView should own plugin detail state locally."
 )
 require(
-    pluginsView.contains("@StateObject private var model: PluginsTabModel"),
+    pluginsView.contains("@StateObject private var model: PluginListViewModel"),
     "PluginsTabView should own its module model locally."
 )
 require(

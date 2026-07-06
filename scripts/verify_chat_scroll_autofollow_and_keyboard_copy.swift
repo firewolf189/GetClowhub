@@ -27,10 +27,10 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
-let selectableMarkdown = read("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
-let appDelegate = read("OpenClawInstaller/AppDelegate.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let assistantRenderer = read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
+let selectableMarkdown = read("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
+let appDelegate = read("OpenClawInstaller/App/AppDelegate.swift")
 
 let chatView = slice(
     dashboard,

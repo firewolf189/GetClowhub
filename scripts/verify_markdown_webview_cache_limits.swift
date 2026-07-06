@@ -10,7 +10,7 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
 }
 
 let sourceURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    .appendingPathComponent("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
+    .appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
 let source = try String(contentsOf: sourceURL)
 
 require(

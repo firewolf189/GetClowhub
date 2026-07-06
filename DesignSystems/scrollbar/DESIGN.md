@@ -61,6 +61,6 @@ The component should:
 
 The reusable SwiftUI component should live at:
 
-`OpenClawInstaller/Views/Shared/SmoothScrollView.swift`
+`OpenClawInstaller/DesignSystem/Components/SmoothScrollView.swift`
 
 Shared metrics and preference keys should stay in the same file unless they become useful outside the component.

@@ -407,7 +407,7 @@ done
 rm node-v24.14.0-darwin-*.tar.gz
 
 # 3. 改 Swift 代码里的版本字符串
-# OpenClawInstaller/Services/NodeInstaller.swift:47
+# OpenClawInstaller/Core/Install/NodeInstaller.swift:47
 #     private let bundledNodeVersion = "v25.0.0"
 
 # 4. 同步改文案（提到 v24.14.0 的地方）

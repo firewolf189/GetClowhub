@@ -6,7 +6,7 @@ import Foundation
 
 let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let appSources = [
-    "OpenClawInstaller/Views/Dashboard/OutputsSidebarLayoutMetrics.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/OutputsSidebarLayoutMetrics.swift",
 ]
 
 let driverSource = #"""

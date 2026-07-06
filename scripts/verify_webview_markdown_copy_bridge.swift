@@ -3,9 +3,9 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let selectablePath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift")
-let dashboardPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let appDelegatePath = root.appendingPathComponent("OpenClawInstaller/AppDelegate.swift")
+let selectablePath = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
+let dashboardPath = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let appDelegatePath = root.appendingPathComponent("OpenClawInstaller/App/AppDelegate.swift")
 
 let selectable = try String(contentsOf: selectablePath, encoding: .utf8)
 let dashboard = try String(contentsOf: dashboardPath, encoding: .utf8)

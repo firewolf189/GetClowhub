@@ -4,19 +4,19 @@ import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let dashboard = try String(
-    contentsOf: root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift"),
+    contentsOf: root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift"),
     encoding: .utf8
 )
 let chatTimelineSurfaceSource = try String(
-    contentsOf: root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift"),
+    contentsOf: root.appendingPathComponent("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift"),
     encoding: .utf8
 )
 let selectableSource = try String(
-    contentsOf: root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/SelectableMarkdownView.swift"),
+    contentsOf: root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift"),
     encoding: .utf8
 )
 let smoothScrollView = try String(
-    contentsOf: root.appendingPathComponent("OpenClawInstaller/Views/Shared/SmoothScrollView.swift"),
+    contentsOf: root.appendingPathComponent("OpenClawInstaller/DesignSystem/Components/SmoothScrollView.swift"),
     encoding: .utf8
 )
 

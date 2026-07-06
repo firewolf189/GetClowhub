@@ -5,7 +5,7 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let dashboardPath = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Dashboard")
     .appendingPathComponent("DashboardView.swift")
 

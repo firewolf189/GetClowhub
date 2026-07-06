@@ -20,8 +20,8 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
-let config = read("OpenClawInstaller/Views/Dashboard/ConfigTabView.swift")
-let localizable = read("OpenClawInstaller/Localizable.xcstrings")
+let config = read("OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift")
+let localizable = read("OpenClawInstaller/Localization/Resources/Localizable.xcstrings")
 let settingsI18nZH = read("OpenClawInstaller/Resources/I18n/zh-Hans/settings.json")
 
 require(

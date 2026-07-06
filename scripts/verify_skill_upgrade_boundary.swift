@@ -29,10 +29,10 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let skillCatalogService = read("OpenClawInstaller/Services/SkillCatalogService.swift")
-let installStateStore = read("OpenClawInstaller/Services/SkillInstallStateStore.swift")
-let skillsModel = read("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabModel.swift")
-let skillsView = read("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabView.swift")
+let skillCatalogService = read("OpenClawInstaller/Features/Skills/Services/SkillCatalogService.swift")
+let installStateStore = read("OpenClawInstaller/Features/Skills/Services/SkillInstallStateStore.swift")
+let skillsModel = read("OpenClawInstaller/Features/Skills/ViewModels/SkillsViewModel.swift")
+let skillsView = read("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 let loadSkillMarket = slice(
@@ -94,7 +94,7 @@ require(
     skillsModel.contains("@Published var skillCatalogRevision: String?") &&
         skillsModel.contains("@Published var skillInstallStates: [String: SkillInstallStateStore.Entry] = [:]") &&
         skillsModel.contains("@Published var upgradingCatalogSkillName: String?"),
-    "SkillsTabModel should publish catalog revision, install states, and upgrade progress."
+    "SkillsViewModel should publish catalog revision, install states, and upgrade progress."
 )
 require(
     loadSkillMarket.contains("SkillCatalogService.catalogRevision()") &&
@@ -117,7 +117,7 @@ require(
     skillsModel.contains("func upgradeCatalogSkill(_ item: SkillCatalogItem) async") &&
         skillsModel.contains("__OPENCLAW_SKILL_UPGRADE_OK__") &&
         skillsModel.contains(#"notifySuccess(I18n.format("skills.toast.upgraded""#),
-    "SkillsTabModel should expose an explicit upgrade action with its own sentinel and toast."
+    "SkillsViewModel should expose an explicit upgrade action with its own sentinel and toast."
 )
 require(
     removeSkill.contains("SkillInstallStateStore.remove(skill.name)") &&
@@ -127,7 +127,7 @@ require(
 require(
     skillsModel.contains("func isUpdateAvailable(for item: SkillCatalogItem, installedSkill: SkillInfo?) -> Bool") &&
         skillsModel.contains("SkillInstallStateStore.hasUpdate"),
-    "SkillsTabModel should calculate update availability from recorded revision versus current catalog revision."
+    "SkillsViewModel should calculate update availability from recorded revision versus current catalog revision."
 )
 require(
     detailOverlay.contains("isUpdateAvailable:") &&

@@ -1,8 +1,8 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let viewModelURL = root.appendingPathComponent("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let storeURL = root.appendingPathComponent("OpenClawInstaller/Services/ImageReviewBatchStore.swift")
+let viewModelURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let storeURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Services/ImageReviewBatchStore.swift")
 let projectURL = root.appendingPathComponent("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 func fail(_ message: String) -> Never {

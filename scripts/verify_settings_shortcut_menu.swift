@@ -5,23 +5,74 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let dashboardURL = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
+    .appendingPathComponent("Features")
     .appendingPathComponent("Dashboard")
     .appendingPathComponent("DashboardView.swift")
 let settingsPanelURL = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Shortcut")
     .appendingPathComponent("SettingsShortcutPanel.swift")
+let settingsMenuURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Shortcut")
+    .appendingPathComponent("SettingsShortcutMenu.swift")
+let settingsRowsURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Shortcut")
+    .appendingPathComponent("SettingsShortcutRows.swift")
+let settingsStyleURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Shortcut")
+    .appendingPathComponent("SettingsShortcutStyle.swift")
+let settingsStateURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Shortcut")
+    .appendingPathComponent("SettingsShortcutState.swift")
+let settingsBillingSummaryURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Shortcut")
+    .appendingPathComponent("SettingsShortcutBillingSummary.swift")
 let configURL = root
     .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
     .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
     .appendingPathComponent("ConfigTabView.swift")
+let settingsShellURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
+    .appendingPathComponent("Views")
+    .appendingPathComponent("SettingsShellView.swift")
+let membershipManagerURL = root
+    .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Core")
+    .appendingPathComponent("Auth")
+    .appendingPathComponent("MembershipManager.swift")
 
 let dashboard = try String(contentsOf: dashboardURL, encoding: .utf8)
 let settingsPanel = try String(contentsOf: settingsPanelURL, encoding: .utf8)
+let settingsMenu = try String(contentsOf: settingsMenuURL, encoding: .utf8)
+let settingsRows = try String(contentsOf: settingsRowsURL, encoding: .utf8)
+let settingsStyle = try String(contentsOf: settingsStyleURL, encoding: .utf8)
+let settingsBillingSummary = (try? String(contentsOf: settingsBillingSummaryURL, encoding: .utf8)) ?? ""
+let settingsShortcutSource = settingsPanel + settingsMenu + settingsRows + settingsStyle + settingsBillingSummary
+let settingsState = try String(contentsOf: settingsStateURL, encoding: .utf8)
 let config = try String(contentsOf: configURL, encoding: .utf8)
+let settingsShell = (try? String(contentsOf: settingsShellURL, encoding: .utf8)) ?? ""
+let membershipManager = try String(contentsOf: membershipManagerURL, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     if !condition() {
@@ -101,8 +152,15 @@ require(
         !dashboard.contains("SettingsShortcutMenu(") &&
         settingsPanel.contains("SettingsShortcutPanelHost(") &&
         settingsPanel.contains("SettingsShortcutMenu(") &&
+        settingsMenu.contains("struct SettingsShortcutMenu: View") &&
         !sidebarBottomBar.contains(".popover(isPresented:"),
     "Sidebar bottom bar should expose one Settings button that opens the arrowless shortcut panel."
+)
+require(
+    !dashboard.contains("struct DashboardSettingsShortcutState") &&
+        dashboard.contains("settingsShortcut: SettingsShortcutState(") &&
+        settingsState.contains("struct SettingsShortcutState: Equatable"),
+    "Settings shortcut state should be owned by the Settings feature, not Dashboard."
 )
 require(
     sidebarBottomBar.contains("SettingsShortcutPanelButton(") &&
@@ -115,27 +173,88 @@ require(
     dashboard.contains("onOpenSettingsSection: actions.openSettingsSection") &&
         dashboard.contains("private func openSettingsSection(_ section: SettingsPageSection)") &&
         dashboard.contains("selectedSettingsSection = section") &&
-        dashboard.contains("viewModel.selectedTab = .config"),
-    "Settings shortcut menu should route specific sections into the independent Settings page."
+        dashboard.contains("isSettingsPagePresented = true") &&
+        !dashboard.contains("openSettingsSection(_ section: SettingsPageSection) {\n        selectedSettingsSection = section\n        viewModel.selectedTab = .config"),
+    "Settings shortcut menu should open the independent Settings page shell without routing through the main sidebar config tab."
 )
 require(
-    settingsPanel.contains("authManager.logout()"),
+    settingsMenu.contains("authManager.logout()"),
     "Settings shortcut menu should call the existing logout flow."
 )
 require(
-    settingsPanel.contains("BillingShortcutSummary") &&
-        settingsPanel.contains("BudgetShortcutSummary") &&
-        settingsPanel.contains("DefaultModelShortcutPicker"),
-    "Shortcut menu should include Billing, Budget, and model quick-switch summaries."
+    settingsMenu.contains("BillingShortcutSummary") &&
+        settingsMenu.contains("BudgetShortcutSummary") &&
+        !settingsShortcutSource.contains("DefaultModelShortcutPicker") &&
+        !settingsShortcutSource.contains("Picker(\"\", selection: Binding<String>("),
+    "Shortcut menu should keep Billing and Budget summaries but not load or show a model picker."
 )
 require(
-    !settingsPanel.contains("StatusShortcutSummary"),
+        settingsState.contains("struct SettingsShortcutBillingSnapshot: Equatable, Codable") &&
+        settingsState.contains("static func current(\n        from membershipManager: MembershipManager?,\n        cacheIdentity: String?") &&
+        settingsState.contains("static func persistCurrentRemoteValue(") &&
+        settingsState.contains("SettingsShortcutBillingSnapshotCache") &&
+        settingsState.contains("billingSnapshot: SettingsShortcutBillingSnapshot") &&
+        dashboard.contains("cacheIdentity: authManager.userId ?? authManager.userEmail") &&
+        dashboard.contains("SettingsShortcutBillingSnapshot.persistCurrentRemoteValue(") &&
+        settingsMenu.contains("BillingShortcutSummary(\n                snapshot: shortcutState.billingSnapshot\n            )") &&
+        settingsBillingSummary.contains("struct BillingShortcutSummary: View") &&
+        settingsBillingSummary.contains("let snapshot: SettingsShortcutBillingSnapshot") &&
+        !settingsBillingSummary.contains("@ObservedObject var membershipManager") &&
+        !settingsBillingSummary.contains("membershipManager.isBillingLoading") &&
+        !settingsBillingSummary.contains("billing.loading") &&
+        dashboard.contains("private func preloadSettingsShortcutData() async") &&
+        dashboard.contains("await preloadSettingsShortcutData()") &&
+        dashboard.contains("loadSettingsShortcutData: preloadSettingsShortcutData") &&
+        membershipManager.contains("@Published var hasLoadedKeysBilling: Bool = false") &&
+        membershipManager.contains("guard !isBillingLoading else { return }") &&
+        membershipManager.contains("hasLoadedKeysBilling = true"),
+    "Settings shortcut should prewarm billing/budget data, avoid duplicate billing fetches, and distinguish loading from a loaded empty result."
+)
+require(
+    !settingsShortcutSource.contains("@State private var isBillingExpanded") &&
+        !settingsShortcutSource.contains("@State private var isBudgetExpanded") &&
+        !settingsShortcutSource.contains("SettingsShortcutExpandableRow") &&
+        settingsRows.contains("SettingsShortcutSummaryRow") &&
+        settingsBillingSummary.contains("trailingSummary: billingSummary") &&
+        settingsMenu.contains("trailingSummary: budgetSummary") &&
+        settingsBillingSummary.contains("meter: billingMeter") &&
+        settingsMenu.contains("meter: budgetMeter"),
+    "Billing and Budget shortcut rows should be non-expandable rows with inline value summaries and meters."
+)
+require(
+    !settingsMenu.contains("SettingsShortcutActionRow(title: I18n.t(\"Profile\")") &&
+        settingsMenu.contains("title: I18n.t(\"All settings\")") &&
+        settingsMenu.contains("showsTrailingChevron: false") &&
+        !settingsMenu.contains("showsTrailingChevron: true") &&
+        !settingsMenu.contains("title: I18n.t(\"All settings\"), systemImage: \"gearshape\")"),
+    "Shortcut menu should not expose Profile as a top-level row, and All settings should not show a disclosure chevron."
+)
+require(
+    !settingsMenu.contains("onOpenBudget") &&
+        !settingsMenu.contains("action: onOpenBudget") &&
+        !settingsMenu.contains("onOpenSettingsSection(.budget)") &&
+        settingsMenu.contains("BudgetShortcutSummary(\n                snapshots: shortcutState.budgetSnapshots\n            )") &&
+        settingsRows.contains("if let action") &&
+        settingsRows.contains("rowContent"),
+    "Budget shortcut row should be a read-only summary with no click-to-open behavior."
+)
+require(
+    settingsPanel.contains("anchorAboveSource") &&
+        settingsPanel.contains("sourceFrameOnScreen.minX") &&
+        settingsPanel.contains("sourceFrameOnScreen.maxY + SettingsShortcutPanelMetrics.verticalSourceGap") &&
+        !settingsPanel.contains("sourceFrameOnScreen.minY - panelHeight") &&
+        !settingsPanel.contains("sourceFrameOnScreen.maxX + SettingsShortcutPanelMetrics.sidebarTrailingInset") &&
+        !settingsPanel.contains("x: sidebarMaxX"),
+    "Settings shortcut panel should open as a small card above the Settings button instead of to the right of the sidebar."
+)
+require(
+    !settingsShortcutSource.contains("StatusShortcutSummary"),
     "Shortcut menu should not add a Status summary; Status belongs in the Settings page."
 )
 require(
     config.contains("enum SettingsPageSection") &&
         config.contains("@Binding var selectedSection: SettingsPageSection") &&
-        config.contains("SettingsSectionSidebar") &&
+        !config.contains("SettingsSectionSidebar") &&
         config.contains("case .profile") &&
         config.contains("case .status") &&
         config.contains("StatusTabView(viewModel: viewModel)") &&
@@ -144,6 +263,27 @@ require(
         config.contains("case .channels") &&
         config.contains("case .logs"),
     "ConfigTabView should keep account, system, configuration, models, channels, and logs Settings sections."
+)
+require(
+    settingsShell.contains("struct SettingsShellView: View") &&
+        settingsShell.contains("Back to app") &&
+        settingsShell.contains("onBackToApp") &&
+        settingsShell.contains("SettingsSectionSidebar") &&
+        settingsShell.contains("Search settings") &&
+        settingsShell.contains("ConfigTabView(") &&
+        settingsShell.contains("selectedSection: $selectedSection"),
+    "SettingsShellView should own the full Settings page chrome, search/sidebar navigation, and Back to app action."
+)
+require(
+    dashboard.contains("@State private var isSettingsPagePresented = false") &&
+        dashboard.contains("if isSettingsPagePresented") &&
+        dashboard.contains("SettingsShellView(") &&
+        dashboard.contains("onBackToApp: closeSettingsPage") &&
+        dashboard.contains("private func openSettingsSection(_ section: SettingsPageSection)") &&
+        dashboard.contains("isSettingsPagePresented = true") &&
+        dashboard.contains("private func closeSettingsPage()") &&
+        dashboard.contains("isSettingsPagePresented = false"),
+    "Dashboard should only switch into the Settings page shell and return to the app, not own Settings navigation chrome."
 )
 require(
     !config.contains("case .skills") &&
@@ -163,7 +303,7 @@ require(
 require(
     officialServiceSection.contains("Available Models") &&
         officialServiceSection.contains("officialAvailableModels") &&
-        officialServiceSection.contains("activeOfficialModelAllowList") &&
+        officialServiceSection.contains("membershipManager.filterAllowedGetClawHubModels(officialPresetModels)") &&
         officialServiceSection.contains("availableModelsView"),
     "Official GetClawHub provider settings should show the usable model list."
 )

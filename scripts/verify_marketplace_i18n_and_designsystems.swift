@@ -93,15 +93,15 @@ for agent in agents {
     }
 }
 
-let model = read("OpenClawInstaller/Models/MarketplaceAgent.swift")
+let model = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceAgent.swift")
 require(model.contains("localizedDisplay(localeID:"), "MarketplaceAgent should expose localizedDisplay(localeID:) for views")
 require(model.contains("I18n.agentDisplay"), "MarketplaceCatalog should localize display through unified I18n")
 require(!model.contains("marketplace_agents.i18n"), "MarketplaceCatalog should not load marketplace_agents.i18n.json directly")
 require(model.contains("localeID: String"), "Marketplace content conversion should accept an explicit locale")
 
-let overview = read("OpenClawInstaller/Views/Dashboard/MarketplaceOverviewView.swift")
-let detail = read("OpenClawInstaller/Views/Dashboard/MarketplaceDetailView.swift")
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let overview = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceOverviewView.swift")
+let detail = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceDetailView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 require(overview.contains("I18n.t(\"agents.search.placeholder\")"), "MarketplaceOverviewView should localize search placeholder through I18n")
 require(overview.contains("I18n.t(\"agents.empty.noMatching\")"), "MarketplaceOverviewView should localize empty state through I18n")
 require(detail.contains("I18n.t(\"agents.action.recruit\")"), "MarketplaceDetailView should localize recruit action through I18n")
@@ -119,12 +119,12 @@ for (path, source) in [
 
 require(dashboard.contains("localizedDisplay(localeID:"), "Dashboard marketplace rows should render localized marketplace display text")
 
-let designManager = read("OpenClawInstaller/Services/DesignSystemManager.swift")
+let designManager = read("OpenClawInstaller/DesignSystem/DesignSystemManager.swift")
 require(designManager.contains("prepareWorkspace"), "DesignSystemManager should prepare a workspace with selected design-system docs")
 require(designManager.contains("DESIGN_SYSTEMS_INDEX.md"), "DesignSystemManager should write a lightweight design-system index")
 require(designManager.contains("DESIGN_SYSTEMS_SELECTION.md"), "DesignSystemManager should write selection diagnostics")
 
-let collab = read("OpenClawInstaller/ViewModels/CollabViewModel.swift")
+let collab = read("OpenClawInstaller/Features/Collab/CollabViewModel.swift")
 let marketplaceDetail = detail
 
 for (path, source) in [

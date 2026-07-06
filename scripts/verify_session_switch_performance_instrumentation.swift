@@ -16,9 +16,9 @@ func assertContains(_ haystack: String, _ needle: String, _ message: String) {
     }
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
-let store = read("OpenClawInstaller/Services/ChatSessionStore.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let store = read("OpenClawInstaller/Features/Sessions/Services/ChatSessionStore.swift")
 
 assertContains(
     viewModel,
@@ -30,7 +30,7 @@ assertContains(
     #"private let perfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")"#,
     "session store should log cold-load performance to the shared category"
 )
-let assistantRenderer = read("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
+let assistantRenderer = read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
 assertContains(
     assistantRenderer,
     #"let chatRenderPerfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")"#,

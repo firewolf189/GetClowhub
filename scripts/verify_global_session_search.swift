@@ -6,7 +6,7 @@ import Foundation
 
 let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let appSources = [
-    "OpenClawInstaller/Models/ChatSessionSearch.swift",
+    "OpenClawInstaller/Features/Sessions/Models/ChatSessionSearch.swift",
 ]
 
 let driverSource = #"""

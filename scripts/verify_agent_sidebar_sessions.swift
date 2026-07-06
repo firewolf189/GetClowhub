@@ -30,8 +30,8 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 let scrollbarDesign = read("DesignSystems/scrollbar/DESIGN.md")
 let sessionRow = slice(dashboard, from: "struct ChatSessionRow: View", to: "/// Compact form for inline sidebar display.")
 let sidebarMainList = slice(dashboard, from: "private var sidebarMainList: some View", to: "private func navRow")

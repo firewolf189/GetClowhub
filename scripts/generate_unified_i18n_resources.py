@@ -4,12 +4,13 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LANGUAGE_MANAGER = ROOT / "OpenClawInstaller" / "Services" / "LanguageManager.swift"
-LOCALIZABLE = ROOT / "OpenClawInstaller" / "Localizable.xcstrings"
+LANGUAGE_MANAGER = ROOT / "OpenClawInstaller" / "Localization" / "LanguageManager.swift"
+LOCALIZABLE = ROOT / "OpenClawInstaller" / "Localization" / "Resources" / "Localizable.xcstrings"
 RESOURCES = ROOT / "OpenClawInstaller" / "Resources"
 I18N_ROOT = RESOURCES / "I18n"
 SKILLS_ROOT = Path.home() / ".openclaw" / "getclowhub-skills-catalog"
 PLUGINS_ROOT = Path.home() / ".openclaw" / "getclowhub-plugins-catalog"
+OPENCLAW_PACKAGE_ROOT = Path.home() / ".npm-global" / "lib" / "node_modules" / "openclaw"
 
 COMMON = {
     "common.error.unknown": "unknown error",
@@ -238,6 +239,21 @@ COMMON = {
     "dashboard.agent.remove.title": "Remove Agent",
     "dashboard.agent.remove.message": "Are you sure you want to remove \"%@\"? This will delete the agent and its workspace.",
     "dashboard.agent.addWorkFolder": "Add Work Folder...",
+    "dashboard.tooltip.chooseModel": "Choose model",
+    "dashboard.tooltip.attachFile": "Attach File",
+    "dashboard.tooltip.searchChats": "Search chats",
+    "dashboard.tooltip.taskRunning": "Task running",
+    "dashboard.tooltip.hideTerminal": "Hide Terminal",
+    "dashboard.tooltip.showTerminal": "Show Terminal",
+    "dashboard.tooltip.hideOutputs": "Hide Outputs",
+    "dashboard.tooltip.showOutputs": "Show Outputs",
+    "dashboard.tooltip.confirmAndSend": "Confirm and send",
+    "dashboard.tooltip.removeAttachment": "Remove attachment",
+    "dashboard.tooltip.openOutputsFolder": "Open Outputs Folder",
+    "dashboard.tooltip.clearConversation": "Clear Conversation",
+    "dashboard.tooltip.collapseSessionDetails": "Collapse session details",
+    "dashboard.tooltip.expandSessionDetails": "Expand session details",
+    "dashboard.tooltip.editAgent": "Edit agent",
     "dashboard.session.action.rename": "Rename",
     "dashboard.session.action.pin": "Pin",
     "dashboard.session.action.unpin": "Unpin",
@@ -638,6 +654,21 @@ COMMON_ZH_HANS = {
     "dashboard.agent.remove.title": "移除 Agent",
     "dashboard.agent.remove.message": "确定要移除“%@”吗？这会删除该 Agent 及其工作区。",
     "dashboard.agent.addWorkFolder": "添加工作文件夹...",
+    "dashboard.tooltip.chooseModel": "选择模型",
+    "dashboard.tooltip.attachFile": "附加文件",
+    "dashboard.tooltip.searchChats": "搜索会话",
+    "dashboard.tooltip.taskRunning": "任务运行中",
+    "dashboard.tooltip.hideTerminal": "隐藏终端",
+    "dashboard.tooltip.showTerminal": "显示终端",
+    "dashboard.tooltip.hideOutputs": "隐藏输出",
+    "dashboard.tooltip.showOutputs": "显示输出",
+    "dashboard.tooltip.confirmAndSend": "确认并发送",
+    "dashboard.tooltip.removeAttachment": "移除附件",
+    "dashboard.tooltip.openOutputsFolder": "打开输出文件夹",
+    "dashboard.tooltip.clearConversation": "清空会话",
+    "dashboard.tooltip.collapseSessionDetails": "收起会话详情",
+    "dashboard.tooltip.expandSessionDetails": "展开会话详情",
+    "dashboard.tooltip.editAgent": "编辑 Agent",
     "dashboard.session.action.rename": "重命名",
     "dashboard.session.action.pin": "置顶",
     "dashboard.session.action.unpin": "取消置顶",
@@ -1038,6 +1069,21 @@ COMMON_ZH_HANT = {
     "dashboard.agent.remove.title": "移除 Agent",
     "dashboard.agent.remove.message": "確定要移除「%@」嗎？這會刪除該 Agent 及其工作區。",
     "dashboard.agent.addWorkFolder": "新增工作資料夾...",
+    "dashboard.tooltip.chooseModel": "選擇模型",
+    "dashboard.tooltip.attachFile": "附加檔案",
+    "dashboard.tooltip.searchChats": "搜尋會話",
+    "dashboard.tooltip.taskRunning": "任務執行中",
+    "dashboard.tooltip.hideTerminal": "隱藏終端機",
+    "dashboard.tooltip.showTerminal": "顯示終端機",
+    "dashboard.tooltip.hideOutputs": "隱藏輸出",
+    "dashboard.tooltip.showOutputs": "顯示輸出",
+    "dashboard.tooltip.confirmAndSend": "確認並傳送",
+    "dashboard.tooltip.removeAttachment": "移除附件",
+    "dashboard.tooltip.openOutputsFolder": "開啟輸出資料夾",
+    "dashboard.tooltip.clearConversation": "清空會話",
+    "dashboard.tooltip.collapseSessionDetails": "收起會話詳情",
+    "dashboard.tooltip.expandSessionDetails": "展開會話詳情",
+    "dashboard.tooltip.editAgent": "編輯 Agent",
     "dashboard.session.action.rename": "重新命名",
     "dashboard.session.action.pin": "置頂",
     "dashboard.session.action.unpin": "取消置頂",
@@ -1232,6 +1278,8 @@ SKILLS_UI = {
     "skills.manual.subtitle": "Install a GitHub skill repository globally.",
     "skills.manual.repository": "Repository",
     "skills.fallback.installedSkill": "Installed skill",
+    "skills.installed.fallback.description": "%@ skill is installed and ready to use.",
+    "skills.installed.fallback.content": "%@\n\n%@",
     "skills.toast.updated": "Skills updated successfully",
     "skills.toast.installed": "Installed skill %@",
     "skills.toast.upgraded": "Upgraded skill %@",
@@ -1266,6 +1314,8 @@ SKILLS_UI_ZH_HANS = {
     "skills.manual.subtitle": "全局安装一个 GitHub 技能仓库。",
     "skills.manual.repository": "仓库",
     "skills.fallback.installedSkill": "已安装技能",
+    "skills.installed.fallback.description": "%@ 技能已安装，可直接使用。",
+    "skills.installed.fallback.content": "%@\n\n%@",
     "skills.toast.updated": "技能已更新",
     "skills.toast.installed": "已安装技能 %@",
     "skills.toast.upgraded": "已升级技能 %@",
@@ -1300,6 +1350,8 @@ SKILLS_UI_ZH_HANT = {
     "skills.manual.subtitle": "全域安裝一個 GitHub 技能倉庫。",
     "skills.manual.repository": "倉庫",
     "skills.fallback.installedSkill": "已安裝技能",
+    "skills.installed.fallback.description": "%@ 技能已安裝，可直接使用。",
+    "skills.installed.fallback.content": "%@\n\n%@",
     "skills.toast.updated": "技能已更新",
     "skills.toast.installed": "已安裝技能 %@",
     "skills.toast.upgraded": "已升級技能 %@",
@@ -1369,7 +1421,31 @@ PLUGINS_UI = {
     "plugins.toast.updateAllFailed": "Failed to update plugins: %@",
     "plugins.toast.allUpdated": "All plugins updated",
     "plugins.fallback.installedPlugin": "Installed OpenClaw plugin",
-    "plugins.fallback.openClawPlugin": "OpenClaw plugin"
+    "plugins.fallback.openClawPlugin": "OpenClaw plugin",
+    "plugins.installed.family.provider.displayName": "%@ Provider",
+    "plugins.installed.family.provider.description": "Model provider for connecting OpenClaw to %@ models.",
+    "plugins.installed.family.provider.category": "Provider",
+    "plugins.installed.family.browser.displayName": "%@ Browser",
+    "plugins.installed.family.browser.description": "Browser automation capability for opening pages, inspecting content, and interacting with websites.",
+    "plugins.installed.family.browser.category": "Browser",
+    "plugins.installed.family.speech.displayName": "%@ Speech",
+    "plugins.installed.family.speech.description": "Speech capability for transcription, voice, or audio-related model workflows.",
+    "plugins.installed.family.speech.category": "Speech",
+    "plugins.installed.family.memory.displayName": "%@ Memory",
+    "plugins.installed.family.memory.description": "Memory storage capability for retaining reusable context across OpenClaw sessions.",
+    "plugins.installed.family.memory.category": "Memory",
+    "plugins.installed.family.proxy.displayName": "%@ Proxy",
+    "plugins.installed.family.proxy.description": "Proxy capability for routing model requests through a compatible provider or local service.",
+    "plugins.installed.family.proxy.category": "Proxy",
+    "plugins.installed.family.runtime.displayName": "%@",
+    "plugins.installed.family.runtime.description": "Core runtime capability used by OpenClaw to provide built-in plugin behavior.",
+    "plugins.installed.family.runtime.category": "Runtime",
+    "plugins.installed.family.plugin.displayName": "%@",
+    "plugins.installed.family.plugin.description": "Installed OpenClaw plugin.",
+    "plugins.installed.family.plugin.category": "Plugin",
+    "plugins.installed.detail.pluginId": "**Plugin ID:** `%@`",
+    "plugins.installed.detail.status": "**Status:** %@",
+    "plugins.installed.detail.version": "**Version:** %@"
 }
 
 PLUGINS_UI_ZH_HANS = {
@@ -1428,7 +1504,31 @@ PLUGINS_UI_ZH_HANS = {
     "plugins.toast.updateAllFailed": "更新插件失败：%@",
     "plugins.toast.allUpdated": "全部插件已更新",
     "plugins.fallback.installedPlugin": "已安装 OpenClaw 插件",
-    "plugins.fallback.openClawPlugin": "OpenClaw 插件"
+    "plugins.fallback.openClawPlugin": "OpenClaw 插件",
+    "plugins.installed.family.provider.displayName": "%@ 提供商",
+    "plugins.installed.family.provider.description": "用于将 OpenClaw 连接到 %@ 模型的模型提供商。",
+    "plugins.installed.family.provider.category": "模型提供商",
+    "plugins.installed.family.browser.displayName": "%@ 浏览器",
+    "plugins.installed.family.browser.description": "用于打开网页、检查内容并与网站交互的浏览器自动化能力。",
+    "plugins.installed.family.browser.category": "浏览器",
+    "plugins.installed.family.speech.displayName": "%@ 语音",
+    "plugins.installed.family.speech.description": "用于转录、语音或音频模型工作流的语音能力。",
+    "plugins.installed.family.speech.category": "语音",
+    "plugins.installed.family.memory.displayName": "%@ 记忆",
+    "plugins.installed.family.memory.description": "用于在 OpenClaw 会话之间保留可复用上下文的记忆存储能力。",
+    "plugins.installed.family.memory.category": "记忆",
+    "plugins.installed.family.proxy.displayName": "%@ 代理",
+    "plugins.installed.family.proxy.description": "用于通过兼容提供商或本地服务路由模型请求的代理能力。",
+    "plugins.installed.family.proxy.category": "代理",
+    "plugins.installed.family.runtime.displayName": "%@",
+    "plugins.installed.family.runtime.description": "OpenClaw 用来提供内置插件行为的核心运行时能力。",
+    "plugins.installed.family.runtime.category": "运行时",
+    "plugins.installed.family.plugin.displayName": "%@",
+    "plugins.installed.family.plugin.description": "已安装的 OpenClaw 插件。",
+    "plugins.installed.family.plugin.category": "插件",
+    "plugins.installed.detail.pluginId": "**插件 ID：** `%@`",
+    "plugins.installed.detail.status": "**状态：** %@",
+    "plugins.installed.detail.version": "**版本：** %@"
 }
 
 PLUGINS_UI_ZH_HANT = {
@@ -1487,23 +1587,86 @@ PLUGINS_UI_ZH_HANT = {
     "plugins.toast.updateAllFailed": "更新外掛失敗：%@",
     "plugins.toast.allUpdated": "全部外掛已更新",
     "plugins.fallback.installedPlugin": "已安裝 OpenClaw 外掛",
-    "plugins.fallback.openClawPlugin": "OpenClaw 外掛"
+    "plugins.fallback.openClawPlugin": "OpenClaw 外掛",
+    "plugins.installed.family.provider.displayName": "%@ 提供商",
+    "plugins.installed.family.provider.description": "用於將 OpenClaw 連接到 %@ 模型的模型提供商。",
+    "plugins.installed.family.provider.category": "模型提供商",
+    "plugins.installed.family.browser.displayName": "%@ 瀏覽器",
+    "plugins.installed.family.browser.description": "用於開啟網頁、檢查內容並與網站互動的瀏覽器自動化能力。",
+    "plugins.installed.family.browser.category": "瀏覽器",
+    "plugins.installed.family.speech.displayName": "%@ 語音",
+    "plugins.installed.family.speech.description": "用於轉錄、語音或音訊模型工作流程的語音能力。",
+    "plugins.installed.family.speech.category": "語音",
+    "plugins.installed.family.memory.displayName": "%@ 記憶",
+    "plugins.installed.family.memory.description": "用於在 OpenClaw 會話之間保留可重用上下文的記憶儲存能力。",
+    "plugins.installed.family.memory.category": "記憶",
+    "plugins.installed.family.proxy.displayName": "%@ 代理",
+    "plugins.installed.family.proxy.description": "用於透過相容提供商或本地服務路由模型請求的代理能力。",
+    "plugins.installed.family.proxy.category": "代理",
+    "plugins.installed.family.runtime.displayName": "%@",
+    "plugins.installed.family.runtime.description": "OpenClaw 用來提供內建外掛行為的核心執行階段能力。",
+    "plugins.installed.family.runtime.category": "執行階段",
+    "plugins.installed.family.plugin.displayName": "%@",
+    "plugins.installed.family.plugin.description": "已安裝的 OpenClaw 外掛。",
+    "plugins.installed.family.plugin.category": "外掛",
+    "plugins.installed.detail.pluginId": "**外掛 ID：** `%@`",
+    "plugins.installed.detail.status": "**狀態：** %@",
+    "plugins.installed.detail.version": "**版本：** %@"
 }
 
 SETTINGS = {
     "settings.i18n.placeholder": "Settings translations are provided by Localizable.xcstrings.",
+    "budget.action.resetAgentSession": "Reset agent session",
     "All settings": "All settings",
     "Local user": "Local user",
+    "Add Provider": "Add Provider",
+    "Delete Provider": "Delete Provider",
+    "Choose Provider": "Choose Provider",
+    "Custom Providers": "Custom Providers",
+    "No custom providers yet": "No custom providers yet",
+    "Use the plus button to add a provider and API key.": "Use the plus button to add a provider and API key.",
+    "All preset providers are already added.": "All preset providers are already added.",
+    "Needs key": "Needs key",
+    "Selected": "Selected",
+    "Editing": "Editing",
+    "Use": "Use",
+    "Provider details": "Provider details",
 }
 SETTINGS_ZH_HANS = {
     "settings.i18n.placeholder": "设置翻译由 Localizable.xcstrings 提供。",
+    "budget.action.resetAgentSession": "重置 Agent 会话",
     "All settings": "全部设置",
     "Local user": "本地用户",
+    "Add Provider": "添加提供商",
+    "Delete Provider": "删除提供商",
+    "Choose Provider": "选择提供商",
+    "Custom Providers": "自定义提供商",
+    "No custom providers yet": "还没有自定义提供商",
+    "Use the plus button to add a provider and API key.": "点击加号添加提供商并填写 API Key。",
+    "All preset providers are already added.": "所有预设提供商都已添加。",
+    "Needs key": "需要密钥",
+    "Selected": "已选择",
+    "Editing": "正在编辑",
+    "Use": "使用",
+    "Provider details": "提供商详情",
 }
 SETTINGS_ZH_HANT = {
     "settings.i18n.placeholder": "設定翻譯由 Localizable.xcstrings 提供。",
+    "budget.action.resetAgentSession": "重置 Agent 會話",
     "All settings": "全部設定",
     "Local user": "本機使用者",
+    "Add Provider": "新增提供商",
+    "Delete Provider": "刪除提供商",
+    "Choose Provider": "選擇提供商",
+    "Custom Providers": "自訂提供商",
+    "No custom providers yet": "尚無自訂提供商",
+    "Use the plus button to add a provider and API key.": "點擊加號新增提供商並填寫 API Key。",
+    "All preset providers are already added.": "所有預設提供商都已新增。",
+    "Needs key": "需要密鑰",
+    "Selected": "已選取",
+    "Editing": "正在編輯",
+    "Use": "使用",
+    "Provider details": "提供商詳情",
 }
 
 AGENTS_UI = {
@@ -2010,6 +2173,7 @@ def generic_common_localizations(lang):
         "common.action.create": profile.get("actions", {}).get("create", write),
         "common.action.save": profile.get("actions", {}).get("save", write),
         "common.action.send": profile.get("actions", {}).get("send", write),
+        "common.action.refresh": profile.get("actions", {}).get("refresh", read),
         "common.toast.copied": read,
         "common.empty.parenthesized": profile.get("empty", "(empty)"),
         "help.status.online": write,
@@ -2145,6 +2309,90 @@ def generic_common_localizations(lang):
         "collab.output.files": localized_catalog_summary(lang, "output files", "agent", "Productivity", ["file generation"], "", "", "description"),
         "collab.agent.running": write,
     }
+
+
+def localized_string_catalog_label(settings_catalog, lang, source_key, fallback=None):
+    fallback = fallback or source_key
+    if lang == "en":
+        return fallback
+    value = settings_catalog.get(lang, {}).get(source_key)
+    if isinstance(value, str) and value.strip() and value != source_key:
+        return value
+    return fallback
+
+
+def has_string_catalog_translation(settings_catalog, lang, source_key):
+    if lang == "en":
+        return True
+    value = settings_catalog.get(lang, {}).get(source_key)
+    return isinstance(value, str) and value.strip() and value != source_key
+
+
+def localized_composite_label(settings_catalog, lang, action_key, action_fallback, object_key, object_fallback):
+    action = localized_string_catalog_label(settings_catalog, lang, action_key, action_fallback)
+    object_label = localized_string_catalog_label(settings_catalog, lang, object_key, object_fallback)
+    return f"{action} {object_label}".strip()
+
+
+def common_short_label_overrides(lang, settings_catalog, current_common):
+    overrides = {
+        "common.action.refresh": localized_string_catalog_label(settings_catalog, lang, "Refresh", "Refresh"),
+        "common.action.delete": localized_string_catalog_label(settings_catalog, lang, "Delete", "Delete"),
+        "catalog.action.enable": localized_string_catalog_label(settings_catalog, lang, "Enable", "Enable"),
+        "catalog.action.disable": localized_string_catalog_label(settings_catalog, lang, "Disable", "Disable"),
+        "catalog.action.close": localized_string_catalog_label(settings_catalog, lang, "Close", "Close"),
+        "subAgents.action.new": localized_string_catalog_label(settings_catalog, lang, "New Agent", "New Agent"),
+        "dashboard.session.newChat": localized_string_catalog_label(settings_catalog, lang, "New chat", "New chat"),
+        "dashboard.tooltip.attachFile": localized_string_catalog_label(settings_catalog, lang, "Attach File", "Attach File"),
+        "dashboard.tooltip.searchChats": localized_string_catalog_label(settings_catalog, lang, "Search chats", "Search chats"),
+        "dashboard.tooltip.taskRunning": localized_string_catalog_label(
+            settings_catalog,
+            lang,
+            "Task running",
+            localized_string_catalog_label(settings_catalog, lang, "Running", "Task running"),
+        ),
+    }
+    if has_string_catalog_translation(settings_catalog, lang, "Edit"):
+        overrides["common.action.edit"] = localized_string_catalog_label(settings_catalog, lang, "Edit", "Edit")
+
+    for object_key, object_fallback, hide_key, show_key in [
+        ("Terminal", "Terminal", "dashboard.tooltip.hideTerminal", "dashboard.tooltip.showTerminal"),
+        ("Outputs", "Outputs", "dashboard.tooltip.hideOutputs", "dashboard.tooltip.showOutputs"),
+    ]:
+        if lang == "en" or has_string_catalog_translation(settings_catalog, lang, object_key):
+            overrides[hide_key] = localized_composite_label(settings_catalog, lang, "Hide", "Hide", object_key, object_fallback)
+            overrides[show_key] = localized_composite_label(settings_catalog, lang, "Show", "Show", object_key, object_fallback)
+        else:
+            if hide_key not in current_common:
+                overrides[hide_key] = current_common.get(hide_key, COMMON[hide_key])
+            if show_key not in current_common:
+                overrides[show_key] = current_common.get(show_key, COMMON[show_key])
+    return overrides
+
+
+def settings_short_label_overrides(lang, settings_catalog, settings):
+    overrides = {}
+    billing_refresh = localized_string_catalog_label(settings_catalog, lang, "billing.refresh", "Refresh Billing")
+    if settings.get("billing.refresh") in {None, "billing.refresh"} or billing_refresh != "Refresh Billing":
+        overrides["billing.refresh"] = billing_refresh
+
+    current_reset = settings.get("budget.action.resetAgentSession")
+    if current_reset and current_reset != SETTINGS["budget.action.resetAgentSession"]:
+        return overrides
+
+    if has_string_catalog_translation(settings_catalog, lang, "Reset agent session"):
+        reset_label = localized_string_catalog_label(settings_catalog, lang, "Reset agent session", "")
+        overrides["budget.action.resetAgentSession"] = reset_label
+    else:
+        overrides["budget.action.resetAgentSession"] = localized_composite_label(
+            settings_catalog,
+            lang,
+            "Reset",
+            "Reset",
+            "Agent",
+            "Agent session",
+        )
+    return overrides
 
 
 def build_agents_base():
@@ -2305,6 +2553,106 @@ def build_skills_base():
     return localized
 
 
+def installed_skill_roots():
+    candidates = [
+        OPENCLAW_PACKAGE_ROOT / "skills",
+        Path.home() / ".openclaw" / "skills",
+        Path.home() / ".agents" / "skills",
+        Path.home() / ".codex" / "skills",
+        Path.home() / ".codex" / "skills" / ".system",
+    ]
+    seen = set()
+    roots = []
+    for candidate in candidates:
+        resolved = str(candidate.expanduser())
+        if resolved in seen or not candidate.exists():
+            continue
+        seen.add(resolved)
+        roots.append(candidate)
+    return roots
+
+
+def installed_skill_sources():
+    by_name = {}
+    for root in installed_skill_roots():
+        for path in sorted(root.iterdir(), key=lambda p: p.name.lower()):
+            skill_file = path / "SKILL.md"
+            if not skill_file.exists():
+                continue
+            markdown = skill_file.read_text(encoding="utf-8", errors="replace")
+            fm, body = frontmatter_and_body(markdown)
+            name = fm.get("name") or path.name
+            if not name or name in by_name:
+                continue
+            desc = fm.get("description") or first_paragraph(body)
+            by_name[name] = {
+                "name": name,
+                "display": display_name(name),
+                "description": desc,
+                "content": body or desc,
+                "category": text_category(name, desc, body, default="Productivity"),
+                "capabilities": text_capabilities(name, desc, body),
+            }
+    return list(by_name.values())
+
+
+def build_installed_skills_base():
+    entries = {
+        "skills.installed.fallback.description": "%@ skill is installed and ready to use.",
+        "skills.installed.fallback.content": "%@\n\n%@",
+    }
+    sources = installed_skill_sources()
+    for source in sources:
+        prefix = f"skills.installed.{slug(source['name'])}"
+        entries[f"{prefix}.displayName"] = source["display"]
+        entries[f"{prefix}.description"] = source["description"]
+        entries[f"{prefix}.content"] = source["content"]
+
+    localized = {lang: entries.copy() for lang in supported_languages()}
+    for lang in supported_languages():
+        if lang == "en" or not plugin_catalog_profile(lang):
+            continue
+        localized[lang]["skills.installed.fallback.description"] = localized_catalog_summary(
+            lang,
+            "%@",
+            "skill",
+            "Developer Tools",
+            ["task-specific guidance"],
+            "",
+            "",
+            "description",
+        )
+        localized[lang]["skills.installed.fallback.content"] = "%@\n\n%@"
+        for source in sources:
+            prefix = f"skills.installed.{slug(source['name'])}"
+            display = source["display"]
+            if lang in ["zh-Hans", "zh-Hant"]:
+                display = zh_skill_name(source["name"])
+            localized[lang][f"{prefix}.displayName"] = display
+            localized[lang][f"{prefix}.description"] = localized_catalog_summary(
+                lang,
+                display,
+                "skill",
+                source["category"],
+                source["capabilities"],
+                source["description"],
+                source["content"],
+                "description",
+            )
+            localized[lang][f"{prefix}.content"] = localized_catalog_markdown(
+                lang,
+                display,
+                "skill",
+                source["category"],
+                source["capabilities"],
+                source["description"],
+                source["content"],
+            )
+
+    localized["en"] = entries.copy()
+    return localized
+
+
 def plugin_catalog_paths():
     marketplace = PLUGINS_ROOT / ".agents" / "plugins" / "marketplace.json"
     data = read_json(marketplace, {})
@@ -2390,6 +2738,76 @@ def build_plugins_base():
     return localized
 
 
+def build_installed_plugins_base():
+    entries = {
+        "plugins.installed.family.provider.displayName": "%@ Provider",
+        "plugins.installed.family.provider.description": "Model provider for connecting OpenClaw to %@ models.",
+        "plugins.installed.family.provider.category": "Provider",
+        "plugins.installed.family.browser.displayName": "%@ Browser",
+        "plugins.installed.family.browser.description": "Browser automation capability for opening pages, inspecting content, and interacting with websites.",
+        "plugins.installed.family.browser.category": "Browser",
+        "plugins.installed.family.speech.displayName": "%@ Speech",
+        "plugins.installed.family.speech.description": "Speech capability for transcription, voice, or audio-related model workflows.",
+        "plugins.installed.family.speech.category": "Speech",
+        "plugins.installed.family.memory.displayName": "%@ Memory",
+        "plugins.installed.family.memory.description": "Memory storage capability for retaining reusable context across OpenClaw sessions.",
+        "plugins.installed.family.memory.category": "Memory",
+        "plugins.installed.family.proxy.displayName": "%@ Proxy",
+        "plugins.installed.family.proxy.description": "Proxy capability for routing model requests through a compatible provider or local service.",
+        "plugins.installed.family.proxy.category": "Proxy",
+        "plugins.installed.family.runtime.displayName": "%@",
+        "plugins.installed.family.runtime.description": "Core runtime capability used by OpenClaw to provide built-in plugin behavior.",
+        "plugins.installed.family.runtime.category": "Runtime",
+        "plugins.installed.family.plugin.displayName": "%@",
+        "plugins.installed.family.plugin.description": "Installed OpenClaw plugin.",
+        "plugins.installed.family.plugin.category": "Plugin",
+        "plugins.installed.detail.pluginId": "**Plugin ID:** `%@`",
+        "plugins.installed.detail.status": "**Status:** %@",
+        "plugins.installed.detail.version": "**Version:** %@",
+    }
+    localized = {lang: entries.copy() for lang in supported_languages()}
+    for lang in supported_languages():
+        if lang == "en" or not plugin_catalog_profile(lang):
+            continue
+        profile = plugin_catalog_profile(lang)
+        plugin = catalog_noun(lang, "plugin")
+        read_action = localized_plugin_capability("read", lang)
+        provider = localized_plugin_category("Developer Tools", lang)
+        browser = localized_plugin_capability("interactive", lang)
+        speech = localized_plugin_capability("write", lang)
+        memory = localized_plugin_category("Memory", lang)
+        proxy = localized_plugin_capability("backend", lang)
+        runtime = localized_plugin_capability("general", lang)
+        localized[lang].update({
+            "plugins.installed.family.provider.displayName": f"%@ {provider}",
+            "plugins.installed.family.provider.description": localized_catalog_summary(lang, "%@", "plugin", "Developer Tools", ["backend"], "", "", "description"),
+            "plugins.installed.family.provider.category": provider,
+            "plugins.installed.family.browser.displayName": f"%@ {browser}",
+            "plugins.installed.family.browser.description": localized_catalog_summary(lang, "browser automation", "plugin", "Developer Tools", ["interactive"], "", "", "description"),
+            "plugins.installed.family.browser.category": browser,
+            "plugins.installed.family.speech.displayName": f"%@ {speech}",
+            "plugins.installed.family.speech.description": localized_catalog_summary(lang, "speech", "plugin", "Communication", ["write"], "", "", "description"),
+            "plugins.installed.family.speech.category": speech,
+            "plugins.installed.family.memory.displayName": f"%@ {memory}",
+            "plugins.installed.family.memory.description": localized_catalog_summary(lang, "memory", "plugin", "Memory", ["storage"], "", "", "description"),
+            "plugins.installed.family.memory.category": memory,
+            "plugins.installed.family.proxy.displayName": f"%@ {proxy}",
+            "plugins.installed.family.proxy.description": localized_catalog_summary(lang, "proxy", "plugin", "Developer Tools", ["backend"], "", "", "description"),
+            "plugins.installed.family.proxy.category": proxy,
+            "plugins.installed.family.runtime.displayName": "%@",
+            "plugins.installed.family.runtime.description": localized_catalog_summary(lang, "runtime", "plugin", "Developer Tools", ["general"], "", "", "description"),
+            "plugins.installed.family.runtime.category": runtime,
+            "plugins.installed.family.plugin.displayName": "%@",
+            "plugins.installed.family.plugin.description": localized_catalog_summary(lang, plugin, "plugin", "Productivity", ["general"], "", "", "description"),
+            "plugins.installed.family.plugin.category": plugin,
+            "plugins.installed.detail.pluginId": f"**{plugin} ID:** `%@`",
+            "plugins.installed.detail.status": f"**{read_action}:** %@",
+            "plugins.installed.detail.version": f"**{localized_plugin_capability('monitoring', lang)}:** %@",
+        })
+    localized["en"] = entries.copy()
+    return localized
+
+
 def build_settings_base():
     catalog = read_json(LOCALIZABLE, {})
     strings = catalog.get("strings", {})
@@ -2428,7 +2846,9 @@ def main():
     validate_plugin_catalog_profiles(langs)
     agents = build_agents_base()
     skills_catalog = build_skills_base()
+    installed_skills_catalog = build_installed_skills_base()
     plugins_catalog = build_plugins_base()
+    installed_plugins_catalog = build_installed_plugins_base()
     settings_catalog = build_settings_base()
     for lang in langs:
         common = COMMON.copy()
@@ -2443,8 +2863,12 @@ def main():
         elif lang == "zh-Hant":
             common.update(COMMON_ZH_HANT); skills.update(SKILLS_UI_ZH_HANT); plugins.update(PLUGINS_UI_ZH_HANT); settings.update(SETTINGS_ZH_HANT); agent_ui.update(AGENTS_UI_ZH_HANT)
         settings.update(settings_catalog.get(lang, settings_catalog.get("en", {})))
+        common.update(common_short_label_overrides(lang, settings_catalog, common))
+        settings.update(settings_short_label_overrides(lang, settings_catalog, settings))
         skills.update(skills_catalog.get(lang, {}))
+        skills.update(installed_skills_catalog.get(lang, {}))
         plugins.update(plugins_catalog.get(lang, {}))
+        plugins.update(installed_plugins_catalog.get(lang, {}))
         write_namespace(lang, "common", common)
         write_namespace(lang, "settings", settings)
         agent_ui.update(agents.get(lang, agents.get("en", {})))

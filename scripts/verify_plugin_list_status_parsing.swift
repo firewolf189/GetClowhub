@@ -5,8 +5,8 @@ import Foundation
 
 let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let appSources = [
-    "OpenClawInstaller/Services/PluginListParser.swift",
-    "OpenClawInstaller/Models/PluginInfo.swift",
+    "OpenClawInstaller/Features/Plugins/Services/PluginListParser.swift",
+    "OpenClawInstaller/Features/Plugins/Models/PluginInfo.swift",
 ]
 
 let driverSource = #"""
@@ -36,6 +36,25 @@ struct VerifyPluginListStatusParsing {
         └──────────────┴──────────┴──────────┴────────────────────────────────────┴───────────┘
         """
 
+        let jsonOutput = """
+        diagnostic line before json
+        {
+          "plugins": [
+            {
+              "id": "dingtalk",
+              "name": "@openclaw-china/dingtalk",
+              "version": "2026.4.24",
+              "source": "/Users/example/.openclaw/extensions/dingtalk/index.js",
+              "origin": "global",
+              "enabled": true,
+              "status": "loaded",
+              "channelIds": ["dingtalk"]
+            }
+          ]
+        }
+        diagnostic line after json
+        """
+
         let newPlugins = PluginListParser.parse(output: newFormatOutput)
         let contextMode = newPlugins.first { $0.pluginId == "context-mode" }
         let disabledNew = newPlugins.first { $0.pluginId == "disabled" }
@@ -51,6 +70,12 @@ struct VerifyPluginListStatusParsing {
 
         expect(loadedOld?.enabled == true, "old format loaded status should remain enabled")
         expect(disabledOld?.enabled == false, "old format disabled status should remain disabled")
+
+        let jsonPlugins = PluginListParser.parse(output: jsonOutput)
+        let dingtalk = jsonPlugins.first { $0.pluginId == "dingtalk" }
+        expect(dingtalk?.enabled == true, "JSON format loaded plugin should parse as enabled")
+        expect(dingtalk?.origin == .global, "JSON format origin should parse from structured output")
+        expect(dingtalk?.channelIds == ["dingtalk"], "JSON format channelIds should be preserved for channel matching")
 
         print("Plugin list status parsing verification passed")
     }

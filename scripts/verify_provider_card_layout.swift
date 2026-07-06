@@ -5,8 +5,9 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let configURL = root
     .appendingPathComponent("OpenClawInstaller")
+    .appendingPathComponent("Features")
+    .appendingPathComponent("Settings")
     .appendingPathComponent("Views")
-    .appendingPathComponent("Dashboard")
     .appendingPathComponent("ConfigTabView.swift")
 
 let config = try String(contentsOf: configURL, encoding: .utf8)
@@ -57,21 +58,24 @@ require(
 )
 
 require(
-    customProviderList.contains("ForEach(viewModel.availableProviders)") &&
+    customProviderList.contains("ForEach(viewModel.configuredCustomProviders)") &&
+        !customProviderList.contains("ForEach(viewModel.availableProviders)") &&
+        customProviderList.contains("AddCustomProviderSheet(") &&
         customProviderList.contains("CustomProviderCard(") &&
         customProviderList.contains("provider: provider") &&
         customProviderList.contains("ModelConfigSection(viewModel: viewModel)") &&
         customProviderList.contains("if isCurrentProvider(provider)"),
-    "Custom providers should render one card per provider and expand only the current provider editor."
+    "Custom providers should render configured providers only, with presets moved behind an Add Provider flow."
 )
 
 require(
-    customProviderCard.contains("let provider: ProviderPreset") &&
+    customProviderCard.contains("let provider: ConfiguredCustomProvider") &&
         customProviderCard.contains("let isSelected: Bool") &&
         customProviderCard.contains("let isConfigured: Bool") &&
         customProviderCard.contains("let modelCount: Int") &&
-        customProviderCard.contains("let onSelect: () -> Void"),
-    "Custom provider cards should be explicit summary rows with selection action."
+        customProviderCard.contains("let onSelect: () -> Void") &&
+        customProviderCard.contains("let onDelete: () -> Void"),
+    "Custom provider cards should be explicit configured-provider rows with selection and delete actions."
 )
 
 require(
@@ -79,14 +83,15 @@ require(
         customProviderCard.contains("localizedString(\"Selected\")") &&
         customProviderCard.contains("localizedString(\"Configured\")") &&
         customProviderCard.contains("localizedString(\"Needs key\")"),
-    "Custom provider cards should show selected/configured/needs-key status badges."
+    "Custom provider cards should show selected/configured/needs-key status based on saved or edited API keys."
 )
 
 require(
-    customProviderCard.contains("Button(action: onSelect)") &&
+    customProviderCard.contains(".onTapGesture(perform: onSelect)") &&
+        customProviderCard.contains("Button(role: .destructive") &&
         customProviderCard.contains("localizedString(isSelected ? \"Editing\" : \"Use\")") &&
         customProviderCard.contains(".contentShape(Rectangle())"),
-    "Custom provider card rows should be full-width selectable and expose a Use/Edit action."
+    "Custom provider card rows should be full-width selectable without nesting the delete button inside the row action."
 )
 
 require(
@@ -94,6 +99,14 @@ require(
         modelConfigSection.contains("Text(selectedProviderDisplayName)") &&
         !modelConfigSection.contains("Picker(\"\", selection: Binding("),
     "Expanded custom provider editor should use the selected card context instead of duplicating a provider picker."
+)
+
+require(
+    config.contains("struct AddCustomProviderSheet: View") &&
+        config.contains("viewModel.addCustomProvider(from: selectedPreset, apiKey: apiKey)") &&
+        config.contains("availableProviderPresets") &&
+        config.contains("configuredCustomProviders"),
+    "Add Provider should be a dedicated preset-selection flow that requires an API key before adding to the configured list."
 )
 
 print("Provider card layout verification passed")

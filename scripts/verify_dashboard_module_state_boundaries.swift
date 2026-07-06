@@ -23,32 +23,32 @@ func require(_ condition: Bool, _ message: String) throws {
 }
 
 do {
-    let skillsView = try contents("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabView.swift")
-    let skillsModel = try contents("OpenClawInstaller/Views/Dashboard/Skills/SkillsTabModel.swift")
-    let pluginsView = try contents("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
-    let pluginsModel = try contents("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabModel.swift")
+    let skillsView = try contents("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
+    let skillsModel = try contents("OpenClawInstaller/Features/Skills/ViewModels/SkillsViewModel.swift")
+    let pluginsView = try contents("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
+    let pluginsModel = try contents("OpenClawInstaller/Features/Plugins/ViewModels/PluginListViewModel.swift")
 
     try require(!skillsView.contains("@ObservedObject var viewModel: DashboardViewModel"),
                 "SkillsTabView must not observe the full DashboardViewModel.")
-    try require(skillsView.contains("@StateObject") && skillsView.contains("SkillsTabModel"),
-                "SkillsTabView should own a local SkillsTabModel.")
-    try require(skillsModel.contains("final class SkillsTabModel: ObservableObject"),
-                "SkillsTabModel should be the Skills module state owner.")
+    try require(skillsView.contains("@StateObject") && skillsView.contains("SkillsViewModel"),
+                "SkillsTabView should own a local SkillsViewModel.")
+    try require(skillsModel.contains("final class SkillsViewModel: ObservableObject"),
+                "SkillsViewModel should be the Skills module state owner.")
     try require(skillsModel.contains("loadSkillMarket"),
-                "SkillsTabModel should own skill catalog loading.")
+                "SkillsViewModel should own skill catalog loading.")
     try require(skillsModel.contains("installCatalogSkill"),
-                "SkillsTabModel should own skill install actions.")
+                "SkillsViewModel should own skill install actions.")
 
     try require(!pluginsView.contains("@ObservedObject var viewModel: DashboardViewModel"),
                 "PluginsTabView must not observe the full DashboardViewModel.")
-    try require(pluginsView.contains("@StateObject") && pluginsView.contains("PluginsTabModel"),
-                "PluginsTabView should own a local PluginsTabModel.")
-    try require(pluginsModel.contains("final class PluginsTabModel: ObservableObject"),
-                "PluginsTabModel should be the Plugins module state owner.")
+    try require(pluginsView.contains("@StateObject") && pluginsView.contains("PluginListViewModel"),
+                "PluginsTabView should own a local PluginListViewModel.")
+    try require(pluginsModel.contains("final class PluginListViewModel: ObservableObject"),
+                "PluginListViewModel should be the Plugins module state owner.")
     try require(pluginsModel.contains("loadPluginMarket"),
-                "PluginsTabModel should own plugin catalog loading.")
+                "PluginListViewModel should own plugin catalog loading.")
     try require(pluginsModel.contains("installCatalogPlugin"),
-                "PluginsTabModel should own plugin install actions.")
+                "PluginListViewModel should own plugin install actions.")
 
     print("dashboard module state boundary checks passed")
 } catch {

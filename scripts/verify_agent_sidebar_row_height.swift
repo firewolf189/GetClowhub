@@ -36,11 +36,12 @@ func expectAppearsInOrder(_ haystack: String, _ needles: [String], _ message: St
     }
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let projectFolderRow = read("OpenClawInstaller/Features/Workspace/Views/ProjectWorkspace/AgentProjectFolderRow.swift")
 let sidebarRowContent = slice(dashboard, from: "private func sidebarRowContent", to: "private func sidebarIcon")
 // Agent rows are now rendered through the shared SidebarCollapsibleRow
 // (AgentListRow was replaced in the collapsible-sidebar refactor).
-let agentSidebarRow = slice(dashboard, from: "private func agentSidebarRow", to: "private func agentRowWithContextMenu")
+let agentSidebarRow = slice(dashboard, from: "private func agentSidebarRow", to: "private func canDeleteAgent")
 let collapsibleRowContent = slice(
     dashboard,
     from: "struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View",
@@ -54,6 +55,10 @@ expect(
 expect(
     agentSidebarRow.contains("rowHeight: 24") && agentSidebarRow.contains("verticalPadding: 4"),
     "agent rows should stay at 24pt content + 4pt vertical padding = the 32pt height that matches main sidebar rows"
+)
+expect(
+    projectFolderRow.contains("rowHeight: 24") && projectFolderRow.contains("verticalPadding: 4"),
+    "project rows should stay at 24pt content + 4pt vertical padding = the same 32pt height as agent and session rows"
 )
 expectAppearsInOrder(
     collapsibleRowContent,

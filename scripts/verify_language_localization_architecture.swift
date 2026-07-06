@@ -20,10 +20,10 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
-let app = read("OpenClawInstaller/OpenClawInstallerApp.swift")
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let localizable = read("OpenClawInstaller/Localizable.xcstrings")
-let languageManager = read("OpenClawInstaller/Services/LanguageManager.swift")
+let app = read("OpenClawInstaller/App/OpenClawInstallerApp.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let localizable = read("OpenClawInstaller/Localization/Resources/Localizable.xcstrings")
+let languageManager = read("OpenClawInstaller/Localization/LanguageManager.swift")
 
 require(
     app.contains("@StateObject private var languageManager = LanguageManager.shared"),

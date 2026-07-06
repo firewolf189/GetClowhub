@@ -10,8 +10,8 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
 }
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let assistantURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/AssistantMessageRenderer.swift")
-let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let assistantURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
+let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 
 let assistant = try String(contentsOf: assistantURL)
 let dashboard = try String(contentsOf: dashboardURL)

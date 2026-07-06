@@ -5,7 +5,8 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let authURL = root
     .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Services")
+    .appendingPathComponent("Core")
+    .appendingPathComponent("Auth")
     .appendingPathComponent("AuthManager.swift")
 
 let source = try String(contentsOf: authURL, encoding: .utf8)

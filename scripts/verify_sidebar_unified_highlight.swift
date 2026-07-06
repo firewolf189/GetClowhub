@@ -1,7 +1,7 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 
 guard let dashboard = try? String(contentsOf: dashboardURL, encoding: .utf8) else {
     fatalError("Could not read DashboardView.swift")

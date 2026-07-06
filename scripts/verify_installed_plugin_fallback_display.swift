@@ -3,8 +3,10 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let pluginsViewPath = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
+let pluginsViewPath = root.appendingPathComponent("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
 let pluginsView = try String(contentsOf: pluginsViewPath, encoding: .utf8)
+let i18nServicePath = root.appendingPathComponent("OpenClawInstaller/Localization/I18nService.swift")
+let i18nService = try String(contentsOf: i18nServicePath, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     guard condition() else {
@@ -43,39 +45,53 @@ require(
     "Installed plugins without catalog metadata should use a dedicated readable fallback display model."
 )
 require(
-    installedRow.contains("InstalledPluginFallbackDisplay(plugin: plugin)") &&
-        installedRow.contains("fallback.displayName") &&
-        installedRow.contains("fallback.description"),
-    "Installed plugin rows should render readable fallback names and descriptions instead of raw ids."
+    installedRow.contains("I18n.installedPluginDisplay(for: plugin, catalogItem: catalogItem)") &&
+        installedRow.contains("display.displayName") &&
+        installedRow.contains("display.description"),
+    "Installed plugin rows should render unified localized fallback names and descriptions instead of raw ids."
 )
 require(
     !installedRow.contains("?? plugin.pluginId"),
     "Installed plugin rows should not show pluginId as the description fallback."
 )
 require(
-    presentationItem.contains("InstalledPluginFallbackDisplay(plugin: plugin)") &&
-        presentationItem.contains("fallback.description") &&
-        presentationItem.contains("fallback.documentationMarkdown"),
-    "Installed plugin detail should use readable fallback documentation when catalog metadata is missing."
+    presentationItem.contains("I18n.installedPluginDisplay(for: plugin, catalogItem: catalogItem)") &&
+        presentationItem.contains("display.description") &&
+        presentationItem.contains("display.longDescription"),
+    "Installed plugin detail should use unified localized fallback documentation when catalog metadata is missing."
 )
 require(
     !presentationItem.contains("**Source:**"),
     "Installed plugin detail fallback should not expose the raw Source field."
 )
 require(
-    fallbackDisplay.contains(".provider") &&
-        fallbackDisplay.contains(".browser") &&
-        fallbackDisplay.contains(".speech") &&
-        fallbackDisplay.contains(".memory") &&
-        fallbackDisplay.contains(".proxy"),
-    "Fallback display should classify common built-in plugin families."
+    i18nService.contains("case provider") &&
+        i18nService.contains("case browser") &&
+        i18nService.contains("case speech") &&
+        i18nService.contains("case memory") &&
+        i18nService.contains("case proxy"),
+    "Unified I18n fallback display should classify common built-in plugin families."
 )
 require(
-    fallbackDisplay.contains("Model provider") &&
-        fallbackDisplay.contains("Browser automation") &&
-        fallbackDisplay.contains("Speech capability") &&
-        fallbackDisplay.contains("Memory storage"),
-    "Fallback display should include user-facing descriptions for common built-in plugin families."
+    i18nService.contains("installedPluginBaseNameCandidate") &&
+        i18nService.contains("looksLikeRawPluginIdentifier") &&
+        i18nService.contains("plugin.channel.contains(\"/\")") &&
+        i18nService.contains("normalized.hasPrefix(\"@\")"),
+    "Installed plugin fallback should sanitize scoped package names such as @openclaw/ollama-provider."
+)
+require(
+    i18nService.contains("case \"openai\": return \"OpenAI\"") &&
+        i18nService.contains("case \"tts\": return \"TTS\"") &&
+        i18nService.contains("case \"sglang\": return \"SGLang\""),
+    "Installed plugin fallback should humanize common provider and CLI acronyms."
+)
+require(
+    fallbackDisplay.contains("I18n.installedPluginDisplay(for: plugin, catalogItem: nil)") &&
+        !fallbackDisplay.contains("Model provider") &&
+        !fallbackDisplay.contains("Browser automation") &&
+        !fallbackDisplay.contains("Speech capability") &&
+        !fallbackDisplay.contains("Memory storage"),
+    "Fallback display should delegate user-facing descriptions to unified I18n resources."
 )
 
 print("Installed plugin fallback display verification passed")

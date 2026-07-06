@@ -1,6 +1,6 @@
 import Foundation
 
-let pluginsTabURL = URL(fileURLWithPath: "OpenClawInstaller/Views/Dashboard/Plugins/PluginsTabView.swift")
+let pluginsTabURL = URL(fileURLWithPath: "OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
 let pluginsTab = try String(contentsOf: pluginsTabURL, encoding: .utf8)
 
 func fail(_ message: String) -> Never {

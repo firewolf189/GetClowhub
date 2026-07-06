@@ -30,9 +30,9 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
-let popover = read("OpenClawInstaller/Views/Dashboard/SessionTitleUserMessagesPopover.swift")
-let timeline = read("OpenClawInstaller/Views/Dashboard/ChatTimelineSurface.swift")
+let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let popover = read("OpenClawInstaller/Features/Sessions/Views/SessionTitleUserMessagesPopover.swift")
+let timeline = read("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 let titleToolbar = slice(

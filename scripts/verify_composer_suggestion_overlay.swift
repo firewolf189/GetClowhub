@@ -3,7 +3,7 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Views/Dashboard/DashboardView.swift")
+let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let dashboard = try String(contentsOf: dashboardURL, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {

@@ -24,7 +24,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let viewModel = read("OpenClawInstaller/ViewModels/DashboardViewModel.swift")
+let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 let rebuildSessionsMirror = slice(viewModel, from: "func rebuildSessionsMirror()", to: "/// Remove in-memory UI state")
 let switchSession = slice(viewModel, from: "func switchSession(to sessionId: UUID)", to: "/// Switch to a session")
 let createNewSession = slice(viewModel, from: "func createNewSession(forAgent agentId: String)", to: "/// Cancel any pending debounced write")

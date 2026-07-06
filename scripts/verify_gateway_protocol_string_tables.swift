@@ -3,7 +3,7 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let sourceURL = root.appendingPathComponent("OpenClawInstaller/Services/GatewayClient.swift")
+let sourceURL = root.appendingPathComponent("OpenClawInstaller/Core/Gateway/GatewayClient.swift")
 let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
