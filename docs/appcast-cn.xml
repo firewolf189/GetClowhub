@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.66</title>
-      <sparkle:version>74</sparkle:version>
-      <sparkle:shortVersionString>1.1.66</sparkle:shortVersionString>
+      <title>Version 1.1.67</title>
+      <sparkle:version>75</sparkle:version>
+      <sparkle:shortVersionString>1.1.67</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.66</h2>
+        <h2>OpenClaw Helper 1.1.67</h2>
         <ul>
-          <li>版本 1.1.66 更新</li>
+          <li>版本 1.1.67 更新</li>
         </ul>
       ]]></description>
-      <pubDate>Sun, 05 Jul 2026 17:08:25 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.66/GetClawHub.dmg"
-                 length="217918689"
+      <pubDate>Mon, 06 Jul 2026 09:34:31 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.67/GetClawHub.dmg"
+                 length="217850166"
                  type="application/octet-stream"
-                 sparkle:edSignature="CmyhkOlYTEZ7Gt+xSsMaVtlIxcvs0UfjAMfZptkP7IjEjV7HrFdSQ5ZXPy1sQfqVzSCzaB6OFt0dZjeh3VgyBQ==" />
+                 sparkle:edSignature="NHBl6WU2cbLXKr95HLEnV9QsOuKghoP753lnJHLQqXf6raJz9Uo3TFCyo/isigQzWJHd6LTMsu0JaHy2Zc/iBQ==" />
     </item>
   </channel>
 </rss>
