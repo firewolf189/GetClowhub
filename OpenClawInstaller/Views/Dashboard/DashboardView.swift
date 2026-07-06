@@ -1125,6 +1125,14 @@ struct SidebarView: View {
             Text("GetClawHub")
                 .font(.system(size: 14, weight: .semibold))
 
+            // App's own client version (CFBundleShortVersionString), always
+            // visible so users don't need the macOS About panel. Distinct from
+            // the gateway/openclaw version shown in ServiceStatusBadge below.
+            Text("v\(sparkleUpdater.currentVersion)")
+                .font(.system(size: 10, weight: .regular))
+                .foregroundColor(.secondary)
+                .help("GetClawHub v\(sparkleUpdater.currentVersion)")
+
             if sparkleUpdater.updateAvailable {
                 Button {
                     cancelSessionDeleteConfirmation()
@@ -1146,6 +1154,34 @@ struct SidebarView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Update to v\(sparkleUpdater.latestVersion)")
+            } else {
+                // Always-visible "check for updates" affordance with feedback:
+                // idle = refresh icon, checking = spinner, up-to-date = brief
+                // green tick (SparkleUpdater auto-clears checkSucceeded after 2s).
+                Button {
+                    cancelSessionDeleteConfirmation()
+                    Task { await sparkleUpdater.checkLatestVersion(showSuccessPulse: true) }
+                } label: {
+                    if sparkleUpdater.isCheckingVersion {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else if sparkleUpdater.checkSucceeded {
+                        HStack(spacing: 3) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 10))
+                            Text(String(localized: "Up to date", bundle: LanguageManager.shared.localizedBundle))
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(.green)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(sparkleUpdater.isCheckingVersion)
+                .help(String(localized: "Check for Updates", bundle: LanguageManager.shared.localizedBundle))
             }
 
             Spacer()
