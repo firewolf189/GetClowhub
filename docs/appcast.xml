@@ -6,20 +6,23 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.67</title>
-      <sparkle:version>75</sparkle:version>
-      <sparkle:shortVersionString>1.1.67</sparkle:shortVersionString>
+      <title>Version 1.1.68</title>
+      <sparkle:version>76</sparkle:version>
+      <sparkle:shortVersionString>1.1.68</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.67</h2>
+        <h2>OpenClaw Helper 1.1.68</h2>
         <ul>
-          <li>版本 1.1.67 更新</li>
+          <li>Channels 现在可以直接识别并配置钉钉插件，缺少 @openclaw-china/dingtalk 时会进入对应安装引导。</li>
+          <li>修复插件别名匹配逻辑，避免 scoped package 名称或 source 字段差异导致已安装插件被误判为未安装。</li>
+          <li>整理 Dashboard、Channels、Plugins、Skills、Settings 等功能模块边界，降低后续功能维护和渲染链路耦合。</li>
+          <li>保留 v1.1.67 的版本显示与检查更新入口修复，用户可以从设置页确认当前版本并触发更新检查。</li>
         </ul>
       ]]></description>
-      <pubDate>Mon, 06 Jul 2026 09:34:31 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.67/GetClawHub.dmg"
-                 length="217850166"
+      <pubDate>Tue, 07 Jul 2026 09:16:50 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.68/GetClawHub.dmg"
+                 length="235759498"
                  type="application/octet-stream"
-                 sparkle:edSignature="NHBl6WU2cbLXKr95HLEnV9QsOuKghoP753lnJHLQqXf6raJz9Uo3TFCyo/isigQzWJHd6LTMsu0JaHy2Zc/iBQ==" />
+                 sparkle:edSignature="ik6IQGpfXuhL3JZM8voAAQhRlJOkSCjHMGqJ2N+Z10GFD1skR8z/+2ISnjUyBGm18QdjCw7o+/RSPTuPNfGgBw==" />
     </item>
   </channel>
 </rss>
