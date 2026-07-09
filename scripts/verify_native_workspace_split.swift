@@ -50,6 +50,7 @@ func sliceFrom(_ haystack: String, from start: String) -> String {
 let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let rightInspectorSplit = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorSplitView.swift")
 let workspaceInspector = read("OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift")
+let rightInspectorTitlebarAccessory = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorTitlebarAccessory.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 let dashboardView = slice(dashboard, from: "struct DashboardView: View", to: "// MARK: - Sidebar")
 let rightInspectorContentUpdateID = slice(
@@ -594,12 +595,12 @@ assertNotContains(
     "right AppKit inspector should use zero width instead of collapsed state for opening and closing"
 )
 assertContains(
-    dashboard,
+    rightInspectorTitlebarAccessory,
     "widthConstraint?.animator().constant",
     "right titlebar accessory bridge should update its AppKit width constraint through animation"
 )
 assertContains(
-    dashboard,
+    rightInspectorTitlebarAccessory,
     "height: CGFloat = 44",
     "right titlebar accessory should occupy the full toolbar row height"
 )
@@ -722,12 +723,12 @@ assertNotContains(
 )
 assertContains(
     dashboardView,
-    "DashboardTitlebarAccessoryInstaller(",
+    "RightInspectorTitlebarAccessoryInstaller(",
     "right Outputs controls should be installed into the window titlebar"
 )
 assertContains(
     dashboardView,
-    "RightOutputsTitlebarAccessory(",
+    "RightInspectorTitlebarAccessory(",
     "right Outputs toggle should be rendered by a titlebar accessory"
 )
 assertContains(
@@ -741,18 +742,18 @@ assertContains(
     "right titlebar accessory should receive a terminal toggle action"
 )
 assertContains(
-    dashboard,
-    "private struct DashboardTitlebarAccessoryInstaller",
-    "DashboardView should keep a narrow AppKit bridge for titlebar-only Outputs controls"
+    rightInspectorTitlebarAccessory,
+    "struct RightInspectorTitlebarAccessoryInstaller",
+    "right inspector should keep a narrow AppKit bridge for titlebar-only Outputs controls"
 )
 assertContains(
-    dashboard,
+    rightInspectorTitlebarAccessory,
     "window.titlebarAccessoryViewControllers",
     "titlebar accessory bridge should install into the existing window header"
 )
 assertContains(
-    dashboard,
-    "private struct RightOutputsTitlebarAccessory",
+    rightInspectorTitlebarAccessory,
+    "struct RightInspectorTitlebarAccessory",
     "custom Outputs titlebar toggle should live outside the inspector content"
 )
 assertNotContains(
@@ -1360,7 +1361,7 @@ assertNotContains(
     "right sidebar content should not create its own header row"
 )
 
-let rightOutputsTitlebarAccessory = slice(dashboard, from: "private struct RightOutputsTitlebarAccessory: View", to: "// MARK: - Sidebar")
+let rightOutputsTitlebarAccessory = rightInspectorTitlebarAccessory
 assertNotContains(
     rightOutputsTitlebarAccessory,
     "Text(\"Outputs\")",

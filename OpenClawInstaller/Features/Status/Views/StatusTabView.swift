@@ -178,10 +178,10 @@ struct ControlButtonsSection: View {
                 .disabled(viewModel.openclawService.status != .running || viewModel.isPerformingAction)
             }
 
-            if viewModel.isPerformingAction {
-                ProgressView()
-                    .scaleEffect(0.8)
-            }
+            SettingsInlineRefreshStatus(
+                isRefreshing: viewModel.isPerformingAction,
+                text: I18n.t("settings.updating", fallback: "Updating...")
+            )
         }
     }
 }
@@ -199,18 +199,14 @@ struct AgentSessionsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(I18n.t("dashboard.status.agentSessions"), systemImage: "person.3.fill")
-                .font(.headline)
+            HStack {
+                Label(I18n.t("dashboard.status.agentSessions"), systemImage: "person.3.fill")
+                    .font(.headline)
+                Spacer()
+                SettingsInlineRefreshStatus(isRefreshing: viewModel.isLoadingSessionsSummary)
+            }
 
-            if viewModel.isLoadingSessionsSummary {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Spacer()
-                }
-                .frame(minHeight: 60)
-            } else if let summary = viewModel.sessionsSummary, !summary.agents.isEmpty {
+            if let summary = viewModel.sessionsSummary, !summary.agents.isEmpty {
                 VStack(spacing: 6) {
                     ForEach(summary.agents) { agent in
                         HStack(spacing: 8) {
@@ -279,18 +275,14 @@ struct CronHealthCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(I18n.t("dashboard.status.cronHealth"), systemImage: "clock.badge")
-                .font(.headline)
+            HStack {
+                Label(I18n.t("dashboard.status.cronHealth"), systemImage: "clock.badge")
+                    .font(.headline)
+                Spacer()
+                SettingsInlineRefreshStatus(isRefreshing: viewModel.isLoadingCronJobs)
+            }
 
-            if viewModel.isLoadingCronJobs {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Spacer()
-                }
-                .frame(minHeight: 60)
-            } else if !viewModel.cronJobs.isEmpty {
+            if !viewModel.cronJobs.isEmpty {
                 // Summary line
                 HStack(spacing: 12) {
                     Text(I18n.format("dashboard.status.total", Int64(viewModel.cronJobs.count)))
@@ -353,18 +345,14 @@ struct ChannelStatusCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(I18n.t("dashboard.channels.title"), systemImage: "bubble.left.and.bubble.right.fill")
-                .font(.headline)
+            HStack {
+                Label(I18n.t("dashboard.channels.title"), systemImage: "bubble.left.and.bubble.right.fill")
+                    .font(.headline)
+                Spacer()
+                SettingsInlineRefreshStatus(isRefreshing: viewModel.isLoadingChannels)
+            }
 
-            if viewModel.isLoadingChannels {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Spacer()
-                }
-                .frame(minHeight: 60)
-            } else if !viewModel.channels.isEmpty {
+            if !viewModel.channels.isEmpty {
                 VStack(spacing: 6) {
                     ForEach(viewModel.channels) { channel in
                         HStack(spacing: 8) {
@@ -428,18 +416,14 @@ struct TokenUsageCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(I18n.t("dashboard.status.tokenUsage"), systemImage: "chart.bar.fill")
-                .font(.headline)
+            HStack {
+                Label(I18n.t("dashboard.status.tokenUsage"), systemImage: "chart.bar.fill")
+                    .font(.headline)
+                Spacer()
+                SettingsInlineRefreshStatus(isRefreshing: viewModel.isLoadingSessionsSummary)
+            }
 
-            if viewModel.isLoadingSessionsSummary {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Spacer()
-                }
-                .frame(minHeight: 60)
-            } else if let summary = viewModel.sessionsSummary {
+            if let summary = viewModel.sessionsSummary {
                 // Totals
                 VStack(spacing: 4) {
                     tokenRow(label: I18n.t("dashboard.status.tokenTotal"), value: summary.totalTokens)

@@ -10,6 +10,8 @@
 		3564104A2F5802970045A6F7 /* InstallationWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564103B2F5802970045A6F7 /* InstallationWizardView.swift */; };
 		3564104B2F5802970045A6F7 /* ConfigTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410332F5802970045A6F7 /* ConfigTabView.swift */; };
 		SSSV000000000000000001 /* SettingsShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSSV000000000000000002 /* SettingsShellView.swift */; };
+		SETCOLL000000000000001 /* SettingsCollapsibleContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = SETCOLL000000000000002 /* SettingsCollapsibleContent.swift */; };
+		SETREFR000000000000001 /* SettingsRefreshPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = SETREFR000000000000002 /* SettingsRefreshPresentation.swift */; };
 		3564104C2F5802970045A6F7 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410452F5802970045A6F7 /* AppDelegate.swift */; };
 		3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410282F5802970045A6F7 /* CommandExecutor.swift */; };
 		3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410252F5802970045A6F7 /* SystemEnvironment.swift */; };
@@ -37,6 +39,7 @@
 		MDMODEL00000000000001 /* ModelInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDMODEL00000000000002 /* ModelInfo.swift */; };
 		CHMSG000000000000001 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHMSG000000000000002 /* ChatMessage.swift */; };
 		CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CTM000000000000000000002 /* ChatTimelineModels.swift */; };
+		CSTREAM000000000000001 /* ChatStreamState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTREAM000000000000002 /* ChatStreamState.swift */; };
 		CHEVT000000000000001 /* ChatActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHEVT000000000000002 /* ChatActivityEvent.swift */; };
 		SKINFO00000000000001 /* SkillInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKINFO00000000000002 /* SkillInfo.swift */; };
 		AGOPT000000000000001 /* AgentOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGOPT000000000000002 /* AgentOption.swift */; };
@@ -143,6 +146,7 @@
 		PMFS0001C2D3E4F5A6B70001 /* ProviderModelFetchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PMFS0002C2D3E4F5A6B70002 /* ProviderModelFetchService.swift */; };
 		PSCB0000000000000001 /* ProjectSessionContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = PSCB0000000000000002 /* ProjectSessionContextBuilder.swift */; };
 		PWCTX0000000000000001 /* ProjectWorkspaceContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = PWCTX0000000000000002 /* ProjectWorkspaceContext.swift */; };
+		RITBA000000000000001 /* RightInspectorTitlebarAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = RITBA000000000000002 /* RightInspectorTitlebarAccessory.swift */; };
 		PWPICK000000000000001 /* ProjectWorkspacePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = PWPICK000000000000002 /* ProjectWorkspacePicker.swift */; };
 		PWREG0000000000000001 /* ProjectRegistryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PWREG0000000000000002 /* ProjectRegistryStore.swift */; };
 		PWSVC0000000000000001 /* ProjectWorkspaceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PWSVC0000000000000002 /* ProjectWorkspaceService.swift */; };
@@ -196,6 +200,7 @@
 			MDMODEL00000000000002 /* ModelInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/Models/ModelInfo.swift"; sourceTree = SOURCE_ROOT; };
 			CHMSG000000000000002 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatMessage.swift"; sourceTree = SOURCE_ROOT; };
 			CTM000000000000000000002 /* ChatTimelineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift"; sourceTree = SOURCE_ROOT; };
+			CSTREAM000000000000002 /* ChatStreamState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatStreamState.swift"; sourceTree = SOURCE_ROOT; };
 			CHEVT000000000000002 /* ChatActivityEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatActivityEvent.swift"; sourceTree = SOURCE_ROOT; };
 			SKINFO00000000000002 /* SkillInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Models/SkillInfo.swift"; sourceTree = SOURCE_ROOT; };
 			AGOPT000000000000002 /* AgentOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Models/AgentOption.swift"; sourceTree = SOURCE_ROOT; };
@@ -224,6 +229,8 @@
 		356410312F5802970045A6F7 /* InstallationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Installation/InstallationViewModel.swift"; sourceTree = SOURCE_ROOT; };
 		356410332F5802970045A6F7 /* ConfigTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift"; sourceTree = SOURCE_ROOT; };
 		SSSV000000000000000002 /* SettingsShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Views/SettingsShellView.swift"; sourceTree = SOURCE_ROOT; };
+		SETCOLL000000000000002 /* SettingsCollapsibleContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Views/SettingsCollapsibleContent.swift"; sourceTree = SOURCE_ROOT; };
+		SETREFR000000000000002 /* SettingsRefreshPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Views/SettingsRefreshPresentation.swift"; sourceTree = SOURCE_ROOT; };
 		356410342F5802970045A6F7 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardView.swift"; sourceTree = SOURCE_ROOT; };
 		356410352F5802970045A6F7 /* LogsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/Views/LogsTabView.swift"; sourceTree = SOURCE_ROOT; };
 		356410362F5802970045A6F7 /* StatusTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Status/Views/StatusTabView.swift"; sourceTree = SOURCE_ROOT; };
@@ -315,6 +322,7 @@
 		PWPICK000000000000002 /* ProjectWorkspacePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Views/ProjectWorkspace/ProjectWorkspacePicker.swift"; sourceTree = SOURCE_ROOT; };
 		PWREG0000000000000002 /* ProjectRegistryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/ProjectRegistryStore.swift"; sourceTree = SOURCE_ROOT; };
 		PWSVC0000000000000002 /* ProjectWorkspaceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/ProjectWorkspaceService.swift"; sourceTree = SOURCE_ROOT; };
+		RITBA000000000000002 /* RightInspectorTitlebarAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorTitlebarAccessory.swift"; sourceTree = SOURCE_ROOT; };
 		RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorSplitView.swift"; sourceTree = SOURCE_ROOT; };
 		SCSV0000000000000002 /* SmoothScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/SmoothScrollView.swift"; sourceTree = SOURCE_ROOT; };
 		SHIM0000000000000002 /* ShimmeringStatusText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/ShimmeringStatusText.swift"; sourceTree = SOURCE_ROOT; };
@@ -461,6 +469,7 @@
 				MDMODEL00000000000002 /* ModelInfo.swift */,
 				CHMSG000000000000002 /* ChatMessage.swift */,
 				CTM000000000000000000002 /* ChatTimelineModels.swift */,
+				CSTREAM000000000000002 /* ChatStreamState.swift */,
 				CHEVT000000000000002 /* ChatActivityEvent.swift */,
 				SKINFO00000000000002 /* SkillInfo.swift */,
 				AGOPT000000000000002 /* AgentOption.swift */,
@@ -505,6 +514,8 @@
 				C011AB06A1B2C3D4E5F60006 /* CollabWindow.swift */,
 				356410332F5802970045A6F7 /* ConfigTabView.swift */,
 				SSSV000000000000000002 /* SettingsShellView.swift */,
+				SETCOLL000000000000002 /* SettingsCollapsibleContent.swift */,
+				SETREFR000000000000002 /* SettingsRefreshPresentation.swift */,
 				C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */,
 				AMR000000000000000000002 /* AssistantMessageRenderer.swift */,
 				CCV000000000000000000002 /* ChatComposerView.swift */,
@@ -671,6 +682,7 @@
 		RI01AB03C2D3E4F5A6B70003 /* Inspector */ = {
 			isa = PBXGroup;
 			children = (
+				RITBA000000000000002 /* RightInspectorTitlebarAccessory.swift */,
 				RI01AB02C2D3E4F5A6B70002 /* RightInspectorSplitView.swift */,
 				WIPANE000000000000002 /* WorkspaceInspectorPane.swift */,
 			);
@@ -809,6 +821,8 @@
 				3564104A2F5802970045A6F7 /* InstallationWizardView.swift in Sources */,
 				3564104B2F5802970045A6F7 /* ConfigTabView.swift in Sources */,
 				SSSV000000000000000001 /* SettingsShellView.swift in Sources */,
+				SETCOLL000000000000001 /* SettingsCollapsibleContent.swift in Sources */,
+				SETREFR000000000000001 /* SettingsRefreshPresentation.swift in Sources */,
 				3564104C2F5802970045A6F7 /* AppDelegate.swift in Sources */,
 				3564104D2F5802970045A6F7 /* CommandExecutor.swift in Sources */,
 				3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */,
@@ -833,6 +847,7 @@
 				MDH000000000000000000001 /* MarkdownHTML.swift in Sources */,
 				STP000000000000000000001 /* SessionTitleUserMessagesPopover.swift in Sources */,
 				WSH000000000000000000001 /* WorkStatusHeader.swift in Sources */,
+				RITBA000000000000001 /* RightInspectorTitlebarAccessory.swift in Sources */,
 				RI01AB01C2D3E4F5A6B70001 /* RightInspectorSplitView.swift in Sources */,
 				WIPANE000000000000001 /* WorkspaceInspectorPane.swift in Sources */,
 				A0B1C2D3E4F5061728394052 /* OutputsSidebarLayoutMetrics.swift in Sources */,
@@ -859,6 +874,7 @@
 				CHEVT000000000000001 /* ChatActivityEvent.swift in Sources */,
 				CHMSG000000000000001 /* ChatMessage.swift in Sources */,
 				CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */,
+				CSTREAM000000000000001 /* ChatStreamState.swift in Sources */,
 				MDMODEL00000000000001 /* ModelInfo.swift in Sources */,
 				CHMODEL00000000000001 /* ChannelInfo.swift in Sources */,
 				WX01AB01C2D3E4F5A6B70001 /* WeixinLogin.swift in Sources */,

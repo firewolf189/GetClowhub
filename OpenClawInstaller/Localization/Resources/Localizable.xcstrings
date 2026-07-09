@@ -371,6 +371,16 @@
         }
       }
     },
+    "%@ · %@ ctx" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ ctx"
+          }
+        }
+      }
+    },
     "%@ (%@)" : {
       "localizations" : {
         "en" : {
@@ -392,6 +402,7 @@
       }
     },
     "%@ / month" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -403,16 +414,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ / 月"
-          }
-        }
-      }
-    },
-    "%@ %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ %2$@"
           }
         }
       }
@@ -872,6 +873,9 @@
         }
       }
     },
+    "%@:" : {
+
+    },
     "%@: %d / %d tokens used" : {
       "localizations" : {
         "en" : {
@@ -1263,9 +1267,6 @@
           }
         }
       }
-    },
-    "%lld RPM" : {
-
     },
     "%lld unsaved" : {
       "localizations" : {
@@ -3516,6 +3517,7 @@
       }
     },
     "Account" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -5061,6 +5063,7 @@
       }
     },
     "Administrator Privileges" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6403,6 +6406,7 @@
       }
     },
     "API key management is available in signed builds." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -8575,6 +8579,7 @@
       }
     },
     "Available Disk Space" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8733,6 +8738,7 @@
       }
     },
     "Available Space" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14099,6 +14105,7 @@
       }
     },
     "Check Environment" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14241,6 +14248,7 @@
       }
     },
     "Check for Updates" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14383,6 +14391,7 @@
       }
     },
     "Checking environment..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14680,6 +14689,7 @@
       }
     },
     "Checking your system environment..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14838,6 +14848,7 @@
       }
     },
     "Clear Conversation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -15000,6 +15011,7 @@
       }
     },
     "Close" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16804,9 +16816,6 @@
     "Continue Discussion" : {
 
     },
-    "Copy" : {
-
-    },
     "Cost" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18440,9 +18449,6 @@
         }
       }
     },
-    "Default (%@)" : {
-
-    },
     "Default (inherit from config)" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18598,10 +18604,8 @@
         }
       }
     },
-    "Default (inherit)" : {
-
-    },
     "Delete" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19528,6 +19532,7 @@
       }
     },
     "Diagnostics Report" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24464,9 +24469,6 @@
         }
       }
     },
-    "Expires %@" : {
-
-    },
     "Export" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -25697,6 +25699,7 @@
       }
     },
     "for macOS" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26999,6 +27002,7 @@
 
     },
     "General-purpose assistant" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -28237,6 +28241,7 @@
       }
     },
     "Granted" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -28743,13 +28748,13 @@
         }
       }
     },
+    "http://192.168.0.10:8080/v1" : {
+
+    },
     "https://api.example.com/v1" : {
 
     },
     "Hub" : {
-
-    },
-    "ℹ️ OpenClaw 自带独立的 Node.js v24.14.0，无需系统 Node 即可运行" : {
 
     },
     "ID:" : {
@@ -30935,6 +30940,7 @@
       }
     },
     "Installing Node.js..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -31971,6 +31977,7 @@
       }
     },
     "Issues Found:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -36644,7 +36651,11 @@
         }
       }
     },
+    "model-id" : {
+
+    },
     "Model:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -36836,6 +36847,7 @@
       }
     },
     "Move to Background" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -38058,6 +38070,7 @@
       }
     },
     "No activity yet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -39954,9 +39967,6 @@
         }
       }
     },
-    "No outputs yet" : {
-
-    },
     "No plugins found" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -41430,6 +41440,7 @@
       }
     },
     "Not Detected" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -41572,6 +41583,7 @@
       }
     },
     "Not Granted" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -41714,6 +41726,7 @@
       }
     },
     "Not Installed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -42894,6 +42907,7 @@
       }
     },
     "Open Dashboard" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -43612,16 +43626,6 @@
         }
       }
     },
-    "OpenClaw Helper v%@ (%@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "OpenClaw Helper v%1$@ (%2$@)"
-          }
-        }
-      }
-    },
     "OpenClaw Installation" : {
       "localizations" : {
         "ar" : {
@@ -43765,6 +43769,7 @@
       }
     },
     "OpenClaw Installer" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -44194,9 +44199,6 @@
         }
       }
     },
-    "OpenClaw Service %@" : {
-
-    },
     "OpenClaw Successfully Installed!" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -44341,6 +44343,7 @@
       }
     },
     "Operating System" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -46309,9 +46312,6 @@
         }
       }
     },
-    "Please log in to view billing." : {
-
-    },
     "Please select an Agent." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -47689,6 +47689,22 @@
         }
       }
     },
+    "Providers" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务提供商"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務供應商"
+          }
+        }
+      }
+    },
     "Quick Select" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -48131,6 +48147,7 @@
       }
     },
     "Quit OpenClaw Installer" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -51030,6 +51047,7 @@
 
     },
     "Restart" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -54899,6 +54917,7 @@
       }
     },
     "Show Main Window" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -55632,6 +55651,7 @@
       }
     },
     "Start Installation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -55917,6 +55937,7 @@
       }
     },
     "Start Service" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -56809,6 +56830,7 @@
       }
     },
     "Status:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -57094,6 +57116,7 @@
       }
     },
     "Stop Service" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -57550,6 +57573,7 @@
       }
     },
     "Switch" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -57692,6 +57716,7 @@
       }
     },
     "Switch Provider" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -58263,6 +58288,7 @@
       }
     },
     "Switching provider will replace the current Base URL. API Key will be cleared. Continue?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -58343,6 +58369,7 @@
       }
     },
     "System Information" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -58674,9 +58701,6 @@
       }
     },
     "Team Members" : {
-
-    },
-    "Terminal" : {
 
     },
     "The auth token protects your gateway from unauthorized access. It will be written to ~/.openclaw/openclaw.json and used when opening the dashboard." : {
@@ -62223,6 +62247,7 @@
       }
     },
     "Update to v%@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -62379,9 +62404,6 @@
           }
         }
       }
-    },
-    "Uptime:" : {
-
     },
     "USD, 0 = no limit" : {
       "extractionState" : "manual",
@@ -63039,6 +63061,7 @@
       }
     },
     "View result ↑" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

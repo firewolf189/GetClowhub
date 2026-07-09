@@ -51,19 +51,17 @@ class DashboardViewModel: ObservableObject {
     @Published var editedModelBaseUrl: String = ""
     @Published var editedModelApiKey: String = ""
 
-    // Provider Preset
+    // Provider Settings
     let presetManager = ProviderPresetManager()
-    @Published var availableProviders: [ProviderPreset] = []
     @Published var editedSelectedProviderKey: String = ""
     @Published var editedProviderApi: String = "openai-completions"
     @Published var editedConfiguredModels: [PresetModel] = []
     @Published var configuredCustomProviders: [ConfiguredCustomProvider] = []
-    @Published var showProviderSwitchConfirm = false
     @Published var editedActiveServiceSource: String = "custom" // "getclawhub" or "custom"
     @Published var editedGetClawHubApiKey: String = "" // Editable API key for GetClawHub
     @Published var isFetchingProviderModels = false
+    @Published var isPersistingProviderConfiguration = false
     @Published var providerModelFetchMessage: String = ""
-    var pendingProviderKey: String = ""
     let providerModelFetchService = ProviderModelFetchService()  // internal: ConfigProviderLogs extension (P1.6c)
     let attachmentProcessor = AttachmentProcessor()
 
@@ -172,16 +170,6 @@ class DashboardViewModel: ObservableObject {
         self.configuredCustomProviders = settings.settings.customProviders
         self.editedActiveServiceSource = settings.settings.activeServiceSource
 
-        // Load available providers from preset (exclude getclawhub — it has its own section)
-        self.availableProviders = presetManager.loadPresets().filter { $0.key != "getclawhub" }
-
-        // If no config file exists, populate from preset defaults
-        if editedModelBaseUrl.isEmpty,
-           let preset = availableProviders.first(where: { $0.key == editedSelectedProviderKey }) {
-            editedModelBaseUrl = preset.baseUrl
-            editedProviderApi = preset.api
-            editedConfiguredModels = preset.models
-        }
         refreshAvailableModelsForCurrentProvider()
 
         pluginListViewModel.configureNotifications(
@@ -1370,8 +1358,12 @@ class DashboardViewModel: ObservableObject {
 
     /// After delete/archive of the active session, pick a successor from the
     /// remaining list, or mint a new empty session when nothing's left.
-    private func promoteNextSession(forAgent agentId: String) {
-        let projectId = activeProjectIdByAgent[agentId] ?? nil
+    func promoteNextSession(forAgent agentId: String) {
+        promoteNextSession(forAgent: agentId, projectId: activeProjectIdByAgent[agentId] ?? nil)
+    }
+
+    func promoteNextSession(forAgent agentId: String, projectId: String?) {
+        activeProjectIdByAgent[agentId] = projectId
         let candidates = chatSessionStore.sessions(forAgent: agentId).filter { $0.projectId == projectId }
         if let next = candidates.first {
             selectedSessionIdByAgent[agentId] = next.id
@@ -1383,7 +1375,7 @@ class DashboardViewModel: ObservableObject {
             // only. Match createNewSession() in deferring the disk write
             // until the user actually types, so an immediately-discarded
             // empty session leaves no trace in the sidebar.
-            let project = activeProject(forAgent: agentId)
+            let project = projectId.flatMap { projectsById[$0] }
             let new = ChatSession(
                 agentId: agentId,
                 projectId: project?.id,
@@ -1693,6 +1685,22 @@ class DashboardViewModel: ObservableObject {
         isSendingMessage = hasForegroundTask(inSession: sid)
     }
 
+    func updateActiveStreamState(
+        msgId: UUID,
+        visibleDraftText: String,
+        activityEvents: [ChatActivityEvent]
+    ) {
+        chatState.updateActiveStreamState(
+            messageId: msgId,
+            visibleDraftText: visibleDraftText,
+            activityEvents: activityEvents
+        )
+    }
+
+    func clearActiveStreamState(_ msgId: UUID) {
+        chatState.clearActiveStreamState(msgId)
+    }
+
     /// Single-point removal of every piece of per-task tracking state.
     /// Every task-exit path must run through this — a partial cleanup
     /// leaves stale taskSessionMap/taskAgentMap entries that keep
@@ -1701,6 +1709,7 @@ class DashboardViewModel: ObservableObject {
     func clearTaskTracking(_ msgId: UUID) {
         activeChatRuns.removeValue(forKey: msgId)
         taskSessionKeyOverride.removeValue(forKey: msgId)
+        clearActiveStreamState(msgId)
         foregroundTaskIds.remove(msgId)
         backgroundTaskIds.remove(msgId)
         taskAgentMap.removeValue(forKey: msgId)

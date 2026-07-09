@@ -11,6 +11,10 @@ struct NodeVersion: Codable {
     }
 }
 
+enum BundledRuntimeVersions {
+    static let nodeJSVersion = "v24.14.0"
+}
+
 enum NodeInstallationError: LocalizedError {
     case downloadFailed(String)
     case installationFailed(String)
@@ -45,7 +49,7 @@ class NodeInstaller: ObservableObject {
     private var isChinaRegion: Bool = false
 
     // Bundled Node.js version
-    private let bundledNodeVersion = "v24.14.0"
+    private let bundledNodeVersion = BundledRuntimeVersions.nodeJSVersion
 
     /// SHA256 of the official Node.js tarballs for the pinned bundled
     /// version, keyed by arch. Network downloads of this version are
@@ -137,13 +141,15 @@ class NodeInstaller: ObservableObject {
 
     /// Get latest LTS Node.js version
     func getLatestNodeVersion() async throws -> String {
-        installationStatus = "Detecting region..."
+        installationStatus = I18n.t("install.node.status.detectingRegion")
 
         // Detect region first
         isChinaRegion = await detectRegion()
 
-        let region = isChinaRegion ? "中国" : "International"
-        installationStatus = "Region detected: \(region). Fetching latest Node.js version..."
+        let region = isChinaRegion
+            ? I18n.t("install.node.region.china")
+            : I18n.t("install.node.region.international")
+        installationStatus = I18n.format("install.node.status.regionDetected", region)
 
         // Use appropriate mirror
         let baseURL = isChinaRegion ?
@@ -161,7 +167,7 @@ class NodeInstaller: ObservableObject {
                 throw NodeInstallationError.networkError("No LTS version found")
             }
 
-            installationStatus = "Latest LTS version: \(latestLTS.version)"
+            installationStatus = I18n.format("install.node.status.latestLTS", latestLTS.version)
             return latestLTS.version
         } catch {
             throw NodeInstallationError.networkError(error.localizedDescription)
@@ -170,8 +176,10 @@ class NodeInstaller: ObservableObject {
 
     /// Download Node.js tar.gz package
     func downloadNodePkg(version: String) async throws -> URL {
-        let mirror = isChinaRegion ? "国内镜像" : "Official mirror"
-        installationStatus = "Downloading Node.js \(version) from \(mirror)..."
+        let mirror = isChinaRegion
+            ? I18n.t("install.node.mirror.china")
+            : I18n.t("install.node.mirror.official")
+        installationStatus = I18n.format("install.node.status.downloadingFrom", version, mirror)
         downloadProgress = 0.0
 
         // Determine architecture at runtime
@@ -211,7 +219,7 @@ class NodeInstaller: ObservableObject {
                 do {
                     try FileManager.default.moveItem(at: tempURL, to: destinationURL)
                     Task { @MainActor in
-                        self.installationStatus = "Download complete"
+                        self.installationStatus = I18n.t("install.node.status.downloadComplete")
                         self.downloadProgress = 1.0
                     }
                     continuation.resume(returning: destinationURL)
@@ -226,7 +234,7 @@ class NodeInstaller: ObservableObject {
                     guard let self = self else { return }
                     self.downloadProgress = progress.fractionCompleted
                     let percent = Int(progress.fractionCompleted * 100)
-                    self.installationStatus = "Downloading... \(percent)%"
+                    self.installationStatus = I18n.format("install.node.status.downloadingPercent", Int64(percent))
                 }
             }
 
@@ -245,7 +253,7 @@ class NodeInstaller: ObservableObject {
     /// tarball on the same mirror — that still catches truncation and
     /// corruption even though it shares the download channel.
     private func verifyNodeTarball(at fileURL: URL, version: String, arch: String) async throws {
-        installationStatus = "Verifying download integrity..."
+        installationStatus = I18n.t("install.node.status.verifyingDownload")
         let actual = try Self.sha256Hex(of: fileURL)
 
         let expected: String
@@ -291,7 +299,7 @@ class NodeInstaller: ObservableObject {
 
     /// Install Node.js from tar.gz file
     func installNodeFromTarGz(from tarPath: URL) async throws {
-        installationStatus = "Preparing to extract Node.js..."
+        installationStatus = I18n.t("install.node.status.preparingExtract")
         appendLog("Preparing to extract Node.js from \(tarPath.lastPathComponent)...")
         downloadProgress = 0.1
 
@@ -305,7 +313,7 @@ class NodeInstaller: ObservableObject {
                 withSudo: false
             )
 
-            installationStatus = "Extracting Node.js (this may take a moment)..."
+            installationStatus = I18n.t("install.node.status.extracting")
             appendLog("Extracting Node.js to \(targetDir)...")
             downloadProgress = 0.2
 
@@ -316,7 +324,7 @@ class NodeInstaller: ObservableObject {
                     try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                     progress += 0.05
                     self.downloadProgress = progress
-                    self.installationStatus = "Extracting Node.js... \(Int(progress * 100))%"
+                    self.installationStatus = I18n.format("install.node.status.extractingPercent", Int64(progress * 100))
                 }
             }
 
@@ -340,7 +348,7 @@ class NodeInstaller: ObservableObject {
             progressTask.cancel()
             appendLog("Extraction complete, quarantine attributes removed.")
 
-            installationStatus = "Verifying extracted binaries..."
+            installationStatus = I18n.t("install.node.status.verifyingBinaries")
             appendLog("Verifying extracted binaries...")
             downloadProgress = 0.75
 
@@ -357,7 +365,7 @@ class NodeInstaller: ObservableObject {
                 )
             }
 
-            installationStatus = "Installation complete"
+            installationStatus = I18n.t("install.node.status.complete")
             downloadProgress = 1.0
 
         } catch {
@@ -368,7 +376,7 @@ class NodeInstaller: ObservableObject {
 
     /// Install Node.js from package file
     func installNode(from pkgPath: URL) async throws {
-        installationStatus = "Installing Node.js..."
+        installationStatus = I18n.t("install.node.status.installing")
         appendLog("Installing Node.js from \(pkgPath.lastPathComponent)...")
         downloadProgress = 0.0
 
@@ -386,7 +394,7 @@ class NodeInstaller: ObservableObject {
             }
 
             appendLog(result)
-            installationStatus = "Installation complete"
+            installationStatus = I18n.t("install.node.status.complete")
             downloadProgress = 1.0
 
             // Clean up downloaded package
@@ -401,7 +409,7 @@ class NodeInstaller: ObservableObject {
 
     /// Verify Node.js installation
     func verifyInstallation() async throws -> Bool {
-        installationStatus = "Verifying installation..."
+        installationStatus = I18n.t("install.node.status.verifyingInstallation")
         appendLog("Verifying Node.js installation...")
 
         // Wait a moment for installation to complete
@@ -438,7 +446,7 @@ class NodeInstaller: ObservableObject {
         let version = await commandExecutor.getCommandVersion("node", versionArg: "--version")
         let versionStr = version?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
 
-        installationStatus = "Node.js \(versionStr) installed at \(verifiedNodePath)"
+        installationStatus = I18n.format("install.node.status.installedAt", versionStr, verifiedNodePath)
         appendLog("Node.js \(versionStr) installed at \(verifiedNodePath)")
         return true
     }
@@ -452,7 +460,7 @@ class NodeInstaller: ObservableObject {
         do {
             // Check if we have bundled Node.js
             if let bundledPath = getBundledNodePath() {
-                installationStatus = "Using bundled Node.js \(bundledNodeVersion)..."
+                installationStatus = I18n.format("install.node.status.usingBundled", bundledNodeVersion)
                 appendLog("Found bundled Node.js \(bundledNodeVersion)")
                 downloadProgress = 0.1
 
@@ -461,7 +469,7 @@ class NodeInstaller: ObservableObject {
 
             } else {
                 // Fallback to download
-                installationStatus = "Bundled Node.js not found, downloading..."
+                installationStatus = I18n.t("install.node.status.bundledMissing")
                 appendLog("Bundled Node.js not found, will download from network...")
 
                 // Detect region
@@ -487,7 +495,7 @@ class NodeInstaller: ObservableObject {
             _ = try await verifyInstallation()
 
             isInstalling = false
-            installationStatus = "Node.js installation successful!"
+            installationStatus = I18n.t("install.node.status.success")
             appendLog("Node.js installation successful!")
 
         } catch let err as NodeInstallationError {
@@ -512,7 +520,7 @@ class NodeInstaller: ObservableObject {
         downloadTask = nil
         progressObservation?.invalidate()
         progressObservation = nil
-        installationStatus = "Download cancelled"
+        installationStatus = I18n.t("install.node.status.cancelled")
         isInstalling = false
     }
 

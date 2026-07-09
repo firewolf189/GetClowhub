@@ -37,6 +37,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let tooltip = read("OpenClawInstaller/DesignSystem/Components/UnifiedTooltip.swift")
 let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let workspaceInspector = read("OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift")
+let rightInspectorTitlebarAccessory = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorTitlebarAccessory.swift")
 let skills = read("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
 let plugins = read("OpenClawInstaller/Features/Plugins/Views/PluginsTabView.swift")
 let logs = read("OpenClawInstaller/Features/Status/Views/LogsTabView.swift")
@@ -162,11 +163,7 @@ require(
     "Xcode project should include UnifiedTooltip.swift in the Shared group and app target sources."
 )
 
-let inspectorToolbar = slice(
-    dashboard,
-    from: "private struct RightOutputsTitlebarAccessory: View",
-    to: "struct SidebarView: View"
-)
+let inspectorToolbar = rightInspectorTitlebarAccessory
 require(
     inspectorToolbar.contains("unifiedTitlebarTooltip(") &&
         inspectorToolbar.contains(#"title: isTerminalOpen ? I18n.t("dashboard.tooltip.hideTerminal") : I18n.t("dashboard.tooltip.showTerminal")"#) &&

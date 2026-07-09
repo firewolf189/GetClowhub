@@ -40,6 +40,8 @@ struct OfficialServiceBillingSection: View {
                 }
                 .buttonStyle(.plain)
                 .help(I18n.t("billing.refresh", fallback: "Refresh Billing"))
+
+                SettingsInlineRefreshStatus(isRefreshing: membershipManager.isBillingLoading)
             }
 
             // Membership info
@@ -55,7 +57,7 @@ struct OfficialServiceBillingSection: View {
                         .cornerRadius(6)
 
                     if let expiresAt = membership.expiresAt {
-                        Text("Expires \(expiresAt, style: .date)")
+                        Text(I18n.format("billing.expires", formattedExpirationDate(expiresAt)))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -67,17 +69,7 @@ struct OfficialServiceBillingSection: View {
             Divider()
 
             // Key billing cards
-            if membershipManager.isBillingLoading {
-                HStack {
-                    Spacer()
-                    ProgressView().scaleEffect(0.8)
-                    Text(String(localized: "billing.loading", defaultValue: "Loading billing data...", bundle: LanguageManager.shared.localizedBundle))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-                .frame(minHeight: 60)
-            } else if !membershipManager.keysBilling.isEmpty {
+            if !membershipManager.keysBilling.isEmpty {
                 VStack(spacing: 10) {
                     ForEach(membershipManager.keysBilling) { billing in
                         KeyBillingCard(billing: billing, membershipModels: membershipManager.membership?.models ?? [])
@@ -102,6 +94,14 @@ struct OfficialServiceBillingSection: View {
         case .pro: return .blue
         case .max: return .red
         }
+    }
+
+    private func formattedExpirationDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = LanguageManager.shared.currentLocale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 }
 

@@ -8,7 +8,7 @@ struct AppSettings: Equatable {
     var gatewayAuthToken: String = ""
     var modelBaseUrl: String = ""
     var modelApiKey: String = ""
-    var selectedProviderKey: String = "aliyun-codingplan"
+    var selectedProviderKey: String = ""
     var providerApi: String = "openai-completions"
     var configuredModels: [PresetModel] = []
     var activeServiceSource: String = "custom" // "getclawhub" or "custom"
@@ -35,7 +35,6 @@ struct ConfiguredProviderModelSource {
 struct ConfiguredCustomProvider: Equatable, Identifiable {
     var id: String { key }
     var key: String
-    var displayName: String
     var baseUrl: String
     var apiKey: String
     var api: String
@@ -63,15 +62,15 @@ class AppSettingsManager: ObservableObject {
     private static let legacyAppStateKey = "getclawhubApp"
     private static let activeServiceSourceKey = "activeServiceSource"
     private static let selectedCustomProviderKey = "selectedCustomProviderKey"
-    private static let customProviderSnapshotsKey = "customProviders"
 
     // MARK: - Read from openclaw.json
 
     /// Load settings from ~/.openclaw/openclaw.json
     func loadFromFile() {
-        guard let dict = readConfigDict() else { return }
-        let appState = Self.readAppStateDict(legacyConfig: dict)
-        Self.removeLegacyAppState(fromConfigAt: configPath, dict: dict)
+        guard let rawDict = readConfigDict() else { return }
+        let appState = Self.readAppStateDict(legacyConfig: rawDict)
+        let dictWithoutLegacyState = Self.removeLegacyAppState(fromConfigAt: configPath, dict: rawDict)
+        let dict = Self.removeUnsupportedProviderMetadata(fromConfigAt: configPath, dict: dictWithoutLegacyState)
 
         var newSettings = AppSettings()
 
@@ -93,19 +92,14 @@ class AppSettingsManager: ObservableObject {
            let providers = models["providers"] as? [String: Any] {
             let activeProviderKey = Self.activeProviderKey(in: dict)
             let hasGetclawhub = providers["getclawhub"] != nil
-            let customProviderSnapshots = appState?[Self.customProviderSnapshotsKey] as? [String: Any] ?? [:]
-            let customKeys = Array(Set(
-                providers.keys.filter { $0 != "getclawhub" }
-                    + customProviderSnapshots.keys.filter { $0 != "getclawhub" }
-            )).sorted()
+            let customKeys = providers.keys.filter { $0 != "getclawhub" }.sorted()
             let hasCustom = !customKeys.isEmpty
             let savedSource = appState?[Self.activeServiceSourceKey] as? String
             let savedCustomProvider = appState?[Self.selectedCustomProviderKey] as? String
             newSettings.customProviders = customKeys.compactMap { key in
                 Self.customProvider(
                     from: key,
-                    providers: providers,
-                    snapshots: customProviderSnapshots
+                    providers: providers
                 )
             }
 
@@ -124,19 +118,19 @@ class AppSettingsManager: ObservableObject {
             // Load the user's custom provider (non-getclawhub)
             let customProviderKey: String? = {
                 if let savedCustomProvider,
-                   Self.customProviderEntry(for: savedCustomProvider, providers: providers, snapshots: customProviderSnapshots) != nil,
+                   Self.customProviderEntry(for: savedCustomProvider, providers: providers) != nil,
                    savedCustomProvider != "getclawhub" {
                     return savedCustomProvider
                 }
                 if let activeProviderKey,
                    activeProviderKey != "getclawhub",
-                   Self.customProviderEntry(for: activeProviderKey, providers: providers, snapshots: customProviderSnapshots) != nil {
+                   Self.customProviderEntry(for: activeProviderKey, providers: providers) != nil {
                     return activeProviderKey
                 }
                 return customKeys.first
             }()
             if let providerKey = customProviderKey,
-               let firstProvider = Self.customProviderEntry(for: providerKey, providers: providers, snapshots: customProviderSnapshots) {
+               let firstProvider = Self.customProviderEntry(for: providerKey, providers: providers) {
                 newSettings.selectedProviderKey = providerKey
                 if let baseUrl = firstProvider["baseUrl"] as? String {
                     newSettings.modelBaseUrl = baseUrl
@@ -176,21 +170,18 @@ class AppSettingsManager: ObservableObject {
     }
 
     func loadConfiguredProviderModelSources() -> [ConfiguredProviderModelSource] {
-        guard let dict = readConfigDict(),
-              let modelsNode = dict["models"] as? [String: Any],
+        guard let rawDict = readConfigDict() else {
+            return []
+        }
+        let dict = Self.removeUnsupportedProviderMetadata(fromConfigAt: configPath, dict: rawDict)
+        guard let modelsNode = dict["models"] as? [String: Any],
               let providers = modelsNode["providers"] as? [String: Any] else {
             return []
         }
+        let providerKeys = providers.keys.sorted()
 
-        let appState = Self.readAppStateDict(legacyConfig: dict)
-        let customProviderSnapshots = appState?[Self.customProviderSnapshotsKey] as? [String: Any] ?? [:]
-        var mergedProviders = providers
-        for (key, value) in customProviderSnapshots where key != "getclawhub" {
-            mergedProviders[key] = value
-        }
-
-        return mergedProviders.keys.sorted().compactMap { key in
-            guard let provider = mergedProviders[key] as? [String: Any],
+        return providerKeys.compactMap { key in
+            guard let provider = providers[key] as? [String: Any],
                   let modelArray = provider["models"] as? [[String: Any]] else {
                 return nil
             }
@@ -205,7 +196,7 @@ class AppSettingsManager: ObservableObject {
     /// Save edited fields back to ~/.openclaw/openclaw.json
     /// Creates the full models.providers node if it doesn't exist.
     func saveToFile() -> Bool {
-        var dict = readConfigDict() ?? [:]
+        var dict = Self.sanitizedProviderMetadata(readConfigDict() ?? [:]).dict
         dict.removeValue(forKey: Self.legacyAppStateKey)
 
         // Update gateway section
@@ -250,7 +241,6 @@ class AppSettingsManager: ObservableObject {
             selectedProviderKey: providerKey,
             selectedProvider: shouldPersistSelectedCustomProvider ? ConfiguredCustomProvider(
                 key: providerKey,
-                displayName: Self.providerDisplayName(for: providerKey, fallback: providerKey),
                 baseUrl: settings.modelBaseUrl,
                 apiKey: settings.modelApiKey,
                 api: settings.providerApi,
@@ -258,19 +248,16 @@ class AppSettingsManager: ObservableObject {
             ) : nil
         )
         for provider in customProviders {
-            providers[provider.key] = Self.customProviderDictionary(from: provider)
+            providers[provider.key] = Self.runtimeCustomProviderDictionary(from: provider)
         }
         modelsNode["providers"] = providers
         dict["models"] = modelsNode
 
         Self.updateAppState(
-            providers: providers,
             activeServiceSource: settings.activeServiceSource,
             selectedCustomProviderKey: customProviders.contains(where: { $0.key == providerKey })
                 ? providerKey
-                : customProviders.first?.key,
-            customProviderEntry: nil,
-            replaceCustomSnapshots: true
+                : customProviders.first?.key
         )
 
         // Build agents.defaults
@@ -389,7 +376,7 @@ class AppSettingsManager: ObservableObject {
         if fm.fileExists(atPath: configPath),
            let data = try? Data(contentsOf: URL(fileURLWithPath: configPath)),
            let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            dict = existing
+            dict = sanitizedProviderMetadata(existing).dict
         }
         let existingAppState = readAppStateDict(legacyConfig: dict)
         dict.removeValue(forKey: legacyAppStateKey)
@@ -431,10 +418,8 @@ class AppSettingsManager: ObservableObject {
         let selectedCustomProvider = (existingAppState?[selectedCustomProviderKey] as? String)
             ?? providers.keys.filter { $0 != "getclawhub" }.sorted().first
         updateAppState(
-            providers: providers,
             activeServiceSource: activate ? "getclawhub" : nil,
-            selectedCustomProviderKey: selectedCustomProvider,
-            customProviderEntry: nil
+            selectedCustomProviderKey: selectedCustomProvider
         )
 
         guard activate else {
@@ -531,8 +516,9 @@ class AppSettingsManager: ObservableObject {
     }
 
     static func shouldAutoApplyGetClawHubProvider() -> Bool {
-        guard let dict = readConfigDict(at: defaultConfigPath) else { return true }
-        removeLegacyAppState(fromConfigAt: defaultConfigPath, dict: dict)
+        guard let rawDict = readConfigDict(at: defaultConfigPath) else { return true }
+        let dictWithoutLegacyState = removeLegacyAppState(fromConfigAt: defaultConfigPath, dict: rawDict)
+        let dict = removeUnsupportedProviderMetadata(fromConfigAt: defaultConfigPath, dict: dictWithoutLegacyState)
         if let appState = readAppStateDict(legacyConfig: dict),
            let savedSource = appState[activeServiceSourceKey] as? String {
             return savedSource == "getclawhub"
@@ -615,32 +601,28 @@ class AppSettingsManager: ObservableObject {
 
     private static func customProviderEntry(
         for key: String,
-        providers: [String: Any],
-        snapshots: [String: Any]
+        providers: [String: Any]
     ) -> [String: Any]? {
-        if let provider = providers[key] as? [String: Any] {
-            return provider
+        guard let provider = providers[key] as? [String: Any] else {
+            return nil
         }
-        return snapshots[key] as? [String: Any]
+        return provider
     }
 
     private static func customProvider(
         from key: String,
-        providers: [String: Any],
-        snapshots: [String: Any]
+        providers: [String: Any]
     ) -> ConfiguredCustomProvider? {
         guard key != "getclawhub",
-              let entry = customProviderEntry(for: key, providers: providers, snapshots: snapshots) else {
+              let entry = customProviderEntry(for: key, providers: providers) else {
             return nil
         }
         let baseUrl = entry["baseUrl"] as? String ?? ""
         let apiKey = entry["apiKey"] as? String ?? ""
         let api = entry["api"] as? String ?? "openai-completions"
-        let displayName = entry["displayName"] as? String ?? providerDisplayName(for: key, fallback: key)
         let models = (entry["models"] as? [[String: Any]] ?? []).compactMap { parseModelDict($0) }
         return ConfiguredCustomProvider(
             key: key,
-            displayName: displayName,
             baseUrl: baseUrl,
             apiKey: apiKey,
             api: api,
@@ -648,9 +630,8 @@ class AppSettingsManager: ObservableObject {
         )
     }
 
-    private static func customProviderDictionary(from provider: ConfiguredCustomProvider) -> [String: Any] {
+    private static func runtimeCustomProviderDictionary(from provider: ConfiguredCustomProvider) -> [String: Any] {
         [
-            "displayName": provider.displayName,
             "baseUrl": provider.baseUrl,
             "apiKey": provider.apiKey,
             "api": provider.api,
@@ -694,54 +675,29 @@ class AppSettingsManager: ObservableObject {
             .sorted { lhs, rhs in
                 if lhs.key == selectedProviderKey { return true }
                 if rhs.key == selectedProviderKey { return false }
-                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+                return lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedAscending
             }
-    }
-
-    private static func providerDisplayName(for key: String, fallback: String) -> String {
-        fallback
-            .split(separator: "-")
-            .map { part in
-                guard let first = part.first else { return "" }
-                return first.uppercased() + part.dropFirst()
-            }
-            .joined(separator: " ")
     }
 
     private static func updateAppState(
-        providers: [String: Any],
         activeServiceSource: String?,
-        selectedCustomProviderKey selectedCustomProvider: String?,
-        customProviderEntry: [String: Any]?,
-        replaceCustomSnapshots: Bool = false
+        selectedCustomProviderKey selectedCustomProvider: String?
     ) {
         var appState = readAppStateDict() ?? [:]
-        var snapshots = replaceCustomSnapshots ? [:] : (appState[customProviderSnapshotsKey] as? [String: Any] ?? [:])
-
-        for (key, provider) in providers where key != "getclawhub" {
-            snapshots[key] = provider
-        }
-        if let selectedCustomProvider,
-           selectedCustomProvider != "getclawhub",
-           let customProviderEntry {
-            snapshots[selectedCustomProvider] = customProviderEntry
-        }
+        appState.removeValue(forKey: "customProviders")
 
         if let activeServiceSource {
             appState[activeServiceSourceKey] = activeServiceSource
         }
         if let selectedCustomProvider, selectedCustomProvider != "getclawhub" {
             appState[selectedCustomProviderKey] = selectedCustomProvider
-        } else if replaceCustomSnapshots {
-            appState.removeValue(forKey: selectedCustomProviderKey)
-        }
-        if !snapshots.isEmpty {
-            appState[customProviderSnapshotsKey] = snapshots
         } else {
-            appState.removeValue(forKey: customProviderSnapshotsKey)
+            appState.removeValue(forKey: selectedCustomProviderKey)
         }
         if !appState.isEmpty {
             writeAppStateDict(appState)
+        } else if FileManager.default.fileExists(atPath: appStatePath) {
+            try? FileManager.default.removeItem(atPath: appStatePath)
         }
     }
 
@@ -756,6 +712,12 @@ class AppSettingsManager: ObservableObject {
         if let legacyState = legacyConfig?[legacyAppStateKey] as? [String: Any] {
             appState = mergeAppState(fileState: appState, legacyState: legacyState)
             writeAppStateDict(appState)
+        } else if appState.removeValue(forKey: "customProviders") != nil {
+            if appState.isEmpty {
+                try? FileManager.default.removeItem(atPath: appStatePath)
+            } else {
+                writeAppStateDict(appState)
+            }
         }
 
         return appState.isEmpty ? nil : appState
@@ -763,18 +725,10 @@ class AppSettingsManager: ObservableObject {
 
     private static func mergeAppState(fileState: [String: Any], legacyState: [String: Any]) -> [String: Any] {
         var merged = legacyState
-        let legacySnapshots = legacyState[customProviderSnapshotsKey] as? [String: Any] ?? [:]
-        let fileSnapshots = fileState[customProviderSnapshotsKey] as? [String: Any] ?? [:]
-        var snapshots = legacySnapshots
-        for (key, value) in fileSnapshots {
-            snapshots[key] = value
-        }
-        for (key, value) in fileState where key != customProviderSnapshotsKey {
+        for (key, value) in fileState {
             merged[key] = value
         }
-        if !snapshots.isEmpty {
-            merged[customProviderSnapshotsKey] = snapshots
-        }
+        merged.removeValue(forKey: "customProviders")
         return merged
     }
 
@@ -789,19 +743,54 @@ class AppSettingsManager: ObservableObject {
         try? data.write(to: URL(fileURLWithPath: appStatePath), options: .atomic)
     }
 
-    private static func removeLegacyAppState(fromConfigAt path: String, dict: [String: Any]) {
-        guard dict[legacyAppStateKey] != nil else { return }
+    @discardableResult
+    private static func removeLegacyAppState(fromConfigAt path: String, dict: [String: Any]) -> [String: Any] {
+        guard dict[legacyAppStateKey] != nil else { return dict }
         var sanitized = dict
         sanitized.removeValue(forKey: legacyAppStateKey)
         guard let data = try? JSONSerialization.data(withJSONObject: sanitized, options: [.prettyPrinted, .sortedKeys]) else {
-            return
+            return sanitized
         }
         try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
+        return sanitized
+    }
+
+    @discardableResult
+    private static func removeUnsupportedProviderMetadata(fromConfigAt path: String, dict: [String: Any]) -> [String: Any] {
+        let result = sanitizedProviderMetadata(dict)
+        guard result.changed,
+              let data = try? JSONSerialization.data(withJSONObject: result.dict, options: [.prettyPrinted, .sortedKeys]) else {
+            return result.dict
+        }
+        try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
+        return result.dict
+    }
+
+    private static func sanitizedProviderMetadata(_ dict: [String: Any]) -> (dict: [String: Any], changed: Bool) {
+        var sanitized = dict
+        guard var modelsNode = sanitized["models"] as? [String: Any],
+              var providers = modelsNode["providers"] as? [String: Any] else {
+            return (dict, false)
+        }
+
+        var changed = false
+        for key in providers.keys {
+            guard var provider = providers[key] as? [String: Any] else { continue }
+            if provider.removeValue(forKey: "displayName") != nil {
+                providers[key] = provider
+                changed = true
+            }
+        }
+
+        guard changed else { return (dict, false) }
+        modelsNode["providers"] = providers
+        sanitized["models"] = modelsNode
+        return (sanitized, true)
     }
 
     private func writeConfigDict(_ dict: [String: Any]) -> Bool {
         do {
-            var sanitized = dict
+            var sanitized = Self.sanitizedProviderMetadata(dict).dict
             sanitized.removeValue(forKey: Self.legacyAppStateKey)
             let data = try JSONSerialization.data(withJSONObject: sanitized, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: URL(fileURLWithPath: configPath), options: .atomic)

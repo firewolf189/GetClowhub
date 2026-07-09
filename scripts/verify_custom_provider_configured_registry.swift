@@ -28,9 +28,10 @@ require(
 )
 require(
     appSettings.contains("customProvider(\n        from key: String") &&
-        appSettings.contains("customProviderDictionary(from provider: ConfiguredCustomProvider)") &&
-        appSettings.contains("replaceCustomSnapshots: true"),
-    "AppSettings save/load must round-trip configured custom providers and remove deleted snapshots."
+        appSettings.contains("runtimeCustomProviderDictionary(from provider: ConfiguredCustomProvider)") &&
+        !appSettings.contains("customProviderSnapshotDictionary(from provider: ConfiguredCustomProvider)") &&
+        !appSettings.contains("customProviderSnapshotsKey"),
+    "AppSettings save/load must round-trip custom providers from openclaw.json without duplicate UI snapshots."
 )
 require(
     dashboardViewModel.contains("@Published var configuredCustomProviders: [ConfiguredCustomProvider] = []") &&
@@ -39,16 +40,20 @@ require(
     "DashboardViewModel must publish configured custom providers and include them in unsaved-change tracking."
 )
 require(
-    configProviderLogs.contains("func addCustomProvider(from preset: ProviderPreset, apiKey: String)") &&
+    !configProviderLogs.contains("func addCustomProvider(from preset: ProviderPreset, apiKey: String)") &&
         configProviderLogs.contains("func deleteCustomProvider(_ provider: ConfiguredCustomProvider)") &&
-        configProviderLogs.contains("func selectCustomProvider(_ provider: ConfiguredCustomProvider)") &&
-        configProviderLogs.contains("syncSelectedCustomProviderIntoRegistry()"),
-    "Provider settings must add, select, delete, and persist configured custom providers through the view model."
+        !configProviderLogs.contains("func selectCustomProvider(_ provider: ConfiguredCustomProvider)") &&
+        configProviderLogs.contains("syncSelectedCustomProviderIntoRegistry()") &&
+        configProviderLogs.contains("func addModel(_ model: PresetModel)") &&
+        configProviderLogs.contains("syncSelectedCustomProviderIntoRegistry()") &&
+        configProviderLogs.contains("refreshAvailableModelsForCurrentProvider()"),
+    "Provider settings must add, delete, edit models, and persist configured custom providers through the view model without exposing an unused card-selection helper."
 )
 require(
     config.contains("ForEach(viewModel.configuredCustomProviders)") &&
+        config.contains("providerTitle(for: provider)") &&
         !config.contains("return !provider.models.isEmpty"),
-    "Provider UI must not treat preset model lists as configured-provider state."
+    "Provider UI must derive provider titles from runtime provider fields and not treat preset model lists as configured-provider state."
 )
 
 print("Configured custom provider registry verification passed")

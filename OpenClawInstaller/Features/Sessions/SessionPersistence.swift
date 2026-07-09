@@ -51,27 +51,20 @@ extension DashboardViewModel {
         var projectGroups: [String: [ProjectSessionGroup]] = [:]
         var generalGroups: [String: [ChatSessionMetadata]] = [:]
 
-        for (agentId, sessions) in grouped {
+        let agentIds = Set(grouped.keys).union(projectBindingsByAgent.keys)
+        for agentId in agentIds {
+            let sessions = grouped[agentId] ?? []
             let unpinnedSessions = Self.orderedSessionMetadata(sessions.filter { !$0.isPinned })
             let general = unpinnedSessions.filter { $0.projectId == nil }
             if !general.isEmpty {
                 generalGroups[agentId] = general
             }
 
-            let projectSessions = Dictionary(grouping: unpinnedSessions.filter { $0.projectId != nil }) {
-                $0.projectId ?? ""
-            }
             var groups: [ProjectSessionGroup] = []
-            for (projectId, metas) in projectSessions where !projectId.isEmpty {
-                guard let project = projectsById[projectId] else { continue }
-                let binding = projectBindingsByAgent[agentId]?.first { $0.projectId == projectId }
-                    ?? AgentProjectBinding(agentId: agentId, projectId: projectId)
-                groups.append(ProjectSessionGroup(project: project, binding: binding, sessions: metas))
-            }
-
-            for binding in projectBindingsByAgent[agentId] ?? [] where groups.allSatisfy({ $0.project.id != binding.projectId }) {
+            for binding in projectBindingsByAgent[agentId] ?? [] {
                 guard let project = projectsById[binding.projectId] else { continue }
-                groups.append(ProjectSessionGroup(project: project, binding: binding, sessions: []))
+                let metas = unpinnedSessions.filter { $0.projectId == binding.projectId }
+                groups.append(ProjectSessionGroup(project: project, binding: binding, sessions: metas))
             }
 
             groups.sort { lhs, rhs in
@@ -212,16 +205,43 @@ extension DashboardViewModel {
     }
 
     func removeProject(_ projectId: String, fromAgent agentId: String) {
+        var deletedSessionIds = Set(chatSessionStore.index
+            .filter { $0.agentId == agentId && $0.projectId == projectId }
+            .map(\.id))
+        if let pending = pendingSessionMetadataByAgent[agentId],
+           pending.projectId == projectId {
+            deletedSessionIds.insert(pending.id)
+            pendingSessionMetadataByAgent.removeValue(forKey: agentId)
+        }
+
+        let selectedWasDeleted = selectedSessionIdByAgent[agentId].map(deletedSessionIds.contains) ?? false
+        for sessionId in deletedSessionIds {
+            cancelTasks(inSession: sessionId)
+            chatMessagesByInactiveSession.removeValue(forKey: sessionId)
+            loadingSessionIds.remove(sessionId)
+            appliedSessionModels.removeValue(forKey: "agent:\(agentId):project:\(projectId):\(sessionId.uuidString)")
+        }
+        deletedSessionIds.formUnion(chatSessionStore.deleteSessions(forAgent: agentId, projectId: projectId))
+
         projectBindingsByAgent = projectWorkspaceService.removeProject(
             projectId,
             fromAgent: agentId,
             bindingsByAgent: projectBindingsByAgent
         )
+
         if activeProjectIdByAgent[agentId] == projectId {
             activeProjectIdByAgent.removeValue(forKey: agentId)
         }
+        if selectedWasDeleted {
+            selectedSessionIdByAgent.removeValue(forKey: agentId)
+            chatMessagesByAgent[agentId] = []
+            shouldSuppressNextSessionSwitchBottomScroll = true
+            promoteNextSession(forAgent: agentId, projectId: nil)
+        }
+
         saveProjectRegistry()
         rebuildSessionsMirror()
+        recomputeIsSendingMessage()
     }
 
     /// Load `agentId`'s active session messages into `chatMessagesByAgent`

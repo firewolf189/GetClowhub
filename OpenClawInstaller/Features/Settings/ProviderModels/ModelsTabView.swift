@@ -29,6 +29,8 @@ struct ModelsTabView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isLoadingModels || viewModel.isPerformingAction)
+
+                    SettingsInlineRefreshStatus(isRefreshing: viewModel.isLoadingModels)
                 }
 
                 // Overview card
@@ -49,25 +51,23 @@ struct ModelsTabView: View {
                     )
                 }
 
-                if viewModel.isLoadingModels && viewModel.models.isEmpty {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text(I18n.t("dashboard.models.loading"))
-                            .foregroundColor(.secondary)
+                if viewModel.models.isEmpty {
+                    if viewModel.isLoadingModels {
+                        SettingsStaticLoadingPlaceholder(
+                            title: I18n.t("dashboard.models.loading"),
+                            systemImage: "cpu"
+                        )
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "cpu")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary)
+                            Text(I18n.t("dashboard.models.empty"))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(40)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                } else if viewModel.models.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "cpu")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text(I18n.t("dashboard.models.empty"))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
                 } else {
                     // Model list
                     VStack(spacing: 0) {

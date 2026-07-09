@@ -45,10 +45,11 @@ let chatComposer = read("OpenClawInstaller/Features/Chat/Views/ChatComposerView.
 let markdownHTML = read("OpenClawInstaller/Features/Chat/Markdown/MarkdownHTML.swift")
 let rightInspectorSplit = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorSplitView.swift")
 let workspaceInspectorPane = read("OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift")
+let rightInspectorTitlebarAccessory = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorTitlebarAccessory.swift")
 let config = read("OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift")
 let metrics = read("OpenClawInstaller/Features/Dashboard/Sidebar/OutputsSidebarLayoutMetrics.swift")
 let layoutScript = read("scripts/verify_outputs_sidebar_layout.swift")
-let rightOutputsTitlebarAccessory = slice(dashboard, from: "private struct RightOutputsTitlebarAccessory: View", to: "// MARK: - Sidebar")
+let rightOutputsTitlebarAccessory = rightInspectorTitlebarAccessory
 
 assertContains(
     dashboard,
@@ -246,8 +247,8 @@ assertContains(dashboard, "private func workspaceSidebarPane(width: CGFloat) -> 
 assertContains(workspaceInspectorPane, "WorkspaceOutputsPaneHeader(", "Outputs split pane must own the title/search/open header")
 assertContains(dashboard, "ToolbarItem(placement: .navigation)", "conversation title must live in the window toolbar")
 assertNotContains(dashboard, "ToolbarItem(placement: .primaryAction)", "Outputs toggle must not use the main toolbar primaryAction placement")
-assertContains(dashboard, "DashboardTitlebarAccessoryInstaller(", "Outputs controls must be installed into the existing titlebar header")
-assertContains(dashboard, "RightOutputsTitlebarAccessory(", "Outputs toggle must stay in the titlebar accessory")
+assertContains(dashboard, "RightInspectorTitlebarAccessoryInstaller(", "Outputs controls must be installed into the existing titlebar header")
+assertContains(dashboard, "RightInspectorTitlebarAccessory(", "Outputs toggle must stay in the titlebar accessory")
 assertContains(dashboard, "isTerminalOpen: terminalOpen", "Terminal state must be passed into the right titlebar accessory")
 assertContains(dashboard, "toggleTerminal:", "Terminal toggle must be wired into the right titlebar accessory")
 assertNotContains(dashboard, #"Image(systemName: "tray.full.fill")"#, "right sidebar header must not show the removed blue tray icon")
@@ -256,7 +257,7 @@ assertNotContains(dashboard, ".animation(.spring(response: 0.36, dampingFraction
 assertNotContains(dashboard, "private var chatTopChrome", "ChatView must not own the conversation header")
 assertNotContains(dashboard, "private var conversationHeader: some View", "conversation header must not consume vertical space inside the chat content")
 assertNotContains(dashboard, "WorkspaceInspectorHeader(", "right sidebar content must not create a second header row")
-assertContains(dashboard, "private struct RightOutputsTitlebarAccessory: View", "right sidebar toggle must live in the existing titlebar header")
+assertContains(rightOutputsTitlebarAccessory, "struct RightInspectorTitlebarAccessory: View", "right sidebar toggle must live in the existing titlebar header")
 assertNotContains(rightOutputsTitlebarAccessory, #"Text("Outputs")"#, "right titlebar accessory must not resize as a second Outputs header")
 assertContains(rightOutputsTitlebarAccessory, #"Image(systemName: "terminal")"#, "right titlebar accessory must restore the Terminal button")
 assertBefore(rightOutputsTitlebarAccessory, #"Image(systemName: "terminal")"#, #"Image(systemName: "sidebar.right")"#, "Terminal button must sit to the left of the right sidebar button")

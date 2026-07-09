@@ -64,17 +64,20 @@ class InstallationViewModel: ObservableObject {
     /// Perform environment check
     func performEnvironmentCheck() async {
         installationState.isInstalling = true
-        installationState.updateProgress(0.1, message: "Checking system environment...")
+        installationState.updateProgress(0.1, message: I18n.t("install.progress.checkingEnvironment"))
 
         await systemEnvironment.performFullCheck()
 
-        installationState.updateProgress(0.5, message: "Analyzing requirements...")
+        installationState.updateProgress(0.5, message: I18n.t("install.progress.analyzingRequirements"))
 
         // Check requirements
         let (passed, issues) = systemEnvironment.checkRequirements()
 
         if !passed {
-            let errorMessage = "System requirements not met:\n" + issues.joined(separator: "\n")
+            let errorMessage = I18n.format(
+                "install.progress.systemRequirementsNotMet",
+                issues.joined(separator: "\n")
+            )
             installationState.setError(errorMessage)
             installationState.isInstalling = false
             return
@@ -83,24 +86,24 @@ class InstallationViewModel: ObservableObject {
         // Determine what needs to be installed
         if systemEnvironment.nodeInfo == nil {
             installationState.nodeInstallationRequired = true
-            installationState.updateProgress(0.7, message: "Node.js installation required")
+            installationState.updateProgress(0.7, message: I18n.t("install.progress.nodeRequired"))
         } else if let nodeInfo = systemEnvironment.nodeInfo, !nodeInfo.isCompatible {
             installationState.nodeInstallationRequired = true
-            installationState.updateProgress(0.7, message: "Node.js upgrade required")
+            installationState.updateProgress(0.7, message: I18n.t("install.progress.nodeUpgradeRequired"))
         } else {
             installationState.nodeInstallationRequired = false
             installationState.nodeInstallationComplete = true
-            installationState.updateProgress(0.7, message: "Node.js already installed")
+            installationState.updateProgress(0.7, message: I18n.t("install.progress.nodeAlreadyInstalled"))
         }
 
         // Check if OpenClaw is already installed
         if systemEnvironment.openclawInfo != nil {
             installationState.openclawInstallationRequired = false
             installationState.openclawInstallationComplete = true
-            installationState.updateProgress(1.0, message: "OpenClaw already installed")
+            installationState.updateProgress(1.0, message: I18n.t("install.progress.openClawAlreadyInstalled"))
         } else {
             installationState.openclawInstallationRequired = true
-            installationState.updateProgress(1.0, message: "OpenClaw installation required")
+            installationState.updateProgress(1.0, message: I18n.t("install.progress.openClawRequired"))
         }
 
         installationState.isInstalling = false
@@ -118,13 +121,13 @@ class InstallationViewModel: ObservableObject {
     /// Install Node.js
     func installNodeJS() async {
         installationState.isInstalling = true
-        installationState.updateProgress(0.0, message: "Starting Node.js installation...")
+        installationState.updateProgress(0.0, message: I18n.t("install.progress.startingNode"))
 
         do {
             try await nodeInstaller.installNodeJS()
 
             installationState.nodeInstallationComplete = true
-            installationState.updateProgress(1.0, message: "Node.js installed successfully")
+            installationState.updateProgress(1.0, message: I18n.t("install.progress.nodeSuccess"))
 
             // Refresh environment
             await systemEnvironment.detectNode()
@@ -140,20 +143,20 @@ class InstallationViewModel: ObservableObject {
             }
 
         } catch {
-            installationState.setError("Node.js installation failed: \(error.localizedDescription)")
+            installationState.setError(I18n.format("install.progress.nodeFailed", error.localizedDescription))
         }
     }
 
     /// Install OpenClaw
     func installOpenClaw() async {
         installationState.isInstalling = true
-        installationState.updateProgress(0.0, message: "Starting OpenClaw installation...")
+        installationState.updateProgress(0.0, message: I18n.t("install.progress.startingOpenClaw"))
 
         do {
             try await openclawInstaller.installOpenClaw()
 
             installationState.openclawInstallationComplete = true
-            installationState.updateProgress(1.0, message: "OpenClaw installed successfully")
+            installationState.updateProgress(1.0, message: I18n.t("install.progress.openClawSuccess"))
 
             // Refresh environment
             await systemEnvironment.detectOpenClaw()
@@ -164,14 +167,14 @@ class InstallationViewModel: ObservableObject {
             installationState.goToStep(.configuration)
 
         } catch {
-            installationState.setError("OpenClaw installation failed: \(error.localizedDescription)")
+            installationState.setError(I18n.format("install.progress.openClawFailed", error.localizedDescription))
         }
     }
 
     /// Save gateway auth token to config and proceed
     func saveTokenAndContinue() async {
         installationState.isInstalling = true
-        installationState.updateProgress(0.0, message: "Saving gateway configuration...")
+        installationState.updateProgress(0.0, message: I18n.t("install.progress.savingConfig"))
 
         let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
         let fm = FileManager.default
@@ -205,13 +208,13 @@ class InstallationViewModel: ObservableObject {
             try data.write(to: URL(fileURLWithPath: configPath), options: .atomic)
 
             installationState.configurationComplete = true
-            installationState.updateProgress(1.0, message: "Configuration saved")
+            installationState.updateProgress(1.0, message: I18n.t("install.progress.configSaved"))
 
             try await Task.sleep(nanoseconds: 1_000_000_000)
             installationState.isInstalling = false
             installationState.goToStep(.complete)
         } catch {
-            installationState.setError("Failed to save configuration: \(error.localizedDescription)")
+            installationState.setError(I18n.format("install.progress.configSaveFailed", error.localizedDescription))
         }
     }
 

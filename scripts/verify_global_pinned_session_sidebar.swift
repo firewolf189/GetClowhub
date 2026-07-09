@@ -32,6 +32,8 @@ func slice(_ text: String, from start: String, to end: String) -> String {
 
 let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let sessionPersistence = read("OpenClawInstaller/Features/Sessions/SessionPersistence.swift")
+let sessionNavigationState = read("OpenClawInstaller/Features/Sessions/State/SessionNavigationState.swift")
 let chatSessionModel = read("OpenClawInstaller/Features/Sessions/Models/ChatSession.swift")
 
 assertContains(
@@ -41,17 +43,22 @@ assertContains(
 )
 
 assertContains(
-    viewModel,
+    sessionNavigationState,
     "@Published var pinnedSessions: [ChatSessionMetadata] = []",
-    "view model should expose a derived global pinned session list"
+    "session navigation state should expose a derived global pinned session list"
 )
 assertContains(
     viewModel,
+    "get { sessionState.pinnedSessions }",
+    "view model should keep a compatibility facade for pinned sessions"
+)
+assertContains(
+    sessionPersistence,
     "private static func orderedSessionMetadata",
     "session metadata ordering should be centralized so pinned/project/general lists stay consistent"
 )
 assertContains(
-    viewModel,
+    sessionPersistence,
     "pinnedSessions = Self.orderedSessionMetadata(grouped.values.flatMap { $0 }.filter(\\.isPinned))",
     "global pinned sessions should be derived from all non-archived sessions and ordered by recency"
 )
@@ -77,7 +84,7 @@ assertNotContains(
 )
 
 let projectGrouping = slice(
-    viewModel,
+    sessionPersistence,
     from: "private func rebuildProjectSessionGroups",
     to: "/// Remove in-memory UI state"
 )
@@ -93,8 +100,8 @@ assertContains(
 )
 assertContains(
     projectGrouping,
-    "Dictionary(grouping: unpinnedSessions.filter { $0.projectId != nil })",
-    "project folders should only include non-pinned sessions"
+    "let metas = unpinnedSessions.filter { $0.projectId == binding.projectId }",
+    "project folders should collect only non-pinned sessions for their binding"
 )
 
 assertContains(

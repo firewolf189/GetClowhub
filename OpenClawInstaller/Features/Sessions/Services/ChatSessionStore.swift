@@ -259,7 +259,7 @@ final class ChatSessionStore: ObservableObject {
         if let s = current { saveSession(s) }
     }
 
-    func deleteSession(id: UUID) {
+    private func deleteSessionFilesAndCache(id: UUID) {
         saveDebouncers[id]?.cancel()
         saveDebouncers[id] = nil
         invalidateCache(id: id)
@@ -267,12 +267,33 @@ final class ChatSessionStore: ObservableObject {
             try? FileManager.default.removeItem(at: url)
         }
         try? FileManager.default.removeItem(at: legacySessionURL(for: id))
+    }
+
+    func deleteSession(id: UUID) {
         let affectedAgentIds = Set(index.filter { $0.id == id }.map(\.agentId))
+        deleteSessionFilesAndCache(id: id)
         index.removeAll { $0.id == id }
         for agentId in affectedAgentIds {
             writeIndex(forAgent: agentId)
         }
         writeLegacyIndex()
+    }
+
+    func deleteSessions(forAgent agentId: String, projectId: String) -> [UUID] {
+        let deletedIds = index
+            .filter { $0.agentId == agentId && $0.projectId == projectId }
+            .map(\.id)
+        guard !deletedIds.isEmpty else { return [] }
+
+        for id in deletedIds {
+            deleteSessionFilesAndCache(id: id)
+        }
+
+        let deletedIdSet = Set(deletedIds)
+        index.removeAll { deletedIdSet.contains($0.id) }
+        writeIndex(forAgent: agentId)
+        writeLegacyIndex()
+        return deletedIds
     }
 
     // MARK: - Queries

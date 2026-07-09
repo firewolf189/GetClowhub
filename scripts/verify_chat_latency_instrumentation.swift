@@ -16,35 +16,35 @@ func require(_ condition: Bool, _ message: String) {
     }
 }
 
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let chatHelpers = read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let gateway = read("OpenClawInstaller/Core/Gateway/GatewayClient.swift")
 
 require(
-    dashboard.contains("let chatSendStart = ContinuousClock.now"),
+    chatHelpers.contains("let chatSendStart = ContinuousClock.now"),
     "sendChatMessage should record the local send start time"
 )
 require(
-    dashboard.contains(#"phase=chat_send_start"#),
+    chatHelpers.contains(#"phase=chat_send_start"#),
     "sendChatMessage should log chat_send_start"
 )
 require(
-    dashboard.contains(#"phase=chat_send_ack"#),
+    chatHelpers.contains(#"phase=chat_send_ack"#),
     "sendChatMessage should log chat_send_ack after runId is received"
 )
 require(
-    dashboard.contains(#"phase=chat_first_event"#),
+    chatHelpers.contains(#"phase=chat_first_event"#),
     "sendChatMessage should log the first gateway event after ack"
 )
 require(
-    dashboard.contains(#"phase=chat_first_delta"#),
+    chatHelpers.contains(#"phase=chat_first_delta"#),
     "sendChatMessage should log the first text delta"
 )
 require(
-    dashboard.contains(#"phase=chat_final"#),
+    chatHelpers.contains(#"phase=chat_final"#),
     "sendChatMessage should log final event timing"
 )
 require(
-    dashboard.contains(#"phase=chat_error"#),
+    chatHelpers.contains(#"phase=chat_error"#),
     "sendChatMessage should log error event timing"
 )
 require(

@@ -92,8 +92,8 @@ expectContains(
 )
 expectContains(
     timelineModels,
-    "allowsRichMarkdown: richMarkdownMessageIds.contains(message.id)",
-    "Each chat row model should receive explicit WKWebView eligibility"
+    "allowsRichMarkdown: activeStreamState == nil && richMarkdownMessageIds.contains(message.id)",
+    "Each final chat row model should receive explicit WKWebView eligibility while streaming drafts stay native"
 )
 expectContains(
     dashboard,

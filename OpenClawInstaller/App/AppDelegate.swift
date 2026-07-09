@@ -3,6 +3,19 @@ import AppKit
 import Combine
 import UserNotifications
 
+private extension ServiceStatus {
+    var localizedTitle: String {
+        switch self {
+        case .running: return I18n.t("dashboard.status.service.running")
+        case .stopped: return I18n.t("dashboard.status.service.stopped")
+        case .starting: return I18n.t("dashboard.status.service.starting")
+        case .stopping: return I18n.t("dashboard.status.service.stopping")
+        case .error: return I18n.t("dashboard.status.service.error")
+        case .unknown: return I18n.t("dashboard.status.service.unknown")
+        }
+    }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
@@ -210,6 +223,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     // MARK: - Menu Actions
 
+    private var localizedServiceStatus: String {
+        openclawService?.status.localizedTitle ?? I18n.t("dashboard.status.service.unknown")
+    }
+
     func createMenu() -> NSMenu {
         let menu = NSMenu()
         #if REQUIRE_LOGIN
@@ -220,7 +237,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Status item
         let statusItem = NSMenuItem(
-            title: "\(String(localized: "Status:")) \(openclawService?.status.rawValue ?? "Unknown")",
+            title: I18n.format("menu.status.statusLine", localizedServiceStatus),
             action: nil,
             keyEquivalent: ""
         )
@@ -232,7 +249,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // Start/Stop
         if openclawService?.status == .running {
             let stopItem = NSMenuItem(
-                title: String(localized: "Stop Service"),
+                title: I18n.t("menu.status.stopService"),
                 action: #selector(stopService),
                 keyEquivalent: "s"
             )
@@ -240,7 +257,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             menu.addItem(stopItem)
         } else {
             let startItem = NSMenuItem(
-                title: String(localized: "Start Service"),
+                title: I18n.t("menu.status.startService"),
                 action: #selector(startService),
                 keyEquivalent: "s"
             )
@@ -249,7 +266,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
 
         let restartItem = NSMenuItem(
-            title: String(localized: "Restart"),
+            title: I18n.t("menu.status.restartService"),
             action: #selector(restartService),
             keyEquivalent: "r"
         )
@@ -260,7 +277,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Dashboard
         let dashboardItem = NSMenuItem(
-            title: String(localized: "Open Dashboard"),
+            title: I18n.t("menu.status.openDashboard"),
             action: #selector(openDashboardFromMenu),
             keyEquivalent: "d"
         )
@@ -268,7 +285,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         menu.addItem(dashboardItem)
 
         menu.addItem(NSMenuItem(
-            title: String(localized: "Show Main Window"),
+            title: I18n.t("menu.status.showMainWindow"),
             action: #selector(showMainWindow),
             keyEquivalent: "w"
         ))
@@ -277,7 +294,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Check for Updates
         menu.addItem(NSMenuItem(
-            title: String(localized: "Check for Updates"),
+            title: I18n.t("menu.status.checkUpdates"),
             action: #selector(checkForUpdates),
             keyEquivalent: "u"
         ))
@@ -286,7 +303,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Quit
         menu.addItem(NSMenuItem(
-            title: String(localized: "Quit OpenClaw Installer"),
+            title: I18n.t("menu.status.quitInstaller"),
             action: #selector(quitApp),
             keyEquivalent: "q"
         ))
@@ -379,7 +396,7 @@ struct MenuBarPopoverView: View {
                         .fill(statusColor)
                         .frame(width: 8, height: 8)
 
-                    Text(openclawService?.status.rawValue ?? "Unknown")
+                    Text(openclawService?.status.localizedTitle ?? I18n.t("dashboard.status.service.unknown"))
                         .font(.body)
 
                     Spacer()
@@ -387,7 +404,7 @@ struct MenuBarPopoverView: View {
 
                 if let service = openclawService, service.status == .running {
                     HStack {
-                        Text("Uptime:")
+                        Text(I18n.t("menu.status.uptime"))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -405,7 +422,7 @@ struct MenuBarPopoverView: View {
             VStack(spacing: 8) {
                 if openclawService?.status == .running {
                     MenuButton(
-                        title: String(localized: "Open Dashboard"),
+                        title: I18n.t("menu.status.openDashboard"),
                         icon: "safari",
                         action: {
                             openclawService?.openDashboard()
@@ -414,7 +431,7 @@ struct MenuBarPopoverView: View {
                     )
 
                     MenuButton(
-                        title: String(localized: "Stop Service"),
+                        title: I18n.t("menu.status.stopService"),
                         icon: "stop.fill",
                         action: {
                             Task {
@@ -424,7 +441,7 @@ struct MenuBarPopoverView: View {
                     )
                 } else {
                     MenuButton(
-                        title: String(localized: "Start Service"),
+                        title: I18n.t("menu.status.startService"),
                         icon: "play.fill",
                         action: {
                             Task {
@@ -435,7 +452,7 @@ struct MenuBarPopoverView: View {
                 }
 
                 MenuButton(
-                    title: String(localized: "Show Main Window"),
+                    title: I18n.t("menu.status.showMainWindow"),
                     icon: "macwindow",
                     action: onOpenDashboard
                 )
@@ -447,11 +464,11 @@ struct MenuBarPopoverView: View {
             VStack(spacing: 2) {
                 let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
                 let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-                Text("OpenClaw Helper v\(appVersion) (\(buildNumber))")
+                Text(I18n.format("menu.status.helperVersion", appVersion, buildNumber))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 if let version = openclawService?.version, !version.isEmpty {
-                    Text("OpenClaw Service \(version)")
+                    Text(I18n.format("menu.status.serviceVersion", version))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

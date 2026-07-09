@@ -55,8 +55,8 @@ require(
     "AppSettingsManager must provide a config/app-state merged provider model source API"
 )
 require(
-    appSettings.contains("customProviderSnapshotsKey"),
-    "provider model source loading must include saved custom provider snapshots"
+    !appSettings.contains("customProviderSnapshotsKey"),
+    "provider model source loading must use openclaw.json providers directly, without saved custom provider snapshots"
 )
 require(
     dashboardViewModel.contains("var availableModelGroups: [ProviderModelGroup]"),

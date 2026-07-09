@@ -40,30 +40,30 @@ struct ChannelsTabView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isLoadingChannels || viewModel.isPerformingAction)
+
+                    SettingsInlineRefreshStatus(isRefreshing: viewModel.isLoadingChannels)
                 }
 
-                if viewModel.isLoadingChannels && viewModel.channels.isEmpty {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text(I18n.t("dashboard.channels.loading"))
-                            .foregroundColor(.secondary)
+                if viewModel.channels.isEmpty {
+                    if viewModel.isLoadingChannels {
+                        SettingsStaticLoadingPlaceholder(
+                            title: I18n.t("dashboard.channels.loading"),
+                            systemImage: "bubble.left.and.bubble.right"
+                        )
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "bubble.left.and.bubble.right")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary)
+                            Text(I18n.t("dashboard.channels.empty.title"))
+                                .foregroundColor(.secondary)
+                            Text(I18n.t("dashboard.channels.empty.detail"))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(40)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
-                } else if viewModel.channels.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "bubble.left.and.bubble.right")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text(I18n.t("dashboard.channels.empty.title"))
-                            .foregroundColor(.secondary)
-                        Text(I18n.t("dashboard.channels.empty.detail"))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(40)
                 } else {
                     // Channel list
                     VStack(spacing: 0) {

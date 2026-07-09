@@ -63,7 +63,7 @@ class OpenClawInstaller: ObservableObject {
                 throw OpenClawInstallationError.bundleNotFound
             }
 
-            installationStatus = "Installing OpenClaw from bundled package..."
+            installationStatus = I18n.t("install.openclaw.status.installingBundled")
             appendLog("Found bundled OpenClaw package: \(bundlePath.lastPathComponent)")
             installationProgress = 0.1
 
@@ -77,7 +77,7 @@ class OpenClawInstaller: ObservableObject {
                 appendLog("Created directory: \(targetDir)")
             }
 
-            installationStatus = "Extracting OpenClaw..."
+            installationStatus = I18n.t("install.openclaw.status.extracting")
             installationProgress = 0.2
 
             // Remove quarantine from the bundle tar.gz itself before extraction,
@@ -95,7 +95,7 @@ class OpenClawInstaller: ObservableObject {
                     try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                     progress += 0.05
                     self.installationProgress = progress
-                    self.installationStatus = "Extracting OpenClaw... \(Int(progress * 100))%"
+                    self.installationStatus = I18n.format("install.openclaw.status.extractingPercent", Int64(progress * 100))
                 }
             }
 
@@ -122,7 +122,7 @@ class OpenClawInstaller: ObservableObject {
 
             // Remove macOS quarantine attributes to prevent Gatekeeper from
             // blocking unsigned native modules (e.g. clipboard.darwin-universal.node)
-            installationStatus = "Removing quarantine attributes..."
+            installationStatus = I18n.t("install.openclaw.status.removingQuarantine")
             installationProgress = 0.75
             appendLog("Removing quarantine attributes from extracted files...")
             let xattrCmd = "xattr -cr '\(targetDir)/lib/node_modules/openclaw' 2>&1"
@@ -133,7 +133,7 @@ class OpenClawInstaller: ObservableObject {
             )
             appendLog("Quarantine attributes removed.")
 
-            installationStatus = "Setting up OpenClaw binary..."
+            installationStatus = I18n.t("install.openclaw.status.settingUpBinary")
             installationProgress = 0.8
 
             // Ensure the openclaw.mjs has execute permission
@@ -166,7 +166,7 @@ class OpenClawInstaller: ObservableObject {
 
             installationProgress = 1.0
             isInstalling = false
-            installationStatus = "Installation complete!"
+            installationStatus = I18n.t("install.openclaw.status.complete")
 
         } catch let err as OpenClawInstallationError {
             self.error = err
@@ -187,7 +187,7 @@ class OpenClawInstaller: ObservableObject {
     /// Run openclaw onboard
     func runOnboarding(apiKey: String? = nil) async throws {
         isInstalling = true
-        installationStatus = "Configuring OpenClaw..."
+        installationStatus = I18n.t("install.openclaw.status.configuring")
         appendLog("\nRunning openclaw onboard...")
 
         do {
@@ -217,7 +217,7 @@ class OpenClawInstaller: ObservableObject {
             }
 
             appendLog(output)
-            installationStatus = "OpenClaw configured successfully"
+            installationStatus = I18n.t("install.openclaw.status.configured")
 
             isInstalling = false
 
@@ -233,7 +233,7 @@ class OpenClawInstaller: ObservableObject {
 
     /// Verify OpenClaw installation
     func verifyInstallation() async throws {
-        installationStatus = "Verifying installation..."
+        installationStatus = I18n.t("install.openclaw.status.verifying")
         appendLog("Verifying OpenClaw installation...")
 
         // Wait briefly for filesystem to settle
@@ -281,11 +281,11 @@ class OpenClawInstaller: ObservableObject {
             let lines = versionOutput.trimmingCharacters(in: .whitespacesAndNewlines)
                 .components(separatedBy: .newlines)
             let versionStr = lines.last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
-            installationStatus = "OpenClaw \(versionStr) verified at \(verifiedPath)"
+            installationStatus = I18n.format("install.openclaw.status.verifiedAt", versionStr, verifiedPath)
             appendLog("✓ OpenClaw \(versionStr) installed at \(verifiedPath)")
         } else {
             // Command exists but version check failed - still consider it installed
-            installationStatus = "OpenClaw installed at \(verifiedPath)"
+            installationStatus = I18n.format("install.openclaw.status.installedAt", verifiedPath)
             appendLog("✓ OpenClaw installed at \(verifiedPath) (version check skipped)")
         }
     }

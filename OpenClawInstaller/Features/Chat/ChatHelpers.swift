@@ -666,7 +666,7 @@ extension DashboardViewModel {
         var receivedTerminalEvent = false
         var emptyFinalCount = 0
         // Throttle message updates to prevent CPU 100% during fast streaming
-        var lastUpdateTime = Date()
+        var lastUpdateTime = Date.distantPast
         let updateThrottleInterval: TimeInterval = 0.1  // Update at most every 100ms
         var didLogFirstEvent = false
         var didLogFirstDelta = false
@@ -700,7 +700,14 @@ extension DashboardViewModel {
                 mergeActivityEvent(event, into: &accumulatedActivityEvents)
                 if let current = findMessage(byId: msgId),
                    current.taskStatus != .cancelled {
-                    updateMessage(msgId: msgId, content: "", status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    updateActiveStreamState(
+                        msgId: msgId,
+                        visibleDraftText: Self.visibleAssistantText(
+                            from: accumulatedText,
+                            committedWorkingText: committedWorkingText
+                        ),
+                        activityEvents: accumulatedActivityEvents
+                    )
                 }
 
             case .delta(let eventRunId, let eventSessionKey, let text):
@@ -737,7 +744,14 @@ extension DashboardViewModel {
                             accumulatedText: accumulatedText,
                             committedWorkingText: committedWorkingText
                         )
-                        updateMessage(msgId: msgId, content: "", status: current.taskStatus, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: displayEvents)
+                        updateActiveStreamState(
+                            msgId: msgId,
+                            visibleDraftText: Self.visibleAssistantText(
+                                from: accumulatedText,
+                                committedWorkingText: committedWorkingText
+                            ),
+                            activityEvents: displayEvents
+                        )
                     }
                 }
 
@@ -779,6 +793,7 @@ extension DashboardViewModel {
                 receivedTerminalEvent = true
                 let wasBackground = backgroundTaskIds.contains(msgId)
                 updateMessage(msgId: msgId, content: finalText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                clearActiveStreamState(msgId)
                 if wasBackground {
                     // Only emit the "background task completed" inline card when the
                     // user is still looking at the SAME session the task ran in.
@@ -804,6 +819,7 @@ extension DashboardViewModel {
                 if let current = findMessage(byId: msgId),
                    current.taskStatus != .cancelled {
                     updateMessage(msgId: msgId, content: "", status: .cancelled, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    clearActiveStreamState(msgId)
                 }
                 break streamLoop
 
@@ -816,6 +832,7 @@ extension DashboardViewModel {
                 // Ensure UI update happens on MainActor
                 await MainActor.run {
                     self.updateMessage(msgId: msgId, content: errorContent, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    self.clearActiveStreamState(msgId)
                 }
                 chatLog.warning("chat error: runId=\(runId), message=\(message)")
                 break streamLoop

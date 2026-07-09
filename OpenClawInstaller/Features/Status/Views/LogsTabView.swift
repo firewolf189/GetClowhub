@@ -140,10 +140,7 @@ struct LogsToolbar: View {
 
                 Spacer()
 
-                if isLoading {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                }
+                SettingsInlineRefreshStatus(isRefreshing: isLoading)
 
                 Text("gateway.log")
                     .font(.caption)

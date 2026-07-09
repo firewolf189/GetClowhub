@@ -84,9 +84,36 @@ private struct RightInspectorContentUpdateID: Hashable {
     let selectedAgentId: String
     let terminalOpen: Bool
     let terminalHeight: CGFloat
-    let selectedSettingsSection: String
     let marketplaceInstallRefreshID: Int
     let requestedUserMessageJumpId: UUID?
+}
+
+private enum DashboardPresentationMode: Equatable, Hashable {
+    case app
+    case settings(SettingsPageSection)
+
+    var isSettingsPresented: Bool {
+        if case .settings = self { return true }
+        return false
+    }
+
+    var settingsSection: SettingsPageSection? {
+        if case .settings(let section) = self { return section }
+        return nil
+    }
+}
+
+private struct DashboardChromePolicy: Equatable {
+    let showsTitlebarAccessory: Bool
+    let showsSessionToolbarTitle: Bool
+    let allowsAppOverlays: Bool
+
+    init(presentationMode: DashboardPresentationMode, isChatTabActive: Bool) {
+        let isAppPresented = !presentationMode.isSettingsPresented
+        showsTitlebarAccessory = isAppPresented && isChatTabActive
+        showsSessionToolbarTitle = isAppPresented
+        allowsAppOverlays = isAppPresented
+    }
 }
 
 private struct DashboardSessionTitleToolbarChip: View {
@@ -158,8 +185,7 @@ struct DashboardView: View {
     @State private var pendingWorkspaceSidebarCloseReset = false
     @State private var workspaceBrowserWidth: CGFloat = 280
     @State private var workspaceDetailWidth: CGFloat = 0
-    @State private var selectedSettingsSection: SettingsPageSection = .profile
-    @State private var isSettingsPagePresented = false
+    @State private var presentationMode: DashboardPresentationMode = .app
     @State private var marketplaceInstallRefreshID = 0
     @State private var sessionRenamePresentation: SessionRenamePresentation?
     @State private var sessionRenameDraft: String = ""
@@ -184,29 +210,17 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        ZStack {
-            appWorkspace
-
-            if isSettingsPagePresented {
-                SettingsShellView(
-                    viewModel: viewModel,
-                    selectedSection: $selectedSettingsSection,
-                    onBackToApp: closeSettingsPage
-                )
-                .transition(.opacity)
-                .zIndex(1)
-            }
-        }
+        presentationRoot
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(colorSchemeForAppearance)
         .tint(AppAccentPalette.storedValue(appAccent).color)
         .background(TitlebarSeparatorSuppressor())
         .background(
-            DashboardTitlebarAccessoryInstaller(
-                isVisible: !isSettingsPagePresented && isChatTabActive,
+            RightInspectorTitlebarAccessoryInstaller(
+                isVisible: chromePolicy.showsTitlebarAccessory,
                 width: rightTitlebarAccessoryWidth
             ) {
-                RightOutputsTitlebarAccessory(
+                RightInspectorTitlebarAccessory(
                     isTerminalOpen: terminalOpen,
                     isExpanded: isWorkspaceSidebarExpanded,
                     toggleTerminal: {
@@ -226,19 +240,19 @@ struct DashboardView: View {
             // there and keep the self-drawn pill as the single chrome.
             if #available(macOS 26.0, *) {
                 ToolbarItem(placement: .navigation) {
-                    if isSettingsPagePresented {
-                        EmptyView()
-                    } else {
+                    if chromePolicy.showsSessionToolbarTitle {
                         sessionTitleToolbarChip
+                    } else {
+                        EmptyView()
                     }
                 }
                 .sharedBackgroundVisibility(.hidden)
             } else {
                 ToolbarItem(placement: .navigation) {
-                    if isSettingsPagePresented {
-                        EmptyView()
-                    } else {
+                    if chromePolicy.showsSessionToolbarTitle {
                         sessionTitleToolbarChip
+                    } else {
+                        EmptyView()
                     }
                 }
             }
@@ -256,22 +270,22 @@ struct DashboardView: View {
             }
         }
         .overlay {
-            if !isSettingsPagePresented, isGlobalSessionSearchPresented {
+            if chromePolicy.allowsAppOverlays, isGlobalSessionSearchPresented {
                 globalSessionSearchOverlay
             }
         }
         .overlay {
-            if !isSettingsPagePresented, isCreateAgentOverlayPresented {
+            if chromePolicy.allowsAppOverlays, isCreateAgentOverlayPresented {
                 createAgentOverlay
             }
         }
         .overlay {
-            if !isSettingsPagePresented, sessionRenamePresentation != nil {
+            if chromePolicy.allowsAppOverlays, sessionRenamePresentation != nil {
                 sessionRenameOverlay
             }
         }
         .overlay {
-            if !isSettingsPagePresented,
+            if chromePolicy.allowsAppOverlays,
                let agent = viewModel.selectedMarketplaceAgent,
                shouldShowMarketplaceDetailOverlay {
                 marketplaceDetailOverlay(for: agent)
@@ -281,7 +295,7 @@ struct DashboardView: View {
         .animation(.easeInOut(duration: 0.16), value: isGlobalSessionSearchPresented)
         .animation(.easeInOut(duration: 0.16), value: isCreateAgentOverlayPresented)
         .animation(.easeInOut(duration: 0.16), value: sessionRenamePresentation?.id)
-        .animation(.easeInOut(duration: 0.16), value: isSettingsPagePresented)
+        .animation(.easeInOut(duration: 0.16), value: presentationMode)
         .animation(marketplaceDetailAnimation, value: viewModel.selectedMarketplaceAgent?.id)
         .onAppear {
             viewModel.openclawService.startMonitoring()
@@ -303,6 +317,21 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $viewModel.showDiagnostics) {
             DiagnosticsSheet(report: viewModel.diagnosticReport, isPresented: $viewModel.showDiagnostics)
+        }
+    }
+
+    @ViewBuilder
+    private var presentationRoot: some View {
+        if presentationMode.isSettingsPresented {
+            SettingsShellView(
+                viewModel: viewModel,
+                selectedSection: settingsSectionBinding,
+                onBackToApp: closeSettingsPage
+            )
+            .transition(.opacity)
+        } else {
+            appWorkspace
+                .transition(.opacity)
         }
     }
 
@@ -329,7 +358,6 @@ struct DashboardView: View {
                     viewModel: viewModel,
                     workspaceSidebarController: workspaceSidebarController,
                     requestedUserMessageJumpId: $requestedUserMessageJumpId,
-                    selectedSettingsSection: $selectedSettingsSection,
                     terminalOpen: $terminalOpen,
                     terminalHeight: $terminalHeight,
                     marketplaceInstallRefreshID: marketplaceInstallRefreshID,
@@ -470,13 +498,30 @@ struct DashboardView: View {
         return 78
     }
 
+    private var chromePolicy: DashboardChromePolicy {
+        DashboardChromePolicy(
+            presentationMode: presentationMode,
+            isChatTabActive: isChatTabActive
+        )
+    }
+
+    private var settingsSectionBinding: Binding<SettingsPageSection> {
+        Binding(
+            get: {
+                presentationMode.settingsSection ?? .profile
+            },
+            set: { section in
+                presentationMode = .settings(section)
+            }
+        )
+    }
+
     private var rightInspectorContentUpdateID: AnyHashable {
         AnyHashable(RightInspectorContentUpdateID(
             selectedTab: viewModel.selectedTab,
             selectedAgentId: sessionState.selectedAgentId,
             terminalOpen: terminalOpen,
             terminalHeight: terminalHeight,
-            selectedSettingsSection: selectedSettingsSection.rawValue,
             marketplaceInstallRefreshID: marketplaceInstallRefreshID,
             requestedUserMessageJumpId: requestedUserMessageJumpId
         ))
@@ -841,12 +886,11 @@ struct DashboardView: View {
     }
 
     private func openSettingsSection(_ section: SettingsPageSection) {
-        selectedSettingsSection = section
-        isSettingsPagePresented = true
+        presentationMode = .settings(section)
     }
 
     private func closeSettingsPage() {
-        isSettingsPagePresented = false
+        presentationMode = .app
     }
 
     private func preloadSettingsShortcutData() async {
@@ -1046,184 +1090,6 @@ private struct TitlebarSeparatorSuppressor: NSViewRepresentable {
     }
 }
 
-private let rightOutputsTitlebarAccessoryID = NSUserInterfaceItemIdentifier("GetClowHub.RightOutputsTitlebarAccessory")
-
-private struct DashboardTitlebarAccessoryInstaller<Accessory: View>: NSViewRepresentable {
-    let isVisible: Bool
-    let width: CGFloat
-    let height: CGFloat
-    let accessory: Accessory
-
-    init(
-        isVisible: Bool,
-        width: CGFloat,
-        height: CGFloat = 44,
-        @ViewBuilder accessory: () -> Accessory
-    ) {
-        self.isVisible = isVisible
-        self.width = width
-        self.height = height
-        self.accessory = accessory()
-    }
-
-    func makeCoordinator() -> DashboardTitlebarAccessoryCoordinator {
-        DashboardTitlebarAccessoryCoordinator()
-    }
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        DispatchQueue.main.async {
-            context.coordinator.update(
-                window: view.window,
-                isVisible: isVisible,
-                width: width,
-                height: height,
-                rootView: AnyView(accessory)
-            )
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            context.coordinator.update(
-                window: nsView.window,
-                isVisible: isVisible,
-                width: width,
-                height: height,
-                rootView: AnyView(accessory)
-            )
-        }
-    }
-
-    static func dismantleNSView(_ nsView: NSView, coordinator: DashboardTitlebarAccessoryCoordinator) {
-        coordinator.remove()
-    }
-}
-
-private final class DashboardTitlebarAccessoryCoordinator {
-    private weak var window: NSWindow?
-    private var hostingController: NSHostingController<AnyView>?
-    private var accessoryController: NSTitlebarAccessoryViewController?
-    private var widthConstraint: NSLayoutConstraint?
-    private var heightConstraint: NSLayoutConstraint?
-
-    func update(
-        window targetWindow: NSWindow?,
-        isVisible: Bool,
-        width: CGFloat,
-        height: CGFloat,
-        rootView: AnyView
-    ) {
-        guard isVisible, let targetWindow else {
-            remove()
-            return
-        }
-
-        if window !== targetWindow {
-            remove()
-            window = targetWindow
-        }
-
-        removeStaleAccessories(from: targetWindow)
-
-        let hostingController = hostingController ?? NSHostingController(rootView: rootView)
-        hostingController.rootView = rootView
-        hostingController.view.identifier = rightOutputsTitlebarAccessoryID
-        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-        self.hostingController = hostingController
-
-        let accessoryController = accessoryController ?? NSTitlebarAccessoryViewController()
-        if self.accessoryController == nil {
-            accessoryController.layoutAttribute = .right
-            accessoryController.view = hostingController.view
-            targetWindow.addTitlebarAccessoryViewController(accessoryController)
-            self.accessoryController = accessoryController
-            widthConstraint = hostingController.view.widthAnchor.constraint(equalToConstant: max(width, 44))
-            heightConstraint = hostingController.view.heightAnchor.constraint(equalToConstant: height)
-            NSLayoutConstraint.activate([widthConstraint, heightConstraint].compactMap { $0 })
-        }
-
-        let targetWidth = max(width, 44)
-        if let widthConstraint, abs(widthConstraint.constant - targetWidth) > 0.5 {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = RightInspectorSplitMetrics.animationDuration
-                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                context.allowsImplicitAnimation = true
-                self.widthConstraint?.animator().constant = targetWidth
-                hostingController.view.superview?.layoutSubtreeIfNeeded()
-            }
-        } else {
-            widthConstraint?.constant = targetWidth
-        }
-        heightConstraint?.constant = height
-    }
-
-    func remove() {
-        guard let accessoryController else {
-            hostingController = nil
-            widthConstraint = nil
-            heightConstraint = nil
-            window = nil
-            return
-        }
-
-        if let window,
-           let index = window.titlebarAccessoryViewControllers.firstIndex(where: { $0 === accessoryController }) {
-            window.removeTitlebarAccessoryViewController(at: index)
-        }
-
-        self.accessoryController = nil
-        hostingController = nil
-        widthConstraint = nil
-        heightConstraint = nil
-        window = nil
-    }
-
-    private func removeStaleAccessories(from window: NSWindow) {
-        let indexedControllers = window.titlebarAccessoryViewControllers.enumerated()
-        for (index, controller) in indexedControllers.reversed() {
-            guard controller !== accessoryController,
-                  controller.view.identifier == rightOutputsTitlebarAccessoryID else {
-                continue
-            }
-            window.removeTitlebarAccessoryViewController(at: index)
-        }
-    }
-}
-
-
-private struct RightOutputsTitlebarAccessory: View {
-    let isTerminalOpen: Bool
-    let isExpanded: Bool
-    let toggleTerminal: () -> Void
-    let toggle: () -> Void
-    let close: () -> Void
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Button(action: toggleTerminal) {
-                Image(systemName: "terminal")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(isTerminalOpen ? .accentColor : .secondary)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .unifiedTitlebarTooltip(title: isTerminalOpen ? I18n.t("dashboard.tooltip.hideTerminal") : I18n.t("dashboard.tooltip.showTerminal"))
-
-            Button(action: isExpanded ? close : toggle) {
-                Image(systemName: "sidebar.right")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .unifiedTitlebarTooltip(title: isExpanded ? I18n.t("dashboard.tooltip.hideOutputs") : I18n.t("dashboard.tooltip.showOutputs"))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-    }
-}
-
 // MARK: - Sidebar
 
 struct SidebarView: View {
@@ -1323,7 +1189,7 @@ struct SidebarView: View {
                 .font(.system(size: 10, weight: .regular))
                 .foregroundColor(.secondary)
                 .unifiedTooltip(UnifiedTooltipContent(
-                    title: String(format: I18n.t("GetClawHub v%@"), sparkleUpdater.currentVersion)
+                    title: I18n.format("app.update.currentVersion", sparkleUpdater.currentVersion)
                 ))
 
             if sparkleUpdater.updateAvailable {
@@ -1347,8 +1213,8 @@ struct SidebarView: View {
                 }
                 .buttonStyle(.plain)
                 .unifiedTooltip(UnifiedTooltipContent(
-                    title: "Update to v\(sparkleUpdater.latestVersion)",
-                    detail: "Install the latest app update"
+                    title: I18n.format("app.update.toVersion", sparkleUpdater.latestVersion),
+                    detail: I18n.t("app.update.installLatest")
                 ))
             } else {
                 // Always-visible "check for updates" affordance with feedback:
@@ -1365,7 +1231,7 @@ struct SidebarView: View {
                         HStack(spacing: 3) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 10))
-                            Text(I18n.t("Up to date"))
+                            Text(I18n.t("app.update.upToDate"))
                                 .font(.system(size: 10))
                         }
                         .foregroundColor(.green)
@@ -1378,8 +1244,8 @@ struct SidebarView: View {
                 .buttonStyle(.plain)
                 .disabled(sparkleUpdater.isCheckingVersion)
                 .unifiedTooltip(UnifiedTooltipContent(
-                    title: I18n.t("Check for Updates"),
-                    detail: I18n.t("Look for the latest GetClawHub version")
+                    title: I18n.t("app.update.check"),
+                    detail: I18n.t("app.update.lookForLatest")
                 ))
             }
 
@@ -2187,11 +2053,11 @@ private struct DetailContentView: View {
     @ObservedObject var viewModel: DashboardViewModel
     let workspaceSidebarController: WorkspaceSidebarController
     @Binding var requestedUserMessageJumpId: UUID?
-    @Binding var selectedSettingsSection: SettingsPageSection
     @Binding var terminalOpen: Bool
     @Binding var terminalHeight: CGFloat
     let marketplaceInstallRefreshID: Int
     let onOpenMarketplaceDetail: (MarketplaceAgent) -> Void
+    @State private var fallbackSettingsSection: SettingsPageSection = .profile
     @State private var collabPanelWidth: CGFloat = 320
     @State private var dragStartWidth: CGFloat = 320
 
@@ -2269,12 +2135,12 @@ private struct DetailContentView: View {
                         if let mm = viewModel.membershipManager {
                             BillingTabView(viewModel: viewModel, membershipManager: mm)
                         } else {
-                            Text("Please log in to view billing.")
+                            Text(I18n.t("billing.loginRequired"))
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         #else
-                        Text("Billing is not available in this build.")
+                        Text(I18n.t("billing.unavailable"))
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         #endif
@@ -2293,7 +2159,7 @@ private struct DetailContentView: View {
                     case .config:
                         SettingsShellView(
                             viewModel: viewModel,
-                            selectedSection: $selectedSettingsSection,
+                            selectedSection: $fallbackSettingsSection,
                             onBackToApp: {
                                 viewModel.selectedTab = .chat
                             }
@@ -2700,6 +2566,21 @@ struct ChatView: View {
         return pendingComposerMessagesBySession[sessionId] ?? []
     }
 
+    private var existingNavigationSessionIds: Set<UUID> {
+        var ids = Set(sessionState.selectedSessionIdByAgent.values)
+        ids.formUnion(sessionState.sessionsByAgent.values.flatMap { $0.map(\.id) })
+        ids.formUnion(sessionState.pinnedSessions.map(\.id))
+        ids.formUnion(sessionState.projectSessionsByAgent.values.flatMap { groups in
+            groups.flatMap { $0.sessions.map(\.id) }
+        })
+        return ids
+    }
+
+    private func prunePendingComposerMessagesForExistingSessions() {
+        let existingIds = existingNavigationSessionIds
+        pendingComposerMessagesBySession = pendingComposerMessagesBySession.filter { existingIds.contains($0.key) }
+    }
+
     private var currentForegroundTaskMessageId: UUID? {
         guard let sessionId = currentActiveSessionId else { return nil }
         return taskState.foregroundTaskId(inSession: sessionId)
@@ -2722,6 +2603,7 @@ struct ChatView: View {
     private func chatScrollContent(proxy: ScrollViewProxy) -> some View {
         let timelineSnapshot = ChatTimelineSnapshot.build(
             messages: currentMessages,
+            activeStreamStatesByMessageId: chatState.activeStreamStatesByMessageId,
             highlightedMessageId: highlightedMessageId,
             highlightedMessageFlashOn: highlightedMessageFlashOn
         )
@@ -3621,6 +3503,12 @@ struct ChatView: View {
             }
             scheduleSessionSwitchScrollToBottom()
         }
+        .onChange(of: sessionState.sessionsByAgent) { _, _ in
+            prunePendingComposerMessagesForExistingSessions()
+        }
+        .onChange(of: sessionState.projectSessionsByAgent) { _, _ in
+            prunePendingComposerMessagesForExistingSessions()
+        }
         .overlay(alignment: .trailing) {
             if viewModel.agentSettingsOpen, let detail = viewModel.selectedAgentDetail {
                 AgentSettingsPanel(
@@ -4278,7 +4166,7 @@ private struct ComposerModelPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                Text("Model")
+                Text(I18n.t("dashboard.model.label"))
                     .font(.system(size: 14, weight: .regular))
                     .foregroundColor(.secondary)
                 Spacer()
@@ -4462,7 +4350,7 @@ struct BackgroundTaskNotification: View {
                         }
                     }
                 }) {
-                    Text("View result ↑")
+                    Text(I18n.t("dashboard.chat.viewResult"))
                         .font(.callout)
                         .foregroundColor(.accentColor)
                 }
@@ -4520,7 +4408,7 @@ struct ThinkingIndicator: View {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down.to.line")
                             .font(.system(size: 11))
-                        Text("Move to Background")
+                        Text(I18n.t("dashboard.chat.moveToBackground"))
                             .font(.caption)
                     }
                     .padding(.horizontal, 8)
@@ -4613,9 +4501,9 @@ private struct ModelPickerRow: View {
                 .foregroundColor(.accentColor)
             Picker("", selection: $selection) {
                 if resolvedDefaultModel.isEmpty {
-                    Text("Default (inherit)").tag("")
+                    Text(I18n.t("dashboard.model.defaultInherit")).tag("")
                 } else {
-                    Text("Default (\(resolvedDefaultModel))").tag("")
+                    Text(I18n.format("dashboard.model.defaultWithValue", resolvedDefaultModel)).tag("")
                 }
                 // Always include the currently-set model so the Picker
                 // can render the active selection even if the available
@@ -4922,7 +4810,7 @@ struct ChatBubble: View, Equatable {
                         }
                         .contextMenu {
                             Button(action: { performCopy(message.content) }) {
-                                Label("Copy", systemImage: "square.on.square")
+                                Label(I18n.t("common.action.copy"), systemImage: "square.on.square")
                             }
                         }
 
@@ -5016,14 +4904,14 @@ struct ChatBubble: View, Equatable {
         .onAppear {
             logBubbleAppear()
             // Initial scan for media URLs when bubble first appears
-            if message.role == .assistant && lastMediaScanContent != message.content {
+            if message.role == .assistant && !message.isStreamingDraft && lastMediaScanContent != message.content {
                 lastMediaScanContent = message.content
                 cachedMediaURLs = ChatBubble.scanMediaURLs(in: message.content)
             }
         }
         .onChange(of: message.content) { newContent in
             // Only re-scan for media URLs when content actually changes
-            guard message.role == .assistant, newContent != lastMediaScanContent else { return }
+            guard message.role == .assistant, !message.isStreamingDraft, newContent != lastMediaScanContent else { return }
             lastMediaScanContent = newContent
             cachedMediaURLs = ChatBubble.scanMediaURLs(in: newContent)
         }
@@ -5049,7 +4937,7 @@ struct ChatBubble: View, Equatable {
     /// half-streamed text" affordance.
     private var isStreamingState: Bool {
         message.role == .assistant
-            && (message.taskStatus == .loading || message.taskStatus == .background)
+            && (message.isStreamingDraft || message.taskStatus == .loading || message.taskStatus == .background)
     }
 
     private var showsTopWorkStatus: Bool {
@@ -5765,12 +5653,12 @@ struct DiagnosticsSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Diagnostics Report")
+                Text(I18n.t("dashboard.diagnostics.title"))
                     .font(.headline)
 
                 Spacer()
 
-                Button("Close") {
+                Button(I18n.t("catalog.action.close")) {
                     isPresented = false
                 }
                 .keyboardShortcut(.cancelAction)
@@ -5858,11 +5746,11 @@ private struct AgentSettingsPanel: View {
                                 Image(systemName: "cpu")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                Text("Model:")
+                                Text("\(I18n.t("dashboard.model.label")):")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
 	                                Picker("", selection: $selectedModel) {
-	                                    Text("Default (inherit)").tag("")
+	                                    Text(I18n.t("dashboard.model.defaultInherit")).tag("")
 	                                    ForEach(viewModel.availableModelsForSettings) { model in
 	                                        Text(model.name).tag(model.runtimeId)
 	                                    }
@@ -6082,7 +5970,7 @@ private struct OutputsTabView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Outputs")
+                Text(I18n.t("dashboard.outputs.title"))
                     .font(.system(size: 22, weight: .semibold))
                 Spacer()
                 Button {
@@ -6110,7 +5998,7 @@ private struct OutputsTabView: View {
                     Image(systemName: "tray")
                         .font(.system(size: 32))
                         .foregroundColor(.secondary)
-                    Text("No outputs yet")
+                    Text(I18n.t("dashboard.outputs.empty"))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -6169,7 +6057,7 @@ private struct TerminalPanelView: View {
                 Image(systemName: "terminal")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
-                Text("Terminal")
+                Text(I18n.t("dashboard.terminal.title"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
                 Spacer()
@@ -6482,7 +6370,7 @@ struct SessionDetailsPanel: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "trash")
-                    Text("Clear Conversation")
+                    Text(I18n.t("dashboard.chat.clearConversation"))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 9)
@@ -6530,7 +6418,7 @@ struct SessionDetailsPanel: View {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 28))
                     .foregroundColor(.secondary)
-                Text("No activity yet")
+                Text(I18n.t("dashboard.activity.empty"))
                     .font(.callout)
                     .foregroundColor(.secondary)
             }
@@ -6601,7 +6489,7 @@ struct SessionDetailsPanel: View {
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                 } else {
-                    Text("General-purpose assistant")
+                    Text(I18n.t("dashboard.agent.fallbackDescription"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

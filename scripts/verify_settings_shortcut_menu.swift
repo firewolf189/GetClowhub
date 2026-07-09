@@ -172,9 +172,9 @@ require(
 require(
     dashboard.contains("onOpenSettingsSection: actions.openSettingsSection") &&
         dashboard.contains("private func openSettingsSection(_ section: SettingsPageSection)") &&
-        dashboard.contains("selectedSettingsSection = section") &&
-        dashboard.contains("isSettingsPagePresented = true") &&
-        !dashboard.contains("openSettingsSection(_ section: SettingsPageSection) {\n        selectedSettingsSection = section\n        viewModel.selectedTab = .config"),
+        dashboard.contains("presentationMode = .settings(section)") &&
+        !dashboard.contains("openSettingsSection(_ section: SettingsPageSection) {\n        selectedSettingsSection = section") &&
+        !dashboard.contains("viewModel.selectedTab = .config"),
     "Settings shortcut menu should open the independent Settings page shell without routing through the main sidebar config tab."
 )
 require(
@@ -266,23 +266,25 @@ require(
 )
 require(
     settingsShell.contains("struct SettingsShellView: View") &&
-        settingsShell.contains("Back to app") &&
+        settingsShell.contains("settings.shell.backToApp") &&
         settingsShell.contains("onBackToApp") &&
         settingsShell.contains("SettingsSectionSidebar") &&
-        settingsShell.contains("Search settings") &&
+        settingsShell.contains("settings.shell.searchPlaceholder") &&
         settingsShell.contains("ConfigTabView(") &&
         settingsShell.contains("selectedSection: $selectedSection"),
     "SettingsShellView should own the full Settings page chrome, search/sidebar navigation, and Back to app action."
 )
 require(
-    dashboard.contains("@State private var isSettingsPagePresented = false") &&
-        dashboard.contains("if isSettingsPagePresented") &&
+    dashboard.contains("@State private var presentationMode: DashboardPresentationMode = .app") &&
+        dashboard.contains("private enum DashboardPresentationMode: Equatable, Hashable") &&
+        dashboard.contains("private struct DashboardChromePolicy: Equatable") &&
+        dashboard.contains("if presentationMode.isSettingsPresented") &&
         dashboard.contains("SettingsShellView(") &&
         dashboard.contains("onBackToApp: closeSettingsPage") &&
         dashboard.contains("private func openSettingsSection(_ section: SettingsPageSection)") &&
-        dashboard.contains("isSettingsPagePresented = true") &&
+        dashboard.contains("presentationMode = .settings(section)") &&
         dashboard.contains("private func closeSettingsPage()") &&
-        dashboard.contains("isSettingsPagePresented = false"),
+        dashboard.contains("presentationMode = .app"),
     "Dashboard should only switch into the Settings page shell and return to the app, not own Settings navigation chrome."
 )
 require(

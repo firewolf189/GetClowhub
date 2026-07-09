@@ -27,11 +27,11 @@ struct ContentView: View {
                     .font(.system(size: 60))
                     .foregroundColor(.blue)
 
-                Text("OpenClaw Installer")
+                Text(I18n.t("legacy.installer.title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text("for macOS")
+                Text(I18n.t("legacy.installer.subtitleMacOS"))
                     .font(.title3)
                     .foregroundColor(.secondary)
             }
@@ -43,8 +43,8 @@ struct ContentView: View {
             // Status Section
             VStack(alignment: .leading, spacing: 12) {
                 StatusRow(
-                    title: "Administrator Privileges",
-                    status: permissionManager.isAuthorized ? "Granted" : "Not Granted",
+                    title: I18n.t("legacy.installer.adminPrivileges"),
+                    status: permissionManager.isAuthorized ? I18n.t("legacy.installer.granted") : I18n.t("legacy.installer.notGranted"),
                     icon: permissionManager.isAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill",
                     color: permissionManager.isAuthorized ? .green : .red
                 )
@@ -53,20 +53,20 @@ struct ContentView: View {
                     HStack {
                         ProgressView()
                             .scaleEffect(0.8)
-                        Text("Checking environment...")
+                        Text(I18n.t("legacy.installer.checkingEnvironment"))
                             .foregroundColor(.secondary)
                     }
                 } else {
                     StatusRow(
                         title: "Node.js",
-                        status: systemEnvironment.nodeInfo?.version ?? "Not Detected",
+                        status: systemEnvironment.nodeInfo?.version ?? I18n.t("legacy.installer.notDetected"),
                         icon: systemEnvironment.nodeInfo != nil ? "checkmark.circle.fill" : "circle",
                         color: systemEnvironment.nodeInfo != nil ? .green : .gray
                     )
 
                     StatusRow(
                         title: "OpenClaw",
-                        status: systemEnvironment.openclawInfo?.version ?? "Not Detected",
+                        status: systemEnvironment.openclawInfo?.version ?? I18n.t("legacy.installer.notDetected"),
                         icon: systemEnvironment.openclawInfo != nil ? "checkmark.circle.fill" : "circle",
                         color: systemEnvironment.openclawInfo != nil ? .green : .gray
                     )
@@ -76,13 +76,13 @@ struct ContentView: View {
 
                 // System Info
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("System Information")
+                    Text(I18n.t("legacy.installer.systemInformation"))
                         .font(.headline)
                         .padding(.bottom, 4)
 
-                    InfoRow(label: "macOS Version", value: systemEnvironment.osVersion)
-                    InfoRow(label: "Architecture", value: systemEnvironment.architecture)
-                    InfoRow(label: "Available Space", value: systemEnvironment.availableDiskSpace)
+                    InfoRow(label: I18n.t("dashboard.status.macosVersion"), value: systemEnvironment.osVersion)
+                    InfoRow(label: I18n.t("dashboard.status.architecture"), value: systemEnvironment.architecture)
+                    InfoRow(label: I18n.t("dashboard.status.availableSpace"), value: systemEnvironment.availableDiskSpace)
                 }
             }
             .padding(.horizontal, 40)
@@ -98,10 +98,10 @@ struct ContentView: View {
                         isCheckingEnvironment = false
                     }
                 }) {
-                    HStack {
-                        Image(systemName: "arrow.clockwise")
-                        Text("Check Environment")
-                    }
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text(I18n.t("legacy.installer.checkEnvironment"))
+                        }
                     .frame(maxWidth: 200)
                 }
                 .buttonStyle(.borderedProminent)
@@ -112,7 +112,7 @@ struct ContentView: View {
                     installationState.nextStep()
                 }) {
                     HStack {
-                        Text("Start Installation")
+                        Text(I18n.t("legacy.installer.startInstallation"))
                         Image(systemName: "arrow.right")
                     }
                     .frame(maxWidth: 200)

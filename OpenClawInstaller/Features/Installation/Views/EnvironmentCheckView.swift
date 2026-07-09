@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EnvironmentCheckView: View {
     @ObservedObject var viewModel: InstallationViewModel
+    private let bundledNodeVersion = BundledRuntimeVersions.nodeJSVersion
 
     var body: some View {
         VStack(spacing: 30) {
@@ -16,12 +17,12 @@ struct EnvironmentCheckView: View {
 
                 BrandTextView()
 
-                Text("Environment Check")
+                Text(I18n.t("installer.environment.title"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
                 Text(viewModel.installationState.statusMessage.isEmpty ?
-                     "Checking your system environment..." :
+                     I18n.t("installer.environment.checking") :
                      viewModel.installationState.statusMessage)
                     .font(.title3)
                     .foregroundColor(.secondary)
@@ -33,49 +34,51 @@ struct EnvironmentCheckView: View {
             if !viewModel.systemEnvironment.isChecking {
                 VStack(alignment: .leading, spacing: 16) {
                     CheckResultRow(
-                        title: "Operating System",
+                        title: I18n.t("installer.environment.operatingSystem"),
                         value: "macOS \(viewModel.systemEnvironment.osVersion)",
                         status: .success
                     )
 
                     CheckResultRow(
-                        title: "Architecture",
+                        title: I18n.t("installer.environment.architecture"),
                         value: viewModel.systemEnvironment.architecture,
                         status: .success
                     )
 
                     CheckResultRow(
-                        title: "Available Disk Space",
+                        title: I18n.t("installer.environment.diskSpace"),
                         value: viewModel.systemEnvironment.availableDiskSpace,
                         status: .success
                     )
 
                     Divider()
 
-                    // We ship our own Node.js v24.14.0 to ~/.openclaw/node/bin and run
-                    // openclaw exclusively against that, so the user's system Node
-                    // version is never a blocker — show whatever we detected (or
-                    // "未安装") as plain info, with a caption clarifying the bundled
-                    // runtime is independent.
                     CheckResultRow(
                         title: "Node.js",
                         value: {
                             if let v = viewModel.systemEnvironment.nodeInfo?.version {
-                                return "\(v) (将使用内置 v24.14.0)"
+                                return I18n.format(
+                                    "installer.environment.nodeWillUseBundled",
+                                    v,
+                                    bundledNodeVersion
+                                )
                             }
-                            return "未安装 (将自动安装内置 v24.14.0)"
+                            return I18n.format(
+                                "installer.environment.nodeWillInstallBundled",
+                                bundledNodeVersion
+                            )
                         }(),
                         status: .info
                     )
 
-                    Text("ℹ️ OpenClaw 自带独立的 Node.js v24.14.0，无需系统 Node 即可运行")
+                    Text(I18n.format("installer.environment.nodeBundledNote", bundledNodeVersion))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.leading, 40)
 
                     CheckResultRow(
                         title: "OpenClaw",
-                        value: viewModel.systemEnvironment.openclawInfo?.version ?? "Not Installed",
+                        value: viewModel.systemEnvironment.openclawInfo?.version ?? I18n.t("installer.environment.openClawNotInstalled"),
                         status: viewModel.systemEnvironment.openclawInfo != nil ? .success : .info
                     )
                 }
@@ -89,7 +92,7 @@ struct EnvironmentCheckView: View {
             // Error message
             if let errorMessage = viewModel.installationState.errorMessage {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Issues Found:")
+                    Text(I18n.t("installer.environment.issuesFound"))
                         .font(.headline)
                         .foregroundColor(.red)
 
@@ -116,7 +119,7 @@ struct EnvironmentCheckView: View {
                         }) {
                             HStack {
                                 Image(systemName: "arrow.clockwise")
-                                Text("Retry")
+                                Text(I18n.t("common.action.retry"))
                             }
                             .frame(width: 140)
                         }

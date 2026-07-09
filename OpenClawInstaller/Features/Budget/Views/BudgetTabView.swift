@@ -51,16 +51,11 @@ struct BudgetOverviewSection: View {
                 }
                 .buttonStyle(.plain)
                 .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("common.action.refresh", fallback: "Refresh")))
+
+                SettingsInlineRefreshStatus(isRefreshing: viewModel.isLoadingBudgets)
             }
 
-            if viewModel.isLoadingBudgets {
-                HStack {
-                    Spacer()
-                    ProgressView().scaleEffect(0.8)
-                    Spacer()
-                }
-                .frame(minHeight: 80)
-            } else if let snap = globalSnapshot {
+            if let snap = globalSnapshot {
                 HStack(spacing: 16) {
                     BudgetGaugeCard(
                         title: String(localized: "Total Tokens", bundle: LanguageManager.shared.localizedBundle),
@@ -480,8 +475,8 @@ struct BudgetRulesSection: View {
             get: { ruleToDelete != nil },
             set: { if !$0 { ruleToDelete = nil } }
         )) {
-            Button("Cancel", role: .cancel) { ruleToDelete = nil }
-            Button("Delete", role: .destructive) {
+            Button(I18n.t("common.action.cancel"), role: .cancel) { ruleToDelete = nil }
+            Button(I18n.t("common.action.delete"), role: .destructive) {
                 if let rule = ruleToDelete {
                     viewModel.budgetService.removeRule(id: rule.id)
                     viewModel.syncBudgetRules()

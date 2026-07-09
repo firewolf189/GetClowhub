@@ -132,7 +132,10 @@ private struct IsolatedElapsedWorkStatusText: View {
 }
 
 private struct ActivitySummaryRows: View {
+    private static let detailAnimation = Animation.spring(response: 0.24, dampingFraction: 0.86)
+
     let events: [ChatActivityEvent]
+    @State private var expandedDetailKeys: Set<String> = []
 
     var body: some View {
         if !events.isEmpty {
@@ -148,30 +151,87 @@ private struct ActivitySummaryRows: View {
                             }
                         }
                     } else {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
-                                Image(systemName: event.kind.systemImage)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .frame(width: 14)
-                                Text(event.kind.title(count: event.count))
-                                    .font(.system(size: 13, weight: .regular))
-                                    .lineLimit(1)
-                            }
-                            if !event.details.isEmpty {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    ForEach(Array(event.details.enumerated()), id: \.offset) { _, detail in
-                                        Text(detail)
-                                            .font(.system(size: 12, weight: .regular, design: .monospaced))
-                                            .lineLimit(nil)
-                                    }
-                                }
-                                .padding(.leading, 22)
-                                .foregroundColor(.secondary.opacity(0.66))
-                            }
-                        }
-                        .foregroundColor(.secondary.opacity(0.72))
+                        ActivitySummaryRow(
+                            event: event,
+                            expandedDetailKeys: $expandedDetailKeys,
+                            animation: Self.detailAnimation
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+private struct ActivitySummaryRow: View {
+    let event: ChatActivityEvent
+    @Binding var expandedDetailKeys: Set<String>
+    let animation: Animation
+
+    private var disclosureKey: String { event.kind.rawValue }
+    private var hasDetails: Bool { !event.details.isEmpty }
+    private var isExpanded: Bool { expandedDetailKeys.contains(disclosureKey) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if hasDetails {
+                Button {
+                    toggleDetails()
+                } label: {
+                    header
+                }
+                .buttonStyle(.plain)
+            } else {
+                header
+            }
+
+            if hasDetails && isExpanded {
+                detailRows
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .foregroundColor(.secondary.opacity(0.72))
+        .clipped()
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: event.kind.systemImage)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 14)
+            Text(event.kind.title(count: event.count))
+                .font(.system(size: 13, weight: .regular))
+                .lineLimit(1)
+            if hasDetails {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .opacity(0.75)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var detailRows: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(event.details.enumerated()), id: \.offset) { _, detail in
+                Text(detail)
+                    .font(.system(size: 12, weight: .regular, design: .monospaced))
+                    .lineLimit(nil)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(.leading, 22)
+        .foregroundColor(.secondary.opacity(0.66))
+        .clipped()
+    }
+
+    private func toggleDetails() {
+        withAnimation(animation) {
+            if isExpanded {
+                expandedDetailKeys.remove(disclosureKey)
+            } else {
+                expandedDetailKeys.insert(disclosureKey)
             }
         }
     }

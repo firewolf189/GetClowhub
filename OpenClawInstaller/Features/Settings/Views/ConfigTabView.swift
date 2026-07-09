@@ -10,13 +10,22 @@ private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
     String(format: I18n.t(key, fallback: key), arguments: arguments)
 }
 
+private func formatTokenCount(_ value: Int) -> String {
+    if value >= 1_000_000 {
+        return "\(value / 1_000_000)M"
+    }
+    if value >= 1_000 {
+        return "\(value / 1_000)K"
+    }
+    return "\(value)"
+}
+
 enum SettingsPageSection: String, CaseIterable, Identifiable {
     case profile
     case preferences
     case persona
     case status
     case gateway
-    case apiKey
     case provider
     case budget
     case models
@@ -32,8 +41,7 @@ enum SettingsPageSection: String, CaseIterable, Identifiable {
         case .persona: return "Persona"
         case .status: return "Status"
         case .gateway: return "Gateway"
-        case .apiKey: return "API Key"
-        case .provider: return "Provider"
+        case .provider: return "Providers"
         case .budget: return "Budget"
         case .models: return "Models"
         case .channels: return "Channels"
@@ -49,11 +57,10 @@ enum SettingsPageSection: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .profile: return "person.crop.circle"
-        case .preferences: return "slider.horizontal.3"
+        case .preferences: return "paintbrush.pointed"
         case .persona: return "person.text.rectangle"
         case .status: return "chart.bar.fill"
         case .gateway: return "network"
-        case .apiKey: return "key"
         case .provider: return "cpu"
         case .budget: return "dollarsign.gauge.chart.lefthalf.righthalf"
         case .models: return "cube.fill"
@@ -125,18 +132,6 @@ struct ConfigTabView: View {
                 SaveButtonsSection(viewModel: viewModel)
                 OpenConfigFileSection(viewModel: viewModel)
             }
-        case .apiKey:
-            settingsScroll {
-                #if REQUIRE_LOGIN
-                GetClawHubServiceSection(viewModel: viewModel)
-                    .environmentObject(authManager)
-                    .environmentObject(membershipManager)
-                #else
-                Text(localizedString("API key management is available in signed builds."))
-                    .foregroundColor(.secondary)
-                #endif
-                SaveButtonsSection(viewModel: viewModel)
-            }
         case .provider:
             settingsScroll {
                 ProviderSettingsIntro()
@@ -148,7 +143,6 @@ struct ConfigTabView: View {
                 #else
                 CustomProviderListSection(viewModel: viewModel)
                 #endif
-                SaveButtonsSection(viewModel: viewModel)
             }
         case .budget:
             BudgetTabView(viewModel: viewModel)
@@ -286,7 +280,7 @@ private struct PreferencesSettingsCard: View {
     }
 
     var body: some View {
-        SettingsCard(title: localizedString("Preferences"), systemImage: "slider.horizontal.3") {
+        SettingsCard(title: localizedString("Preferences"), systemImage: "paintbrush.pointed") {
             VStack(alignment: .leading, spacing: 18) {
                 preferenceRow(title: localizedString("Language"), subtitle: localizedString("Use your preferred app language.")) {
                     Picker(localizedString("Language"), selection: $languageManager.selectedLanguage) {
@@ -854,9 +848,7 @@ struct GatewayConfigSection: View {
 
 private struct ProviderSettingsIntro: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(localizedString("Providers"))
-                .font(.system(size: 22, weight: .semibold))
+        VStack(alignment: .leading, spacing: 4) {
             Text(localizedString("Choose the model provider used by the local gateway. Custom providers stay saved, but only the selected provider is edited here."))
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
@@ -913,7 +905,7 @@ struct GetClawHubServiceSection: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var membershipManager: MembershipManager
     @State private var showApiKey = false
-    @State private var isExpanded = true
+    @State private var isExpanded = false
     @State private var areModelsExpanded = false
 
     private var isSelected: Bool {
@@ -941,10 +933,6 @@ struct GetClawHubServiceSection: View {
         return names.joined(separator: ", ") + suffix
     }
 
-    private var isConfigured: Bool {
-        membershipManager.apiKeys.contains(where: { $0.isActive })
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             providerHeader
@@ -969,7 +957,7 @@ struct GetClawHubServiceSection: View {
                 .stroke(Color.blue.opacity(isSelected ? 0.6 : 0.3), lineWidth: isSelected ? 2 : 1)
         )
         .contentShape(Rectangle())
-        .onTapGesture { viewModel.editedActiveServiceSource = "getclawhub" }
+        .onTapGesture { toggleOfficialProviderExpansion() }
         .onAppear {
             // Initialize editable key from synced data (use latest key)
             if let activeKey = membershipManager.apiKeys.last(where: { $0.isActive }) {
@@ -1005,22 +993,7 @@ struct GetClawHubServiceSection: View {
 
             Spacer()
 
-            if isSelected {
-                ProviderStatusBadge(text: localizedString("Selected"), tone: .selected)
-            } else if isConfigured {
-                ProviderStatusBadge(text: localizedString("Configured"), tone: .configured)
-            }
-
-            Button {
-                viewModel.editedActiveServiceSource = "getclawhub"
-            } label: {
-                Text(localizedString(isSelected ? "Editing" : "Use"))
-            }
-            .font(.caption)
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-
-            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } }) {
+            Button(action: { toggleOfficialProviderExpansion() }) {
                 Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     .foregroundColor(.secondary)
                     .font(.system(size: 12, weight: .semibold))
@@ -1028,6 +1001,20 @@ struct GetClawHubServiceSection: View {
             }
             .buttonStyle(.plain)
             .help(isExpanded ? localizedString("Collapse") : localizedString("Expand"))
+        }
+    }
+
+    private func toggleOfficialProviderExpansion() {
+        let shouldCollapse = isSelected && isExpanded
+        let shouldPersistSelection = !isSelected
+        viewModel.editedActiveServiceSource = "getclawhub"
+        withAnimation(.easeInOut(duration: 0.18)) {
+            isExpanded = !shouldCollapse
+        }
+        if shouldPersistSelection && !viewModel.editedGetClawHubApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Task {
+                _ = await viewModel.persistProviderConfiguration()
+            }
         }
     }
 
@@ -1071,21 +1058,6 @@ struct GetClawHubServiceSection: View {
                 .font(.caption)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-            }
-
-            // Budget
-            HStack {
-                Text(localizedString("Budget"))
-                    .frame(width: 120, alignment: .leading)
-
-                Text(localizedFormat("%@ / month", "¥\(String(format: "%.0f", membership.maxBudget))"))
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                Text("\(membership.rpmLimit) RPM")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
 
             availableModelsView
@@ -1139,6 +1111,32 @@ struct GetClawHubServiceSection: View {
             } else {
                 // No key guidance
                 noKeyGuidanceView(membership)
+            }
+
+            HStack {
+                Spacer()
+                Button {
+                    Task {
+                        await viewModel.persistProviderConfiguration(showSuccessMessage: true)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if viewModel.isPersistingProviderConfiguration {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "checkmark")
+                        }
+                        Text(localizedString("Save"))
+                    }
+                }
+                .font(.caption)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(
+                    viewModel.isPersistingProviderConfiguration ||
+                    viewModel.editedGetClawHubApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
             }
 
         }
@@ -1241,16 +1239,6 @@ struct GetClawHubServiceSection: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
-    }
-
-    private func formatTokenCount(_ value: Int) -> String {
-        if value >= 1_000_000 {
-            return "\(value / 1_000_000)M"
-        }
-        if value >= 1_000 {
-            return "\(value / 1_000)K"
-        }
-        return "\(value)"
     }
 
     // MARK: - No Key Guidance
@@ -1366,13 +1354,43 @@ struct GetClawHubServiceSection: View {
 }
 #endif
 
+private func providerTitle(for provider: ConfiguredCustomProvider) -> String {
+    providerTitle(baseUrl: provider.baseUrl, key: provider.key, fallback: provider.key)
+}
+
+private func providerTitle(baseUrl: String, key: String, fallback: String) -> String {
+    let trimmedBaseUrl = baseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let host = URLComponents(string: trimmedBaseUrl)?.host, !host.isEmpty {
+        let cleanedHost = host
+            .replacingOccurrences(of: "www.", with: "")
+            .replacingOccurrences(of: "api.", with: "")
+        if cleanedHost.rangeOfCharacter(from: CharacterSet.letters) == nil {
+            return cleanedHost
+        }
+        if let firstSegment = cleanedHost.split(separator: ".").first, !firstSegment.isEmpty {
+            return String(firstSegment).capitalized
+        }
+        return cleanedHost
+    }
+
+    if !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return key
+            .split(separator: "-")
+            .map { part in
+                guard let first = part.first else { return "" }
+                return first.uppercased() + part.dropFirst()
+            }
+            .joined(separator: " ")
+    }
+
+    return fallback
+}
+
 struct CustomProviderListSection: View {
     @ObservedObject var viewModel: DashboardViewModel
-    @State private var isAddProviderPresented = false
-
-    private var currentProviderModels: [PresetModel] {
-        viewModel.editedConfiguredModels
-    }
+    @State private var expandedProviderKey: String?
+    @State private var isShowingAddProviderSheet = false
+    @State private var pendingDeleteProviderKey: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1383,22 +1401,13 @@ struct CustomProviderListSection: View {
                 Spacer()
 
                 Button {
-                    isAddProviderPresented = true
+                    clearPendingProviderDelete()
+                    isShowingAddProviderSheet = true
                 } label: {
-                    Image(systemName: "plus")
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .help(localizedString("Add Provider"))
-
-                Button {
-                    viewModel.openProviderPresetFile()
-                } label: {
-                    Label(localizedString("Manage Presets"), systemImage: "list.bullet.rectangle")
+                    Label(localizedString("Add Provider"), systemImage: "plus")
                 }
                 .font(.caption)
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             }
 
@@ -1411,67 +1420,197 @@ struct CustomProviderListSection: View {
                     VStack(alignment: .leading, spacing: 12) {
                         CustomProviderCard(
                             provider: provider,
-                            isSelected: isCurrentProvider(provider),
+                            isHighlighted: expandedProviderKey == provider.key,
+                            isExpanded: expandedProviderKey == provider.key,
+                            isDeleteArmed: pendingDeleteProviderKey == provider.key,
                             isConfigured: isConfigured(provider),
                             modelCount: modelCount(for: provider),
-                            onSelect: {
-                                viewModel.selectCustomProvider(provider)
+                            onPrimaryTap: {
+                                activateProviderCard(provider)
                             },
-                            onDelete: {
-                                viewModel.deleteCustomProvider(provider)
+                            onToggleExpansion: {
+                                toggleProviderExpansion(provider)
+                            },
+                            onDeleteTap: {
+                                confirmOrArmProviderDelete(provider)
                             }
                         )
 
-                        if isCurrentProvider(provider) {
-                            ModelConfigSection(viewModel: viewModel)
+                        SettingsCollapsibleContent(
+                            isExpanded: expandedProviderKey == provider.key
+                        ) {
+                            CustomProviderDetailsSection(viewModel: viewModel, provider: provider)
                                 .padding(.top, 2)
                         }
                     }
                 }
             }
         }
-        .sheet(isPresented: $isAddProviderPresented) {
-            AddCustomProviderSheet(
-                viewModel: viewModel,
-                isPresented: $isAddProviderPresented
-            )
+        .sheet(isPresented: $isShowingAddProviderSheet) {
+            AddCustomProviderSheet(viewModel: viewModel) { providerKey in
+                clearPendingProviderDelete()
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    expandedProviderKey = providerKey
+                }
+            }
         }
-    }
-
-    private func isCurrentProvider(_ provider: ConfiguredCustomProvider) -> Bool {
-        viewModel.editedSelectedProviderKey == provider.key
     }
 
     private func isConfigured(_ provider: ConfiguredCustomProvider) -> Bool {
-        if isCurrentProvider(provider) {
-            return !viewModel.editedModelApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-        return !provider.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !provider.baseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !provider.models.isEmpty
     }
 
     private func modelCount(for provider: ConfiguredCustomProvider) -> Int {
-        isCurrentProvider(provider) ? currentProviderModels.count : provider.models.count
+        provider.models.count
+    }
+
+    private func activateProviderCard(_ provider: ConfiguredCustomProvider) {
+        clearPendingProviderDelete()
+        toggleProviderExpansion(provider)
+    }
+
+    private func toggleProviderExpansion(_ provider: ConfiguredCustomProvider) {
+        clearPendingProviderDelete()
+        withAnimation(.easeInOut(duration: 0.18)) {
+            if expandedProviderKey == provider.key {
+                expandedProviderKey = nil
+            } else {
+                expandedProviderKey = provider.key
+            }
+        }
+    }
+
+    private func confirmOrArmProviderDelete(_ provider: ConfiguredCustomProvider) {
+        if pendingDeleteProviderKey == provider.key {
+            Task {
+                guard await viewModel.deleteCustomProviderAndPersist(provider) else { return }
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    if expandedProviderKey == provider.key {
+                        expandedProviderKey = nil
+                    }
+                }
+                pendingDeleteProviderKey = nil
+            }
+        } else {
+            pendingDeleteProviderKey = provider.key
+        }
+    }
+
+    private func clearPendingProviderDelete() {
+        pendingDeleteProviderKey = nil
+    }
+}
+
+private struct AddCustomProviderSheet: View {
+    @ObservedObject var viewModel: DashboardViewModel
+    let onProviderAdded: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var baseUrl = ""
+    @State private var apiKey = ""
+    @State private var showApiKey = false
+    @State private var isAdding = false
+
+    private var canAdd: Bool {
+        !baseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(localizedString("settings.provider.custom.addTitle"))
+                    .font(.system(size: 16, weight: .semibold))
+                Text(localizedString("settings.provider.custom.addSubtitle"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                TextField("http://192.168.0.10:8080/v1", text: $baseUrl)
+                    .textFieldStyle(.roundedBorder)
+
+                HStack(spacing: 8) {
+                    ZStack {
+                        if showApiKey {
+                            TextField(localizedString("settings.provider.custom.apiKeyOptional"), text: $apiKey)
+                                .textFieldStyle(.roundedBorder)
+                        } else {
+                            SecureField(localizedString("settings.provider.custom.apiKeyOptional"), text: $apiKey)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                    }
+
+                    Button {
+                        showApiKey.toggle()
+                    } label: {
+                        Image(systemName: showApiKey ? "eye" : "eye.slash")
+                            .frame(width: 18, height: 18)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(showApiKey ? localizedString("Hide") : localizedString("Show"))
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button(localizedString("Cancel")) {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    Task {
+                        isAdding = true
+                        let providerKey = await viewModel.addCustomProvider(baseUrl: baseUrl,
+                            apiKey: apiKey,
+                            api: "openai-completions",
+                            fetchModels: true
+                        )
+                        isAdding = false
+                        if let providerKey {
+                            onProviderAdded(providerKey)
+                            dismiss()
+                        }
+                    }
+                } label: {
+                    if isAdding || viewModel.isFetchingProviderModels {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "plus")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(!canAdd || isAdding || viewModel.isFetchingProviderModels || viewModel.isPersistingProviderConfiguration)
+                .help(localizedString("Add Provider"))
+            }
+        }
+        .padding(20)
+        .frame(width: 430, alignment: .leading)
     }
 }
 
 private struct CustomProviderCard: View {
     let provider: ConfiguredCustomProvider
-    let isSelected: Bool
+    let isHighlighted: Bool
+    let isExpanded: Bool
+    let isDeleteArmed: Bool
     let isConfigured: Bool
     let modelCount: Int
-    let onSelect: () -> Void
-    let onDelete: () -> Void
+    let onPrimaryTap: () -> Void
+    let onToggleExpansion: () -> Void
+    let onDeleteTap: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: "key")
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(isSelected ? .blue : .secondary)
+                .foregroundColor(isHighlighted ? .blue : .secondary)
                 .frame(width: 18)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(provider.displayName)
+                    Text(providerTitle(for: provider))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
@@ -1498,31 +1637,31 @@ private struct CustomProviderCard: View {
 
             Spacer()
 
-            Text(localizedString(isSelected ? "Editing" : "Use"))
-                .font(.caption)
-                .foregroundColor(isSelected ? .secondary : .blue)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(isSelected ? Color.primary.opacity(0.06) : Color.blue.opacity(0.10))
-                )
-
-            Button(role: .destructive) {
-                onDelete()
+            Button {
+                onDeleteTap()
             } label: {
-                Image(systemName: "trash")
+                Image(systemName: isDeleteArmed ? "trash.fill" : "trash")
                     .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isDeleteArmed ? Color.red : Color.secondary)
+                    .frame(width: 24, height: 24)
+                    .background(
+                        Circle()
+                            .fill(Color.red.opacity(isDeleteArmed ? 0.14 : 0))
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(deleteHelpText)
+
+            Button {
+                onToggleExpansion()
+            } label: {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.secondary)
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
-            .help(localizedString("Delete Provider"))
-
-            Image(systemName: isSelected ? "chevron.down" : "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
-                .frame(width: 14)
+            .help(isExpanded ? localizedString("Collapse") : localizedString("Expand"))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
@@ -1531,22 +1670,27 @@ private struct CustomProviderCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isSelected ? Color.blue.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+                .stroke(isHighlighted ? Color.blue.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: isHighlighted ? 2 : 1)
         )
         .contentShape(Rectangle())
-        .onTapGesture(perform: onSelect)
+        .onTapGesture(perform: onPrimaryTap)
     }
 
     private var statusText: String {
-        if isSelected { return localizedString("Selected") }
         if isConfigured { return localizedString("Configured") }
-        return localizedString("Needs key")
+        return localizedString("settings.provider.custom.needsSetup")
     }
 
     private var statusTone: ProviderStatusBadgeTone {
-        if isSelected { return .selected }
         if isConfigured { return .configured }
         return .warning
+    }
+
+    private var deleteHelpText: String {
+        if isDeleteArmed {
+            return localizedString("settings.provider.custom.confirmDelete")
+        }
+        return localizedString("Delete Provider")
     }
 }
 
@@ -1556,9 +1700,9 @@ private struct EmptyCustomProvidersView: View {
             Image(systemName: "plus.circle")
                 .foregroundColor(.secondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text(localizedString("No custom providers yet"))
+                Text(localizedString("settings.provider.custom.emptyTitle"))
                     .font(.system(size: 13, weight: .medium))
-                Text(localizedString("Use the plus button to add a provider and API key."))
+                Text(localizedString("settings.provider.custom.emptyDetail"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1571,111 +1715,13 @@ private struct EmptyCustomProvidersView: View {
     }
 }
 
-private struct AddCustomProviderSheet: View {
-    @ObservedObject var viewModel: DashboardViewModel
-    @Binding var isPresented: Bool
-    @State private var selectedProviderKey = ""
-    @State private var apiKey = ""
-    @State private var showApiKey = false
-
-    private var availableProviderPresets: [ProviderPreset] {
-        let configuredKeys = Set(viewModel.configuredCustomProviders.map(\.key))
-        return viewModel.availableProviders.filter { !configuredKeys.contains($0.key) }
-    }
-
-    private var selectedPreset: ProviderPreset? {
-        availableProviderPresets.first { $0.key == selectedProviderKey } ?? availableProviderPresets.first
-    }
-
-    private var canAdd: Bool {
-        selectedPreset != nil && !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(localizedString("Add Provider"))
-                    .font(.system(size: 18, weight: .semibold))
-                Spacer()
-            }
-
-            if availableProviderPresets.isEmpty {
-                Text(localizedString("All preset providers are already added."))
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(localizedString("Choose Provider"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Picker("", selection: $selectedProviderKey) {
-                        ForEach(availableProviderPresets) { preset in
-                            Text(preset.displayName).tag(preset.key)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-
-                    if let selectedPreset {
-                        Text(selectedPreset.baseUrl)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(localizedString("API Key"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    HStack {
-                        if showApiKey {
-                            TextField(localizedString("Enter API key"), text: $apiKey)
-                                .textFieldStyle(.roundedBorder)
-                        } else {
-                            SecureField(localizedString("Enter API key"), text: $apiKey)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                        Button(action: { showApiKey.toggle() }) {
-                            Image(systemName: showApiKey ? "eye" : "eye.slash")
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-            }
-
-            HStack {
-                Spacer()
-                Button(localizedString("Cancel")) {
-                    isPresented = false
-                }
-                .keyboardShortcut(.cancelAction)
-                Button(localizedString("Add")) {
-                    guard let selectedPreset else { return }
-                    viewModel.addCustomProvider(from: selectedPreset, apiKey: apiKey)
-                    isPresented = false
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canAdd)
-            }
-        }
-        .padding(20)
-        .frame(width: 420)
-        .onAppear {
-            if selectedProviderKey.isEmpty {
-                selectedProviderKey = availableProviderPresets.first?.key ?? ""
-            }
-        }
-    }
-}
-
 // MARK: - Custom API Provider (Blue Border + Radio)
 
 struct ModelConfigSection: View {
     @ObservedObject var viewModel: DashboardViewModel
     @State private var showApiKey = false
+    @State private var areModelsExpanded = false
+    @State private var isShowingAddModelSheet = false
 
     #if REQUIRE_LOGIN
     private var isSelected: Bool {
@@ -1683,9 +1729,24 @@ struct ModelConfigSection: View {
     }
     #endif
 
+    private var canSaveProviderDetails: Bool {
+        !viewModel.editedSelectedProviderKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !viewModel.editedModelBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var selectedProviderDisplayName: String {
-        if let displayName = viewModel.availableProviders.first(where: { $0.key == viewModel.editedSelectedProviderKey })?.displayName {
-            return displayName
+        if let provider = viewModel.configuredCustomProviders.first(where: { $0.key == viewModel.editedSelectedProviderKey }) {
+            return providerTitle(for: provider)
+        }
+        let fallback = viewModel.editedSelectedProviderKey.isEmpty
+            ? localizedString("Custom API Provider")
+            : viewModel.editedSelectedProviderKey
+        if !viewModel.editedModelBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return providerTitle(
+                baseUrl: viewModel.editedModelBaseUrl,
+                key: viewModel.editedSelectedProviderKey,
+                fallback: fallback
+            )
         }
         return viewModel.editedSelectedProviderKey.isEmpty
             ? localizedString("Custom API Provider")
@@ -1737,6 +1798,8 @@ struct ModelConfigSection: View {
             }
 
             customProviderModelsView
+
+            providerDetailActions
         }
         .padding(16)
         .background(Color.primary.opacity(0.035))
@@ -1747,15 +1810,13 @@ struct ModelConfigSection: View {
                 .stroke(Color.blue.opacity(isSelected ? 0.18 : 0.08), lineWidth: 1)
         )
         #endif
-        .alert(localizedString("Switch Provider"), isPresented: $viewModel.showProviderSwitchConfirm) {
-            Button(localizedString("Cancel"), role: .cancel) {
-                viewModel.cancelSwitchProvider()
+        .sheet(isPresented: $isShowingAddModelSheet) {
+            AddProviderModelSheet { model in
+                Task {
+                    await viewModel.addModelAndPersist(model)
+                }
+                areModelsExpanded = true
             }
-            Button(localizedString("Switch"), role: .destructive) {
-                viewModel.confirmSwitchProvider()
-            }
-        } message: {
-            Text(localizedString("Switching provider will replace the current Base URL. API Key will be cleared. Continue?"))
         }
     }
 
@@ -1773,6 +1834,18 @@ struct ModelConfigSection: View {
                     Spacer()
 
                     Button {
+                        isShowingAddModelSheet = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
+                            Text(localizedString("Add Model"))
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Button {
                         Task { await viewModel.fetchModelsForSelectedProvider() }
                     } label: {
                         HStack(spacing: 4) {
@@ -1788,7 +1861,7 @@ struct ModelConfigSection: View {
                     .font(.caption)
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .disabled(viewModel.isFetchingProviderModels || viewModel.editedModelBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(viewModel.isFetchingProviderModels || viewModel.isPersistingProviderConfiguration || viewModel.editedModelBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
 
                 if !viewModel.editedConfiguredModels.isEmpty {
@@ -1803,6 +1876,34 @@ struct ModelConfigSection: View {
                         .foregroundColor(.secondary)
                 }
 
+                if !viewModel.editedConfiguredModels.isEmpty {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            areModelsExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(modelListToggleTitle)
+                                .font(.caption)
+                            Image(systemName: areModelsExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsCollapsibleContent(isExpanded: areModelsExpanded) {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 6) {
+                                ForEach(Array(viewModel.editedConfiguredModels.enumerated()), id: \.element.id) { index, model in
+                                    customModelRow(model, index: index)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .frame(maxHeight: 210)
+                    }
+                }
+
                 if !viewModel.providerModelFetchMessage.isEmpty {
                     Text(viewModel.providerModelFetchMessage)
                         .font(.caption)
@@ -1812,6 +1913,509 @@ struct ModelConfigSection: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func customModelRow(_ model: PresetModel, index: Int) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.name.isEmpty ? model.id : model.name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text("\(model.id) · \(formatTokenCount(model.contextWindow)) ctx")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            Button(role: .destructive) {
+                Task {
+                    await viewModel.removeModelAndPersist(at: index)
+                }
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isPersistingProviderConfiguration)
+            .help(localizedString("settings.provider.custom.removeModel"))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.primary.opacity(0.045))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var modelListToggleTitle: String {
+        areModelsExpanded
+            ? localizedString("settings.provider.custom.hideModelList")
+            : localizedString("settings.provider.custom.showModelList")
+    }
+
+    private var providerDetailActions: some View {
+        HStack(spacing: 10) {
+            Spacer()
+
+            Button {
+                viewModel.resetProviderConfiguration()
+            } label: {
+                Text(localizedString("Reset"))
+            }
+            .font(.caption)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(viewModel.isPersistingProviderConfiguration)
+
+            Button {
+                Task {
+                    await viewModel.persistProviderConfiguration(showSuccessMessage: true)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    if viewModel.isPersistingProviderConfiguration {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "checkmark")
+                    }
+                    Text(localizedString("Save"))
+                }
+            }
+            .font(.caption)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(!canSaveProviderDetails || viewModel.isPersistingProviderConfiguration)
+        }
+    }
+}
+
+private struct CustomProviderDetailsSection: View {
+    @ObservedObject var viewModel: DashboardViewModel
+    let provider: ConfiguredCustomProvider
+
+    @State private var draftBaseUrl: String
+    @State private var draftApiKey: String
+    @State private var draftModels: [PresetModel]
+    @State private var showApiKey = false
+    @State private var areModelsExpanded = false
+    @State private var isShowingAddModelSheet = false
+    @State private var isFetchingModels = false
+    @State private var fetchMessage = ""
+
+    init(viewModel: DashboardViewModel, provider: ConfiguredCustomProvider) {
+        self.viewModel = viewModel
+        self.provider = provider
+        _draftBaseUrl = State(initialValue: provider.baseUrl)
+        _draftApiKey = State(initialValue: provider.apiKey)
+        _draftModels = State(initialValue: provider.models)
+    }
+
+    private var canSaveProviderDetails: Bool {
+        !draftBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var providerDisplayName: String {
+        providerTitle(
+            baseUrl: draftBaseUrl,
+            key: provider.key,
+            fallback: providerTitle(for: provider)
+        )
+    }
+
+    private var draftProvider: ConfiguredCustomProvider {
+        ConfiguredCustomProvider(
+            key: provider.key,
+            baseUrl: draftBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines),
+            apiKey: draftApiKey.trimmingCharacters(in: .whitespacesAndNewlines),
+            api: provider.api.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "openai-completions" : provider.api,
+            models: draftModels
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(providerDisplayName)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(localizedString("Provider details"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+
+            HStack {
+                Text(localizedString("API Base URL"))
+                    .frame(width: 120, alignment: .leading)
+
+                TextField("https://api.example.com/v1", text: $draftBaseUrl)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            }
+
+            HStack {
+                Text(localizedString("API Key"))
+                    .frame(width: 120, alignment: .leading)
+
+                ZStack {
+                    if showApiKey {
+                        TextField(localizedString("Enter API key"), text: $draftApiKey)
+                            .textFieldStyle(.roundedBorder)
+                    } else {
+                        SecureField(localizedString("Enter API key"), text: $draftApiKey)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Button(action: { showApiKey.toggle() }) {
+                    Image(systemName: showApiKey ? "eye" : "eye.slash")
+                }
+                .buttonStyle(.borderless)
+                .help(showApiKey ? localizedString("Hide") : localizedString("Show"))
+            }
+
+            customProviderModelsView
+
+            providerDetailActions
+        }
+        .padding(16)
+        .background(Color.primary.opacity(0.035))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.blue.opacity(0.12), lineWidth: 1)
+        )
+        .sheet(isPresented: $isShowingAddModelSheet) {
+            AddProviderModelSheet { model in
+                addDraftModelAndPersist(model)
+                areModelsExpanded = true
+            }
+        }
+    }
+
+    private var customProviderModelsView: some View {
+        HStack(alignment: .top) {
+            Text(localizedString("Models"))
+                .frame(width: 120, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(localizedFormat("%lld models configured", draftModels.count))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    Button {
+                        isShowingAddModelSheet = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
+                            Text(localizedString("Add Model"))
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(viewModel.isPersistingProviderConfiguration)
+
+                    Button {
+                        fetchDraftModels()
+                    } label: {
+                        HStack(spacing: 4) {
+                            if isFetchingModels {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                            Text(localizedString("Fetch Models"))
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(isFetchingModels || viewModel.isPersistingProviderConfiguration || draftBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                if !draftModels.isEmpty {
+                    Text(draftModels.prefix(4).map { $0.name.isEmpty ? $0.id : $0.name }.joined(separator: ", "))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                } else {
+                    Text(localizedString("Fetch models from this provider or add them before saving."))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                if !draftModels.isEmpty {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            areModelsExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(modelListToggleTitle)
+                                .font(.caption)
+                            Image(systemName: areModelsExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    SettingsCollapsibleContent(isExpanded: areModelsExpanded) {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 6) {
+                                ForEach(Array(draftModels.enumerated()), id: \.element.id) { index, model in
+                                    customModelRow(model, index: index)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .frame(maxHeight: 210)
+                    }
+                }
+
+                if !fetchMessage.isEmpty {
+                    Text(fetchMessage)
+                        .font(.caption)
+                        .foregroundColor(fetchMessage.hasPrefix("Fetched") ? .secondary : .red)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func customModelRow(_ model: PresetModel, index: Int) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.name.isEmpty ? model.id : model.name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text("\(model.id) · \(formatTokenCount(model.contextWindow)) ctx")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            Button(role: .destructive) {
+                removeDraftModelAndPersist(at: index)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isPersistingProviderConfiguration)
+            .help(localizedString("settings.provider.custom.removeModel"))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.primary.opacity(0.045))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var providerDetailActions: some View {
+        HStack(spacing: 10) {
+            Spacer()
+
+            Button {
+                resetDraft()
+            } label: {
+                Text(localizedString("Reset"))
+            }
+            .font(.caption)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(viewModel.isPersistingProviderConfiguration)
+
+            Button {
+                Task {
+                    await saveDraft(showSuccessMessage: true)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    if viewModel.isPersistingProviderConfiguration {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "checkmark")
+                    }
+                    Text(localizedString("Save"))
+                }
+            }
+            .font(.caption)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(!canSaveProviderDetails || viewModel.isPersistingProviderConfiguration)
+        }
+    }
+
+    private var modelListToggleTitle: String {
+        areModelsExpanded
+            ? localizedString("settings.provider.custom.hideModelList")
+            : localizedString("settings.provider.custom.showModelList")
+    }
+
+    private func resetDraft() {
+        draftBaseUrl = provider.baseUrl
+        draftApiKey = provider.apiKey
+        draftModels = provider.models
+        fetchMessage = ""
+    }
+
+    @discardableResult
+    private func saveDraft(showSuccessMessage: Bool = false) async -> Bool {
+        await viewModel.updateCustomProviderAndPersist(
+            draftProvider,
+            showSuccessMessage: showSuccessMessage
+        )
+    }
+
+    private func fetchDraftModels() {
+        Task {
+            guard !isFetchingModels else { return }
+            isFetchingModels = true
+            fetchMessage = ""
+            defer { isFetchingModels = false }
+
+            do {
+                let models = try await viewModel.fetchModelsForCustomProvider(
+                    baseUrl: draftBaseUrl,
+                    apiKey: draftApiKey
+                )
+                let previousModels = draftModels
+                draftModels = models
+                fetchMessage = "Fetched \(models.count) model\(models.count == 1 ? "" : "s")."
+                guard await saveDraft() else {
+                    draftModels = previousModels
+                    return
+                }
+            } catch {
+                fetchMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func addDraftModelAndPersist(_ model: PresetModel) {
+        let previousModels = draftModels
+        upsertDraftModel(model)
+        Task {
+            guard await saveDraft() else {
+                draftModels = previousModels
+                return
+            }
+        }
+    }
+
+    private func removeDraftModelAndPersist(at index: Int) {
+        guard index >= 0, index < draftModels.count else { return }
+        let previousModels = draftModels
+        draftModels.remove(at: index)
+        Task {
+            guard await saveDraft() else {
+                draftModels = previousModels
+                return
+            }
+        }
+    }
+
+    private func upsertDraftModel(_ model: PresetModel) {
+        let trimmedId = model.id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedId.isEmpty else { return }
+        var normalized = model
+        normalized.id = trimmedId
+        if normalized.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            normalized.name = trimmedId
+        }
+        if let index = draftModels.firstIndex(where: { $0.id == trimmedId }) {
+            draftModels[index] = normalized
+        } else {
+            draftModels.append(normalized)
+        }
+    }
+}
+
+private struct AddProviderModelSheet: View {
+    let onAdd: (PresetModel) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var modelId = ""
+    @State private var displayName = ""
+    @State private var contextWindow = "128000"
+    @State private var maxTokens = "8192"
+    @State private var supportsImage = false
+    @State private var supportsReasoning = false
+
+    private var canAdd: Bool {
+        !modelId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(localizedString("Add Model"))
+                    .font(.system(size: 16, weight: .semibold))
+                Text(localizedString("settings.provider.custom.addModelSubtitle"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                TextField("model-id", text: $modelId)
+                    .textFieldStyle(.roundedBorder)
+                TextField(localizedString("Display Name"), text: $displayName)
+                    .textFieldStyle(.roundedBorder)
+
+                HStack(spacing: 10) {
+                    TextField(localizedString("Context Window"), text: $contextWindow)
+                        .textFieldStyle(.roundedBorder)
+                    TextField(localizedString("Max Tokens"), text: $maxTokens)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                Toggle(localizedString("settings.provider.custom.supportsImageInput"), isOn: $supportsImage)
+                Toggle(localizedString("settings.provider.custom.supportsReasoning"), isOn: $supportsReasoning)
+            }
+
+            HStack {
+                Spacer()
+                Button(localizedString("Cancel")) {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+
+	                Button(localizedString("Add")) {
+	                    let trimmedId = modelId.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let model = PresetModel(
+                        id: trimmedId,
+                        name: trimmedName.isEmpty ? trimmedId : trimmedName,
+                        reasoning: supportsReasoning,
+                        input: supportsImage ? ["text", "image"] : ["text"],
+                        cost: PresetModelCost(),
+                        contextWindow: Int(contextWindow.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 128000,
+                        maxTokens: Int(maxTokens.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 8192
+                    )
+	                    onAdd(model)
+	                    dismiss()
+	                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canAdd)
+            }
+        }
+        .padding(20)
+        .frame(width: 430, alignment: .leading)
     }
 }
 
@@ -1831,10 +2435,10 @@ struct SaveButtonsSection: View {
             let noActiveKey = !membershipManager.apiKeys.contains(where: { $0.isActive })
             return editedKeyEmpty || noActiveKey
         } else {
-            return viewModel.editedModelApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return viewModel.editedModelBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         #else
-        return viewModel.editedModelApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return viewModel.editedModelBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         #endif
     }
 

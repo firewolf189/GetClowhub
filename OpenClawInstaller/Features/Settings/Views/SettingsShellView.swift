@@ -27,21 +27,25 @@ private struct SettingsSectionSidebar: View {
     let onBackToApp: () -> Void
     @State private var searchText = ""
 
-    private let groups: [(String, [SettingsPageSection])] = [
-        ("Account", [.profile, .preferences, .persona]),
-        ("System", [.status]),
-        ("Configuration", [.gateway, .apiKey, .provider, .budget]),
-        ("Advanced", [.models, .channels, .logs])
+    private let groups: [(key: String, sections: [SettingsPageSection])] = [
+        ("settings.group.account", [.profile, .preferences, .persona]),
+        ("settings.group.system", [.status]),
+        ("settings.group.configuration", [.gateway, .provider, .budget]),
+        ("settings.group.advanced", [.models, .channels, .logs])
     ]
 
-    private var filteredGroups: [(String, [SettingsPageSection])] {
+    private var filteredGroups: [(key: String, sections: [SettingsPageSection])] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return groups }
         return groups.compactMap { group in
-            let filteredSections = group.1.filter {
+            let groupTitle = I18n.t(group.key).lowercased()
+            let filteredSections = group.sections.filter {
                 $0.localizedTitle().lowercased().contains(query)
             }
-            return filteredSections.isEmpty ? nil : (group.0, filteredSections)
+            if groupTitle.contains(query) {
+                return group
+            }
+            return filteredSections.isEmpty ? nil : (group.key, filteredSections)
         }
     }
 
@@ -51,7 +55,7 @@ private struct SettingsSectionSidebar: View {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.left")
                         .frame(width: 16)
-                    Text(I18n.t("Back to app", fallback: "Back to app"))
+                    Text(I18n.t("settings.shell.backToApp"))
                     Spacer()
                 }
                 .font(.system(size: 14, weight: .medium))
@@ -66,7 +70,7 @@ private struct SettingsSectionSidebar: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
-                TextField(I18n.t("Search settings", fallback: "Search settings..."), text: $searchText)
+                TextField(I18n.t("settings.shell.searchPlaceholder"), text: $searchText)
                     .textFieldStyle(.plain)
             }
             .font(.system(size: 13))
@@ -84,14 +88,14 @@ private struct SettingsSectionSidebar: View {
 
             SmoothScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ForEach(filteredGroups, id: \.0) { group in
+                    ForEach(filteredGroups, id: \.key) { group in
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(I18n.t(group.0, fallback: group.0))
+                            Text(I18n.t(group.key))
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.secondary)
                                 .padding(.horizontal, 14)
 
-                            ForEach(group.1) { section in
+                            ForEach(group.sections) { section in
                                 SettingsSectionRow(
                                     section: section,
                                     isSelected: selectedSection == section
