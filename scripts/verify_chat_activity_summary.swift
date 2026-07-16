@@ -37,7 +37,7 @@ let chatMessage = slice(
 let sendLoop = slice(
     chatHelpers,
     from: "var accumulatedText = \"\"",
-    to: "// Stream ended without a terminal event"
+    to: "/// Move a foreground task to background"
 )
 // WorkStatusHeader (and ActivitySummaryRows) were extracted into their own file.
 let workStatusHeader = try read("OpenClawInstaller/Features/Chat/Views/WorkStatusHeader.swift")
@@ -67,7 +67,7 @@ require(!chatHelpers.contains("enum ChatActivityExtractor"), "activity should no
 require(!chatHelpers.contains("summary prompt"), "activity should not build model summary prompts")
 
 require(sendLoop.contains("var accumulatedActivityEvents: [ChatActivityEvent] = []"), "stream loop should keep accumulated activity events")
-require(sendLoop.contains("case .activity(let eventRunId, _, let event):"), "stream loop should consume structured gateway activity events")
+require(sendLoop.contains("case .activity(let eventRunId, let eventSessionKey, let event):"), "stream loop should consume structured gateway activity events")
 require(sendLoop.contains("mergeActivityEvent(event, into: &accumulatedActivityEvents)"), "stream loop should merge structured gateway activity events")
 require(sendLoop.contains("activityEvents: accumulatedActivityEvents"), "stream terminal updates should attach activity events to the assistant message")
 require(sendLoop.contains("activityEvents: displayEvents"), "streaming draft updates should attach activity events to active stream state")
@@ -76,7 +76,7 @@ require(workStatusHeader.contains("let activityEvents: [ChatActivityEvent]"), "w
 require(workStatusHeader.contains("@State private var isExpanded = false"), "working header should be collapsed by default")
 require(workStatusHeader.contains("Button {"), "working header chevron should be clickable")
 require(workStatusHeader.contains("isExpanded.toggle()"), "working header should toggle activity visibility")
-require(workStatusHeader.contains("if isExpanded {"), "working header should hide activity rows while collapsed")
+require(workStatusHeader.contains("if isExpanded && !activityEvents.isEmpty"), "working header should hide activity rows while collapsed")
 require(workStatusHeader.contains("ActivitySummaryRows(events: activityEvents)"), "working header should render activity rows when expanded")
 require(workStatusHeader.contains("private struct ActivitySummaryRows: View"), "activity summary rows should be defined alongside the working header")
 require(!workStatusHeader.contains("events.prefix(4)"), "activity rows should not cap visible event categories")

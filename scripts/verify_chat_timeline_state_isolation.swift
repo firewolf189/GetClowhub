@@ -39,6 +39,8 @@ let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swi
 let timeline = try read("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
 let models = try read("OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift")
 let helpers = try read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
+let chatViewModel = try read("OpenClawInstaller/Features/Chat/ViewModels/ChatViewModel.swift")
+let dashboardViewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 
 let chatBubble = try slice(
     dashboard,
@@ -78,6 +80,12 @@ try require(
     models.contains("loadingRows.append("),
     "Loading rows should be precomputed by the snapshot builder, not by filtering inside body."
 )
+try require(
+    models.contains("runStatesByMessageId: [UUID: ChatRunPresentationState]") &&
+        models.contains("let runState = runStatesByMessageId[message.id]") &&
+        models.contains("runState: runState"),
+    "The snapshot should project one immutable run presentation state per row before SwiftUI layout."
+)
 
 try require(
     !timeline.contains("let messages: [ChatMessage]"),
@@ -86,6 +94,10 @@ try require(
 try require(
     timeline.contains("let snapshot: ChatTimelineSnapshot"),
     "ChatTimelineSurface should accept a precomputed ChatTimelineSnapshot."
+)
+try require(
+    !timeline.contains("@ObservedObject var taskState: TaskActivityState"),
+    "ChatTimelineSurface should not observe the global task registry from the list render path."
 )
 try require(
     !timeline.contains("MarkdownRenderPolicy.recentRichMessageIds(in: messages)"),
@@ -141,6 +153,12 @@ try require(
 try require(
     helpers.contains("guard messages[idx] != newMsg else { return }"),
     "updateMessage should skip no-op writes so @Published does not emit when row data is unchanged."
+)
+try require(
+    !chatViewModel.contains(": ObservableObject") &&
+        !chatViewModel.contains("objectWillChange") &&
+        !dashboardViewModel.contains("chatViewModel.objectWillChange"),
+    "Streaming and run-state publications must stop at their directly observed surfaces instead of invalidating DashboardViewModel."
 )
 
 print("PASS: chat timeline state isolation structure verified")

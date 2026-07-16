@@ -38,11 +38,12 @@ func slice(_ source: String, from start: String, to end: String) throws -> Strin
 let helpers = try read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 let renderer = try read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
+let reconciliation = try read("OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift")
 
 let mainStreamLoop = try slice(
     helpers,
     from: "streamLoop: for await event in eventStream",
-    to: "// Stream ended without a terminal event"
+    to: "/// Move a foreground task to background"
 )
 let deltaCase = try slice(
     mainStreamLoop,
@@ -52,7 +53,7 @@ let deltaCase = try slice(
 let finalCase = try slice(
     mainStreamLoop,
     from: "case .final_(let eventRunId, let eventSessionKey, let text):",
-    to: "case .aborted(let eventRunId, _):"
+    to: "case .aborted(let eventRunId, let eventSessionKey):"
 )
 let cleanup = try slice(
     viewModel,
@@ -92,9 +93,11 @@ try require(
     "Delta events should not write raw accumulated provider text into persisted ChatMessage.content."
 )
 try require(
-    finalCase.contains("clearActiveStreamState(msgId)") &&
-        finalCase.contains("updateMessage(msgId: msgId, content: finalText, status: .completed"),
-    "Final events should clear draft state and then write the final persisted assistant body."
+    finalCase.contains("outcome: .completed(text: finalText)") &&
+        reconciliation.contains("case .completed(let text):") &&
+        reconciliation.contains("updateMessage(") &&
+        reconciliation.contains("clearTaskTracking(messageId)"),
+    "Final events should use the centralized terminalizer to persist final content and clear draft state."
 )
 try require(
     cleanup.contains("clearActiveStreamState(msgId)"),

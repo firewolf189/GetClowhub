@@ -47,6 +47,28 @@ extension DashboardViewModel {
         return chatSessionStore.index.first { $0.id == sessionId }
     }
 
+    /// Revalidates run ownership after an awaited pre-send operation. A late
+    /// model-patch result must not overwrite cancellation or a newer child run.
+    private func canContinueChatRunAfterPreflight(
+        messageId: UUID,
+        sessionKey: String,
+        idempotencyKey: String
+    ) -> Bool {
+        guard let run = taskState.run(for: messageId),
+              !run.phase.isTerminal,
+              run.gatewayBinding.sessionKey == sessionKey,
+              run.gatewayBinding.idempotencyKey == idempotencyKey else {
+            return false
+        }
+        guard !run.cancellationRequested else {
+            if case .preparing = run.phase {
+                finishCancelledChatRun(messageId)
+            }
+            return false
+        }
+        return true
+    }
+
     private struct LocalImageReviewChunkResult {
         let chunkIndex: Int
         let status: String
@@ -62,18 +84,16 @@ extension DashboardViewModel {
     ) async {
         let store = ImageReviewBatchStore()
 
-        defer {
-            clearTaskTracking(msgId)
-        }
-
         do {
             let batch = try await Task.detached(priority: .utility) {
                 try ImageReviewBatchStore().createBatch(from: attachments, messageText: userText)
             }.value
 
+            guard taskState.run(for: msgId) != nil else { return }
+
             guard let batch else {
                 let error = "No supported image files were found in the uploaded attachments."
-                updateMessage(msgId: msgId, content: error, status: .completed, agentId: agentId, agentEmoji: agentEmoji)
+                finishChatRun(messageId: msgId, outcome: .failed(message: error))
                 return
             }
 
@@ -89,8 +109,9 @@ extension DashboardViewModel {
 
             var chunkResults: [LocalImageReviewChunkResult] = []
             for chunkIndex in 0..<batch.chunkCount {
-                if findMessage(byId: msgId)?.taskStatus == .cancelled {
+                if taskState.run(for: msgId)?.cancellationRequested == true {
                     try? store.markBatch(batch, status: .cancelled, completedAt: Date())
+                    finishChatRun(messageId: msgId, outcome: .cancelled)
                     return
                 }
 
@@ -126,6 +147,27 @@ extension DashboardViewModel {
                     responseText: result.text
                 )
 
+                if result.status == "cancelled" {
+                    try store.markBatch(batch, status: .cancelled, completedAt: Date())
+                    finishChatRun(messageId: msgId, outcome: .cancelled)
+                    return
+                }
+
+                if result.status != "completed" {
+                    try store.markBatch(batch, status: .failed, completedAt: Date())
+                    finishChatRun(
+                        messageId: msgId,
+                        outcome: .failed(
+                            message: localImageReviewFinalMessage(
+                                batch: batch,
+                                chunkResults: chunkResults,
+                                failed: true
+                            )
+                        )
+                    )
+                    return
+                }
+
                 updateMessage(
                     msgId: msgId,
                     content: localImageReviewProgressMessage(batch: batch, completedChunks: chunkIndex + 1),
@@ -133,33 +175,24 @@ extension DashboardViewModel {
                     agentId: agentId,
                     agentEmoji: agentEmoji
                 )
-
-                if result.status != "completed" {
-                    try store.markBatch(batch, status: .failed, completedAt: Date())
-                    updateMessage(
-                        msgId: msgId,
-                        content: localImageReviewFinalMessage(batch: batch, chunkResults: chunkResults, failed: true),
-                        status: .completed,
-                        agentId: agentId,
-                        agentEmoji: agentEmoji
-                    )
-                    return
-                }
             }
 
             try writeLocalImageReviewReport(batch: batch, userText: userText, chunkResults: chunkResults)
             try store.markBatch(batch, status: .completed, completedAt: Date())
             _ = try? store.cleanupImageCache()
-            updateMessage(
-                msgId: msgId,
-                content: localImageReviewFinalMessage(batch: batch, chunkResults: chunkResults, failed: false),
-                status: .completed,
-                agentId: agentId,
-                agentEmoji: agentEmoji
+            finishChatRun(
+                messageId: msgId,
+                outcome: .completed(
+                    text: localImageReviewFinalMessage(
+                        batch: batch,
+                        chunkResults: chunkResults,
+                        failed: false
+                    )
+                )
             )
         } catch {
             let message = "Local image review batch failed: \(error.localizedDescription)"
-            updateMessage(msgId: msgId, content: message, status: .completed, agentId: agentId, agentEmoji: agentEmoji)
+            finishChatRun(messageId: msgId, outcome: .failed(message: message))
         }
     }
 
@@ -170,53 +203,293 @@ extension DashboardViewModel {
         modelOverride: String
     ) async -> (status: String, text: String) {
         let subscriberId = msgId.uuidString
-        let eventStream = gatewayClient.subscribeToEvents(subscriberId: subscriberId)
-        taskSessionKeyOverride[msgId] = sessionKey
+        let idempotencyKey = UUID().uuidString
+        let eventStream = gatewayClient.subscribeToEvents(
+            subscriberId: subscriberId,
+            runId: idempotencyKey,
+            sessionKey: sessionKey
+        )
+        taskState.prepareGatewayRun(
+            messageId: msgId,
+            sessionKey: sessionKey,
+            idempotencyKey: idempotencyKey
+        )
 
         defer {
             gatewayClient.unsubscribe(subscriberId: subscriberId)
-            activeChatRuns.removeValue(forKey: msgId)
-            taskSessionKeyOverride.removeValue(forKey: msgId)
         }
 
         if !modelOverride.isEmpty {
             let patched = await gatewayClient.patchSessionModel(sessionKey: sessionKey, model: modelOverride)
+            guard canContinueChatRunAfterPreflight(
+                messageId: msgId,
+                sessionKey: sessionKey,
+                idempotencyKey: idempotencyKey
+            ) else {
+                return ("cancelled", "")
+            }
             if !patched {
                 chatLog.warning("phase=session_model_patch_failed session=\(sessionKey, privacy: .public) model=\(modelOverride, privacy: .public) — aborting image review chunk to avoid silent model fallback")
                 return ("failed", I18n.t("dashboard.chat.modelSwitchFailedNotSent"))
             }
         }
 
-        guard let runId = await gatewayClient.chatSend(sessionKey: sessionKey, message: prompt, attachments: nil) else {
-            return ("failed", "Failed to send local image review chunk.")
+        guard let runBeforeSend = taskState.run(for: msgId) else {
+            return ("cancelled", "")
         }
-        activeChatRuns[msgId] = runId
+        if runBeforeSend.cancellationRequested {
+            return ("cancelled", "")
+        }
+
+        taskState.applyRunEvent(messageId: msgId, event: .sendStarted)
+        let sendResult = await gatewayClient.chatSend(
+            sessionKey: sessionKey,
+            message: prompt,
+            idempotencyKey: idempotencyKey,
+            attachments: nil
+        )
+        var runId = idempotencyKey
+        var submissionAttemptCount = 1
+        switch sendResult {
+        case .acknowledged(let acknowledgedRunId):
+            runId = acknowledgedRunId
+            gatewayClient.bindEventSubscription(
+                subscriberId: subscriberId,
+                runId: acknowledgedRunId,
+                sessionKey: sessionKey
+            )
+            taskState.bindGatewayRun(messageId: msgId, runId: acknowledgedRunId)
+        case .deliveryUnconfirmed(let expectedRunId):
+            runId = expectedRunId
+            taskState.applyRunEvent(messageId: msgId, event: .sendDeliveryUnconfirmed)
+        case .rejected(let message):
+            if taskState.run(for: msgId)?.cancellationRequested == true {
+                return ("cancelled", "")
+            }
+            let fallback = "Failed to send local image review chunk."
+            return ("failed", message.flatMap { $0.isEmpty ? nil : $0 } ?? fallback)
+        }
+
+        if taskState.run(for: msgId)?.cancellationRequested == true {
+            let result = await gatewayClient.abortChat(sessionKey: sessionKey, runId: runId)
+            if result.isConfirmed { return ("cancelled", "") }
+        }
+
+        func recordImageRunEventDelivery(_ eventRunId: String) {
+            guard eventRunId == runId,
+                  let activeRun = taskState.run(for: msgId),
+                  !activeRun.phase.isTerminal,
+                  activeRun.runId == nil else { return }
+            gatewayClient.bindEventSubscription(
+                subscriberId: subscriberId,
+                runId: eventRunId,
+                sessionKey: sessionKey
+            )
+            taskState.bindGatewayRun(messageId: msgId, runId: eventRunId)
+        }
 
         var accumulatedText = ""
         for await event in eventStream {
             switch event {
             case .delta(let eventRunId, let eventSessionKey, let text):
                 guard eventRunId == runId, eventSessionKey == sessionKey, !text.isEmpty else { continue }
+                recordImageRunEventDelivery(eventRunId)
                 accumulatedText = text
             case .final_(let eventRunId, let eventSessionKey, let text):
                 guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
-                var finalText = text.isEmpty ? accumulatedText : text
-                if finalText.isEmpty,
-                   let historyText = await gatewayClient.fetchLastAssistantMessage(sessionKey: sessionKey) {
-                    finalText = historyText
+                recordImageRunEventDelivery(eventRunId)
+                guard let activeRun = taskState.run(for: msgId),
+                      !activeRun.phase.isTerminal else { continue }
+                let finalText = text.isEmpty ? accumulatedText : text
+                if !finalText.isEmpty {
+                    return ("completed", finalText)
                 }
-                return ("completed", finalText.isEmpty ? "Chunk completed." : finalText)
+                gatewayClient.unsubscribe(subscriberId: subscriberId)
+                return await reconcileLocalImageReviewChunk(
+                    messageId: msgId,
+                    runId: runId,
+                    sessionKey: sessionKey,
+                    accumulatedText: accumulatedText
+                )
             case .aborted(let eventRunId, let eventSessionKey):
                 guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                recordImageRunEventDelivery(eventRunId)
+                guard let activeRun = taskState.run(for: msgId),
+                      !activeRun.phase.isTerminal else { continue }
                 return ("cancelled", accumulatedText)
             case .error(let eventRunId, let eventSessionKey, let message):
                 guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                recordImageRunEventDelivery(eventRunId)
+                guard let activeRun = taskState.run(for: msgId),
+                      !activeRun.phase.isTerminal else { continue }
                 return ("failed", message)
-            case .activity:
-                continue
+            case .activity(let eventRunId, let eventSessionKey, _):
+                guard eventRunId == runId,
+                      eventSessionKey == nil || eventSessionKey == sessionKey else { continue }
+                recordImageRunEventDelivery(eventRunId)
+            case .transport(.reconnecting(let attempt, let maxAttempts)):
+                taskState.applyRunEvent(
+                    messageId: msgId,
+                    event: .transportReconnecting(attempt: attempt, maxAttempts: maxAttempts)
+                )
+            case .transport(.connected):
+                taskState.applyRunEvent(messageId: msgId, event: .transportReconnected)
+                if let activeRun = taskState.run(for: msgId),
+                   !activeRun.phase.isTerminal,
+                   activeRun.runId == nil,
+                   !activeRun.cancellationRequested,
+                   submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts {
+                    submissionAttemptCount += 1
+                    let retryResult = await gatewayClient.chatSend(
+                        sessionKey: sessionKey,
+                        message: prompt,
+                        idempotencyKey: idempotencyKey,
+                        attachments: nil
+                    )
+                    guard let currentRun = taskState.run(for: msgId),
+                          !currentRun.phase.isTerminal,
+                          currentRun.gatewayBinding.idempotencyKey == idempotencyKey,
+                          currentRun.gatewayBinding.sessionKey == sessionKey else {
+                        return ("cancelled", accumulatedText)
+                    }
+                    switch retryResult {
+                    case .acknowledged(let acknowledgedRunId):
+                        runId = acknowledgedRunId
+                        gatewayClient.bindEventSubscription(
+                            subscriberId: subscriberId,
+                            runId: acknowledgedRunId,
+                            sessionKey: sessionKey
+                        )
+                        taskState.bindGatewayRun(messageId: msgId, runId: acknowledgedRunId)
+                    case .deliveryUnconfirmed:
+                        if submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts {
+                            continue
+                        }
+                    case .rejected:
+                        break
+                    }
+                }
+                gatewayClient.unsubscribe(subscriberId: subscriberId)
+                return await reconcileLocalImageReviewChunk(
+                    messageId: msgId,
+                    runId: runId,
+                    sessionKey: sessionKey,
+                    accumulatedText: accumulatedText
+                )
+            case .transport(.recoveryExhausted(let attempts)):
+                taskState.applyRunEvent(messageId: msgId, event: .recoveryExhausted(attempts: attempts))
+                gatewayClient.unsubscribe(subscriberId: subscriberId)
+                return await reconcileLocalImageReviewChunk(
+                    messageId: msgId,
+                    runId: runId,
+                    sessionKey: sessionKey,
+                    accumulatedText: accumulatedText
+                )
+            case .transport(.connecting):
+                taskState.applyRunEvent(messageId: msgId, event: .retryRequested)
+            case .transport(.disconnected):
+                taskState.applyRunEvent(messageId: msgId, event: .recoveryExhausted(attempts: 0))
+                gatewayClient.unsubscribe(subscriberId: subscriberId)
+                return await reconcileLocalImageReviewChunk(
+                    messageId: msgId,
+                    runId: runId,
+                    sessionKey: sessionKey,
+                    accumulatedText: accumulatedText
+                )
             }
         }
-        return ("failed", accumulatedText.isEmpty ? "Connection interrupted before this chunk completed." : accumulatedText)
+
+        if Task.isCancelled || taskState.run(for: msgId) == nil
+            || findMessage(byId: msgId)?.taskStatus == .cancelled {
+            return ("cancelled", accumulatedText)
+        }
+        gatewayClient.unsubscribe(subscriberId: subscriberId)
+        return await reconcileLocalImageReviewChunk(
+            messageId: msgId,
+            runId: runId,
+            sessionKey: sessionKey,
+            accumulatedText: accumulatedText
+        )
+    }
+
+    /// Image-review chunks share the same authoritative run resolver as normal
+    /// chat, but return terminal results to the batch instead of completing the
+    /// parent message. Once live delivery is interrupted, the event subscription
+    /// is removed so an unbounded stream cannot accumulate unrelated events while
+    /// the child waits for reconciliation or a manual retry.
+    private func reconcileLocalImageReviewChunk(
+        messageId: UUID,
+        runId: String,
+        sessionKey: String,
+        accumulatedText: String
+    ) async -> (status: String, text: String) {
+        while !Task.isCancelled {
+            guard let run = taskState.run(for: messageId),
+                  !run.phase.isTerminal,
+                  run.expectedRunId == runId,
+                  run.gatewayBinding.sessionKey == sessionKey else {
+                return ("cancelled", accumulatedText)
+            }
+
+            if gatewayClient.isConnected {
+                taskState.applyRunEvent(messageId: messageId, event: .transportReconnected)
+            }
+
+            switch await reconcileChatRunOutcome(messageId: messageId) {
+            case .terminal(.completed(let text)):
+                return ("completed", text)
+            case .terminal(.failed(let message)), .terminal(.timedOut(let message)):
+                return ("failed", message)
+            case .terminal(.cancelled):
+                return ("cancelled", accumulatedText)
+            case .superseded:
+                if Task.isCancelled || taskState.run(for: messageId) == nil {
+                    return ("cancelled", accumulatedText)
+                }
+                return ("failed", "Local image review run identity changed during recovery.")
+            case .suspended:
+                guard await waitForLocalImageReviewRetry(
+                    messageId: messageId,
+                    runId: runId,
+                    sessionKey: sessionKey
+                ) else {
+                    return ("cancelled", accumulatedText)
+                }
+            }
+        }
+        return ("cancelled", accumulatedText)
+    }
+
+    private func waitForLocalImageReviewRetry(
+        messageId: UUID,
+        runId: String,
+        sessionKey: String
+    ) async -> Bool {
+        while !Task.isCancelled {
+            guard let run = taskState.run(for: messageId),
+                  !run.phase.isTerminal,
+                  run.expectedRunId == runId,
+                  run.gatewayBinding.sessionKey == sessionKey else {
+                return false
+            }
+            if run.cancellationRequested {
+                return true
+            }
+            if gatewayClient.isConnected {
+                return true
+            }
+            switch run.phase {
+            case .connectionLost, .recoveryUnavailable:
+                do {
+                    try await Task.sleep(nanoseconds: 500_000_000)
+                } catch {
+                    return false
+                }
+            default:
+                return true
+            }
+        }
+        return false
     }
 
     private func localImageReviewProgressMessage(batch: ImageReviewBatchStore.Batch, completedChunks: Int) -> String {
@@ -280,7 +553,7 @@ extension DashboardViewModel {
         try Data(report.utf8).write(to: batch.reportURL, options: .atomic)
     }
 
-    private func updateMessage(
+    func updateMessage(
         msgId: UUID,
         content: String,
         status: ChatMessage.TaskStatus,
@@ -315,7 +588,7 @@ extension DashboardViewModel {
             logChat("UPDATE_MSG (active): agent=\(agentId), contentLen=\(content.count), status=\(status), totalMsgs=\(messages.count)")
             return
         }
-        if let sessionId = taskSessionMap[msgId],
+        if let sessionId = taskState.run(for: msgId)?.identity.sessionId,
            let idx = chatMessagesByInactiveSession[sessionId]?.firstIndex(where: { $0.id == msgId }) {
             var messages = chatMessagesByInactiveSession[sessionId] ?? []
             var didChange = false
@@ -427,7 +700,7 @@ extension DashboardViewModel {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func appendBackgroundNotification(agentId: String, agentEmoji: String?, completed: Bool, msgId: UUID) {
+    func appendBackgroundNotification(agentId: String, agentEmoji: String?, completed: Bool, msgId: UUID) {
         let agentName = availableAgents.first(where: { $0.id == agentId })?.name ?? agentId
         if completed {
             let notifyContent = String(format: String(localized: "✅ Background task from **%@** completed", bundle: LanguageManager.shared.localizedBundle), agentName)
@@ -469,20 +742,32 @@ extension DashboardViewModel {
                                                      seedMessages: chatMessagesByAgent[currentAgentId] ?? [])
         let sessionKey = sessionKeyForAgent(currentAgentId, sessionId: currentSessionId)
         let currentProject = activeProject(forAgent: currentAgentId)
-
+        let isLocalImageReviewBatch = ImageReviewBatchStore.isImageReviewBatchCandidate(
+            urls: attachments,
+            messageText: text,
+            selectedAgentId: currentAgentId
+        )
         // Insert a placeholder assistant message for streaming updates
         let msgId = UUID()
         let placeholderMsg = ChatMessage(role: .assistant, content: "", agentId: currentAgentId, agentEmoji: currentAgentEmoji, taskStatus: .loading, id: msgId)
         chatMessagesByAgent[currentAgentId, default: []].append(placeholderMsg)
         logChat("PLACEHOLDER: agent=\(currentAgentId), msgId=\(msgId.uuidString.prefix(8)), totalMsgs=\(chatMessagesByAgent[currentAgentId]?.count ?? 0)")
 
-        // Track as foreground task — bound to BOTH agent and session so we can
-        // (a) route the cancel/abort to the right gateway sessionKey and
-        // (b) decide which UI session owns this spinner.
-        foregroundTaskIds.insert(msgId)
-        taskAgentMap[msgId] = currentAgentId
-        taskSessionMap[msgId] = currentSessionId
-        taskSessionKeyOverride[msgId] = sessionKey
+        let gatewayBinding = ChatGatewayRunBinding(
+            sessionKey: sessionKey,
+            startedAt: placeholderMsg.timestamp ?? Date()
+        )
+        taskState.registerRun(ChatRunState(
+            identity: ChatRunIdentity(
+                messageId: msgId,
+                agentId: currentAgentId,
+                sessionId: currentSessionId
+            ),
+            gatewayBinding: gatewayBinding,
+            startedAt: placeholderMsg.timestamp ?? Date(),
+            executionKind: isLocalImageReviewBatch ? .localImageReviewBatch : .conversation
+        ))
+        scheduleAutomaticBackground(for: msgId)
         recomputeIsSendingMessage()
 
         // Check gateway connection. Prefer the gateway's own rejection reason
@@ -499,15 +784,12 @@ extension DashboardViewModel {
                 errorMsg = generic
             }
             updateMessage(msgId: msgId, content: errorMsg, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+            taskState.applyRunEvent(messageId: msgId, event: .failed)
             clearTaskTracking(msgId)
             return
         }
 
-        if ImageReviewBatchStore.isImageReviewBatchCandidate(
-            urls: attachments,
-            messageText: text,
-            selectedAgentId: currentAgentId
-        ) {
+        if isLocalImageReviewBatch {
             await runLocalImageReviewBatch(
                 userText: text,
                 attachments: attachments,
@@ -526,13 +808,25 @@ extension DashboardViewModel {
 
         // Subscribe to events BEFORE sending to avoid race condition
         let subscriberId = msgId.uuidString
-        let eventStream = gatewayClient.subscribeToEvents(subscriberId: subscriberId)
+        let eventStream = gatewayClient.subscribeToEvents(
+            subscriberId: subscriberId,
+            runId: gatewayBinding.idempotencyKey,
+            sessionKey: sessionKey
+        )
 
         // Apply the composer model as a session-level override. If an explicit
         // composer model cannot be applied, stop the turn instead of silently
         // running on the session's current/fallback model.
         if !composerModelOverride.isEmpty, appliedSessionModels[sessionKey] != composerModelOverride {
             let patched = await gatewayClient.patchSessionModel(sessionKey: sessionKey, model: composerModelOverride)
+            guard canContinueChatRunAfterPreflight(
+                messageId: msgId,
+                sessionKey: sessionKey,
+                idempotencyKey: gatewayBinding.idempotencyKey
+            ) else {
+                gatewayClient.unsubscribe(subscriberId: subscriberId)
+                return
+            }
             if patched {
                 appliedSessionModels[sessionKey] = composerModelOverride
             } else {
@@ -547,28 +841,73 @@ extension DashboardViewModel {
                     agentId: currentAgentId,
                     agentEmoji: currentAgentEmoji
                 )
+                taskState.applyRunEvent(messageId: msgId, event: .failed)
                 clearTaskTracking(msgId)
                 gatewayClient.unsubscribe(subscriberId: subscriberId)
                 return
             }
         }
 
+        guard let runBeforeSend = taskState.run(for: msgId) else {
+            gatewayClient.unsubscribe(subscriberId: subscriberId)
+            return
+        }
+        if runBeforeSend.cancellationRequested {
+            finishCancelledChatRun(msgId)
+            return
+        }
+
         // Send the message
+        taskState.applyRunEvent(messageId: msgId, event: .sendStarted)
         let chatSendStart = ContinuousClock.now
         chatLog.info("phase=chat_send_start agent=\(currentAgentId, privacy: .public) session=\(currentSessionId.uuidString, privacy: .public) sessionKey=\(sessionKey, privacy: .public) model_override=\(composerModelOverride.isEmpty ? "default" : composerModelOverride, privacy: .public) message_len=\(baseMessage.count, privacy: .public) attachment_count=\(attachments.count, privacy: .public) inline_attachment_count=\(processed.inlineAttachments.count, privacy: .public)")
-        let runId = await gatewayClient.chatSend(
+        let sendResult = await gatewayClient.chatSend(
             sessionKey: sessionKey,
             message: baseMessage,
+            idempotencyKey: gatewayBinding.idempotencyKey,
             attachments: processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments
         )
 
-        guard let runId = runId else {
+        var runId = gatewayBinding.idempotencyKey
+        var submissionAttemptCount = 1
+        switch sendResult {
+        case .acknowledged(let acknowledgedRunId):
+            runId = acknowledgedRunId
+            gatewayClient.bindEventSubscription(
+                subscriberId: subscriberId,
+                runId: acknowledgedRunId,
+                sessionKey: sessionKey
+            )
+            taskState.bindGatewayRun(messageId: msgId, runId: acknowledgedRunId)
+        case .deliveryUnconfirmed(let expectedRunId):
+            runId = expectedRunId
+            taskState.applyRunEvent(messageId: msgId, event: .sendDeliveryUnconfirmed)
+            chatLog.warning("phase=chat_send_delivery_unconfirmed expectedRunId=\(expectedRunId, privacy: .public) session=\(currentSessionId.uuidString, privacy: .public)")
+        case .rejected(let rejection):
+            if taskState.run(for: msgId)?.cancellationRequested == true {
+                finishCancelledChatRun(msgId)
+                return
+            }
             chatLog.warning("phase=chat_send_failed agent=\(currentAgentId, privacy: .public) session=\(currentSessionId.uuidString, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: chatSendStart), privacy: .public)")
-            let errorMsg = String(localized: "Failed to send message. Please try again.", bundle: LanguageManager.shared.localizedBundle)
+            let fallback = String(localized: "Failed to send message. Please try again.", bundle: LanguageManager.shared.localizedBundle)
+            let errorMsg = rejection.flatMap { $0.isEmpty ? nil : $0 } ?? fallback
             updateMessage(msgId: msgId, content: errorMsg, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
+            taskState.applyRunEvent(messageId: msgId, event: .failed)
             gatewayClient.unsubscribe(subscriberId: subscriberId)
             clearTaskTracking(msgId)
             return
+        }
+
+
+        if taskState.run(for: msgId)?.cancellationRequested == true {
+            let cancellationResult = await gatewayClient.abortChat(
+                sessionKey: sessionKey,
+                runId: runId
+            )
+            if cancellationResult.isConfirmed {
+                finishCancelledChatRun(msgId)
+                return
+            }
         }
 
         let chatSendAckAt = ContinuousClock.now
@@ -578,84 +917,34 @@ extension DashboardViewModel {
             showSuccessMessage("Attachments sent as a selective manifest. Large files and folders will not be read wholesale.")
         }
 
-        activeChatRuns[msgId] = runId
         chatLog.info("chat.send ok: runId=\(runId), subscriberId=\(subscriberId), bgTasks=\(self.backgroundTaskIds.count)")
 
-        // Persist the run so we can recover via chat.history if the
-        // app dies before the stream completes (force-quit, crash, OOM).
-        // Removed in the defer block below on normal stream exit, so
-        // typical runs never leave a stale entry.
-        registerInFlightRun(
-            runId: runId,
-            sessionKey: sessionKey,
-            msgId: msgId,
-            sessionId: currentSessionId,
-            agentId: currentAgentId,
-            agentEmoji: currentAgentEmoji
-        )
+        // Persist the backend identity before consuming events. Launch recovery
+        // asks agent.wait for this exact run and uses timestamped chat.history
+        // only to recover its terminal body. The record is removed centrally by
+        // finishChatRun after a confirmed terminal outcome.
+        if let registeredRun = taskState.run(for: msgId) {
+            registerInFlightRun(registeredRun, agentEmoji: currentAgentEmoji)
+        }
 
-        // Abandonment safety net: only triggers when NO inbound traffic at all for the
-        // entire `inactivityLimit` window. Modeled after Claude's API/SSE behavior — we
-        // never want to declare a task failed purely because deltas came infrequently
-        // (deep-thinking + long tools can be naturally silent for many minutes). The
-        // 30s client heartbeat already proves WS liveness independently; this timer is
-        // pure defense-in-depth for genuinely abandoned runs.
-        //
-        // Claude-style "prefer resume over fail": before marking `.timedOut`, attempt
-        // a `chat.history` fetch first. If the gateway has more content than our
-        // placeholder, the run actually completed gateway-side and we just missed the
-        // final event (possible after long lid-closed sleep, dropped reconnect race,
-        // etc.). Recover cleanly to `.completed` instead of falsely marking failed.
-        let inactivityLimit: TimeInterval = inactivityTimeoutSeconds  // user-tunable, default 60 min
-        let timeoutTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000_000) // check every 10s
-                guard let self = self, !Task.isCancelled else { return }
-                // Use the gateway-level timestamp: any inbound message resets it; nothing for
-                // `inactivityLimit` means we're not getting anything (including ack/delta) from gateway.
-                let elapsed = Date().timeIntervalSince(self.gatewayClient.lastMessageReceivedAt)
-                if elapsed >= inactivityLimit {
-                    if self.activeChatRuns[msgId] != nil {
-                        // Step 1: try history recovery before declaring failure.
-                        // 10s budget (matches GatewayClient.fetchLastAssistantMessage's own timeout).
-                        let recovered = await self.gatewayClient.fetchLastAssistantMessage(sessionKey: sessionKey)
-                        self.gatewayClient.unsubscribe(subscriberId: subscriberId)
-
-                        await MainActor.run {
-                            // Snapshot current placeholder length so we only adopt history
-                            // if it strictly extends what we already have. Otherwise (history
-                            // empty / shorter / unchanged) fall to the timedOut path.
-                            let currentLen = self.findMessage(byId: msgId)?.content.count ?? 0
-                            if let text = recovered, text.count > currentLen, !text.isEmpty {
-                                chatLog.info("inactivity recovery succeeded: \(text.count) chars from history (placeholder had \(currentLen))")
-                                self.updateMessage(msgId: msgId, content: text, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
-                            } else {
-                                chatLog.warning("inactivity timeout: no usable history, marking timedOut (elapsed=\(Int(elapsed))s)")
-                                let timeoutMsg = String(localized: "The task timed out and has been terminated. You can try again or switch to another agent.", bundle: LanguageManager.shared.localizedBundle)
-                                if let msg = self.findMessage(byId: msgId) {
-                                    let content = msg.content.isEmpty
-                                        ? timeoutMsg
-                                        : msg.content + "\n\n---\n> ⚠️ " + timeoutMsg
-                                    self.updateMessage(msgId: msgId, content: content, status: .timedOut, agentId: currentAgentId, agentEmoji: currentAgentEmoji)
-                                }
-                            }
-                            self.clearTaskTracking(msgId)
-                        }
-                    }
-                    return
-                }
+        func recordRunEventDelivery(_ eventRunId: String) {
+            guard eventRunId == runId,
+                  let activeRun = taskState.run(for: msgId),
+                  !activeRun.phase.isTerminal,
+                  activeRun.runId == nil else { return }
+            gatewayClient.bindEventSubscription(
+                subscriberId: subscriberId,
+                runId: eventRunId,
+                sessionKey: sessionKey
+            )
+            taskState.bindGatewayRun(messageId: msgId, runId: eventRunId)
+            if let acknowledgedRun = taskState.run(for: msgId) {
+                registerInFlightRun(acknowledgedRun, agentEmoji: currentAgentEmoji)
             }
         }
 
-        // Guarantee cleanup: no matter how the stream loop exits, reset state
         defer {
-            timeoutTask.cancel()
             gatewayClient.unsubscribe(subscriberId: subscriberId)
-            // Cleanup must happen on MainActor since these are @Published properties
-            Task { @MainActor in
-                self.clearTaskTracking(msgId)
-                self.unregisterInFlightRun(msgId: msgId)
-            }
         }
 
         // Stream events
@@ -663,8 +952,6 @@ extension DashboardViewModel {
         var committedWorkingText = ""
         var accumulatedActivityEvents: [ChatActivityEvent] = []
         var seenActivityEventKeys = Set<String>()
-        var receivedTerminalEvent = false
-        var emptyFinalCount = 0
         // Throttle message updates to prevent CPU 100% during fast streaming
         var lastUpdateTime = Date.distantPast
         let updateThrottleInterval: TimeInterval = 0.1  // Update at most every 100ms
@@ -681,9 +968,11 @@ extension DashboardViewModel {
         streamLoop: for await event in eventStream {
 
             switch event {
-            case .activity(let eventRunId, _, let event):
-                guard eventRunId == runId else { continue }
-                logFirstGatewayEventIfNeeded(kind: "activity", eventRunId: eventRunId, eventSessionKey: nil)
+            case .activity(let eventRunId, let eventSessionKey, let event):
+                guard eventRunId == runId,
+                      eventSessionKey == nil || eventSessionKey == sessionKey else { continue }
+                recordRunEventDelivery(eventRunId)
+                logFirstGatewayEventIfNeeded(kind: "activity", eventRunId: eventRunId, eventSessionKey: eventSessionKey)
                 if !didLogFirstActivity {
                     didLogFirstActivity = true
                     chatLog.info("phase=chat_first_activity runId=\(eventRunId, privacy: .public) kind=\(event.kind.rawValue, privacy: .public) elapsed_from_send_ms=\(Self.elapsedMillisecondsText(since: chatSendStart), privacy: .public) elapsed_after_ack_ms=\(Self.elapsedMillisecondsText(since: chatSendAckAt), privacy: .public)")
@@ -711,13 +1000,15 @@ extension DashboardViewModel {
                 }
 
             case .delta(let eventRunId, let eventSessionKey, let text):
-                guard eventRunId == runId else { continue }
+                guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                recordRunEventDelivery(eventRunId)
                 logFirstGatewayEventIfNeeded(kind: "delta", eventRunId: eventRunId, eventSessionKey: eventSessionKey)
                 // Skip empty deltas (e.g. tool_use blocks with no text content)
                 guard !text.isEmpty else {
                     chatLog.debug("chat delta: EMPTY text skipped, runId=\(eventRunId)")
                     continue
                 }
+                taskState.applyRunEvent(messageId: msgId, event: .receivedDelta)
                 if !didLogFirstDelta {
                     didLogFirstDelta = true
                     chatLog.info("phase=chat_first_delta runId=\(eventRunId, privacy: .public) sessionKey=\(eventSessionKey, privacy: .public) text_len=\(text.count, privacy: .public) elapsed_from_send_ms=\(Self.elapsedMillisecondsText(since: chatSendStart), privacy: .public) elapsed_after_ack_ms=\(Self.elapsedMillisecondsText(since: chatSendAckAt), privacy: .public)")
@@ -725,9 +1016,6 @@ extension DashboardViewModel {
                 chatLog.debug("chat delta: runId=\(eventRunId), textLen=\(text.count)")
                 // Gateway sends full accumulated text in each delta, so use replacement
                 accumulatedText = text
-                // A real delta arrived — reset the premature-final counter
-                emptyFinalCount = 0
-
                 // Only update UI if enough time has passed (throttle to prevent CPU 100%)
                 let now = Date()
                 if now.timeIntervalSince(lastUpdateTime) >= updateThrottleInterval {
@@ -756,157 +1044,116 @@ extension DashboardViewModel {
                 }
 
             case .final_(let eventRunId, let eventSessionKey, let text):
-                guard eventRunId == runId else { continue }
+                guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                recordRunEventDelivery(eventRunId)
+                guard let activeRun = taskState.run(for: msgId),
+                      !activeRun.phase.isTerminal else { continue }
                 logFirstGatewayEventIfNeeded(kind: "final", eventRunId: eventRunId, eventSessionKey: eventSessionKey)
                 chatLog.info("phase=chat_final runId=\(eventRunId, privacy: .public) sessionKey=\(eventSessionKey, privacy: .public) text_len=\(text.count, privacy: .public) accumulated_len=\(accumulatedText.count, privacy: .public) saw_delta=\(didLogFirstDelta, privacy: .public) elapsed_from_send_ms=\(Self.elapsedMillisecondsText(since: chatSendStart), privacy: .public) elapsed_after_ack_ms=\(Self.elapsedMillisecondsText(since: chatSendAckAt), privacy: .public)")
                 chatLog.info("chat final: runId=\(eventRunId), textLen=\(text.count), accumulatedLen=\(accumulatedText.count)")
-                var finalText = Self.visibleAssistantText(
+                let finalText = Self.visibleAssistantText(
                     from: text.isEmpty ? accumulatedText : text,
                     committedWorkingText: committedWorkingText
                 )
-                // Fallback: when gateway final has no content (e.g. tool-heavy responses where
-                // stripInlineDirectiveTagsForDisplay filtered all text), fetch from chat history
+                // A final event owns the run, but an empty body is not enough to
+                // identify persisted content. Reconcile by runId and timestamped
+                // history rather than borrowing the session's latest reply.
                 if finalText.isEmpty {
-                    chatLog.info("chat final empty — fetching chat.history as fallback")
-                    if let historyText = await gatewayClient.fetchLastAssistantMessage(sessionKey: eventSessionKey) {
-                        chatLog.info("chat.history fallback: got \(historyText.count) chars")
-                        finalText = Self.visibleAssistantText(
-                            from: historyText,
-                            committedWorkingText: committedWorkingText
-                        )
-                    }
+                    chatLog.warning("phase=chat_final_empty_reconcile runId=\(eventRunId, privacy: .public)")
+                    taskState.applyRunEvent(messageId: msgId, event: .transportReconnected)
+                    scheduleChatRunReconciliation(messageId: msgId)
+                    continue
                 }
-                // If still no content, the gateway may have sent a premature final
-                // while the task is still running (e.g. intermediate sub-run ended).
-                // Skip the first empty final, but accept on the second — to avoid
-                // background tasks getting stuck in "running" state forever.
-                if finalText.isEmpty {
-                    emptyFinalCount += 1
-                    if emptyFinalCount < 2 {
-                        chatLog.warning("chat final has no content — ignoring premature final #\(emptyFinalCount), continuing to wait")
-                        continue
-                    }
-                    chatLog.warning("chat final has no content — accepting after \(emptyFinalCount) empty finals")
-                    let doneMsg = String(localized: "Task completed.", bundle: LanguageManager.shared.localizedBundle)
-                    finalText = doneMsg
-                }
-                receivedTerminalEvent = true
-                let wasBackground = backgroundTaskIds.contains(msgId)
-                updateMessage(msgId: msgId, content: finalText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
-                clearActiveStreamState(msgId)
-                if wasBackground {
-                    // Only emit the "background task completed" inline card when the
-                    // user is still looking at the SAME session the task ran in.
-                    // Otherwise we'd append it into whatever session is currently
-                    // active for this agent — and `persistChangedSessions` would
-                    // later save that orphan line into the wrong session's JSON
-                    // (the v1.1.49 / v1.1.50 cross-session "answer in another
-                    // conversation" bug). The real reply was already routed to
-                    // the right place via `updateMessage` above, so navigating
-                    // back to the original session shows the completed turn
-                    // naturally — no notification needed there either.
-                    if selectedSessionIdByAgent[currentAgentId] == taskSessionMap[msgId] {
-                        appendBackgroundNotification(agentId: currentAgentId, agentEmoji: currentAgentEmoji, completed: true, msgId: msgId)
-                    }
-                }
+                finishChatRun(
+                    messageId: msgId,
+                    outcome: .completed(text: finalText),
+                    activityEvents: accumulatedActivityEvents
+                )
                 break streamLoop
 
-            case .aborted(let eventRunId, _):
-                guard eventRunId == runId else { continue }
-                logFirstGatewayEventIfNeeded(kind: "aborted", eventRunId: eventRunId, eventSessionKey: nil)
+            case .aborted(let eventRunId, let eventSessionKey):
+                guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                recordRunEventDelivery(eventRunId)
+                guard let activeRun = taskState.run(for: msgId),
+                      !activeRun.phase.isTerminal else { continue }
+                logFirstGatewayEventIfNeeded(kind: "aborted", eventRunId: eventRunId, eventSessionKey: eventSessionKey)
                 chatLog.info("phase=chat_aborted runId=\(eventRunId, privacy: .public) elapsed_from_send_ms=\(Self.elapsedMillisecondsText(since: chatSendStart), privacy: .public) elapsed_after_ack_ms=\(Self.elapsedMillisecondsText(since: chatSendAckAt), privacy: .public)")
-                receivedTerminalEvent = true
-                if let current = findMessage(byId: msgId),
-                   current.taskStatus != .cancelled {
-                    updateMessage(msgId: msgId, content: "", status: .cancelled, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
-                    clearActiveStreamState(msgId)
-                }
+                finishCancelledChatRun(msgId)
                 break streamLoop
 
-            case .error(let eventRunId, _, let message):
-                guard eventRunId == runId else { continue }
-                logFirstGatewayEventIfNeeded(kind: "error", eventRunId: eventRunId, eventSessionKey: nil)
+            case .error(let eventRunId, let eventSessionKey, let message):
+                guard eventRunId == runId, eventSessionKey == sessionKey else { continue }
+                recordRunEventDelivery(eventRunId)
+                guard let activeRun = taskState.run(for: msgId),
+                      !activeRun.phase.isTerminal else { continue }
+                logFirstGatewayEventIfNeeded(kind: "error", eventRunId: eventRunId, eventSessionKey: eventSessionKey)
                 chatLog.warning("phase=chat_error runId=\(eventRunId, privacy: .public) message_len=\(message.count, privacy: .public) elapsed_from_send_ms=\(Self.elapsedMillisecondsText(since: chatSendStart), privacy: .public) elapsed_after_ack_ms=\(Self.elapsedMillisecondsText(since: chatSendAckAt), privacy: .public)")
-                receivedTerminalEvent = true
-                let errorContent = "⚠️ " + message
-                // Ensure UI update happens on MainActor
-                await MainActor.run {
-                    self.updateMessage(msgId: msgId, content: errorContent, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
-                    self.clearActiveStreamState(msgId)
-                }
+                finishChatRun(
+                    messageId: msgId,
+                    outcome: .failed(message: message),
+                    activityEvents: accumulatedActivityEvents
+                )
                 chatLog.warning("chat error: runId=\(runId), message=\(message)")
                 break streamLoop
-            }
-        }
 
-        // Stream ended without a terminal event — typically WebSocket dropped
-        // (sleep / network blip / gateway restart) and `scheduleReconnect()`
-        // finished our event continuations. Don't immediately declare the
-        // task dead: in many cases the run actually COMPLETED on the gateway
-        // during the disconnect window (LLM provider doesn't know about our
-        // client disconnect), and we can recover the final reply via
-        // `chat.history`.
-        //
-        // Strategy:
-        //   1. Give WS up to 15s to reconnect (usual reconnect window is
-        //      1-3s, longer on system wake from sleep)
-        //   2. Once back online, ask gateway for the last assistant
-        //      message in this session via `chat.history`
-        //   3. If history has more content than we streamed → use it,
-        //      mark `.completed` cleanly with no "interrupted" notice
-        //   4. If history has nothing or is shorter → fall through to
-        //      the legacy "Connection was interrupted" path
-        if !receivedTerminalEvent {
-            chatLog.warning("chat stream ended WITHOUT terminal event: runId=\(runId), accumulatedLen=\(accumulatedText.count) — attempting chat.history recovery")
-
-            // Wait briefly for the WS to come back. Poll every 0.5s
-            // rather than blocking on a single 30s sleep so we recover
-            // as soon as the gateway is reachable.
-            //
-            // 30s window: must strictly exceed our reconnect backoff
-            // ceiling (1+2+4+8 = 15s for the 4th attempt) plus the
-            // connect.challenge round-trip + auth (~1-3s). 15s exactly
-            // matched the backoff tail and lost the race on the 4th
-            // retry; 30s gives the handshake comfortable headroom and
-            // matches Anthropic SSE's typical reconnect tolerance.
-            var recovered: String? = nil
-            let recoveryDeadline = Date().addingTimeInterval(30)
-            while Date() < recoveryDeadline {
-                if gatewayClient.isConnected {
-                    recovered = await gatewayClient.fetchLastAssistantMessage(sessionKey: sessionKey)
-                    break
-                }
-                try? await Task.sleep(nanoseconds: 500_000_000)
-            }
-
-            if let current = findMessage(byId: msgId),
-               current.taskStatus != .completed && current.taskStatus != .cancelled && current.taskStatus != .timedOut {
-                // Prefer history if it returned strictly more content than
-                // what we managed to capture via streaming. The history
-                // endpoint returns the FULL final assistant turn if the
-                // run completed gateway-side, so this transparently
-                // covers the "system slept while LLM finished" case.
-                if let recoveredText = recovered, recoveredText.count > accumulatedText.count {
-                    chatLog.info("chat.history recovered \(recoveredText.count) chars (streamed only \(accumulatedText.count))")
-                    let recoveredVisibleText = Self.visibleAssistantText(
-                        from: recoveredText,
-                        committedWorkingText: committedWorkingText
+            case .transport(.reconnecting(let attempt, let maxAttempts)):
+                taskState.applyRunEvent(
+                    messageId: msgId,
+                    event: .transportReconnecting(attempt: attempt, maxAttempts: maxAttempts)
+                )
+            case .transport(.connected):
+                if let activeRun = taskState.run(for: msgId),
+                   !activeRun.phase.isTerminal,
+                   activeRun.runId == nil,
+                   !activeRun.cancellationRequested,
+                   submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts {
+                    submissionAttemptCount += 1
+                    let retryResult = await gatewayClient.chatSend(
+                        sessionKey: sessionKey,
+                        message: baseMessage,
+                        idempotencyKey: gatewayBinding.idempotencyKey,
+                        attachments: processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments
                     )
-                    updateMessage(msgId: msgId, content: recoveredVisibleText, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
-                } else {
-                    chatLog.warning("chat.history recovery failed or shorter than stream — marking interrupted")
-                    let disconnectNote = String(localized: "Connection was interrupted. The response may be incomplete.", bundle: LanguageManager.shared.localizedBundle)
-                    updateMessage(msgId: msgId, content: disconnectNote, status: .completed, agentId: currentAgentId, agentEmoji: currentAgentEmoji, activityEvents: accumulatedActivityEvents)
+                    guard let currentRun = taskState.run(for: msgId),
+                          !currentRun.phase.isTerminal,
+                          currentRun.gatewayBinding.idempotencyKey == gatewayBinding.idempotencyKey,
+                          currentRun.gatewayBinding.sessionKey == sessionKey else {
+                        break streamLoop
+                    }
+                    if case .acknowledged(let acknowledgedRunId) = retryResult {
+                        runId = acknowledgedRunId
+                        gatewayClient.bindEventSubscription(
+                            subscriberId: subscriberId,
+                            runId: acknowledgedRunId,
+                            sessionKey: sessionKey
+                        )
+                        taskState.bindGatewayRun(messageId: msgId, runId: acknowledgedRunId)
+                        if let acknowledgedRun = taskState.run(for: msgId) {
+                            registerInFlightRun(acknowledgedRun, agentEmoji: currentAgentEmoji)
+                        }
+                    }
                 }
+                taskState.applyRunEvent(messageId: msgId, event: .transportReconnected)
+                scheduleChatRunReconciliation(messageId: msgId)
+            case .transport(.recoveryExhausted(let attempts)):
+                taskState.applyRunEvent(messageId: msgId, event: .recoveryExhausted(attempts: attempts))
+            case .transport(.connecting):
+                taskState.applyRunEvent(messageId: msgId, event: .retryRequested)
+            case .transport(.disconnected):
+                continue
             }
         }
+
     }
 
     /// Move a foreground task to background, unlocking the input
     func moveTaskToBackground(_ msgId: UUID) {
-        guard foregroundTaskIds.contains(msgId) else { return }
-        foregroundTaskIds.remove(msgId)
-        backgroundTaskIds.insert(msgId)
+        guard let run = taskState.run(for: msgId),
+              !run.phase.isTerminal,
+              run.placement == .foreground else { return }
+        taskState.moveRunToBackground(messageId: msgId)
+        chatRunLifecycleCoordinator.cancelAutomaticBackground(messageId: msgId)
+        scheduleBackgroundRunHardDeadline(for: msgId)
         recomputeIsSendingMessage()
 
         let bgLabel = String(localized: "⏳ Task running in background...", bundle: LanguageManager.shared.localizedBundle)
@@ -926,13 +1173,12 @@ extension DashboardViewModel {
             }
         }
 
-        // Fall back to the inactive stash. Reachable when the auto-bg
-        // timer fires within the ~1s window between the user switching
-        // sessions and `.onDisappear` cancelling the timer — without
+        // Fall back to the inactive stash. Reachable when the auto-background
+        // deadline fires as the user is switching sessions — without
         // this branch the placeholder keeps showing "Thinking…" forever
         // when the user navigates back, even though the task is
         // already tracked as background internally.
-        if let sessionId = taskSessionMap[msgId],
+        if let sessionId = taskState.run(for: msgId)?.identity.sessionId,
            let idx = chatMessagesByInactiveSession[sessionId]?.firstIndex(where: { $0.id == msgId }) {
             let msg = chatMessagesByInactiveSession[sessionId]![idx]
             let content = msg.content.isEmpty ? bgLabel : msg.content
@@ -943,38 +1189,47 @@ extension DashboardViewModel {
         }
     }
 
-    /// Cancel an in-progress chat task.
-    /// Sends chat.abort via WebSocket and terminates the event stream.
+    /// Record cancellation intent separately from the gateway terminal state.
+    /// A run that may already have been delivered remains recoverable until
+    /// `chat.abort` is acknowledged or a terminal run event arrives.
     func cancelChat(_ msgId: UUID) {
-        // 1. Look up runId and send abort via gateway WebSocket.
-        //    Build sessionKey from the TASK's bound (agent, session), not
-        //    the currently-active one — callers like cancelTasks(inSession:)
-        //    pass msgIds from sessions that may no longer be selected.
-        let runId = activeChatRuns[msgId]
-        if let sessionKey = taskSessionKeyOverride[msgId] {
-            Task {
-                _ = await gatewayClient.abortChat(sessionKey: sessionKey, runId: runId)
-            }
-        } else {
+        guard let run = taskState.run(for: msgId), !run.phase.isTerminal else {
             chatLog.warning("cancelChat: no session bound to msgId \(msgId.uuidString.prefix(8)) — abort skipped")
+            return
+        }
+        taskState.applyRunEvent(messageId: msgId, event: .cancellationRequested)
+
+        if case .preparing = run.phase {
+            finishCancelledChatRun(msgId)
+            return
         }
 
-        // 2. Terminate the event stream for this message
-        gatewayClient.unsubscribe(subscriberId: msgId.uuidString)
-        activeChatRuns.removeValue(forKey: msgId)
-
-        // 3. Update message status to cancelled — message may live in
-        // chatMessagesByAgent (visible session) or chatMessagesByInactiveSession
-        // (background-streaming session). updateMessage handles both.
-        if let msg = findMessage(byId: msgId) {
-            updateMessage(msgId: msgId, content: msg.content,
-                          status: .cancelled,
-                          agentId: msg.agentId ?? taskAgentMap[msgId] ?? selectedAgentId,
-                          agentEmoji: msg.agentEmoji)
+        chatRunLifecycleCoordinator.scheduleCancellation(messageId: msgId) { [weak self] in
+            await self?.attemptBackendCancellation(messageId: msgId)
         }
+    }
 
-        // 4. Cleanup tracking
-        clearTaskTracking(msgId)
+    private func attemptBackendCancellation(messageId: UUID) async {
+        guard let run = taskState.run(for: messageId),
+              run.cancellationRequested,
+              !run.phase.isTerminal else { return }
+
+        let result = await gatewayClient.abortChat(
+            sessionKey: run.gatewayBinding.sessionKey,
+            runId: run.expectedRunId
+        )
+        guard result.isConfirmed,
+              taskState.run(for: messageId)?.cancellationRequested == true else {
+            if taskState.run(for: messageId)?.cancellationRequested == true {
+                scheduleChatRunReconciliation(messageId: messageId)
+            }
+            return
+        }
+        finishCancelledChatRun(messageId)
+    }
+
+    func finishCancelledChatRun(_ messageId: UUID) {
+        finishChatRun(messageId: messageId, outcome: .cancelled)
     }
 
     /// Filter out system prompt lines from openclaw agent output

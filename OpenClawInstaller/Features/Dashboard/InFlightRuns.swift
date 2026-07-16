@@ -1,8 +1,6 @@
 //
 //  InFlightRuns.swift
 //  In-flight run crash-recovery persistence extracted from DashboardViewModel.
-//  P1 refactor: file split only, no behavior change.
-//  (activityToken stored property stays in the main class.)
 //
 
 import Foundation
@@ -13,9 +11,9 @@ extension DashboardViewModel {
     // MARK: - In-Flight Run Persistence
 
     /// Persisted record of an in-flight chat run, written on chat.send
-    /// success and removed on terminal event (completed/cancelled/error/
-    /// timeout) or stream cleanup. Survives app crash / force-quit so
-    /// the next launch can attempt recovery via `chat.history`.
+    /// success and removed only on a confirmed terminal outcome or explicit
+    /// cancellation. Survives app crash / force-quit so the next launch can
+    /// rehydrate the typed run and use the shared reconciler.
     ///
     /// Without this, killing the app mid-task leaves the placeholder
     /// stuck at `.loading` or `.background` on disk forever, with no
@@ -24,6 +22,7 @@ extension DashboardViewModel {
     /// background…" UI for a task that's actually long since finished.
     private struct PersistedInFlightRun: Codable {
         let runId: String
+        let deliveryAcknowledged: Bool?
         let sessionKey: String
         let msgId: UUID
         let sessionId: UUID
@@ -60,15 +59,20 @@ extension DashboardViewModel {
         }
     }
 
-    /// Append a fresh in-flight record. Called from `sendChatMessage`
-    /// right after `chat.send` returns a runId.
-    func registerInFlightRun(runId: String, sessionKey: String, msgId: UUID,
-                                      sessionId: UUID, agentId: String, agentEmoji: String?) {
+    /// Append a fresh in-flight record after `chat.send` is acknowledged or its
+    /// delivery becomes uncertain. Both cases retain one stable run identity.
+    func registerInFlightRun(_ run: ChatRunState, agentEmoji: String?) {
         var runs = readInFlightRuns()
+        runs.removeAll { $0.msgId == run.identity.messageId }
         runs.append(PersistedInFlightRun(
-            runId: runId, sessionKey: sessionKey, msgId: msgId,
-            sessionId: sessionId, agentId: agentId, agentEmoji: agentEmoji,
-            startedAt: Date()
+            runId: run.expectedRunId,
+            deliveryAcknowledged: run.runId != nil,
+            sessionKey: run.gatewayBinding.sessionKey,
+            msgId: run.identity.messageId,
+            sessionId: run.identity.sessionId,
+            agentId: run.identity.agentId,
+            agentEmoji: agentEmoji,
+            startedAt: run.gatewayBinding.startedAt
         ))
         writeInFlightRuns(runs)
     }
@@ -81,30 +85,17 @@ extension DashboardViewModel {
         writeInFlightRuns(runs)
     }
 
-    /// On app launch, look at leftover entries in `in-flight-runs.json`
-    /// — they represent tasks the user started but the app died before
-    /// they finished. For each, ask the gateway for the session's last
-    /// assistant message (via `chat.history`); if found, update the
-    /// disk-side placeholder to `.completed` so the user sees the
-    /// recovered reply when they next open the session. If history
-    /// has nothing, mark `.timedOut` with an explanatory note.
-    ///
-    /// Runs as a background Task after WS connects (waits up to 30s).
-    /// Doesn't block init or the chat UI.
+    /// Rehydrate runs left behind by a crash and hand them to the same
+    /// run-specific reconciler used by live reconnects. `agent.wait` supplies
+    /// the terminal identity; timestamped `chat.history` supplies only content
+    /// that falls inside that run's window. Multiple runs in one session are
+    /// therefore recoverable independently without a latest-message heuristic.
     func recoverInFlightRunsOnLaunch() {
         let allEntries = readInFlightRuns()
         guard !allEntries.isEmpty else { return }
 
-        // Freshness guard: anything older than 1 hour is presumed to
-        // be either truly lost (gateway no longer running it / no
-        // longer in history) or worse — its sessionKey may have been
-        // reused since by other channels (DingTalk / Weixin share the
-        // same `agent:X:<sid>` namespace). Recovering against a stale
-        // entry would attribute someone ELSE's reply to our crashed
-        // task. Safer to just mark these timed out and let the user
-        // re-send.
         let now = Date()
-        let cutoff = now.addingTimeInterval(-3600)
+        let cutoff = now.addingTimeInterval(-ChatRunLifetimePolicy.backgroundHardLimit)
         var fresh: [PersistedInFlightRun] = []
         var stale: [PersistedInFlightRun] = []
         for entry in allEntries {
@@ -115,61 +106,23 @@ extension DashboardViewModel {
             }
         }
 
-        // Multi-entry-per-session guard: if the user fired off N sends
-        // in the same session before the crash, fetchLastAssistantMessage
-        // returns ONE reply (the most recent one gateway completed) but
-        // we'd otherwise attribute it to all N placeholders. Recover
-        // only the LATEST entry per sessionId; mark earlier ones timed
-        // out (their reply, if any, is no longer addressable from
-        // history without per-runId metadata).
-        var latestBySession: [UUID: PersistedInFlightRun] = [:]
-        var supersededByLater: [PersistedInFlightRun] = []
-        for entry in fresh {
-            if let existing = latestBySession[entry.sessionId] {
-                if entry.startedAt > existing.startedAt {
-                    supersededByLater.append(existing)
-                    latestBySession[entry.sessionId] = entry
-                } else {
-                    supersededByLater.append(entry)
-                }
-            } else {
-                latestBySession[entry.sessionId] = entry
-            }
-        }
-        let recoverable = Array(latestBySession.values)
-        let unrecoverable = stale + supersededByLater
-
-        chatLog.info("In-flight recovery: \(recoverable.count) recoverable, \(unrecoverable.count) marked timed-out (\(stale.count) stale + \(supersededByLater.count) superseded)")
+        chatLog.info("In-flight recovery: \(fresh.count) recoverable, \(stale.count) stale")
 
         Task { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
 
-            // Stale + superseded: no recovery attempt, straight to timedOut.
-            for entry in unrecoverable {
+            for entry in stale {
                 await self.markEntryTimedOut(entry, reason: .stale)
+                self.unregisterInFlightRun(msgId: entry.msgId)
             }
-
-            // Wait for WS for the recoverable batch.
-            let deadline = Date().addingTimeInterval(30)
-            while !self.gatewayClient.isConnected && Date() < deadline {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-            }
-
-            for entry in recoverable {
-                await self.recoverSingleInFlightRun(entry)
-            }
-
-            // Clear the file — recovered or not, we tried.
-            await MainActor.run {
-                self.writeInFlightRuns([])
+            for entry in fresh {
+                self.recoverSingleInFlightRun(entry)
             }
         }
     }
 
     private enum RecoveryFailReason {
-        case stale            // > 1h old, didn't try history
-        case superseded       // newer entry exists for same session
-        case noHistory        // history fetch returned nothing useful
+        case stale
     }
 
     private func markEntryTimedOut(_ entry: PersistedInFlightRun, reason: RecoveryFailReason) async {
@@ -185,25 +138,13 @@ extension DashboardViewModel {
             switch reason {
             case .stale:
                 noteText = "Task started over an hour ago and result is no longer recoverable. Please re-send."
-            case .superseded:
-                noteText = "A more recent task in the same session was recovered instead. Please re-send if needed."
-            case .noHistory:
-                noteText = "Task was interrupted by app restart. Result could not be recovered."
             }
             let note = String(localized: String.LocalizationValue(noteText), bundle: LanguageManager.shared.localizedBundle)
             let content = msg.content.isEmpty
                 ? note
                 : msg.content + "\n\n---\n> ⚠️ " + note
 
-            session.messages[idx] = ChatMessage(
-                role: .assistant,
-                content: content,
-                agentId: msg.agentId,
-                agentEmoji: msg.agentEmoji,
-                taskStatus: .timedOut,
-                id: entry.msgId,
-                timestamp: msg.timestamp
-            )
+            session.messages[idx] = msg.withTaskStatus(.timedOut, content: content)
             session.updatedAt = Date()
             self.chatSessionStore.saveSession(session)
 
@@ -216,66 +157,46 @@ extension DashboardViewModel {
         }
     }
 
-    private func recoverSingleInFlightRun(_ entry: PersistedInFlightRun) async {
-        guard var session = chatSessionStore.loadSession(id: entry.sessionId),
-              let idx = session.messages.firstIndex(where: { $0.id == entry.msgId }) else {
+    private func recoverSingleInFlightRun(_ entry: PersistedInFlightRun) {
+        guard let session = chatSessionStore.loadSession(id: entry.sessionId),
+              let message = session.messages.first(where: { $0.id == entry.msgId }) else {
             chatLog.warning("recovery: session \(entry.sessionId) or msg \(entry.msgId) not found, skipping")
+            unregisterInFlightRun(msgId: entry.msgId)
             return
         }
 
-        let msg = session.messages[idx]
-        // Only touch placeholders that are still in non-terminal state.
-        // If the user already saw it complete in a previous session
-        // (somehow), don't overwrite.
-        guard msg.taskStatus == .loading || msg.taskStatus == .background else {
+        guard message.taskStatus == .loading || message.taskStatus == .background else {
+            unregisterInFlightRun(msgId: entry.msgId)
             return
         }
 
-        let recovered = await gatewayClient.fetchLastAssistantMessage(sessionKey: entry.sessionKey)
+        rehydratePersistedRun(entry, message: message)
+        scheduleBackgroundRunHardDeadline(for: entry.msgId)
+        scheduleChatRunReconciliation(messageId: entry.msgId)
+    }
 
-        await MainActor.run {
-            let newStatus: ChatMessage.TaskStatus
-            let newContent: String
+    private func rehydratePersistedRun(
+        _ entry: PersistedInFlightRun,
+        message: ChatMessage
+    ) {
+        guard taskState.run(for: entry.msgId) == nil else { return }
 
-            if let text = recovered, !text.isEmpty, text.count > msg.content.count {
-                // History has more content than the disk placeholder —
-                // the run completed gateway-side while we were dead.
-                newStatus = .completed
-                newContent = text
-                chatLog.info("recovery: session \(entry.sessionId.uuidString.prefix(8)) msg \(entry.msgId.uuidString.prefix(8)) → restored \(text.count) chars")
-            } else {
-                // Nothing useful — mark timed out with note so the user
-                // knows the previous run was lost and can resend.
-                newStatus = .timedOut
-                let note = String(localized: "Task was interrupted by app restart. Result could not be recovered.",
-                                  bundle: LanguageManager.shared.localizedBundle)
-                newContent = msg.content.isEmpty
-                    ? note
-                    : msg.content + "\n\n---\n> ⚠️ " + note
-                chatLog.warning("recovery: session \(entry.sessionId.uuidString.prefix(8)) msg \(entry.msgId.uuidString.prefix(8)) — no usable history, marked timed out")
-            }
-
-            session.messages[idx] = ChatMessage(
-                role: .assistant,
-                content: newContent,
-                agentId: msg.agentId,
-                agentEmoji: msg.agentEmoji,
-                taskStatus: newStatus,
-                id: entry.msgId,
-                timestamp: msg.timestamp
-            )
-            session.updatedAt = Date()
-            self.chatSessionStore.saveSession(session)
-
-            // Mirror into in-memory state if this session happens to be
-            // currently loaded for an agent — otherwise the user would
-            // see the stale state until they switched away and back.
-            if self.selectedSessionIdByAgent[entry.agentId] == entry.sessionId,
-               var messages = self.chatMessagesByAgent[entry.agentId],
-               let memIdx = messages.firstIndex(where: { $0.id == entry.msgId }) {
-                messages[memIdx] = session.messages[idx]
-                self.chatMessagesByAgent[entry.agentId] = messages
-            }
-        }
+        taskState.registerRun(ChatRunState(
+            identity: ChatRunIdentity(
+                messageId: entry.msgId,
+                agentId: entry.agentId,
+                sessionId: entry.sessionId
+            ),
+            gatewayBinding: ChatGatewayRunBinding(
+                sessionKey: entry.sessionKey,
+                idempotencyKey: entry.runId,
+                startedAt: entry.startedAt,
+                runId: entry.deliveryAcknowledged == false ? nil : entry.runId
+            ),
+            startedAt: entry.startedAt,
+            placement: .background,
+            phase: .reconciling
+        ))
+        recomputeIsSendingMessage()
     }
 }

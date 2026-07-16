@@ -24,6 +24,7 @@ class DashboardViewModel: ObservableObject {
     var chatState: ChatRuntimeState { chatViewModel.runtimeState }
     var taskState: TaskActivityState { chatViewModel.taskState }
     var sessionState: SessionNavigationState { sessionNavigationViewModel.state }
+    let chatRunLifecycleCoordinator = ChatRunLifecycleCoordinator()
     @Published var openclawService: OpenClawService
     @Published var settings: AppSettingsManager
     @Published var systemEnvironment: SystemEnvironment
@@ -113,10 +114,6 @@ class DashboardViewModel: ObservableObject {
     // Gateway WebSocket client for chat
     @Published var gatewayClient: GatewayClient
 
-    // Maps msgId → runId for active WebSocket chat runs
-    var activeChatRuns: [UUID: String] = [:]
-    var taskSessionKeyOverride: [UUID: String] = [:]
-
     init(
         openclawService: OpenClawService,
         settings: AppSettingsManager,
@@ -194,11 +191,6 @@ class DashboardViewModel: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
-        chatViewModel.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
-
         sessionNavigationViewModel.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -237,6 +229,17 @@ class DashboardViewModel: ObservableObject {
         skillsViewModel.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        // Transport recovery is a gateway-wide lifecycle, so one observer
+        // wakes every unresolved run, including crash-recovered runs that do
+        // not own a live event subscription.
+        gatewayClient.$connectionState
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] state in
+                self?.handleGatewayConnectionState(state)
+            }
             .store(in: &cancellables)
 
         // Initialize budget rules mirror from BudgetService
@@ -300,7 +303,7 @@ class DashboardViewModel: ObservableObject {
         //    `createNewSession` / `promoteNextSession` (since those mutate
         //    `selectedSessionIdByAgent` dict in-place — SwiftUI doesn't
         //    publish per-key dict mutations reliably).
-        Publishers.CombineLatest(sessionState.$selectedAgentId, taskState.$foregroundTaskIds)
+        Publishers.CombineLatest(sessionState.$selectedAgentId, taskState.$runsByMessageId)
             .receive(on: RunLoop.main)
             .sink { [weak self] agentId, _ in
                 guard let self = self else { return }
@@ -328,8 +331,8 @@ class DashboardViewModel: ObservableObject {
         //      - stream callback delivery delayed when receiving deltas
         //    Energy cost is the trade-off — only held while tasks are
         //    actually running, released the moment all tasks finish.
-        Publishers.CombineLatest(taskState.$foregroundTaskIds, taskState.$backgroundTaskIds)
-            .map { !$0.isEmpty || !$1.isEmpty }
+        taskState.$runsByMessageId
+            .map { runs in runs.values.contains(where: \.keepsProcessActive) }
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] anyActive in
@@ -408,15 +411,6 @@ class DashboardViewModel: ObservableObject {
     private var activityToken: NSObjectProtocol?
 
     // MARK: - Tunable chat thresholds (UserDefaults-backed)
-
-    /// Seconds of zero WebSocket traffic before declaring a task timed
-    /// out. Default 3600 (1 hour). Override with
-    /// `defaults write com.cc.OpenClawInstaller chat.inactivityTimeoutSeconds <N>`
-    /// (a settings UI can come later).
-    var inactivityTimeoutSeconds: TimeInterval {
-        let raw = UserDefaults.standard.integer(forKey: "chat.inactivityTimeoutSeconds")
-        return raw > 0 ? TimeInterval(raw) : 3600
-    }
 
     /// Seconds an in-flight foreground task spins before the
     /// ThinkingIndicator auto-flips it to background (unlocking the input).
@@ -1025,8 +1019,8 @@ class DashboardViewModel: ObservableObject {
         //
         // IMPORTANT: do NOT `stripStaleLoadingPlaceholders` an in-memory
         // unstash. The strip would remove a still-running .loading + ""
-        // placeholder, but the task IS still alive (foregroundTaskIds /
-        // taskSessionMap still have its msgId). Once stripped, the next
+        // placeholder, but the task IS still alive in runsByMessageId.
+        // Once stripped, the next
         // stream event has nowhere to land — findMessage returns nil and
         // the output is silently dropped. The disk path strips because
         // we can't tell a live placeholder from a dead one left over by
@@ -1291,8 +1285,8 @@ class DashboardViewModel: ObservableObject {
         let wasActive = selectedSessionIdByAgent[agentId] == sessionId
         // Cancel any in-flight task tied to this session BEFORE we drop the
         // file — without this, the run keeps streaming on the gateway with
-        // nowhere to land (foregroundTaskIds / taskSessionMap entries
-        // become orphans, isSendingMessage stays true forever).
+        // nowhere to land (its typed run would become an orphan and
+        // isSendingMessage would stay true forever).
         cancelTasks(inSession: sessionId)
         chatSessionStore.deleteSession(id: sessionId)
         // Drop any stashed in-memory copy too. Otherwise the entry sits in
@@ -1578,25 +1572,10 @@ class DashboardViewModel: ObservableObject {
         set { taskState.isSendingMessage = newValue }
     }
     var foregroundTaskIds: Set<UUID> {
-        get { taskState.foregroundTaskIds }
-        set { taskState.foregroundTaskIds = newValue }
+        taskState.foregroundTaskIds
     }
     var backgroundTaskIds: Set<UUID> {
-        get { taskState.backgroundTaskIds }
-        set { taskState.backgroundTaskIds = newValue }
-    }
-    var taskAgentMap: [UUID: String] {
-        get { taskState.taskAgentMap }
-        set { taskState.taskAgentMap = newValue }
-    }
-    /// msgId → the sessionId the task was started under. Used to (a) route
-    /// gateway sessionKey on cancel and (b) decide which UI session "owns"
-    /// the spinner / cancel affordance. Both populated together with
-    /// `taskAgentMap` in `sendChatMessage`; both cleaned together on any
-    /// terminal event (completed / cancelled / timed-out / error).
-    var taskSessionMap: [UUID: UUID] {
-        get { taskState.taskSessionMap }
-        set { taskState.taskSessionMap = newValue }
+        taskState.backgroundTaskIds
     }
 
     /// Messages for sessions the user has navigated AWAY from while a
@@ -1630,12 +1609,12 @@ class DashboardViewModel: ObservableObject {
     /// — across all its sessions. Used by the agent picker to badge agents
     /// that are working in the background.
     var isCurrentAgentSending: Bool {
-        foregroundTaskIds.contains(where: { taskAgentMap[$0] == selectedAgentId })
+        taskState.hasForegroundTask(forAgent: selectedAgentId)
     }
 
     /// Check if a specific agent has a foreground task running (any session).
     func isAgentExecuting(_ agentId: String) -> Bool {
-        foregroundTaskIds.contains(where: { taskAgentMap[$0] == agentId })
+        taskState.hasForegroundTask(forAgent: agentId)
     }
 
     /// Check if a specific session has a foreground task running. Used by
@@ -1643,7 +1622,7 @@ class DashboardViewModel: ObservableObject {
     /// tasks INTENTIONALLY unlock the input — moving to bg is the user
     /// saying "don't block me on this").
     func hasForegroundTask(inSession sessionId: UUID) -> Bool {
-        foregroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
+        taskState.hasForegroundTask(inSession: sessionId)
     }
 
     /// Check if a specific session has ANY in-flight task — foreground OR
@@ -1658,12 +1637,11 @@ class DashboardViewModel: ObservableObject {
     ///   - `deleteSession` cancel sweep — both kinds become orphans on
     ///     the gateway if we don't cancel them
     func hasInflightTask(inSession sessionId: UUID) -> Bool {
-        foregroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
-            || backgroundTaskIds.contains(where: { taskSessionMap[$0] == sessionId })
+        taskState.hasInflightTask(inSession: sessionId)
     }
 
     var inflightSessionIds: Set<UUID> {
-        Set((foregroundTaskIds.union(backgroundTaskIds)).compactMap { taskSessionMap[$0] })
+        taskState.inflightSessionIds
     }
 
     func consumeSuppressNextSessionSwitchBottomScroll() -> Bool {
@@ -1674,8 +1652,8 @@ class DashboardViewModel: ObservableObject {
 
     /// Recompute `isSendingMessage` based on whether the currently visible
     /// session has any foreground task in flight. Must be called whenever
-    /// `foregroundTaskIds`, `selectedAgentId`, `selectedSessionIdByAgent[agentId]`,
-    /// or `taskSessionMap` changes — otherwise the input lock won't track
+    /// `runsByMessageId`, `selectedAgentId`, or
+    /// `selectedSessionIdByAgent[agentId]` changes — otherwise the input lock won't track
     /// the visible session correctly.
     func recomputeIsSendingMessage() {
         guard let sid = selectedSessionIdByAgent[selectedAgentId] else {
@@ -1701,20 +1679,81 @@ class DashboardViewModel: ObservableObject {
         chatState.clearActiveStreamState(msgId)
     }
 
-    /// Single-point removal of every piece of per-task tracking state.
-    /// Every task-exit path must run through this — a partial cleanup
-    /// leaves stale taskSessionMap/taskAgentMap entries that keep
-    /// isSendingMessage and hasInflightTask(inSession:) wrong until the
-    /// next app launch.
+    /// Single-point removal of runtime presentation plus the typed run state.
     func clearTaskTracking(_ msgId: UUID) {
-        activeChatRuns.removeValue(forKey: msgId)
-        taskSessionKeyOverride.removeValue(forKey: msgId)
+        chatRunLifecycleCoordinator.finish(messageId: msgId)
         clearActiveStreamState(msgId)
-        foregroundTaskIds.remove(msgId)
-        backgroundTaskIds.remove(msgId)
-        taskAgentMap.removeValue(forKey: msgId)
-        taskSessionMap.removeValue(forKey: msgId)
+        taskState.removeRun(messageId: msgId)
         recomputeIsSendingMessage()
+    }
+
+    func scheduleAutomaticBackground(for messageId: UUID) {
+        guard let run = taskState.run(for: messageId),
+              let seconds = autoBackgroundAfterSeconds else {
+            chatRunLifecycleCoordinator.cancelAutomaticBackground(messageId: messageId)
+            return
+        }
+        let deadline = run.startedAt.addingTimeInterval(TimeInterval(seconds))
+        chatRunLifecycleCoordinator.scheduleAutomaticBackground(
+            messageId: messageId,
+            deadline: deadline
+        ) { [weak self] in
+            self?.moveTaskToBackground(messageId)
+        }
+    }
+
+    /// Retry the shared gateway transport after bounded automatic recovery
+    /// was exhausted. The clicked row only authorizes the command; every
+    /// unresolved run transitions together and reconciles after one connect.
+    func retryChatConnection(for messageId: UUID) {
+        guard let run = taskState.run(for: messageId) else { return }
+        switch run.phase {
+        case .recoveryUnavailable:
+            guard taskState.requestRunReconciliationRetry(messageId: messageId) else { return }
+            scheduleChatRunReconciliation(messageId: messageId)
+
+        case .connectionLost:
+            guard taskState.requestTransportRecoveryRetry() > 0 else { return }
+            gatewayClient.connect()
+
+        default:
+            return
+        }
+    }
+
+    private func handleGatewayConnectionState(_ state: GatewayConnectionState) {
+        switch state {
+        case .connected:
+            taskState.applyRunEventToActiveRuns(.transportReconnected)
+            let conversationRunIds: [UUID] = taskState.runsByMessageId.values.compactMap { run in
+                guard !run.phase.isTerminal,
+                      run.executionKind == .conversation,
+                      !gatewayClient.hasEventSubscription(
+                          subscriberId: run.identity.messageId.uuidString
+                      ) else { return nil }
+                return run.identity.messageId
+            }
+            for messageId in conversationRunIds {
+                scheduleChatRunReconciliation(messageId: messageId)
+            }
+
+        case .reconnecting(let attempt, let maximum):
+            taskState.applyRunEventToActiveRuns(
+                .transportReconnecting(attempt: attempt, maxAttempts: maximum)
+            )
+
+        case .recoveryExhausted(let attempts):
+            taskState.applyRunEventToActiveRuns(.recoveryExhausted(attempts: attempts))
+
+        case .disconnected:
+            guard taskState.runsByMessageId.values.contains(where: { !$0.phase.isTerminal }) else {
+                return
+            }
+            taskState.applyRunEventToActiveRuns(.recoveryExhausted(attempts: 0))
+
+        case .connecting:
+            break
+        }
     }
 
     /// Cancel every task (fg + bg) currently bound to `sessionId`. Only
@@ -1726,12 +1765,10 @@ class DashboardViewModel: ObservableObject {
     /// the user comes back.
     ///
     /// Includes `.background` tasks: they're also bound to a sessionId
-    /// via `taskSessionMap`, and if the session is deleted they'd become
+    /// in the run registry, and if the session is deleted they'd become
     /// gateway-side orphans the same as foreground ones.
     func cancelTasks(inSession sessionId: UUID) {
-        let fg = foregroundTaskIds.filter { taskSessionMap[$0] == sessionId }
-        let bg = backgroundTaskIds.filter { taskSessionMap[$0] == sessionId }
-        for msgId in fg.union(bg) {
+        for msgId in taskState.runIds(inSession: sessionId) {
             cancelChat(msgId)
         }
     }
@@ -1748,7 +1785,7 @@ class DashboardViewModel: ObservableObject {
                 return msg
             }
         }
-        if let sessionId = taskSessionMap[msgId],
+        if let sessionId = taskState.run(for: msgId)?.identity.sessionId,
            let msg = chatMessagesByInactiveSession[sessionId]?.first(where: { $0.id == msgId }) {
             return msg
         }
