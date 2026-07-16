@@ -6,24 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.69</title>
-      <sparkle:version>77</sparkle:version>
-      <sparkle:shortVersionString>1.1.69</sparkle:shortVersionString>
+      <title>Version 1.1.70</title>
+      <sparkle:version>78</sparkle:version>
+      <sparkle:shortVersionString>1.1.70</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.69</h2>
+        <h2>OpenClaw Helper 1.1.70</h2>
         <ul>
-          <li>改进设置页刷新体验，刷新过程不再阻塞主要配置操作，折叠内容和设置外壳的展示状态更稳定。</li>
-          <li>优化模型供应商配置流程，区分运行时状态和界面编辑状态，提升自定义供应商、自由配置和自动保存的可靠性。</li>
-          <li>增强聊天流式状态管理，补充流式事件、取消、工作状态和活动摘要的状态边界，降低发送过程中的状态串扰。</li>
-          <li>补齐新功能多语言资源覆盖，减少新增界面文案缺失或回退到原始 key 的情况。</li>
-          <li>优化工作区右侧检查器标题栏交互，将标题栏 accessory 行为隔离到独立边界，降低对主工作区布局的影响。</li>
+          <li>增强聊天任务在网关断线与重连后的恢复能力：引入类型化连接状态、运行状态协调与请求注册表，避免重复发送和任务错配；完善取消、重试、后台任务恢复及状态提示；隔离聊天时间线状态，减少无关 SwiftUI 重绘并提升长对话稳定性。</li>
         </ul>
       ]]></description>
-      <pubDate>Thu, 09 Jul 2026 17:44:31 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.69/GetClawHub.dmg"
-                 length="236138912"
+      <pubDate>Thu, 16 Jul 2026 18:04:24 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.70/GetClawHub.dmg"
+                 length="238238156"
                  type="application/octet-stream"
-                 sparkle:edSignature="lSDlnkaS2Ev8sOlh+qTX0jtwdbUo8lYEvPNWrG0hf67E7pNcuY/fRXsCdmLzq37cDOP4IRJVQABcDS/F8cw2Aw==" />
+                 sparkle:edSignature="1yTY0beVOGrbL4iZJsiNrNSceX7YLMLOCehVCdib8RpJ+qdrewHnqnspqvu2BAwLeADpuZI4PnLoR8prZmeSBQ==" />
     </item>
   </channel>
 </rss>
