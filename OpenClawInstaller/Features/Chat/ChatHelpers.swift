@@ -290,6 +290,14 @@ extension DashboardViewModel {
 
         var accumulatedText = ""
         for await event in eventStream {
+            // Adopt the gateway-assigned run id from the first session-matched event
+            // when the ack did not bind one (the gateway never reuses our idempotency
+            // key as the run id). recordImageRunEventDelivery performs the real bind.
+            if taskState.run(for: msgId)?.runId == nil,
+               let eventSessionKey = event.sessionKey, eventSessionKey == sessionKey,
+               let eventRunId = event.runId, eventRunId != runId {
+                runId = eventRunId
+            }
             switch event {
             case .delta(let eventRunId, let eventSessionKey, let text):
                 guard eventRunId == runId, eventSessionKey == sessionKey, !text.isEmpty else { continue }
@@ -966,6 +974,16 @@ extension DashboardViewModel {
         }
 
         streamLoop: for await event in eventStream {
+            // The gateway assigns its own run id (never our idempotency key). If the
+            // chat.send ack did not already bind one, adopt it from the first event
+            // that belongs to this run's session so the per-case run-id guards below
+            // match. Until then the hub routes this run by session. The authoritative
+            // bind into taskState/hub still happens in recordRunEventDelivery.
+            if taskState.run(for: msgId)?.runId == nil,
+               let eventSessionKey = event.sessionKey, eventSessionKey == sessionKey,
+               let eventRunId = event.runId, eventRunId != runId {
+                runId = eventRunId
+            }
 
             switch event {
             case .activity(let eventRunId, let eventSessionKey, let event):
