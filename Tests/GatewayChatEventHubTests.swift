@@ -101,6 +101,72 @@ private enum GatewayChatEventHubTests {
             "a stalled consumer must not create an unbounded event queue"
         )
 
+        // Regression (v1.1.70 "send but no reply received"): a subscription is
+        // created with the client idempotency key before the gateway's own run id
+        // is known. Events carry the gateway-assigned run id, which never equals
+        // the idempotency key, so the old strict run-id gate dropped every reply.
+        // A provisional subscription must be routed by session until its real run
+        // id is bound.
+        let provisional = hub.stream(
+            subscriberId: "provisional",
+            runId: "client-idempotency-key",
+            sessionKey: "session-P"
+        )
+        var provisionalIterator = provisional.makeAsyncIterator()
+        hub.broadcast(.delta(runId: "gateway-assigned-run", sessionKey: "session-P", text: "reply"))
+        // A different session must still be rejected even while provisional.
+        hub.broadcast(.delta(runId: "gateway-assigned-run", sessionKey: "other-session", text: "leak"))
+        guard let provisionalEvent = await provisionalIterator.next(),
+              case .delta(let provisionalRunId, _, let provisionalText) = provisionalEvent else {
+            throw TestFailure.assertion("a provisional subscription must receive gateway-run-id events by session")
+        }
+        try expect(
+            provisionalRunId == "gateway-assigned-run" && provisionalText == "reply",
+            "provisional routing must deliver the gateway-assigned run id without requiring the idempotency key"
+        )
+
+        // After binding the real run id, matching becomes strict again: a foreign
+        // run in the same session must be dropped, the bound run's final delivered.
+        hub.bindRun(subscriberId: "provisional", runId: "gateway-assigned-run", sessionKey: "session-P")
+        hub.broadcast(.delta(runId: "foreign-run", sessionKey: "session-P", text: "should-not-arrive"))
+        hub.broadcast(.final_(runId: "gateway-assigned-run", sessionKey: "session-P", text: "done"))
+        guard let boundEvent = await provisionalIterator.next(),
+              case .final_(let boundRunId, _, let boundText) = boundEvent else {
+            throw TestFailure.assertion("after binding, only the bound run's events may be delivered")
+        }
+        try expect(
+            boundRunId == "gateway-assigned-run" && boundText == "done",
+            "post-bind strict matching must drop foreign runs while delivering the bound run"
+        )
+        let provisionalTail = await provisionalIterator.next()
+        try expect(provisionalTail == nil, "the bound run's final must finish the stream")
+
+        // Regression (v1.1.70 production root cause): the gateway canonicalizes
+        // session keys to lowercase while the client derives uppercase-UUID keys.
+        // A case-sensitive session gate dropped every reply. Session matching
+        // must be case-insensitive.
+        let caseStream = hub.stream(
+            subscriberId: "case-sub",
+            runId: "case-run",
+            sessionKey: "agent:main:ABCDEF12-3456-7890-ABCD-EF1234567890"
+        )
+        var caseIterator = caseStream.makeAsyncIterator()
+        hub.bindRun(
+            subscriberId: "case-sub",
+            runId: "case-run",
+            sessionKey: "agent:main:ABCDEF12-3456-7890-ABCD-EF1234567890"
+        )
+        hub.broadcast(.final_(
+            runId: "case-run",
+            sessionKey: "agent:main:abcdef12-3456-7890-abcd-ef1234567890",
+            text: "reply"
+        ))
+        guard let caseEvent = await caseIterator.next(),
+              case .final_(_, _, let caseText) = caseEvent else {
+            throw TestFailure.assertion("a lowercase-normalized gateway session key must still match an uppercase subscription")
+        }
+        try expect(caseText == "reply", "case-insensitive session matching must deliver the reply")
+
         print("PASS: gateway chat event hub")
     }
 }

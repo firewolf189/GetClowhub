@@ -11,6 +11,40 @@ enum GatewayChatEvent: Sendable {
     case transport(GatewayConnectionState)
 }
 
+extension GatewayChatEvent {
+    /// The gateway run id carried by a chat run event; nil for transport events.
+    var runId: String? {
+        switch self {
+        case .delta(let runId, _, _),
+             .final_(let runId, _, _),
+             .error(let runId, _, _),
+             .activity(let runId, _, _):
+            return runId
+        case .aborted(let runId, _):
+            return runId
+        case .transport:
+            return nil
+        }
+    }
+
+    /// The session key carried by a chat run event; nil for transport events and
+    /// for session-agnostic activity events.
+    var sessionKey: String? {
+        switch self {
+        case .delta(_, let sessionKey, _),
+             .final_(_, let sessionKey, _),
+             .error(_, let sessionKey, _):
+            return sessionKey
+        case .aborted(_, let sessionKey):
+            return sessionKey
+        case .activity(_, let sessionKey, _):
+            return sessionKey
+        case .transport:
+            return nil
+        }
+    }
+}
+
 struct GatewayActivityEvent: Equatable, Sendable {
     enum Kind: String, Equatable, Sendable {
         case loadedTools
@@ -43,6 +77,12 @@ nonisolated final class GatewayChatEventHub: @unchecked Sendable {
         let continuation: Continuation
         var runIds: Set<String>
         var sessionKey: String
+        // False until the gateway's own run id is bound via `bindRun`. Before that
+        // the subscription only knows the client idempotency key it sent — not the
+        // run id the gateway actually assigned — so it is routed by session. Once a
+        // real run id is bound we switch to strict run-id matching to keep
+        // concurrent runs in the same session from cross-delivering.
+        var hasConfirmedGatewayRun: Bool
     }
 
     private struct RoutedEvent {
@@ -87,7 +127,8 @@ nonisolated final class GatewayChatEventHub: @unchecked Sendable {
                         token: token,
                         continuation: continuation,
                         runIds: [runId],
-                        sessionKey: sessionKey
+                        sessionKey: sessionKey,
+                        hasConfirmedGatewayRun: false
                     ),
                     forKey: subscriberId
                 )
@@ -101,6 +142,7 @@ nonisolated final class GatewayChatEventHub: @unchecked Sendable {
             guard var subscription = subscriptions[subscriberId] else { return }
             subscription.runIds.insert(runId)
             subscription.sessionKey = sessionKey
+            subscription.hasConfirmedGatewayRun = true
             subscriptions[subscriberId] = subscription
         }
     }
@@ -140,8 +182,19 @@ nonisolated final class GatewayChatEventHub: @unchecked Sendable {
         routedEvent: RoutedEvent?
     ) -> Bool {
         guard let routedEvent else { return true }
-        guard subscription.runIds.contains(routedEvent.runId) else { return false }
-        return routedEvent.sessionKey == nil || routedEvent.sessionKey == subscription.sessionKey
+        // The gateway canonicalizes session keys to lowercase; compare
+        // case-insensitively so a legacy uppercase-keyed subscription still
+        // receives its events.
+        let sessionMatches = routedEvent.sessionKey == nil
+            || routedEvent.sessionKey?.caseInsensitiveCompare(subscription.sessionKey) == .orderedSame
+        guard sessionMatches else { return false }
+        // Provisional subscriptions (no gateway run id bound yet) are routed by
+        // session: the gateway stamps events with the run id it assigned, which is
+        // never the client idempotency key we subscribed with, so a strict run-id
+        // gate here would silently drop every reply. Once the real run id is bound
+        // (from the chat.send ack or the first observed event) we match strictly.
+        guard subscription.hasConfirmedGatewayRun else { return true }
+        return subscription.runIds.contains(routedEvent.runId)
     }
 
     private static func routedEvent(for event: GatewayChatEvent) -> RoutedEvent? {

@@ -219,7 +219,7 @@ extension DashboardViewModel {
             cancelTasks(inSession: sessionId)
             chatMessagesByInactiveSession.removeValue(forKey: sessionId)
             loadingSessionIds.remove(sessionId)
-            appliedSessionModels.removeValue(forKey: "agent:\(agentId):project:\(projectId):\(sessionId.uuidString)")
+            appliedSessionModels.removeValue(forKey: "agent:\(agentId):project:\(projectId):\(sessionId.uuidString)".lowercased())
         }
         deletedSessionIds.formUnion(chatSessionStore.deleteSessions(forAgent: agentId, projectId: projectId))
 
