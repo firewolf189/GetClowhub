@@ -1498,12 +1498,12 @@ class GatewayClient: ObservableObject {
         switch state {
         case "delta":
             let text = extractTextFromMessage(payload["message"])
-            gwLog.debug("chat event: state=delta, runId=\(runId), textLen=\(text.count), subscribers=\(self.eventSubscriberCount())")
+            gwLog.debug("chat event: state=delta, runId=\(runId, privacy: .public), sessionKey=\(sessionKey, privacy: .public), textLen=\(text.count), subscribers=\(self.eventSubscriberCount())")
             event = .delta(runId: runId, sessionKey: sessionKey, text: text)
         case "final":
             let text = extractTextFromMessage(payload["message"])
             let hasMessage = payload["message"] != nil
-            gwLog.info("chat event: state=final, runId=\(runId), textLen=\(text.count), hasMessage=\(hasMessage), subscribers=\(self.eventSubscriberCount())")
+            gwLog.info("chat event: state=final, runId=\(runId, privacy: .public), sessionKey=\(sessionKey, privacy: .public), textLen=\(text.count), hasMessage=\(hasMessage), subscribers=\(self.eventSubscriberCount())")
             event = .final_(runId: runId, sessionKey: sessionKey, text: text)
         case "aborted":
             event = .aborted(runId: runId, sessionKey: sessionKey)

@@ -21,10 +21,15 @@ extension DashboardViewModel {
     /// "remember" X). Including the sessionId in the key isolates each UI
     /// session into its own gateway thread.
     func sessionKeyForAgent(_ agentId: String, sessionId: UUID) -> String {
+        // The gateway canonicalizes session keys to lowercase and stamps that
+        // canonical form on every chat event. UUID().uuidString is uppercase, so
+        // an uppercase key here would fail the case-sensitive sessionKey guards
+        // on the receive path (hub routing + consumer loops) and every reply
+        // would be silently dropped. Speak the gateway's canonical form.
         if let projectId = activeProjectId(forAgent: agentId) {
-            return "agent:\(agentId):project:\(projectId):\(sessionId.uuidString)"
+            return "agent:\(agentId):project:\(projectId):\(sessionId.uuidString)".lowercased()
         }
-        return "agent:\(agentId):\(sessionId.uuidString)"
+        return "agent:\(agentId):\(sessionId.uuidString)".lowercased()
     }
 
     func activeProjectId(forAgent agentId: String) -> String? {

@@ -182,8 +182,11 @@ nonisolated final class GatewayChatEventHub: @unchecked Sendable {
         routedEvent: RoutedEvent?
     ) -> Bool {
         guard let routedEvent else { return true }
+        // The gateway canonicalizes session keys to lowercase; compare
+        // case-insensitively so a legacy uppercase-keyed subscription still
+        // receives its events.
         let sessionMatches = routedEvent.sessionKey == nil
-            || routedEvent.sessionKey == subscription.sessionKey
+            || routedEvent.sessionKey?.caseInsensitiveCompare(subscription.sessionKey) == .orderedSame
         guard sessionMatches else { return false }
         // Provisional subscriptions (no gateway run id bound yet) are routed by
         // session: the gateway stamps events with the run id it assigned, which is

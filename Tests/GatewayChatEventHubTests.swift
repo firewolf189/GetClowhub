@@ -141,6 +141,32 @@ private enum GatewayChatEventHubTests {
         let provisionalTail = await provisionalIterator.next()
         try expect(provisionalTail == nil, "the bound run's final must finish the stream")
 
+        // Regression (v1.1.70 production root cause): the gateway canonicalizes
+        // session keys to lowercase while the client derives uppercase-UUID keys.
+        // A case-sensitive session gate dropped every reply. Session matching
+        // must be case-insensitive.
+        let caseStream = hub.stream(
+            subscriberId: "case-sub",
+            runId: "case-run",
+            sessionKey: "agent:main:ABCDEF12-3456-7890-ABCD-EF1234567890"
+        )
+        var caseIterator = caseStream.makeAsyncIterator()
+        hub.bindRun(
+            subscriberId: "case-sub",
+            runId: "case-run",
+            sessionKey: "agent:main:ABCDEF12-3456-7890-ABCD-EF1234567890"
+        )
+        hub.broadcast(.final_(
+            runId: "case-run",
+            sessionKey: "agent:main:abcdef12-3456-7890-abcd-ef1234567890",
+            text: "reply"
+        ))
+        guard let caseEvent = await caseIterator.next(),
+              case .final_(_, _, let caseText) = caseEvent else {
+            throw TestFailure.assertion("a lowercase-normalized gateway session key must still match an uppercase subscription")
+        }
+        try expect(caseText == "reply", "case-insensitive session matching must deliver the reply")
+
         print("PASS: gateway chat event hub")
     }
 }
