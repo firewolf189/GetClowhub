@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.70</title>
-      <sparkle:version>78</sparkle:version>
-      <sparkle:shortVersionString>1.1.70</sparkle:shortVersionString>
+      <title>Version 1.1.71</title>
+      <sparkle:version>79</sparkle:version>
+      <sparkle:shortVersionString>1.1.71</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.70</h2>
+        <h2>OpenClaw Helper 1.1.71</h2>
         <ul>
-          <li>增强聊天任务在网关断线与重连后的恢复能力：引入类型化连接状态、运行状态协调与请求注册表，避免重复发送和任务错配；完善取消、重试、后台任务恢复及状态提示；隔离聊天时间线状态，减少无关 SwiftUI 重绘并提升长对话稳定性。</li>
+          <li>稳定性回退:撤销 v1.1.70 的聊天断线重连重构,恢复 v1.1.69 的稳定聊天实现。</li>
         </ul>
       ]]></description>
-      <pubDate>Thu, 16 Jul 2026 18:04:24 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.70/GetClawHub.dmg"
-                 length="238238156"
+      <pubDate>Fri, 17 Jul 2026 17:45:33 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.71/GetClawHub.dmg"
+                 length="231286112"
                  type="application/octet-stream"
-                 sparkle:edSignature="1yTY0beVOGrbL4iZJsiNrNSceX7YLMLOCehVCdib8RpJ+qdrewHnqnspqvu2BAwLeADpuZI4PnLoR8prZmeSBQ==" />
+                 sparkle:edSignature="f0nfdD8+1nZ6DpWj3iTy0GKPCofsgQSw4MdifOP6ePlYDIdoFh2VxEl0QftXGp0d+IRM7j9umPQT/Rgawi/8AA==" />
     </item>
   </channel>
 </rss>
