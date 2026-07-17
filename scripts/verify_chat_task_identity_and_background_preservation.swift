@@ -38,7 +38,6 @@ func slice(_ source: String, from start: String, to end: String) throws -> Strin
 let helpers = try read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let messageModel = try read("OpenClawInstaller/Features/Chat/Models/ChatMessage.swift")
 let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
-let reconciliation = try read("OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift")
 
 let sendChatMessage = try slice(
     helpers,
@@ -53,7 +52,7 @@ let cancelChat = try slice(
 let moveTaskToBackground = try slice(
     helpers,
     from: "func moveTaskToBackground(_ msgId: UUID)",
-    to: "/// Record cancellation intent separately"
+    to: "/// Cancel an in-progress chat task."
 )
 let taskCleanup = try slice(
     viewModel,
@@ -66,21 +65,17 @@ try require(
     "sendChatMessage should compute the exact backend sessionKey at task creation."
 )
 try require(
-    sendChatMessage.contains("let gatewayBinding = ChatGatewayRunBinding(") &&
-        sendChatMessage.contains("sessionKey: sessionKey,") &&
-        sendChatMessage.contains("startedAt: placeholderMsg.timestamp ?? Date()") &&
-        sendChatMessage.contains("gatewayBinding: gatewayBinding"),
-    "Normal chat tasks should capture their exact backend sessionKey and recovery start in the gateway binding."
+    sendChatMessage.contains("taskSessionKeyOverride[msgId] = sessionKey"),
+    "Normal chat tasks should persist their exact backend sessionKey when the placeholder task is created."
 )
 try require(
-    helpers.contains("sessionKey: run.gatewayBinding.sessionKey") &&
-        reconciliation.contains("run.gatewayBinding.sessionKey == sessionKey") &&
+    cancelChat.contains("taskSessionKeyOverride[msgId]") &&
         !cancelChat.contains("taskSid.map({ sessionKeyForAgent(taskAgent, sessionId: $0) })"),
-    "cancelChat should use the current gateway binding instead of reconstructing a key from UI state."
+    "cancelChat should use the task's stored backend sessionKey instead of reconstructing it from current UI project/session state."
 )
 try require(
-    taskCleanup.contains("taskState.removeRun(messageId: msgId)"),
-    "Task cleanup should remove the typed run, including its gateway binding."
+    taskCleanup.contains("taskSessionKeyOverride.removeValue(forKey: msgId)"),
+    "Task cleanup should clear stored backend session keys."
 )
 
 try require(

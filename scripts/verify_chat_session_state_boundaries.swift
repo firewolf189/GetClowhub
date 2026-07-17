@@ -65,25 +65,34 @@ for name in [
     )
 }
 
-for name in ["isSendingMessage", "foregroundTaskIds", "backgroundTaskIds"] {
+for name in [
+    "isSendingMessage",
+    "foregroundTaskIds",
+    "backgroundTaskIds"
+] {
     try require(
         !chatRuntimeState.contains("@Published var \(name)"),
         "ChatRuntimeState should not publish task activity state: \(name)"
     )
+    try require(
+        taskActivityState.contains("@Published var \(name)"),
+        "TaskActivityState should publish task activity state: \(name)"
+    )
 }
 
-try require(
-    taskActivityState.contains("@Published var isSendingMessage") &&
-        taskActivityState.contains("@Published private(set) var runsByMessageId") &&
-        taskActivityState.contains("var foregroundTaskIds: Set<UUID>") &&
-        taskActivityState.contains("var backgroundTaskIds: Set<UUID>"),
-    "TaskActivityState should publish one run registry and derive foreground/background projections."
-)
-try require(
-    !taskActivityState.contains("var taskAgentMap:") &&
-        !taskActivityState.contains("var taskSessionMap:"),
-    "Task routing identity should not be duplicated outside runsByMessageId."
-)
+for name in [
+    "taskAgentMap",
+    "taskSessionMap"
+] {
+    try require(
+        !chatRuntimeState.contains("var \(name)"),
+        "ChatRuntimeState should not own task routing maps: \(name)"
+    )
+    try require(
+        taskActivityState.contains("var \(name)"),
+        "TaskActivityState should own task routing maps: \(name)"
+    )
+}
 
 for name in [
     "sessionsByAgent",
@@ -130,10 +139,9 @@ try require(
 )
 
 try require(
-    !chatTimelineSurface.contains("@ObservedObject var taskState: TaskActivityState") &&
-        chatTimelineSurface.contains("let snapshot: ChatTimelineSnapshot") &&
+    chatTimelineSurface.contains("@ObservedObject var taskState: TaskActivityState") &&
         !chatTimelineSurface.contains("@ObservedObject var chatState: ChatRuntimeState"),
-    "ChatTimelineSurface should receive value-only message/run projections and observe no global runtime store."
+    "ChatTimelineSurface should observe task activity only; messages are passed as value input."
 )
 
 print("chat/session state boundary checks passed")

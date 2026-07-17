@@ -4,6 +4,34 @@ import os.log
 
 private let gwLog = Logger(subsystem: "com.openclaw.installer", category: "GatewayClient")
 
+/// Events emitted by the gateway for chat sessions.
+enum GatewayChatEvent {
+    case delta(runId: String, sessionKey: String, text: String)
+    case final_(runId: String, sessionKey: String, text: String)
+    case aborted(runId: String, sessionKey: String)
+    case error(runId: String, sessionKey: String, message: String)
+    case activity(runId: String, sessionKey: String?, event: GatewayActivityEvent)
+}
+
+struct GatewayActivityEvent: Equatable {
+    enum Kind: String, Equatable {
+        case loadedTools
+        case searchedCode
+        case readFiles
+        case ranCommands
+        case editedFiles
+        case createdFiles
+        case selectedModel
+        case agentUsed
+        case agentRecruited
+        case toolFailed
+    }
+
+    let kind: Kind
+    let detail: String?
+    let dedupeKey: String
+}
+
 /// Last gateway-side rejection seen on the connect handshake. Carries the raw
 /// error envelope so the UI can show *why* the WS won't connect (e.g.
 /// `NOT_PAIRED` / `DEVICE_IDENTITY_REQUIRED` vs `token_mismatch`) instead of
@@ -17,15 +45,8 @@ struct GatewayConnectError: Equatable {
 /// Lightweight WebSocket client for the OpenClaw gateway.
 /// Uses native `URLSessionWebSocketTask` (macOS 13+), no third-party dependencies.
 class GatewayClient: ObservableObject {
-    private struct PendingChatSendRequest {
-        let continuation: CheckedContinuation<GatewayChatSendResult, Never>
-        let expectedRunId: String
-        let startedAt: ContinuousClock.Instant
-    }
-
-    @Published private(set) var connectionState: GatewayConnectionState = .disconnected
-    @Published private(set) var isConnected = false
-    @Published private(set) var lastConnectError: GatewayConnectError?
+    @Published var isConnected = false
+    @Published var lastConnectError: GatewayConnectError?
 
     private var port: Int
     private var authToken: String
@@ -34,20 +55,16 @@ class GatewayClient: ObservableObject {
     private var webSocketTask: URLSessionWebSocketTask?
     private var urlSession: URLSession?
     private let delegateHandler = WebSocketDelegate()
-    private let reconnectPolicy = GatewayReconnectPolicy()
     private var reconnectAttempt = 0
+    private let maxReconnectDelay: TimeInterval = 15
     private var isIntentionalDisconnect = false
     private var pendingResponses: [String: CheckedContinuation<Bool, Never>] = [:]
-    private var pendingChatSendResponses: [String: PendingChatSendRequest] = [:]
-    private var observedPendingChatSendRunIds: Set<String> = []
-    private let chatAbortRequestRegistry = GatewayChatAbortRequestRegistry()
-    private let chatRunStatusRequestRegistry = GatewayChatRunStatusRequestRegistry()
-    private var pendingChatHistoryResponses: [String: CheckedContinuation<GatewayChatRecoverySnapshot?, Never>] = [:]
-    /// The only RPC response allowed to complete the current gateway handshake.
-    /// Access is serialized by `stateQueue`, along with the WebSocket generation.
-    private var pendingConnectRequestId: String?
+    private var pendingChatSendResponses: [String: CheckedContinuation<String?, Never>] = [:]
+    private var pendingChatSendStartedAt: [String: ContinuousClock.Instant] = [:]
+    private var pendingChatHistoryResponses: [String: CheckedContinuation<String?, Never>] = [:]
     private let responseLock = NSLock()
-    private let eventHub = GatewayChatEventHub()
+    private var eventContinuations: [String: AsyncStream<GatewayChatEvent>.Continuation] = [:]
+    private let eventLock = NSLock()
 
     /// Serializes all mutations of `webSocketTask` / `urlSession` / `reconnectAttempt` /
     /// `isIntentionalDisconnect` / `reconnectPending`.
@@ -59,26 +76,11 @@ class GatewayClient: ObservableObject {
     /// with `malloc_zone_error` → `abort()` inside `_CFRelease`. See crash report
     /// 2026-05-12 (v1.1.46) Thread 9: `GatewayClient.establishConnection() + 330`.
     private let stateQueue = DispatchQueue(label: "com.openclaw.gateway.state")
-    private let stateQueueKey = DispatchSpecificKey<Void>()
 
     /// True between the moment a reconnect is scheduled and the moment a new connection
     /// has been established. Prevents concurrent failure callbacks from each kicking off
     /// their own reconnect timer.
     private var reconnectPending = false
-
-    /// Remains true from the first transport failure until a later authenticated
-    /// connection succeeds. It lets us distinguish the initial app connection
-    /// from a recovered connection that active chat runs must reconcile.
-    private var recoveryCycleActive = false
-
-    /// Invalidates callbacks from URLSessionWebSocketTask instances that were
-    /// torn down before their asynchronous receive callback returned.
-    private var connectionGeneration: UInt64 = 0
-
-    /// Identifies the connection generation whose protocol handshake is still
-    /// awaiting challenge/ack completion. This covers the full gateway
-    /// handshake, not only URLSession's HTTP upgrade.
-    private var pendingHandshakeGeneration: UInt64?
 
     /// Timestamp of the last WebSocket message received (any chat event, response, etc.).
     /// Used by the ViewModel as a coarse "WebSocket is alive" signal — note the gateway
@@ -104,10 +106,6 @@ class GatewayClient: ObservableObject {
 
     private let pingInterval: TimeInterval = 30
     private let pingTimeout: TimeInterval = 30  // pong must arrive within this window
-    /// Recovery is infrequent and correctness-sensitive. Match the gateway's
-    /// default history window so a completed background run is not lost after
-    /// the user continues the same session while it is running.
-    private static let chatRecoveryHistoryMessageLimit = 200
 
     // MARK: - Device pairing state
 
@@ -140,7 +138,6 @@ class GatewayClient: ObservableObject {
         self.port = port
         self.authToken = authToken
         self.credentialsProvider = credentialsProvider
-        stateQueue.setSpecific(key: stateQueueKey, value: ())
     }
 
     private static func elapsedMillisecondsText(since start: ContinuousClock.Instant) -> String {
@@ -151,37 +148,6 @@ class GatewayClient: ObservableObject {
         return String(format: "%.1f", milliseconds)
     }
 
-    private func registerPendingChatSend(
-        requestId: String,
-        request: PendingChatSendRequest
-    ) {
-        responseLock.withLock {
-            pendingChatSendResponses[requestId] = request
-            observedPendingChatSendRunIds.remove(request.expectedRunId)
-        }
-    }
-
-    private func takePendingChatSend(
-        requestId: String
-    ) -> (request: PendingChatSendRequest, deliveryObserved: Bool)? {
-        responseLock.withLock {
-            guard let request = pendingChatSendResponses.removeValue(forKey: requestId) else {
-                return nil
-            }
-            let observed = observedPendingChatSendRunIds.remove(request.expectedRunId) != nil
-            return (request, observed)
-        }
-    }
-
-    private func recordPendingChatSendDelivery(runId: String) {
-        responseLock.withLock {
-            guard pendingChatSendResponses.values.contains(where: { $0.expectedRunId == runId }) else {
-                return
-            }
-            observedPendingChatSendRunIds.insert(runId)
-        }
-    }
-
     // MARK: - Public API
 
     func connect() {
@@ -190,10 +156,6 @@ class GatewayClient: ObservableObject {
             self.isIntentionalDisconnect = false
             self.reconnectAttempt = 0
             self.reconnectPending = false
-            if self.hasEventSubscribers() {
-                self.recoveryCycleActive = true
-            }
-            self.publishConnectionState(.connecting)
             self.establishConnection()
         }
     }
@@ -202,24 +164,17 @@ class GatewayClient: ObservableObject {
         stateQueue.async { [weak self] in
             guard let self = self else { return }
             self.isIntentionalDisconnect = true
-            self.reconnectPending = false
-            self.reconnectAttempt = 0
-            let hasSubscribers = self.hasEventSubscribers()
-            self.recoveryCycleActive = hasSubscribers
             self.teardownSession()
-            self.publishConnectionState(.disconnected)
-            if hasSubscribers {
-                self.broadcastEvent(.transport(.disconnected))
+            DispatchQueue.main.async {
+                self.isConnected = false
+                self.lastConnectError = nil
             }
-            DispatchQueue.main.async { self.lastConnectError = nil }
         }
     }
 
-    /// Send `chat.abort` and preserve the gateway's semantic outcome. A valid
-    /// RPC response may still report `aborted=false` when the run is no longer
-    /// active, so callers must not treat transport acknowledgement as terminal.
-    func abortChat(sessionKey: String, runId: String? = nil) async -> GatewayChatAbortResult {
-        guard let ws = currentWebSocketTask() else { return .transportUnavailable }
+    /// Send `chat.abort` to the gateway. Returns `true` if the abort was acknowledged.
+    func abortChat(sessionKey: String, runId: String? = nil) async -> Bool {
+        guard let ws = webSocketTask else { return false }
 
         let requestId = UUID().uuidString
         var params: [String: Any] = [
@@ -237,32 +192,46 @@ class GatewayClient: ObservableObject {
 
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let jsonString = String(data: data, encoding: .utf8) else {
-            return .rejected(message: "Unable to encode chat.abort request")
+            return false
         }
 
-        return await withCheckedContinuation { continuation in
-            chatAbortRequestRegistry.register(
-                requestId: requestId,
-                expectedRunId: runId,
-                continuation: continuation
-            )
+        // Register a continuation to wait for the response
+        let result: Bool = await withCheckedContinuation { continuation in
+            responseLock.lock()
+            pendingResponses[requestId] = continuation
+            responseLock.unlock()
 
             ws.send(.string(jsonString)) { [weak self] error in
                 if error != nil {
-                    self?.chatAbortRequestRegistry.cancel(requestId: requestId)
+                    self?.responseLock.lock()
+                    if let cont = self?.pendingResponses.removeValue(forKey: requestId) {
+                        self?.responseLock.unlock()
+                        cont.resume(returning: false)
+                    } else {
+                        self?.responseLock.unlock()
+                    }
                 }
             }
 
+            // Timeout after 5 seconds
             DispatchQueue.global().asyncAfter(deadline: .now() + 5) { [weak self] in
-                self?.chatAbortRequestRegistry.cancel(requestId: requestId)
+                self?.responseLock.lock()
+                if let cont = self?.pendingResponses.removeValue(forKey: requestId) {
+                    self?.responseLock.unlock()
+                    cont.resume(returning: false)
+                } else {
+                    self?.responseLock.unlock()
+                }
             }
         }
+
+        return result
     }
 
     /// Apply a session-only model override through `sessions.patch`.
     /// This updates gateway session state without changing agent defaults in openclaw.json.
     func patchSessionModel(sessionKey: String, model: String) async -> Bool {
-        guard let ws = currentWebSocketTask() else { return false }
+        guard let ws = webSocketTask else { return false }
 
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedModel.isEmpty else { return false }
@@ -314,20 +283,12 @@ class GatewayClient: ObservableObject {
         return result
     }
 
-    /// Submit one idempotent chat run. An acknowledgement timeout is not an
-    /// authoritative failure: the gateway may have accepted the request, so
-    /// callers keep the same expected run id and reconcile instead of resending.
-    func chatSend(
-        sessionKey: String,
-        message: String,
-        idempotencyKey: String,
-        attachments: [[String: Any]]? = nil
-    ) async -> GatewayChatSendResult {
-        guard let ws = currentWebSocketTask() else {
-            return .rejected(message: "Gateway is not connected")
-        }
+    /// Send a chat message via `chat.send`. Returns the runId on success, nil on failure.
+    func chatSend(sessionKey: String, message: String, attachments: [[String: Any]]? = nil) async -> String? {
+        guard let ws = webSocketTask else { return nil }
 
         let requestId = UUID().uuidString
+        let idempotencyKey = UUID().uuidString
         let chatSendStartedAt = ContinuousClock.now
 
         var params: [String: Any] = [
@@ -355,158 +316,82 @@ class GatewayClient: ObservableObject {
                     gwLog.error("  attachment[\(i)] content length: \(contentLen)")
                 }
             }
-            return .rejected(message: "Failed to serialize chat.send payload")
+            return nil
         }
 
         gwLog.info("chatSend: JSON size = \(jsonString.count) bytes, attachments = \(attachments?.count ?? 0)")
 
-        return await withCheckedContinuation { continuation in
-            registerPendingChatSend(
-                requestId: requestId,
-                request: PendingChatSendRequest(
-                    continuation: continuation,
-                    expectedRunId: idempotencyKey,
-                    startedAt: chatSendStartedAt
-                )
-            )
+        // Use a separate continuation map for chat.send responses to extract runId
+        let runId: String? = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            responseLock.lock()
+            pendingChatSendResponses[requestId] = continuation
+            pendingChatSendStartedAt[requestId] = chatSendStartedAt
+            responseLock.unlock()
 
             ws.send(.string(jsonString)) { [weak self] error in
-                guard let error else {
-                    gwLog.info("phase=chat_send_ws_send request=\(requestId, privacy: .public) bytes=\(jsonString.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: chatSendStartedAt), privacy: .public)")
-                    return
-                }
-                guard let self else { return }
-
-                gwLog.error("chatSend: WebSocket send error: \(error.localizedDescription)")
-                if let pending = self.takePendingChatSend(requestId: requestId) {
-                    pending.request.continuation.resume(
-                        returning: pending.deliveryObserved
-                            ? .acknowledged(runId: pending.request.expectedRunId)
-                            : .deliveryUnconfirmed(expectedRunId: pending.request.expectedRunId)
-                    )
-                    if !pending.deliveryObserved {
-                        self.scheduleReconnect()
+                if let error = error {
+                    gwLog.error("chatSend: WebSocket send error: \(error.localizedDescription)")
+                    self?.responseLock.lock()
+                    if let cont = self?.pendingChatSendResponses.removeValue(forKey: requestId) {
+                        self?.pendingChatSendStartedAt.removeValue(forKey: requestId)
+                        self?.responseLock.unlock()
+                        cont.resume(returning: nil)
+                    } else {
+                        self?.responseLock.unlock()
                     }
+                } else {
+                    gwLog.info("phase=chat_send_ws_send request=\(requestId, privacy: .public) bytes=\(jsonString.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: chatSendStartedAt), privacy: .public)")
                 }
             }
 
             // Timeout after 10 seconds for the send acknowledgement
             DispatchQueue.global().asyncAfter(deadline: .now() + 10) { [weak self] in
-                guard let self else { return }
-                let pending = self.takePendingChatSend(requestId: requestId)
-                guard let pending else { return }
-
-                gwLog.warning("phase=chat_send_ack_timeout request=\(requestId, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: pending.request.startedAt), privacy: .public) delivery_observed=\(pending.deliveryObserved, privacy: .public)")
-                pending.request.continuation.resume(
-                    returning: pending.deliveryObserved
-                        ? .acknowledged(runId: pending.request.expectedRunId)
-                        : .deliveryUnconfirmed(expectedRunId: pending.request.expectedRunId)
-                )
-                if !pending.deliveryObserved {
-                    self.scheduleReconnect()
+                self?.responseLock.lock()
+                if let cont = self?.pendingChatSendResponses.removeValue(forKey: requestId) {
+                    let startedAt = self?.pendingChatSendStartedAt.removeValue(forKey: requestId)
+                    self?.responseLock.unlock()
+                    if let startedAt {
+                        gwLog.warning("phase=chat_send_ack_timeout request=\(requestId, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: startedAt), privacy: .public)")
+                    } else {
+                        gwLog.warning("phase=chat_send_ack_timeout request=\(requestId, privacy: .public) elapsed_ms=unknown")
+                    }
+                    cont.resume(returning: nil)
+                } else {
+                    self?.responseLock.unlock()
                 }
             }
         }
+
+        return runId
     }
 
-    /// Subscribe to one run's chat events plus shared transport lifecycle.
-    /// Filtering before buffering prevents each active row from retaining every
-    /// other run's high-frequency deltas while the main actor is busy.
-    func subscribeToEvents(
-        subscriberId: String,
-        runId: String,
-        sessionKey: String
-    ) -> AsyncStream<GatewayChatEvent> {
-        eventHub.stream(
-            subscriberId: subscriberId,
-            runId: runId,
-            sessionKey: sessionKey
-        )
-    }
-
-    func bindEventSubscription(
-        subscriberId: String,
-        runId: String,
-        sessionKey: String
-    ) {
-        eventHub.bindRun(
-            subscriberId: subscriberId,
-            runId: runId,
-            sessionKey: sessionKey
-        )
+    /// Subscribe to chat events. Returns an AsyncStream that yields `GatewayChatEvent` values.
+    /// The caller should filter events by runId as needed.
+    func subscribeToEvents(subscriberId: String) -> AsyncStream<GatewayChatEvent> {
+        return AsyncStream { continuation in
+            continuation.onTermination = { [weak self] _ in
+                self?.eventLock.lock()
+                self?.eventContinuations.removeValue(forKey: subscriberId)
+                self?.eventLock.unlock()
+            }
+            eventLock.lock()
+            eventContinuations[subscriberId] = continuation
+            eventLock.unlock()
+        }
     }
 
     /// Remove a subscriber and terminate its event stream.
     func unsubscribe(subscriberId: String) {
-        eventHub.unsubscribe(subscriberId: subscriberId)
+        eventLock.lock()
+        let continuation = eventContinuations.removeValue(forKey: subscriberId)
+        eventLock.unlock()
+        continuation?.finish()
     }
 
-    private func hasEventSubscribers() -> Bool {
-        !eventHub.isEmpty
-    }
-
-    private func eventSubscriberCount() -> Int {
-        eventHub.count
-    }
-
-    func hasEventSubscription(subscriberId: String) -> Bool {
-        eventHub.contains(subscriberId: subscriberId)
-    }
-
-    /// Publishes the canonical lifecycle and keeps the legacy Bool as a
-    /// read-only compatibility projection.
-    private func publishConnectionState(_ state: GatewayConnectionState) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            if self.connectionState != state {
-                self.connectionState = state
-            }
-            let connected = state.isConnected
-            if self.isConnected != connected {
-                self.isConnected = connected
-            }
-        }
-    }
-
-    func fetchChatRunStatus(runId: String) async -> GatewayChatRunStatusSnapshot? {
-        guard let ws = currentWebSocketTask() else { return nil }
-
-        let requestId = UUID().uuidString
-        let payload: [String: Any] = [
-            "type": "req",
-            "id": requestId,
-            "method": "agent.wait",
-            "params": [
-                "runId": runId,
-                "timeoutMs": 0
-            ] as [String: Any]
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: payload),
-              let jsonString = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-
-        return await withCheckedContinuation { continuation in
-            chatRunStatusRequestRegistry.register(
-                requestId: requestId,
-                expectedRunId: runId,
-                continuation: continuation
-            )
-
-            ws.send(.string(jsonString)) { [weak self] error in
-                guard error != nil, let self else { return }
-                self.chatRunStatusRequestRegistry.cancel(requestId: requestId)
-            }
-
-            DispatchQueue.global().asyncAfter(deadline: .now() + 10) { [weak self] in
-                self?.chatRunStatusRequestRegistry.cancel(requestId: requestId)
-            }
-        }
-    }
-
-    func fetchChatRecoverySnapshot(sessionKey: String) async -> GatewayChatRecoverySnapshot? {
-        guard let ws = currentWebSocketTask() else { return nil }
+    /// Fetch the last assistant message from chat history for a given session.
+    /// Used as a fallback when the final event has no message content.
+    func fetchLastAssistantMessage(sessionKey: String) async -> String? {
+        guard let ws = webSocketTask else { return nil }
 
         let requestId = UUID().uuidString
         let payload: [String: Any] = [
@@ -515,7 +400,7 @@ class GatewayClient: ObservableObject {
             "method": "chat.history",
             "params": [
                 "sessionKey": sessionKey,
-                "limit": Self.chatRecoveryHistoryMessageLimit
+                "limit": 5
             ] as [String: Any]
         ]
 
@@ -524,7 +409,8 @@ class GatewayClient: ObservableObject {
             return nil
         }
 
-        return await withCheckedContinuation { continuation in
+        // Reuse pendingChatSendResponses to get the full response payload
+        let result: String? = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
             responseLock.lock()
             pendingChatHistoryResponses[requestId] = continuation
             responseLock.unlock()
@@ -552,27 +438,16 @@ class GatewayClient: ObservableObject {
                 }
             }
         }
+
+        return result
     }
 
     // MARK: - Connection Management
-
-    /// Returns a generation-local task reference without racing teardown or
-    /// replacement. The socket may still close after this snapshot; send
-    /// callbacks already map that transport outcome into retryable semantics.
-    private func currentWebSocketTask() -> URLSessionWebSocketTask? {
-        if DispatchQueue.getSpecific(key: stateQueueKey) != nil {
-            return webSocketTask
-        }
-        return stateQueue.sync { webSocketTask }
-    }
 
     /// Tear down the current session/task. **Caller must be on `stateQueue`.**
     private func teardownSession() {
         dispatchPrecondition(condition: .onQueue(stateQueue))
         stopHeartbeat()
-        pendingConnectRequestId = nil
-        pendingHandshakeGeneration = nil
-        connectionGeneration &+= 1
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         urlSession?.invalidateAndCancel()
@@ -614,7 +489,7 @@ class GatewayClient: ObservableObject {
         // `timeoutIntervalForResource` defaults to ~7 days (DT_RESOURCE_TIMEOUT) which
         // matches what we want — a streaming WS is a long-lived resource by design.
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = reconnectPolicy.handshakeTimeout
+        config.timeoutIntervalForRequest = 30
 
         let session = URLSession(configuration: config, delegate: delegateHandler, delegateQueue: nil)
         self.urlSession = session
@@ -623,59 +498,33 @@ class GatewayClient: ObservableObject {
         self.webSocketTask = task
         task.resume()
 
-        let generation = connectionGeneration
-        pendingHandshakeGeneration = generation
-        scheduleHandshakeTimeout(for: generation)
-        listenForMessages(on: task, generation: generation)
+        listenForMessages()
     }
 
-    /// Bounds challenge/ack negotiation as well as the HTTP WebSocket upgrade.
-    /// A stale timer cannot affect a newer socket because both generation
-    /// identities must still match when it fires.
-    private func scheduleHandshakeTimeout(for generation: UInt64) {
-        dispatchPrecondition(condition: .onQueue(stateQueue))
-        stateQueue.asyncAfter(deadline: .now() + reconnectPolicy.handshakeTimeout) { [weak self] in
-            guard let self,
-                  !self.isIntentionalDisconnect,
-                  self.pendingHandshakeGeneration == generation,
-                  self.connectionGeneration == generation else {
-                return
-            }
+    private func listenForMessages() {
+        webSocketTask?.receive { [weak self] result in
+            guard let self = self else { return }
 
-            gwLog.warning("Gateway protocol handshake timed out after \(Int(self.reconnectPolicy.handshakeTimeout))s")
-            self.pendingHandshakeGeneration = nil
-            self.pendingConnectRequestId = nil
-            self.scheduleReconnect()
-        }
-    }
-
-    private func listenForMessages(on task: URLSessionWebSocketTask, generation: UInt64) {
-        task.receive { [weak self] result in
-            guard let self else { return }
-            self.stateQueue.async { [weak self] in
-                guard let self,
-                      generation == self.connectionGeneration,
-                      self.webSocketTask === task else {
-                    return
-                }
-
-                switch result {
-                case .success(let message):
-                    switch message {
-                    case .string(let text):
+            switch result {
+            case .success(let message):
+                switch message {
+                case .string(let text):
+                    self.handleMessage(text)
+                case .data(let data):
+                    if let text = String(data: data, encoding: .utf8) {
                         self.handleMessage(text)
-                    case .data(let data):
-                        if let text = String(data: data, encoding: .utf8) {
-                            self.handleMessage(text)
-                        }
-                    @unknown default:
-                        break
                     }
-                    self.listenForMessages(on: task, generation: generation)
-
-                case .failure:
-                    self.scheduleReconnect()
+                @unknown default:
+                    break
                 }
+                // Continue listening
+                self.listenForMessages()
+
+            case .failure:
+                DispatchQueue.main.async { self.isConnected = false }
+                // Only reconnect if socket wasn't already cleaned up by auth failure handler
+                guard self.webSocketTask != nil else { return }
+                self.scheduleReconnect()
             }
         }
     }
@@ -725,133 +574,54 @@ class GatewayClient: ObservableObject {
         }
 
         if type == "res" {
-            guard let id = json["id"] as? String else {
-                gwLog.warning("Ignoring gateway response without a request id")
-                return
-            }
-                // Check if there is a pending chat.send request.
-                let pendingChatSend = takePendingChatSend(requestId: id)
+            if let id = json["id"] as? String {
+                // Check if there is a pending chat.send request (returns runId)
+                responseLock.lock()
+                let chatSendCont = pendingChatSendResponses.removeValue(forKey: id)
+                let chatSendStartedAt = pendingChatSendStartedAt.removeValue(forKey: id)
+                responseLock.unlock()
 
-                if let pendingChatSend {
-                    if pendingChatSend.deliveryObserved {
-                        pendingChatSend.request.continuation.resume(
-                            returning: .acknowledged(runId: pendingChatSend.request.expectedRunId)
-                        )
-                        return
-                    }
+                if let chatSendCont = chatSendCont {
                     let isError = json["error"] != nil
                     if isError {
-                        let elapsedText = Self.elapsedMillisecondsText(since: pendingChatSend.request.startedAt)
+                        let elapsedText = chatSendStartedAt.map { Self.elapsedMillisecondsText(since: $0) } ?? "unknown"
                         gwLog.error("phase=chat_send_ack_error request=\(id, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public) error=\(String(describing: json["error"]), privacy: .public)")
-                        pendingChatSend.request.continuation.resume(
-                            returning: .rejected(message: String(describing: json["error"] ?? "Unknown gateway rejection"))
-                        )
                     }
                     if !isError, let payloadDict = json["payload"] as? [String: Any],
                        let runId = payloadDict["runId"] as? String {
-                        let elapsedText = Self.elapsedMillisecondsText(since: pendingChatSend.request.startedAt)
+                        let elapsedText = chatSendStartedAt.map { Self.elapsedMillisecondsText(since: $0) } ?? "unknown"
                         gwLog.info("phase=chat_send_ack request=\(id, privacy: .public) runId=\(runId, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
-                        pendingChatSend.request.continuation.resume(returning: .acknowledged(runId: runId))
-                    } else if !isError {
-                        pendingChatSend.request.continuation.resume(
-                            returning: .deliveryUnconfirmed(expectedRunId: pendingChatSend.request.expectedRunId)
-                        )
+                        chatSendCont.resume(returning: runId)
+                    } else {
+                        chatSendCont.resume(returning: nil)
                     }
                     return
                 }
 
-                let abortPayload = json["payload"] as? [String: Any]
-                let abortResponse = (abortPayload?["aborted"] as? Bool).map {
-                    GatewayChatAbortResponse(
-                        aborted: $0,
-                        runIds: abortPayload?["runIds"] as? [String] ?? []
-                    )
-                }
-                if chatAbortRequestRegistry.resolve(
-                    requestId: id,
-                    response: abortResponse,
-                    rejectionMessage: json["error"].flatMap(self.gatewayErrorMessage)
-                ) {
-                    return
-                }
-
-                let runStatusPayload = json["payload"] as? [String: Any]
-                let responseRunId = runStatusPayload?["runId"] as? String
-                let runStatusSnapshot: GatewayChatRunStatusSnapshot?
-                if json["error"] == nil,
-                   let runStatusPayload,
-                   let responseRunId {
-                    runStatusSnapshot = GatewayChatRunStatusSnapshot(
-                        runId: responseRunId,
-                        gatewayStatus: runStatusPayload["status"] as? String,
-                        startedAt: GatewayProtocolTimestamp.date(from: runStatusPayload["startedAt"]),
-                        endedAt: GatewayProtocolTimestamp.date(from: runStatusPayload["endedAt"]),
-                        errorMessage: self.gatewayErrorMessage(
-                            runStatusPayload["error"] ?? runStatusPayload["errorMessage"]
-                        ),
-                        stopReason: runStatusPayload["stopReason"] as? String,
-                        timeoutPhase: runStatusPayload["timeoutPhase"] as? String,
-                        livenessState: runStatusPayload["livenessState"] as? String,
-                        providerStarted: runStatusPayload["providerStarted"] as? Bool,
-                        yielded: self.boolValue(runStatusPayload["yielded"]),
-                        pendingError: self.boolValue(runStatusPayload["pendingError"]),
-                        aborted: self.boolValue(runStatusPayload["aborted"])
-                    )
-                } else {
-                    runStatusSnapshot = nil
-                }
-                if chatRunStatusRequestRegistry.resolve(
-                    requestId: id,
-                    responseRunId: responseRunId,
-                    snapshot: runStatusSnapshot
-                ) {
-                    return
-                }
-
-                // Check if there is a pending typed chat.history request.
+                // Check if there is a pending chat.history request (returns last assistant text)
                 responseLock.lock()
                 let chatHistoryCont = pendingChatHistoryResponses.removeValue(forKey: id)
                 responseLock.unlock()
 
                 if let chatHistoryCont = chatHistoryCont {
                     let isError = json["error"] != nil
-                    if !isError, let payloadDict = json["payload"] as? [String: Any] {
-                        let messages = payloadDict["messages"] as? [[String: Any]] ?? []
-                        let assistantMessages = messages.compactMap { message -> GatewayAssistantMessageSnapshot? in
-                            guard (message["role"] as? String) == "assistant" else { return nil }
-                            return GatewayAssistantMessageSnapshot(
-                                text: self.extractTextFromMessage(message),
-                                timestamp: GatewayProtocolTimestamp.date(
-                                    from: message["timestamp"] ?? message["ts"]
-                                )
-                            )
+                    if !isError, let payloadDict = json["payload"] as? [String: Any],
+                       let messages = payloadDict["messages"] as? [[String: Any]] {
+                        // Find the last assistant message
+                        let lastAssistant = messages.last(where: { ($0["role"] as? String) == "assistant" })
+                        if let lastAssistant = lastAssistant {
+                            let text = self.extractTextFromMessage(lastAssistant)
+                            chatHistoryCont.resume(returning: text.isEmpty ? nil : text)
+                        } else {
+                            chatHistoryCont.resume(returning: nil)
                         }
-
-                        var inFlightRun: GatewayInFlightRunSnapshot?
-                        if let rawInFlight = payloadDict["inFlightRun"] as? [String: Any],
-                           let runId = rawInFlight["runId"] as? String {
-                            let rawText = rawInFlight["text"] as? String
-                            inFlightRun = GatewayInFlightRunSnapshot(
-                                runId: runId,
-                                text: rawText?.isEmpty == false ? rawText : nil
-                            )
-                        }
-
-                        let sessionInfo = payloadDict["sessionInfo"] as? [String: Any]
-                        let hasActiveRun = self.boolValue(sessionInfo?["hasActiveRun"])
-                            || inFlightRun != nil
-                        chatHistoryCont.resume(returning: GatewayChatRecoverySnapshot(
-                            assistantMessages: assistantMessages,
-                            inFlightRun: inFlightRun,
-                            hasActiveRun: hasActiveRun
-                        ))
                     } else {
                         chatHistoryCont.resume(returning: nil)
                     }
                     return
                 }
 
-                // Check if there is a pending generic Bool request.
+                // Check if there is a pending Bool request (abort, etc.)
                 responseLock.lock()
                 let continuation = pendingResponses.removeValue(forKey: id)
                 responseLock.unlock()
@@ -861,16 +631,9 @@ class GatewayClient: ObservableObject {
                     continuation.resume(returning: !isError)
                     return
                 }
-
-            guard id == pendingConnectRequestId else {
-                gwLog.warning("Ignoring unmatched or late gateway response id=\(id, privacy: .public)")
-                return
             }
-            pendingConnectRequestId = nil
-            pendingHandshakeGeneration = nil
 
-            // Only the response to this connection generation's explicit connect
-            // request is allowed to transition the transport to connected.
+            // No pending response matched — treat as connect ack or connect error
             let isError = json["error"] != nil
             if !isError {
                 gwLog.info("Gateway connected successfully")
@@ -878,17 +641,18 @@ class GatewayClient: ObservableObject {
                 // present — lets the next connect re-bind to the same paired
                 // device record (and its `approvedScopes`) without re-signing.
                 self.persistDeviceTokenFromHello(json["payload"] as? [String: Any])
-                let recoveredTransport = recoveryCycleActive
-                reconnectAttempt = 0
-                reconnectPending = false
-                recoveryCycleActive = false
-                startHeartbeat()
-                publishConnectionState(.connected)
-                DispatchQueue.main.async { [weak self] in
-                    self?.lastConnectError = nil
+                // reconnectAttempt is part of the state-machine and must only be mutated
+                // on stateQueue (it races with scheduleReconnect()'s `+= 1` otherwise).
+                // Start heartbeat on the same queue so a stale prior timer is replaced
+                // atomically with the fresh connection.
+                stateQueue.async { [weak self] in
+                    self?.reconnectAttempt = 0
+                    self?.reconnectPending = false
+                    self?.startHeartbeat()
                 }
-                if recoveredTransport {
-                    broadcastEvent(.transport(.connected))
+                DispatchQueue.main.async {
+                    self.isConnected = true
+                    self.lastConnectError = nil
                 }
             } else {
                 // Connect auth failed (e.g. stale token after gateway restart).
@@ -907,12 +671,14 @@ class GatewayClient: ObservableObject {
                     self.clearStoredDeviceTokenForCurrentRole()
                     gwLog.info("Cleared stored deviceToken due to token-related auth failure")
                 }
-                teardownSession()
-                publishConnectionState(.disconnected)
-                DispatchQueue.main.async { [weak self] in
-                    self?.lastConnectError = parsedError
+                stateQueue.async { [weak self] in
+                    self?.teardownSession()
                 }
-                scheduleReconnect()
+                DispatchQueue.main.async {
+                    self.isConnected = false
+                    self.lastConnectError = parsedError
+                }
+                self.scheduleReconnect()
             }
         }
     }
@@ -1092,23 +858,9 @@ class GatewayClient: ObservableObject {
             return
         }
 
-        let generation = connectionGeneration
-        pendingConnectRequestId = requestId
-        guard let webSocketTask else {
-            pendingConnectRequestId = nil
-            scheduleReconnect()
-            return
-        }
-        webSocketTask.send(.string(jsonString)) { [weak self] error in
-            guard error != nil else { return }
-            self?.stateQueue.async { [weak self] in
-                guard let self,
-                      self.connectionGeneration == generation,
-                      self.pendingConnectRequestId == requestId else {
-                    return
-                }
-                self.pendingConnectRequestId = nil
-                self.scheduleReconnect()
+        webSocketTask?.send(.string(jsonString)) { [weak self] error in
+            if error != nil {
+                self?.scheduleReconnect()
             }
         }
     }
@@ -1156,44 +908,27 @@ class GatewayClient: ObservableObject {
     /// the previous one — root cause of the v1.1.46 `_CFRelease` crash.
     private func scheduleReconnect() {
         stateQueue.async { [weak self] in
-            guard let self,
+            guard let self = self,
                   !self.isIntentionalDisconnect,
                   !self.reconnectPending else { return }
-            self.recoveryCycleActive = true
-
-            guard self.reconnectPolicy.canScheduleAttempt(
-                afterCompletedAttempts: self.reconnectAttempt
-            ) else {
-                self.reconnectPending = false
-                self.teardownSession()
-                let exhausted = GatewayConnectionState.recoveryExhausted(attempts: self.reconnectAttempt)
-                self.publishConnectionState(exhausted)
-                self.broadcastEvent(.transport(exhausted))
-                gwLog.error("Gateway recovery exhausted after \(self.reconnectAttempt) attempts")
-                return
-            }
-
-            let attempt = self.reconnectAttempt + 1
-            guard let delay = self.reconnectPolicy.delayBeforeAttempt(attempt) else {
-                assertionFailure("Reconnect policy accepted attempt without a delay")
-                return
-            }
-            self.reconnectAttempt = attempt
             self.reconnectPending = true
-            self.teardownSession()
-            let scheduledGeneration = self.connectionGeneration
 
-            let reconnecting = GatewayConnectionState.reconnecting(attempt: attempt, maxAttempts: self.reconnectPolicy.maximumAttempts)
-            self.publishConnectionState(reconnecting)
-            self.broadcastEvent(.transport(reconnecting))
-            gwLog.warning("Gateway reconnect attempt \(attempt)/\(self.reconnectPolicy.maximumAttempts) in \(delay)s")
+            // Finish all active event streams so consumers don't hang forever
+            self.eventLock.lock()
+            let activeContinuations = self.eventContinuations
+            self.eventContinuations.removeAll()
+            self.eventLock.unlock()
+            for (_, continuation) in activeContinuations {
+                continuation.finish()
+            }
+
+            self.reconnectAttempt += 1
+            // Exponential backoff: 1s, 2s, 4s, 8s, capped at maxReconnectDelay
+            let delay = min(pow(2.0, Double(self.reconnectAttempt - 1)),
+                            self.maxReconnectDelay)
 
             self.stateQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
-                guard let self,
-                      !self.isIntentionalDisconnect,
-                      scheduledGeneration == self.connectionGeneration else {
-                    return
-                }
+                guard let self = self, !self.isIntentionalDisconnect else { return }
                 // Stays inside stateQueue: teardown + rebuild are both serial.
                 // reconnectPending flips false at the moment we begin establishing —
                 // a fresh failure from the new socket is allowed to re-arm the timer.
@@ -1257,16 +992,13 @@ class GatewayClient: ObservableObject {
             return
         }
 
-        let generation = connectionGeneration
         outstandingPingSentAt = Date()
         ws.sendPing { [weak self] error in
             // Pong handler runs on URLSession's internal queue; bounce back to
             // stateQueue so we mutate `outstandingPingSentAt` under the same
             // serialization that everything else uses.
             self?.stateQueue.async {
-                guard let self,
-                      generation == self.connectionGeneration,
-                      self.webSocketTask === ws else { return }
+                guard let self = self else { return }
                 if let error = error {
                     gwLog.warning("Heartbeat ping send/pong error: \(error.localizedDescription) — reconnecting")
                     self.stopHeartbeat()
@@ -1462,19 +1194,6 @@ class GatewayClient: ObservableObject {
         return false
     }
 
-    private func gatewayErrorMessage(_ value: Any?) -> String? {
-        if let string = value as? String {
-            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : trimmed
-        }
-        if let dictionary = value as? [String: Any] {
-            return firstString(in: dictionary, keys: ["message", "errorMessage", "code"])
-        }
-        guard let value else { return nil }
-        let description = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
-        return description.isEmpty ? nil : description
-    }
-
     private func clippedDetail(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -1492,18 +1211,16 @@ class GatewayClient: ObservableObject {
             return
         }
 
-        recordPendingChatSendDelivery(runId: runId)
-
         let event: GatewayChatEvent
         switch state {
         case "delta":
             let text = extractTextFromMessage(payload["message"])
-            gwLog.debug("chat event: state=delta, runId=\(runId), textLen=\(text.count), subscribers=\(self.eventSubscriberCount())")
+            gwLog.debug("chat event: state=delta, runId=\(runId), textLen=\(text.count), subscribers=\(self.eventContinuations.count)")
             event = .delta(runId: runId, sessionKey: sessionKey, text: text)
         case "final":
             let text = extractTextFromMessage(payload["message"])
             let hasMessage = payload["message"] != nil
-            gwLog.info("chat event: state=final, runId=\(runId), textLen=\(text.count), hasMessage=\(hasMessage), subscribers=\(self.eventSubscriberCount())")
+            gwLog.info("chat event: state=final, runId=\(runId), textLen=\(text.count), hasMessage=\(hasMessage), subscribers=\(self.eventContinuations.count)")
             event = .final_(runId: runId, sessionKey: sessionKey, text: text)
         case "aborted":
             event = .aborted(runId: runId, sessionKey: sessionKey)
@@ -1581,7 +1298,17 @@ class GatewayClient: ObservableObject {
     }
 
     private func broadcastEvent(_ event: GatewayChatEvent) {
-        eventHub.broadcast(event)
+        eventLock.lock()
+        let continuations = Array(eventContinuations.values)
+        eventLock.unlock()
+
+        // Broadcast event to all active subscribers
+        // Using DispatchQueue to avoid blocking if a subscriber is slow to consume
+        DispatchQueue.global().async { [continuations] in
+            for continuation in continuations {
+                continuation.yield(event)
+            }
+        }
     }
 }
 

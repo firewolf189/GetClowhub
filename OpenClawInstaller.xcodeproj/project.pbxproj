@@ -40,10 +40,6 @@
 		CHMSG000000000000001 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHMSG000000000000002 /* ChatMessage.swift */; };
 		CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CTM000000000000000000002 /* ChatTimelineModels.swift */; };
 		CSTREAM000000000000001 /* ChatStreamState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTREAM000000000000002 /* ChatStreamState.swift */; };
-		CHRUN0000000000000001 /* ChatRunState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHRUN0000000000000002 /* ChatRunState.swift */; };
-		CHLIFE000000000000001 /* ChatRunLifecycleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHLIFE000000000000002 /* ChatRunLifecycleCoordinator.swift */; };
-		CHREPOL00000000000001 /* ChatRunReconciliationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHREPOL00000000000002 /* ChatRunReconciliationPolicy.swift */; };
-		CHRECON00000000000001 /* ChatRunReconciliation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHRECON00000000000002 /* ChatRunReconciliation.swift */; };
 		CHEVT000000000000001 /* ChatActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHEVT000000000000002 /* ChatActivityEvent.swift */; };
 		SKINFO00000000000001 /* SkillInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKINFO00000000000002 /* SkillInfo.swift */; };
 		AGOPT000000000000001 /* AgentOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = AGOPT000000000000002 /* AgentOption.swift */; };
@@ -128,11 +124,6 @@
 		F6A7B8C9D0E1423A4B5C6D7E /* SubAgentsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9401A2B3C4D5E /* SubAgentsTabView.swift */; };
 		FC838E8912A04DD484067D79 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE40F8EAC7C41D4B7C85C46 /* AuthManager.swift */; };
 		GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */; };
-		GWEVENT0000000000000001 /* GatewayChatEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWEVENT0000000000000002 /* GatewayChatEvent.swift */; };
-		GWABORT000000000000001 /* GatewayChatAbortRequestRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWABORT000000000000002 /* GatewayChatAbortRequestRegistry.swift */; };
-		GWSTATE000000000000001 /* GatewayConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWSTATE000000000000002 /* GatewayConnectionState.swift */; };
-		GWRECOV000000000000001 /* GatewayChatRecoverySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWRECOV000000000000002 /* GatewayChatRecoverySnapshot.swift */; };
-		GWRSTAT000000000000001 /* GatewayChatRunStatusRequestRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWRSTAT000000000000002 /* GatewayChatRunStatusRequestRegistry.swift */; };
 		GWCTX0000000000000001 /* GatewayWorkspaceContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */; };
 		I18NSVC00000000000001 /* I18nService.swift in Sources */ = {isa = PBXBuildFile; fileRef = I18NSVC00000000000002 /* I18nService.swift */; };
 		I18NRES00000000000001 /* I18n in Resources */ = {isa = PBXBuildFile; fileRef = I18NRES00000000000002 /* I18n */; };
@@ -210,10 +201,6 @@
 			CHMSG000000000000002 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatMessage.swift"; sourceTree = SOURCE_ROOT; };
 			CTM000000000000000000002 /* ChatTimelineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift"; sourceTree = SOURCE_ROOT; };
 			CSTREAM000000000000002 /* ChatStreamState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatStreamState.swift"; sourceTree = SOURCE_ROOT; };
-			CHRUN0000000000000002 /* ChatRunState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatRunState.swift"; sourceTree = SOURCE_ROOT; };
-			CHLIFE000000000000002 /* ChatRunLifecycleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/ChatRunLifecycleCoordinator.swift"; sourceTree = SOURCE_ROOT; };
-			CHREPOL00000000000002 /* ChatRunReconciliationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/ChatRunReconciliationPolicy.swift"; sourceTree = SOURCE_ROOT; };
-			CHRECON00000000000002 /* ChatRunReconciliation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift"; sourceTree = SOURCE_ROOT; };
 			CHEVT000000000000002 /* ChatActivityEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatActivityEvent.swift"; sourceTree = SOURCE_ROOT; };
 			SKINFO00000000000002 /* SkillInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Skills/Models/SkillInfo.swift"; sourceTree = SOURCE_ROOT; };
 			AGOPT000000000000002 /* AgentOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Models/AgentOption.swift"; sourceTree = SOURCE_ROOT; };
@@ -310,11 +297,6 @@
 		F1E2D3C4B5A647389021A3B4 /* UninstallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/UninstallManager.swift"; sourceTree = SOURCE_ROOT; };
 		F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Help/Views/HelpAssistantWindow.swift"; sourceTree = SOURCE_ROOT; };
 		GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayClient.swift"; sourceTree = SOURCE_ROOT; };
-		GWEVENT0000000000000002 /* GatewayChatEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayChatEvent.swift"; sourceTree = SOURCE_ROOT; };
-		GWABORT000000000000002 /* GatewayChatAbortRequestRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayChatAbortRequestRegistry.swift"; sourceTree = SOURCE_ROOT; };
-		GWSTATE000000000000002 /* GatewayConnectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayConnectionState.swift"; sourceTree = SOURCE_ROOT; };
-		GWRECOV000000000000002 /* GatewayChatRecoverySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayChatRecoverySnapshot.swift"; sourceTree = SOURCE_ROOT; };
-		GWRSTAT000000000000002 /* GatewayChatRunStatusRequestRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayChatRunStatusRequestRegistry.swift"; sourceTree = SOURCE_ROOT; };
 		GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/GatewayWorkspaceContext.swift"; sourceTree = SOURCE_ROOT; };
 		I18NSVC00000000000002 /* I18nService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Localization/I18nService.swift"; sourceTree = SOURCE_ROOT; };
 		I18NRES00000000000002 /* I18n */ = {isa = PBXFileReference; lastKnownFileType = folder; path = I18n; sourceTree = "<group>"; };
@@ -447,11 +429,6 @@
 				PMFS0002C2D3E4F5A6B70002 /* ProviderModelFetchService.swift */,
 				356410292F5802970045A6F7 /* DiagnosticService.swift */,
 				GW01AB02C2D3E4F5A6B70002 /* GatewayClient.swift */,
-				GWEVENT0000000000000002 /* GatewayChatEvent.swift */,
-				GWABORT000000000000002 /* GatewayChatAbortRequestRegistry.swift */,
-				GWSTATE000000000000002 /* GatewayConnectionState.swift */,
-				GWRECOV000000000000002 /* GatewayChatRecoverySnapshot.swift */,
-				GWRSTAT000000000000002 /* GatewayChatRunStatusRequestRegistry.swift */,
 				I18NSVC00000000000002 /* I18nService.swift */,
 				IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */,
 				PWGRP000000000000000 /* ProjectWorkspace */,
@@ -493,10 +470,6 @@
 				CHMSG000000000000002 /* ChatMessage.swift */,
 				CTM000000000000000000002 /* ChatTimelineModels.swift */,
 				CSTREAM000000000000002 /* ChatStreamState.swift */,
-				CHRUN0000000000000002 /* ChatRunState.swift */,
-				CHLIFE000000000000002 /* ChatRunLifecycleCoordinator.swift */,
-				CHREPOL00000000000002 /* ChatRunReconciliationPolicy.swift */,
-				CHRECON00000000000002 /* ChatRunReconciliation.swift */,
 				CHEVT000000000000002 /* ChatActivityEvent.swift */,
 				SKINFO00000000000002 /* SkillInfo.swift */,
 				AGOPT000000000000002 /* AgentOption.swift */,
@@ -902,10 +875,6 @@
 				CHMSG000000000000001 /* ChatMessage.swift in Sources */,
 				CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */,
 				CSTREAM000000000000001 /* ChatStreamState.swift in Sources */,
-				CHRUN0000000000000001 /* ChatRunState.swift in Sources */,
-				CHLIFE000000000000001 /* ChatRunLifecycleCoordinator.swift in Sources */,
-				CHREPOL00000000000001 /* ChatRunReconciliationPolicy.swift in Sources */,
-				CHRECON00000000000001 /* ChatRunReconciliation.swift in Sources */,
 				MDMODEL00000000000001 /* ModelInfo.swift in Sources */,
 				CHMODEL00000000000001 /* ChannelInfo.swift in Sources */,
 				WX01AB01C2D3E4F5A6B70001 /* WeixinLogin.swift in Sources */,
@@ -978,11 +947,6 @@
 				C011AB03A1B2C3D4E5F60003 /* CollabViewModel.swift in Sources */,
 				C011AB05A1B2C3D4E5F60005 /* CollabWindow.swift in Sources */,
 				GW01AB01C2D3E4F5A6B70001 /* GatewayClient.swift in Sources */,
-				GWEVENT0000000000000001 /* GatewayChatEvent.swift in Sources */,
-				GWABORT000000000000001 /* GatewayChatAbortRequestRegistry.swift in Sources */,
-				GWRSTAT000000000000001 /* GatewayChatRunStatusRequestRegistry.swift in Sources */,
-				GWSTATE000000000000001 /* GatewayConnectionState.swift in Sources */,
-				GWRECOV000000000000001 /* GatewayChatRecoverySnapshot.swift in Sources */,
 				I18NSVC00000000000001 /* I18nService.swift in Sources */,
 				IRBS0001C2D3E4F5A6B70001 /* ImageReviewBatchStore.swift in Sources */,
 				APWS0001D1E2F3A4B5C60001 /* ProjectWorkspace.swift in Sources */,

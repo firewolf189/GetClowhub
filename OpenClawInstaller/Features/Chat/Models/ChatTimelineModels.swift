@@ -7,7 +7,6 @@ struct ChatTimelineSnapshot: Equatable {
     static func build(
         messages: [ChatMessage],
         activeStreamStatesByMessageId: [UUID: ChatActiveStreamState],
-        runStatesByMessageId: [UUID: ChatRunPresentationState],
         highlightedMessageId: UUID?,
         highlightedMessageFlashOn: Bool
     ) -> ChatTimelineSnapshot {
@@ -17,15 +16,13 @@ struct ChatTimelineSnapshot: Equatable {
 
         for message in messages {
             let activeStreamState = activeStreamStatesByMessageId[message.id]
-            let runState = runStatesByMessageId[message.id]
-            let runPhase = runState?.phase
             let isLoadingPlaceholder = message.role == .assistant
                 && message.content.isEmpty
                 && message.attachments.isEmpty
                 && message.taskStatus == .loading
 
             if isLoadingPlaceholder && activeStreamState == nil {
-                loadingRows.append(ChatLoadingRowModel(message: message, runState: runState))
+                loadingRows.append(ChatLoadingRowModel(message: message))
                 continue
             }
 
@@ -34,11 +31,8 @@ struct ChatTimelineSnapshot: Equatable {
                     message: message,
                     visibleContent: activeStreamState?.visibleDraftText ?? message.content,
                     activityEvents: activeStreamState?.activityEvents ?? message.activityEvents,
-                    runState: runState,
                     isStreamingDraft: activeStreamState != nil,
-                    allowsRichMarkdown: activeStreamState == nil
-                        && runPhase?.isTerminal != false
-                        && richMarkdownMessageIds.contains(message.id),
+                    allowsRichMarkdown: activeStreamState == nil && richMarkdownMessageIds.contains(message.id),
                     isJumpHighlighted: highlightedMessageId == message.id && highlightedMessageFlashOn
                 )
             )
@@ -60,7 +54,6 @@ struct ChatMessageRowModel: Identifiable, Equatable {
     let timestamp: Date?
     let completedAt: Date?
     let activityEvents: [ChatActivityEvent]
-    let runState: ChatRunPresentationState?
     let visibleContent: String
     let isStreamingDraft: Bool
     let allowsRichMarkdown: Bool
@@ -70,7 +63,6 @@ struct ChatMessageRowModel: Identifiable, Equatable {
         message: ChatMessage,
         visibleContent: String,
         activityEvents: [ChatActivityEvent],
-        runState: ChatRunPresentationState?,
         isStreamingDraft: Bool,
         allowsRichMarkdown: Bool,
         isJumpHighlighted: Bool
@@ -86,29 +78,21 @@ struct ChatMessageRowModel: Identifiable, Equatable {
         self.timestamp = message.timestamp
         self.completedAt = message.completedAt
         self.activityEvents = activityEvents
-        self.runState = runState
         self.visibleContent = visibleContent
         self.isStreamingDraft = isStreamingDraft
         self.allowsRichMarkdown = allowsRichMarkdown
         self.isJumpHighlighted = isJumpHighlighted
     }
-
-    var runPhase: ChatRunPhase? { runState?.phase }
 }
 
 struct ChatLoadingRowModel: Identifiable, Equatable {
     let id: UUID
     let timestamp: Date?
     let activityEvents: [ChatActivityEvent]
-    let runState: ChatRunPresentationState?
 
-    init(message: ChatMessage, runState: ChatRunPresentationState?) {
+    init(message: ChatMessage) {
         self.id = message.id
         self.timestamp = message.timestamp
         self.activityEvents = message.activityEvents
-        self.runState = runState
     }
-
-
-    var runPhase: ChatRunPhase? { runState?.phase }
 }

@@ -2604,19 +2604,20 @@ struct ChatView: View {
         let timelineSnapshot = ChatTimelineSnapshot.build(
             messages: currentMessages,
             activeStreamStatesByMessageId: chatState.activeStreamStatesByMessageId,
-            runStatesByMessageId: taskState.runsByMessageId.mapValues(\.presentationState),
             highlightedMessageId: highlightedMessageId,
             highlightedMessageFlashOn: highlightedMessageFlashOn
         )
         let scrollView = ChatTimelineSurface(
             snapshot: timelineSnapshot,
+            taskState: taskState,
+            autoBackgroundAfterSeconds: viewModel.autoBackgroundAfterSeconds,
             proxy: proxy,
             columnMaxWidth: Self.layoutMetrics.chatColumnMaxWidth,
             onConfirmEditResend: { messageId, editedText in
                 viewModel.rewindToMessage(id: messageId, replacementText: editedText)
             },
             onCancel: { viewModel.cancelChat($0) },
-            onRetryConnection: viewModel.retryChatConnection
+            onMoveToBackground: viewModel.moveTaskToBackground
         )
         .alert(
             "回滚失败",
@@ -4372,26 +4373,102 @@ struct BackgroundTaskNotification: View {
     }
 }
 
-// MARK: - Thinking Indicator
+// MARK: - Thinking Indicator with Background Timer
 
-struct ThinkingIndicator: View, Equatable {
+struct ThinkingIndicator: View {
     let message: ChatLoadingRowModel
-    let onRetryConnection: (UUID) -> Void
+    @ObservedObject var taskState: TaskActivityState
+    let autoBackgroundAfterSeconds: Int?
+    let onMoveToBackground: (UUID) -> Void
+    @State private var elapsedSeconds: Int = 0
+    @State private var timer: Timer?
 
-    static func == (lhs: ThinkingIndicator, rhs: ThinkingIndicator) -> Bool {
-        lhs.message == rhs.message
+    private var showBackgroundButton: Bool {
+        // Manual "Move to Background" is disabled along with auto-background:
+        // this build keeps tasks foreground until they finish or are cancelled
+        // (synchronous review-then-send workflow). A long run is stopped with
+        // Cancel, not parked in the background. Reattached background runs
+        // (from a prior app session) still render + cancel via the bubble's
+        // .background row.
+        false
     }
 
     var body: some View {
-        WorkStatusHeader(
-            start: message.timestamp,
-            end: nil,
-            activityEvents: message.activityEvents,
-            runState: message.runState,
-            onRetry: { onRetryConnection(message.id) }
-        )
+        VStack(alignment: .leading, spacing: 6) {
+            WorkStatusHeader(
+                start: message.timestamp,
+                end: nil,
+                activityEvents: message.activityEvents
+            )
+            // "Move to Background" button — only visible after 60 seconds
+            if showBackgroundButton {
+                Button(action: {
+                    onMoveToBackground(message.id)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.system(size: 11))
+                        Text(I18n.t("dashboard.chat.moveToBackground"))
+                            .font(.caption)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.accentColor.opacity(0.15))
+                    .foregroundColor(.accentColor)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            }
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.easeInOut(duration: 0.3), value: showBackgroundButton)
+        .onAppear {
+            startTimer()
+        }
+        .onDisappear {
+            stopTimer()
+        }
     }
+
+    private func startTimer() {
+        stopTimer()
+        // Derive elapsed from message.timestamp (set when the placeholder
+        // was created in sendChatMessage) instead of counting up from 0.
+        // Without this, switching away and back to the session re-runs
+        // .onAppear → startTimer → reset to 0 even though the actual
+        // gateway-side run is still progressing, so "Thinking 23s"
+        // became "Thinking 0s" every time the user clicked back.
+        recomputeElapsed()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            DispatchQueue.main.async {
+                recomputeElapsed()
+                // Auto-move to background after `autoBackgroundAfterSeconds`
+                // (UserDefaults-backed, default 120). Returns nil if the
+                // user disabled auto-background entirely.
+                if let limit = autoBackgroundAfterSeconds,
+                   elapsedSeconds >= limit,
+                   taskState.foregroundTaskIds.contains(message.id) {
+                    onMoveToBackground(message.id)
+                }
+            }
+        }
+    }
+
+    /// Set `elapsedSeconds` from the absolute task start time
+    /// (`message.timestamp`) — wall-clock derived, so it survives view
+    /// recreation across session switches.
+    private func recomputeElapsed() {
+        if let start = message.timestamp {
+            elapsedSeconds = max(0, Int(Date().timeIntervalSince(start)))
+        }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
+
 }
 
 // MARK: - Model Picker Row (right-sidebar SessionDetailsPanel)
@@ -4570,8 +4647,6 @@ struct ChatBubble: View, Equatable {
     /// Cancel the in-flight run for this message. When set, a cancel button
     /// appears next to the streaming spinner so a run can be stopped mid-stream.
     var onCancel: ((UUID) -> Void)? = nil
-    /// Retry the shared gateway connection for a transport-lost run.
-    var onRetryConnection: ((UUID) -> Void)? = nil
     @State private var isHovering = false
     @State private var cachedMediaURLs: [URL] = []
     @State private var lastMediaScanContent: String = ""
@@ -4670,9 +4745,7 @@ struct ChatBubble: View, Equatable {
                     WorkStatusHeader(
                         start: message.timestamp,
                         end: message.completedAt,
-                        activityEvents: message.activityEvents,
-                        runState: message.runState,
-                        onRetry: { onRetryConnection?(message.id) }
+                        activityEvents: message.activityEvents
                     )
                 }
 
@@ -4864,10 +4937,7 @@ struct ChatBubble: View, Equatable {
     /// half-streamed text" affordance.
     private var isStreamingState: Bool {
         message.role == .assistant
-            && (message.runPhase?.isTerminal == false
-                || message.isStreamingDraft
-                || message.taskStatus == .loading
-                || message.taskStatus == .background)
+            && (message.isStreamingDraft || message.taskStatus == .loading || message.taskStatus == .background)
     }
 
     private var showsTopWorkStatus: Bool {
