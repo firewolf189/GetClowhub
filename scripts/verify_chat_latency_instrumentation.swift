@@ -48,8 +48,9 @@ require(
     "sendChatMessage should log error event timing"
 )
 require(
-    gateway.contains("pendingChatSendStartedAt"),
-    "GatewayClient should track chat.send request start times"
+    gateway.contains("let startedAt: ContinuousClock.Instant") &&
+        gateway.contains("startedAt: chatSendStartedAt"),
+    "GatewayClient should retain each chat.send start time in its typed pending request"
 )
 require(
     gateway.contains(#"phase=chat_send_ws_send"#),

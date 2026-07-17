@@ -2,13 +2,11 @@ import SwiftUI
 
 struct ChatTimelineSurface: View {
     let snapshot: ChatTimelineSnapshot
-    @ObservedObject var taskState: TaskActivityState
-    let autoBackgroundAfterSeconds: Int?
     let proxy: ScrollViewProxy
     let columnMaxWidth: CGFloat
     let onConfirmEditResend: (UUID, String) -> Void
     let onCancel: (UUID) -> Void
-    let onMoveToBackground: (UUID) -> Void
+    let onRetryConnection: (UUID) -> Void
 
     var body: some View {
         ScrollView(showsIndicators: true) {
@@ -28,7 +26,8 @@ struct ChatTimelineSurface: View {
                             ChatBubble(
                                 message: message,
                                 onConfirmEditResend: onConfirmEditResend,
-                                onCancel: onCancel
+                                onCancel: onCancel,
+                                onRetryConnection: onRetryConnection
                             )
                             .equatable()
                             .id(message.id)
@@ -38,10 +37,9 @@ struct ChatTimelineSurface: View {
                     ForEach(snapshot.loadingRows) { loadingMsg in
                         ThinkingIndicator(
                             message: loadingMsg,
-                            taskState: taskState,
-                            autoBackgroundAfterSeconds: autoBackgroundAfterSeconds,
-                            onMoveToBackground: onMoveToBackground
+                            onRetryConnection: onRetryConnection
                         )
+                        .equatable()
                         .id("loading-\(loadingMsg.id)")
                     }
 

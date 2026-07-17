@@ -8,54 +8,120 @@ struct WorkStatusHeader: View {
     let start: Date?
     let end: Date?
     let activityEvents: [ChatActivityEvent]
+    let runState: ChatRunPresentationState?
+    let onRetry: (() -> Void)?
     @State private var isExpanded = false
 
     var body: some View {
-        Group {
-            if let start = start {
-                if let end = end {
-                    statusBody {
-                        Text(WorkStatusDurationText.status(
-                            elapsedSeconds: max(0, Int(end.timeIntervalSince(start))),
-                            isFinished: true
-                        ))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .monospacedDigit()
-                    }
-                } else {
-                    statusBody {
-                        IsolatedElapsedWorkStatusText(start: start)
-                    }
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    headerButton {
-                        Text(String(localized: "Working", bundle: LanguageManager.shared.localizedBundle))
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    if isExpanded {
-                        activityRows
-                    }
-                }
-                .clipped()
+        VStack(alignment: .leading, spacing: 8) {
+            statusRow
+            if isExpanded && !activityEvents.isEmpty {
+                activityRows
+            }
+            if start != nil {
+                Divider()
             }
         }
+        .clipped()
         .animation(Self.expansionAnimation, value: isExpanded)
     }
 
-    private func statusBody<Label: View>(@ViewBuilder label: () -> Label) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private var statusRow: some View {
+        HStack(spacing: 8) {
             headerButton {
-                label()
+                statusLabel
             }
-            if isExpanded {
-                activityRows
+
+            if runState?.isRetryable == true, let onRetry {
+                Button(action: onRetry) {
+                    Label(
+                        String(localized: "Retry", bundle: LanguageManager.shared.localizedBundle),
+                        systemImage: "arrow.clockwise"
+                    )
+                    .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
             }
-            Divider()
         }
-        .clipped()
+    }
+
+    @ViewBuilder
+    private var statusLabel: some View {
+        if let runState {
+            if runState.cancellationRequested {
+                phaseLabel(
+                    String(localized: "Cancelling", bundle: LanguageManager.shared.localizedBundle),
+                    systemName: "xmark.circle"
+                )
+            } else {
+                switch runState.phase {
+                case .reconnecting(let attempt, let maxAttempts):
+                    phaseLabel(
+                        String(
+                            format: String(
+                                localized: "Reconnecting (%lld/%lld)",
+                                bundle: LanguageManager.shared.localizedBundle
+                            ),
+                            Int64(attempt),
+                            Int64(maxAttempts)
+                        ),
+                        systemName: "wifi.exclamationmark"
+                    )
+                case .reconciling:
+                    phaseLabel(
+                        String(localized: "Restoring response", bundle: LanguageManager.shared.localizedBundle),
+                        systemName: "arrow.triangle.2.circlepath"
+                    )
+                case .connectionLost:
+                    phaseLabel(
+                        String(localized: "Connection lost", bundle: LanguageManager.shared.localizedBundle),
+                        systemName: "wifi.slash"
+                    )
+                case .recoveryUnavailable:
+                    phaseLabel(
+                        String(localized: "Response recovery unavailable", bundle: LanguageManager.shared.localizedBundle),
+                        systemName: "exclamationmark.arrow.triangle.2.circlepath"
+                    )
+                case .connecting:
+                    phaseLabel(
+                        String(localized: "Connecting", bundle: LanguageManager.shared.localizedBundle),
+                        systemName: "network"
+                    )
+                default:
+                    durationLabel
+                }
+            }
+        } else {
+            durationLabel
+        }
+    }
+
+    @ViewBuilder
+    private var durationLabel: some View {
+        if let start {
+            if let end {
+                Text(WorkStatusDurationText.status(
+                    elapsedSeconds: max(0, Int(end.timeIntervalSince(start))),
+                    isFinished: true
+                ))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+                .monospacedDigit()
+            } else {
+                IsolatedElapsedWorkStatusText(start: start)
+            }
+        } else {
+            Text(String(localized: "Working", bundle: LanguageManager.shared.localizedBundle))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func phaseLabel(_ text: String, systemName: String) -> some View {
+        Label(text, systemImage: systemName)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.secondary)
     }
 
     private var activityRows: some View {
@@ -65,22 +131,28 @@ struct WorkStatusHeader: View {
     }
 
     private func headerButton<Label: View>(@ViewBuilder label: () -> Label) -> some View {
-        Button {
-            withAnimation(Self.expansionAnimation) {
-                isExpanded.toggle()
-            }
-        } label: {
-            HStack(spacing: 4) {
+        Group {
+            if activityEvents.isEmpty {
                 label()
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.secondary.opacity(0.75))
-                    .rotationEffect(.degrees(isExpanded ? 0 : -90))
-                    .animation(Self.expansionAnimation, value: isExpanded)
+            } else {
+                Button {
+                    withAnimation(Self.expansionAnimation) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        label()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary.opacity(0.75))
+                            .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                            .animation(Self.expansionAnimation, value: isExpanded)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
 }
 
