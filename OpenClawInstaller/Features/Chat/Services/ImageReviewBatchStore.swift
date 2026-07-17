@@ -292,7 +292,10 @@ struct ImageReviewBatchStore {
     }
 
     static func chunkSessionKey(agentId: String, batchId: String, chunkIndex: Int) -> String {
-        "agent:\(agentId):\(chunkSessionId(batchId: batchId, chunkIndex: chunkIndex))"
+        // Lowercased to match the gateway's canonical session-key form — chat
+        // events echo the lowercase key, and the chunk event loop compares keys
+        // for equality (see sessionKeyForAgent for the same rule).
+        "agent:\(agentId):\(chunkSessionId(batchId: batchId, chunkIndex: chunkIndex))".lowercased()
     }
 
     func cleanupImageCache(now: Date = Date()) throws -> CleanupSummary {
