@@ -17,17 +17,20 @@ enum ThinkingEffort: String, CaseIterable, Codable, Equatable, Identifiable {
 
     var id: String { rawValue }
 
-    /// The `chat.send` `params.thinking` object, or `nil` for `.auto` (omit the
-    /// field entirely). openclaw accepts `{ type: "disabled" }` to turn thinking
-    /// off and `{ effort: <tier> }` for an explicit level.
-    var wireValue: [String: Any]? {
+    /// The `chat.send` `params.thinking` value, or `nil` for `.auto` (omit the
+    /// field so the gateway/model uses its own default).
+    ///
+    /// openclaw validates `thinking` as a plain STRING enum
+    /// (`none`/`minimal`/`low`/`medium`/`high`) and normalizes it internally —
+    /// sending an object is rejected with `at /thinking: must be string`.
+    var wireValue: String? {
         switch self {
         case .auto:    return nil
-        case .off:     return ["type": "disabled"]
-        case .minimal: return ["effort": "minimal"]
-        case .low:     return ["effort": "low"]
-        case .medium:  return ["effort": "medium"]
-        case .high:    return ["effort": "high"]
+        case .off:     return "none"
+        case .minimal: return "minimal"
+        case .low:     return "low"
+        case .medium:  return "medium"
+        case .high:    return "high"
         }
     }
 

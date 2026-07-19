@@ -26,13 +26,12 @@
 
 ## 三、网关线格式(openclaw 2026.6.10 实证)
 
-chat.send `params.thinking` 收富对象:
-- `{ type: "disabled" }` 或 `{ effort: "none" }` —— 关思考
-- `{ type: "adaptive" }` 或**省略字段** —— 自动
-- `{ effort: "minimal" | "low" | "medium" | "high" }` —— 显式档
-- (另有 `level` / `budgetTokens` 高级形态,本期不用)
+chat.send `params.thinking` = **纯字符串枚举**(真机实证,2026-07-19):
+- `"none" | "minimal" | "low" | "medium" | "high"` —— 档值
+- **省略字段** —— 自动
+- 发**对象**会被拒:`INVALID_REQUEST: at /thinking: must be string`(openclaw 内部再把字符串归一到 `{type/effort}`)
 
-> 实现时以 Windows 端 chat.send 的确切编码为准(对齐 `{effort}` vs `{type}`);openclaw 把 `thought_level`/`reasoning_effort` 归一到 validated thinking。
+> 教训:早前静态从 dist 看到的 `{effort:"high"}`/`{type:"disabled"}` 是 openclaw **内部归一后**的形态,不是 chat.send 入参。MVP 首版误用对象被网关拒,靠降级路径兜住(消息仍发出),真机日志 `at /thinking: must be string` 定案后改为字符串。**双端协议务必真机验证。**
 
 ## 四、设计
 

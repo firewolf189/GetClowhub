@@ -322,7 +322,7 @@ class GatewayClient: ObservableObject {
         message: String,
         idempotencyKey: String,
         attachments: [[String: Any]]? = nil,
-        thinking: [String: Any]? = nil
+        thinking: String? = nil
     ) async -> GatewayChatSendResult {
         guard let ws = currentWebSocketTask() else {
             return .rejected(message: "Gateway is not connected")
@@ -339,7 +339,7 @@ class GatewayClient: ObservableObject {
         if let attachments = attachments, !attachments.isEmpty {
             params["attachments"] = attachments
         }
-        // Per-request reasoning effort. Absent for `.auto` (gateway/model default).
+        // Per-request reasoning effort (string enum). Absent for `.auto`.
         if let thinking = thinking, !thinking.isEmpty {
             params["thinking"] = thinking
         }
