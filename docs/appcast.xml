@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.72</title>
-      <sparkle:version>80</sparkle:version>
-      <sparkle:shortVersionString>1.1.72</sparkle:shortVersionString>
+      <title>Version 1.1.73</title>
+      <sparkle:version>81</sparkle:version>
+      <sparkle:shortVersionString>1.1.73</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.72</h2>
+        <h2>OpenClaw Helper 1.1.73</h2>
         <ul>
-          <li>聊天断线重连与后台任务恢复增强;修复消息发出后偶发收不到回复的问题。</li>
+          <li>新增「思考力度」调节:composer 可拖滑块按模型自适应控制推理深度;完善登录界面文案。</li>
         </ul>
       ]]></description>
-      <pubDate>Fri, 17 Jul 2026 23:06:59 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.72/GetClawHub.dmg"
-                 length="232442109"
+      <pubDate>Mon, 20 Jul 2026 00:21:40 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.73/GetClawHub.dmg"
+                 length="231433693"
                  type="application/octet-stream"
-                 sparkle:edSignature="JqWH7Cag1tZsiNu3+LYtrdlZzlb7otPeyaoSJQ3mSu66tBKcnUTvGXct2JW7rnuQNxUWD2LFE5TzuMXwXFrqBA==" />
+                 sparkle:edSignature="Dcei5hxDEPIz4X+syLLVRAC2mispXmWI68XPAWIh2X6KboKjO8DNe7mu3hGjl1Wz+41YSl0MHGLXSpUdjIDGDA==" />
     </item>
   </channel>
 </rss>
