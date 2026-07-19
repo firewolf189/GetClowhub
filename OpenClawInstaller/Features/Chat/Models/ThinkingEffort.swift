@@ -60,18 +60,23 @@ enum ThinkingEffort: String, CaseIterable, Codable, Equatable, Identifiable {
             needles.contains { id.hasPrefix($0) || id.contains($0) }
         }
 
-        // grok currently rejects any explicit thinking → auto only.
-        if matches(["grok"]) { return [.auto] }
-        // OpenAI reasoning family supports the full ladder incl. minimal.
+        // Tier sets mirror the Windows client's per-model adaptive tiers (the
+        // gateway rejects unsupported values). Each list below is the effort
+        // strings the model accepts; `.auto` (omit the field) is prepended as the
+        // always-safe default, `.off` == the gateway's "none".
+
+        // grok rejects every explicit effort EXCEPT "none" → auto + off only.
+        if matches(["grok"]) { return [.auto, .off] }
+        // OpenAI: none/minimal/low/medium/high (full ladder).
         if matches(["gpt", "o1", "o3", "o4"]) {
             return [.auto, .off, .minimal, .low, .medium, .high]
         }
-        // Gemini exposes only low/high.
+        // Gemini: none/low/high.
         if matches(["gemini"]) { return [.auto, .off, .low, .high] }
-        // DeepSeek: none / medium / high (empirically no "low").
+        // DeepSeek: none/medium/high (no minimal, no low).
         if matches(["deepseek"]) { return [.auto, .off, .medium, .high] }
-        // Other getclawhub reasoning families — offer the full ladder, degrade
-        // to auto if a specific tier is refused.
+        // GLM / other getclawhub reasoning families: none/low/medium/high
+        // (no minimal). Degrade to auto if a specific tier is still refused.
         if matches(["qwen", "glm", "minimax", "kimi", "doubao"]) {
             return [.auto, .off, .low, .medium, .high]
         }
