@@ -10,6 +10,8 @@ final class ModelSettingsViewModel: ObservableObject {
     /// explicit `thinking` field. Clamped to the active model's supported tiers
     /// whenever the composer model changes.
     @Published var activeComposerEffort: ThinkingEffort = .auto
+    /// Remembered effort per model id, restored across launches / model switches.
+    @Published var thinkingDefaultByModel: [String: ThinkingEffort] = ThinkingEffortStore.load()
     @Published var maxConcurrentTasks: Int = 4
     @Published var fallbackModels: [String] = []
     @Published var imageFallbackModels: [String] = []

@@ -583,26 +583,57 @@ class DashboardViewModel: ObservableObject {
         get { modelSettingsViewModel.modelOverview }
         set { modelSettingsViewModel.modelOverview = newValue }
     }
+    /// Resolved composer model id (falls back to the account default model).
+    var resolvedComposerModelId: String {
+        activeComposerModel.isEmpty ? modelOverview.defaultModel : activeComposerModel
+    }
     var activeComposerModel: String {
         get { modelSettingsViewModel.activeComposerModel }
         set {
             modelSettingsViewModel.activeComposerModel = newValue
-            // Keep the reasoning effort valid for the newly-selected model.
-            let clamped = ThinkingEffort.clamp(activeComposerEffort, toModelId: newValue)
-            if clamped != modelSettingsViewModel.activeComposerEffort {
-                modelSettingsViewModel.activeComposerEffort = clamped
-            }
+            // Restore the effort this model was last used with (clamped to what
+            // it still supports); default to auto for a model never touched.
+            let modelId = newValue.isEmpty ? modelOverview.defaultModel : newValue
+            let remembered = modelSettingsViewModel.thinkingDefaultByModel[modelId] ?? .auto
+            modelSettingsViewModel.activeComposerEffort = ThinkingEffort.clamp(remembered, toModelId: modelId)
         }
     }
     /// Reasoning effort selected in the composer (per-request `thinking`).
     var activeComposerEffort: ThinkingEffort {
         get { modelSettingsViewModel.activeComposerEffort }
-        set { modelSettingsViewModel.activeComposerEffort = newValue }
+        set {
+            modelSettingsViewModel.activeComposerEffort = newValue
+            // Remember it per model so it survives model switches and launches.
+            modelSettingsViewModel.thinkingDefaultByModel[resolvedComposerModelId] = newValue
+            ThinkingEffortStore.save(modelSettingsViewModel.thinkingDefaultByModel)
+        }
     }
     /// Effort tiers the active composer model accepts (`.auto` always present).
+    /// Cross-checks the preset `reasoning` flag so a non-reasoning model whose id
+    /// happens to match a reasoning family prefix still collapses to auto-only.
     var supportedComposerEfforts: [ThinkingEffort] {
-        let model = activeComposerModel.isEmpty ? modelOverview.defaultModel : activeComposerModel
-        return ThinkingEffort.supported(forModelId: model)
+        let modelId = resolvedComposerModelId
+        guard modelSupportsReasoning(modelId) else { return [.auto] }
+        return ThinkingEffort.supported(forModelId: modelId)
+    }
+    /// Model ids the bundled preset marks `reasoning: true` (bare, lowercased).
+    /// Built once. Empty when the preset can't be read — in that case we trust
+    /// the family rules alone rather than hiding the control everywhere.
+    private lazy var reasoningCapableModelIds: Set<String> = {
+        var ids = Set<String>()
+        for preset in ProviderPresetManager().loadPresets() {
+            for model in preset.models where model.reasoning {
+                ids.insert(Self.bareModelId(model.id))
+            }
+        }
+        return ids
+    }()
+    func modelSupportsReasoning(_ modelId: String) -> Bool {
+        guard !reasoningCapableModelIds.isEmpty else { return true }
+        return reasoningCapableModelIds.contains(Self.bareModelId(modelId))
+    }
+    private static func bareModelId(_ id: String) -> String {
+        (id.split(separator: "/").last.map(String.init) ?? id).lowercased()
     }
     /// Last model successfully applied to each gateway session via
     /// `sessions.patch`, keyed by sessionKey. Lets the send path skip the

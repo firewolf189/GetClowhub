@@ -99,3 +99,23 @@ enum ThinkingEffort: String, CaseIterable, Codable, Equatable, Identifiable {
         return modelId
     }
 }
+
+/// Persists the per-model reasoning-effort default across launches, mirroring
+/// the Windows client's Models-page `thinkingDefault`. Stored as
+/// `[modelId: rawValue]` in `UserDefaults`.
+enum ThinkingEffortStore {
+    private static let key = "composer.thinkingDefaultByModel"
+
+    static func load() -> [String: ThinkingEffort] {
+        guard let raw = UserDefaults.standard.dictionary(forKey: key) as? [String: String] else {
+            return [:]
+        }
+        return raw.reduce(into: [:]) { result, pair in
+            if let effort = ThinkingEffort(rawValue: pair.value) { result[pair.key] = effort }
+        }
+    }
+
+    static func save(_ defaults: [String: ThinkingEffort]) {
+        UserDefaults.standard.set(defaults.mapValues(\.rawValue), forKey: key)
+    }
+}
