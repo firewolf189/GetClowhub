@@ -41,6 +41,7 @@
 		CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CTM000000000000000000002 /* ChatTimelineModels.swift */; };
 		CSTREAM000000000000001 /* ChatStreamState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTREAM000000000000002 /* ChatStreamState.swift */; };
 		CHRUN0000000000000001 /* ChatRunState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHRUN0000000000000002 /* ChatRunState.swift */; };
+		THKEFF0000000000000001 /* ThinkingEffort.swift in Sources */ = {isa = PBXBuildFile; fileRef = THKEFF0000000000000002 /* ThinkingEffort.swift */; };
 		CHLIFE000000000000001 /* ChatRunLifecycleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHLIFE000000000000002 /* ChatRunLifecycleCoordinator.swift */; };
 		CHREPOL00000000000001 /* ChatRunReconciliationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHREPOL00000000000002 /* ChatRunReconciliationPolicy.swift */; };
 		CHRECON00000000000001 /* ChatRunReconciliation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHRECON00000000000002 /* ChatRunReconciliation.swift */; };
@@ -109,6 +110,7 @@
 		C3D4E5F6A7B8492A1B2C3D4E /* HelpAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */; };
 		CACT0000000000000001 /* CatalogActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACT0000000000000002 /* CatalogActionButton.swift */; };
 		CCV000000000000000000001 /* ChatComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCV000000000000000000002 /* ChatComposerView.swift */; };
+		CEFSEL0000000000000001 /* ComposerEffortSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFSEL0000000000000002 /* ComposerEffortSelector.swift */; };
 		CDOT0000000000000001 /* CursorDotOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDOT0000000000000002 /* CursorDotOverlay.swift */; };
 		COREUPGRADE000000000001 /* OpenClawCoreManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */; };
 		COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */; };
@@ -211,6 +213,7 @@
 			CTM000000000000000000002 /* ChatTimelineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift"; sourceTree = SOURCE_ROOT; };
 			CSTREAM000000000000002 /* ChatStreamState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatStreamState.swift"; sourceTree = SOURCE_ROOT; };
 			CHRUN0000000000000002 /* ChatRunState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatRunState.swift"; sourceTree = SOURCE_ROOT; };
+			THKEFF0000000000000002 /* ThinkingEffort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ThinkingEffort.swift"; sourceTree = SOURCE_ROOT; };
 			CHLIFE000000000000002 /* ChatRunLifecycleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/ChatRunLifecycleCoordinator.swift"; sourceTree = SOURCE_ROOT; };
 			CHREPOL00000000000002 /* ChatRunReconciliationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/ChatRunReconciliationPolicy.swift"; sourceTree = SOURCE_ROOT; };
 			CHRECON00000000000002 /* ChatRunReconciliation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift"; sourceTree = SOURCE_ROOT; };
@@ -290,6 +293,7 @@
 		C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Cron/Views/CronTabView.swift"; sourceTree = SOURCE_ROOT; };
 		CACT0000000000000002 /* CatalogActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CatalogActionButton.swift"; sourceTree = SOURCE_ROOT; };
 		CCV000000000000000000002 /* ChatComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift"; sourceTree = SOURCE_ROOT; };
+		CEFSEL0000000000000002 /* ComposerEffortSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ComposerEffortSelector.swift"; sourceTree = SOURCE_ROOT; };
 		CDOT0000000000000002 /* CursorDotOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CursorDotOverlay.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/OpenClawCoreManifest.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawCoreUpgradeCoordinator.swift"; sourceTree = SOURCE_ROOT; };
@@ -494,6 +498,7 @@
 				CTM000000000000000000002 /* ChatTimelineModels.swift */,
 				CSTREAM000000000000002 /* ChatStreamState.swift */,
 				CHRUN0000000000000002 /* ChatRunState.swift */,
+				THKEFF0000000000000002 /* ThinkingEffort.swift */,
 				CHLIFE000000000000002 /* ChatRunLifecycleCoordinator.swift */,
 				CHREPOL00000000000002 /* ChatRunReconciliationPolicy.swift */,
 				CHRECON00000000000002 /* ChatRunReconciliation.swift */,
@@ -546,6 +551,7 @@
 				C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */,
 				AMR000000000000000000002 /* AssistantMessageRenderer.swift */,
 				CCV000000000000000000002 /* ChatComposerView.swift */,
+				CEFSEL0000000000000002 /* ComposerEffortSelector.swift */,
 				CTV000000000000000000002 /* ChatTimelineSurface.swift */,
 				356410342F5802970045A6F7 /* DashboardView.swift */,
 				MDH000000000000000000002 /* MarkdownHTML.swift */,
@@ -869,6 +875,7 @@
 				356410592F5802970045A6F7 /* DashboardView.swift in Sources */,
 				CTV000000000000000000001 /* ChatTimelineSurface.swift in Sources */,
 				CCV000000000000000000001 /* ChatComposerView.swift in Sources */,
+				CEFSEL0000000000000001 /* ComposerEffortSelector.swift in Sources */,
 				AMR000000000000000000001 /* AssistantMessageRenderer.swift in Sources */,
 				SMV000000000000000000001 /* SelectableMarkdownView.swift in Sources */,
 				MDH000000000000000000001 /* MarkdownHTML.swift in Sources */,
@@ -903,6 +910,7 @@
 				CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */,
 				CSTREAM000000000000001 /* ChatStreamState.swift in Sources */,
 				CHRUN0000000000000001 /* ChatRunState.swift in Sources */,
+				THKEFF0000000000000001 /* ThinkingEffort.swift in Sources */,
 				CHLIFE000000000000001 /* ChatRunLifecycleCoordinator.swift in Sources */,
 				CHREPOL00000000000001 /* ChatRunReconciliationPolicy.swift in Sources */,
 				CHRECON00000000000001 /* ChatRunReconciliation.swift in Sources */,

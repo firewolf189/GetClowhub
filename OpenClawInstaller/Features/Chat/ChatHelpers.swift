@@ -726,6 +726,15 @@ extension DashboardViewModel {
         }
     }
 
+    /// Heuristic: did the gateway reject a `chat.send` because the model does
+    /// not support the requested reasoning effort? Used to degrade to `.auto`
+    /// and resend rather than surfacing a hard failure.
+    static func isThinkingRejection(_ message: String?) -> Bool {
+        guard let message = message?.lowercased() else { return false }
+        let needles = ["thinking", "reasoning", "effort", "thought", "not support"]
+        return needles.contains { message.contains($0) }
+    }
+
     func sendChatMessage(_ text: String, attachments: [URL] = []) async {
         // Route to commander only when the user is on the commander tab
         if let collabVM = collabViewModel, collabVM.isRunning,
@@ -874,12 +883,30 @@ extension DashboardViewModel {
         taskState.applyRunEvent(messageId: msgId, event: .sendStarted)
         let chatSendStart = ContinuousClock.now
         chatLog.info("phase=chat_send_start agent=\(currentAgentId, privacy: .public) session=\(currentSessionId.uuidString, privacy: .public) sessionKey=\(sessionKey, privacy: .public) model_override=\(composerModelOverride.isEmpty ? "default" : composerModelOverride, privacy: .public) message_len=\(baseMessage.count, privacy: .public) attachment_count=\(attachments.count, privacy: .public) inline_attachment_count=\(processed.inlineAttachments.count, privacy: .public)")
-        let sendResult = await gatewayClient.chatSend(
+        let inlineAttachments = processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments
+        let composerEffort = activeComposerEffort
+        var sendResult = await gatewayClient.chatSend(
             sessionKey: sessionKey,
             message: baseMessage,
             idempotencyKey: gatewayBinding.idempotencyKey,
-            attachments: processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments
+            attachments: inlineAttachments,
+            thinking: composerEffort.wireValue
         )
+        // If the model refused the explicit reasoning tier, retry once with no
+        // thinking so the turn still sends. The gateway is the real source of
+        // truth; the per-family tier list is only an optimistic guess.
+        if composerEffort != .auto,
+           case .rejected(let thinkingRejection) = sendResult,
+           Self.isThinkingRejection(thinkingRejection) {
+            chatLog.warning("phase=chat_thinking_unsupported model=\(composerModelOverride.isEmpty ? "default" : composerModelOverride, privacy: .public) effort=\(composerEffort.rawValue, privacy: .public) — retrying without thinking")
+            sendResult = await gatewayClient.chatSend(
+                sessionKey: sessionKey,
+                message: baseMessage,
+                idempotencyKey: gatewayBinding.idempotencyKey,
+                attachments: inlineAttachments,
+                thinking: nil
+            )
+        }
 
         var runId = gatewayBinding.idempotencyKey
         var submissionAttemptCount = 1

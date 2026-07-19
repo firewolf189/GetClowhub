@@ -585,7 +585,24 @@ class DashboardViewModel: ObservableObject {
     }
     var activeComposerModel: String {
         get { modelSettingsViewModel.activeComposerModel }
-        set { modelSettingsViewModel.activeComposerModel = newValue }
+        set {
+            modelSettingsViewModel.activeComposerModel = newValue
+            // Keep the reasoning effort valid for the newly-selected model.
+            let clamped = ThinkingEffort.clamp(activeComposerEffort, toModelId: newValue)
+            if clamped != modelSettingsViewModel.activeComposerEffort {
+                modelSettingsViewModel.activeComposerEffort = clamped
+            }
+        }
+    }
+    /// Reasoning effort selected in the composer (per-request `thinking`).
+    var activeComposerEffort: ThinkingEffort {
+        get { modelSettingsViewModel.activeComposerEffort }
+        set { modelSettingsViewModel.activeComposerEffort = newValue }
+    }
+    /// Effort tiers the active composer model accepts (`.auto` always present).
+    var supportedComposerEfforts: [ThinkingEffort] {
+        let model = activeComposerModel.isEmpty ? modelOverview.defaultModel : activeComposerModel
+        return ThinkingEffort.supported(forModelId: model)
     }
     /// Last model successfully applied to each gateway session via
     /// `sessions.patch`, keyed by sessionKey. Lets the send path skip the

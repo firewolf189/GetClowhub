@@ -93,6 +93,8 @@ struct ChatComposerView: View {
 
             Spacer(minLength: 8)
 
+            ComposerEffortSelector(viewModel: viewModel)
+
             ComposerModelSelector(
                 viewModel: viewModel,
                 isOpen: $showComposerSelector

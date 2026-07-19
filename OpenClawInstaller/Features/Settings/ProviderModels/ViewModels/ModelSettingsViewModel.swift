@@ -6,6 +6,10 @@ final class ModelSettingsViewModel: ObservableObject {
     @Published var models: [ModelInfo] = []
     @Published var modelOverview: ModelOverview = ModelOverview()
     @Published var activeComposerModel: String = ""
+    /// Per-request reasoning effort chosen in the composer. `.auto` sends no
+    /// explicit `thinking` field. Clamped to the active model's supported tiers
+    /// whenever the composer model changes.
+    @Published var activeComposerEffort: ThinkingEffort = .auto
     @Published var maxConcurrentTasks: Int = 4
     @Published var fallbackModels: [String] = []
     @Published var imageFallbackModels: [String] = []
