@@ -314,6 +314,67 @@ class GatewayClient: ObservableObject {
         return result
     }
 
+    /// Apply a session-scoped reasoning level via `sessions.patch`.
+    ///
+    /// This is the switch the gateway actually honours. The per-request
+    /// `chat.send.thinking` field passes schema validation but loses to the
+    /// agent's `thinkingDefault` (e.g. deepseek ships `thinking=medium`), so the
+    /// composer's effort has to be patched onto the session exactly the way the
+    /// model override is. Pass `nil` to clear the override and fall back to the
+    /// agent default (our `.auto`).
+    ///
+    /// Returns false when the gateway rejects the level — its error names the
+    /// levels that model does accept, which is what drives the adaptive tiers.
+    func patchSessionThinkingLevel(sessionKey: String, level: String?) async -> Bool {
+        guard let ws = currentWebSocketTask() else { return false }
+
+        let requestId = UUID().uuidString
+        let payload: [String: Any] = [
+            "type": "req",
+            "id": requestId,
+            "method": "sessions.patch",
+            "params": [
+                "key": sessionKey,
+                "thinkingLevel": level ?? NSNull()
+            ] as [String: Any]
+        ]
+
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let jsonString = String(data: data, encoding: .utf8) else {
+            return false
+        }
+
+        gwLog.info("phase=session_thinking_patch session=\(sessionKey, privacy: .public) level=\(level ?? "auto(clear)", privacy: .public)")
+
+        return await withCheckedContinuation { continuation in
+            responseLock.lock()
+            pendingResponses[requestId] = continuation
+            responseLock.unlock()
+
+            ws.send(.string(jsonString)) { [weak self] error in
+                if error != nil {
+                    self?.responseLock.lock()
+                    if let cont = self?.pendingResponses.removeValue(forKey: requestId) {
+                        self?.responseLock.unlock()
+                        cont.resume(returning: false)
+                    } else {
+                        self?.responseLock.unlock()
+                    }
+                }
+            }
+
+            DispatchQueue.global().asyncAfter(deadline: .now() + 10) { [weak self] in
+                self?.responseLock.lock()
+                if let cont = self?.pendingResponses.removeValue(forKey: requestId) {
+                    self?.responseLock.unlock()
+                    cont.resume(returning: false)
+                } else {
+                    self?.responseLock.unlock()
+                }
+            }
+        }
+    }
+
     /// Submit one idempotent chat run. An acknowledgement timeout is not an
     /// authoritative failure: the gateway may have accepted the request, so
     /// callers keep the same expected run id and reconcile instead of resending.

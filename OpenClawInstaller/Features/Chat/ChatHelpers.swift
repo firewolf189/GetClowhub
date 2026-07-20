@@ -870,6 +870,33 @@ extension DashboardViewModel {
             }
         }
 
+        // Apply the composer's reasoning effort to the SESSION. The gateway
+        // resolves a run's thinking level from the session entry / agent
+        // `thinkingDefault` — the per-request `chat.send.thinking` field passes
+        // schema validation but loses to that default (deepseek ships
+        // `thinking=medium`), which is why the level has to be patched here, the
+        // same way the model override is.
+        let composerEffort = activeComposerEffort
+        if appliedSessionThinking[sessionKey] != composerEffort {
+            let levelPatched = await gatewayClient.patchSessionThinkingLevel(
+                sessionKey: sessionKey,
+                level: composerEffort.sessionLevelValue
+            )
+            if levelPatched {
+                appliedSessionThinking[sessionKey] = composerEffort
+            } else {
+                // The model refused this level: clear the override so the turn
+                // still runs at the agent default rather than failing, and drop
+                // the composer back to auto so the badge stops lying.
+                appliedSessionThinking.removeValue(forKey: sessionKey)
+                chatLog.warning("phase=session_thinking_patch_failed session=\(sessionKey, privacy: .public) level=\(composerEffort.rawValue, privacy: .public) — falling back to the agent default")
+                _ = await gatewayClient.patchSessionThinkingLevel(sessionKey: sessionKey, level: nil)
+                if composerEffort != .auto, activeComposerEffort == composerEffort {
+                    activeComposerEffort = .auto
+                }
+            }
+        }
+
         guard let runBeforeSend = taskState.run(for: msgId) else {
             gatewayClient.unsubscribe(subscriberId: subscriberId)
             return
@@ -884,7 +911,6 @@ extension DashboardViewModel {
         let chatSendStart = ContinuousClock.now
         chatLog.info("phase=chat_send_start agent=\(currentAgentId, privacy: .public) session=\(currentSessionId.uuidString, privacy: .public) sessionKey=\(sessionKey, privacy: .public) model_override=\(composerModelOverride.isEmpty ? "default" : composerModelOverride, privacy: .public) message_len=\(baseMessage.count, privacy: .public) attachment_count=\(attachments.count, privacy: .public) inline_attachment_count=\(processed.inlineAttachments.count, privacy: .public)")
         let inlineAttachments = processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments
-        let composerEffort = activeComposerEffort
         var sendResult = await gatewayClient.chatSend(
             sessionKey: sessionKey,
             message: baseMessage,

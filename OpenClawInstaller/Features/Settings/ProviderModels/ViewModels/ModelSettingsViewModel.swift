@@ -20,4 +20,7 @@ final class ModelSettingsViewModel: ObservableObject {
     @Published var availableModelsForSettings: [ModelOption] = []
 
     var appliedSessionModels: [String: String] = [:]
+    /// Last reasoning level successfully patched onto each gateway session,
+    /// so the send path can skip a redundant `sessions.patch` round-trip.
+    var appliedSessionThinking: [String: ThinkingEffort] = [:]
 }

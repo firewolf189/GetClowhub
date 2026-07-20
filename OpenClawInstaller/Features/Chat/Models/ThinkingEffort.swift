@@ -34,6 +34,20 @@ enum ThinkingEffort: String, CaseIterable, Codable, Equatable, Identifiable {
         }
     }
 
+    /// Value for `sessions.patch { thinkingLevel }` — the switch the gateway
+    /// actually applies to a run. `nil` clears the session override so the
+    /// agent's own `thinkingDefault` applies (our `.auto`).
+    ///
+    /// The session vocabulary is `off|minimal|low|medium|high|xhigh` (note
+    /// `off`, not the `none` that `chat.send.thinking` uses).
+    var sessionLevelValue: String? {
+        switch self {
+        case .auto: return nil
+        case .off:  return "off"
+        default:    return rawValue
+        }
+    }
+
     /// i18n key for the compact composer label / menu item.
     var labelKey: String { "composer.effort.\(rawValue)" }
 

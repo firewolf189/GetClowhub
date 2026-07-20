@@ -644,6 +644,12 @@ class DashboardViewModel: ObservableObject {
         get { modelSettingsViewModel.appliedSessionModels }
         set { modelSettingsViewModel.appliedSessionModels = newValue }
     }
+    /// Reasoning level last patched onto each gateway session (see
+    /// `patchSessionThinkingLevel`).
+    var appliedSessionThinking: [String: ThinkingEffort] {
+        get { modelSettingsViewModel.appliedSessionThinking }
+        set { modelSettingsViewModel.appliedSessionThinking = newValue }
+    }
 
     /// Gateway `Main` lane concurrency cap — the number of agent runs the
     /// backend will execute in parallel before the rest start queueing.
