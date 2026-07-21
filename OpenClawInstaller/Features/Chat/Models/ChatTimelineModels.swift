@@ -48,6 +48,54 @@ struct ChatTimelineSnapshot: Equatable {
     }
 }
 
+/// Memoizes `ChatTimelineSnapshot.build`. DashboardView renders far more often
+/// than the timeline inputs change (shimmer animation, composer typing, layout
+/// passes), and `build` copies every message row — running it per render was
+/// the amplifier of the 2026-07-21 main-thread layout livelock. Equality checks
+/// on unchanged inputs are near-free thanks to CoW storage identity.
+@MainActor
+final class ChatTimelineSnapshotCache {
+    private struct Inputs: Equatable {
+        let messages: [ChatMessage]
+        let activeStreamStatesByMessageId: [UUID: ChatActiveStreamState]
+        let runStatesByMessageId: [UUID: ChatRunPresentationState]
+        let highlightedMessageId: UUID?
+        let highlightedMessageFlashOn: Bool
+    }
+
+    private var inputs: Inputs?
+    private var cached: ChatTimelineSnapshot?
+
+    func snapshot(
+        messages: [ChatMessage],
+        activeStreamStatesByMessageId: [UUID: ChatActiveStreamState],
+        runStatesByMessageId: [UUID: ChatRunPresentationState],
+        highlightedMessageId: UUID?,
+        highlightedMessageFlashOn: Bool
+    ) -> ChatTimelineSnapshot {
+        let next = Inputs(
+            messages: messages,
+            activeStreamStatesByMessageId: activeStreamStatesByMessageId,
+            runStatesByMessageId: runStatesByMessageId,
+            highlightedMessageId: highlightedMessageId,
+            highlightedMessageFlashOn: highlightedMessageFlashOn
+        )
+        if let cached, inputs == next {
+            return cached
+        }
+        let built = ChatTimelineSnapshot.build(
+            messages: messages,
+            activeStreamStatesByMessageId: activeStreamStatesByMessageId,
+            runStatesByMessageId: runStatesByMessageId,
+            highlightedMessageId: highlightedMessageId,
+            highlightedMessageFlashOn: highlightedMessageFlashOn
+        )
+        inputs = next
+        cached = built
+        return built
+    }
+}
+
 struct ChatMessageRowModel: Identifiable, Equatable {
     let id: UUID
     let role: ChatMessage.ChatRole

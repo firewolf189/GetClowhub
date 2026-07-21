@@ -370,7 +370,14 @@ private final class RightInspectorSplitController: NSViewController {
         if clampedWidth > 0 {
             sidebarContentWidthConstraint?.constant = clampedWidth
         }
-        view.layoutSubtreeIfNeeded()
+        // Never force a synchronous layout here: this runs from viewDidLayout
+        // (applySidebarWidth) and updateNSViewController, and re-entering
+        // layout mid-pass keeps posting window constraint passes that never
+        // converge (the 2026-07-21 SwiftUI<->AppKit livelock). Marking
+        // needsLayout lets AppKit coalesce into the next regular pass; the
+        // animation path (animateSidebarWidth) still forces layout explicitly
+        // where NSAnimationContext needs a flushed starting state.
+        view.needsLayout = true
     }
 
     private func isSidebarWidthApplied(_ width: CGFloat) -> Bool {
