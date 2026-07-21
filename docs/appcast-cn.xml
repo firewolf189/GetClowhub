@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.74</title>
-      <sparkle:version>82</sparkle:version>
-      <sparkle:shortVersionString>1.1.74</sparkle:shortVersionString>
+      <title>Version 1.1.75</title>
+      <sparkle:version>83</sparkle:version>
+      <sparkle:shortVersionString>1.1.75</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.74</h2>
+        <h2>OpenClaw Helper 1.1.75</h2>
         <ul>
-          <li>修复「思考力度」调节不生效:所选档位现在会真正应用到对话(此前仅界面变化,模型仍按默认档运行)。</li>
+          <li>修复:主界面卡死(CPU 100% 无响应)问题;聊天长对话渲染性能优化</li>
         </ul>
       ]]></description>
-      <pubDate>Mon, 20 Jul 2026 09:19:45 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.74/GetClawHub.dmg"
-                 length="232583716"
+      <pubDate>Tue, 21 Jul 2026 17:45:09 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.75/GetClawHub.dmg"
+                 length="233448315"
                  type="application/octet-stream"
-                 sparkle:edSignature="rpP095zbn3OKuSzHDeSJDh2MzSvah6y2ueRvEO9G0bce7A1/D3e9CckDu8NQBFuXPOMUzi0PYg77HxuaRgmWCg==" />
+                 sparkle:edSignature="uB8JGjLCABF2fOcRdTjG6Nd7vL4WLv8Hf2VLF9jv3OTsBOl/MdBaykHQYUiCTsbeVzMyBbMCHazJSYYzNOssDg==" />
     </item>
   </channel>
 </rss>
