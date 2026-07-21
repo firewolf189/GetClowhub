@@ -2512,6 +2512,9 @@ struct ChatView: View {
     @State private var chatScrollProxy: ScrollViewProxy?
     @State private var highlightedMessageId: UUID?
     @State private var highlightedMessageFlashOn = false
+    // Memoizes the timeline rows; rebuilding them per render amplified the
+    // 2026-07-21 layout livelock (see ChatTimelineSnapshotCache).
+    @State private var timelineSnapshotCache = ChatTimelineSnapshotCache()
     @State private var highlightFlashTask: Task<Void, Never>?
     // Create agent sheet
     @State private var showCreateAgentSheet = false
@@ -2601,7 +2604,7 @@ struct ChatView: View {
 
     @ViewBuilder
     private func chatScrollContent(proxy: ScrollViewProxy) -> some View {
-        let timelineSnapshot = ChatTimelineSnapshot.build(
+        let timelineSnapshot = timelineSnapshotCache.snapshot(
             messages: currentMessages,
             activeStreamStatesByMessageId: chatState.activeStreamStatesByMessageId,
             runStatesByMessageId: taskState.runsByMessageId.mapValues(\.presentationState),
