@@ -31,7 +31,10 @@ enum DashboardSidebarMetrics {
     static let agentTitleSpacing: CGFloat = 10
     static let disclosureChevronWidth: CGFloat = 12
     static let disclosureChevronHeight: CGFloat = 20
-    static let sessionTitleLeadingSpacer: CGFloat = sidebarIconSlotWidth + agentTitleSpacing
+    /// Width of the bullet slot leading each session row. Was derived from the
+    /// agent avatar slot (24pt) back when agent rows had a leading icon; with
+    /// Claude-style flush names a shallow 12pt indent reads right.
+    static let sessionTitleLeadingSpacer: CGFloat = 12
     static let sessionRowContentHeight: CGFloat = 24
     static let sessionRowActionSize: CGFloat = 20
     static let sessionRowActionAreaWidth: CGFloat = sessionRowActionSize * 2 + 2
