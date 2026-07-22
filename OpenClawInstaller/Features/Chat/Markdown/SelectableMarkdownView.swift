@@ -534,7 +534,14 @@ private struct _MarkdownWebView: NSViewRepresentable {
         }
 
         private func evaluateHeight(webView: WKWebView, completion: @escaping (CGFloat, CGFloat) -> Void) {
-            let js = "JSON.stringify({h:Math.ceil(document.body.scrollHeight),w:document.body.clientWidth})"
+            // body.getBoundingClientRect().height, NOT body.scrollHeight: in
+            // WebKit the body is the document's scrolling element, so its
+            // scrollHeight reports max(viewport, content). The initial height
+            // ESTIMATE sizes the WKWebView frame (= viewport), so an
+            // over-estimate self-confirmed forever — content shorter than the
+            // estimate (e.g. dense emoji tables) kept a large phantom blank
+            // below the message. The bounding rect is pure content height.
+            let js = "JSON.stringify({h:Math.ceil(Math.max(document.body.getBoundingClientRect().height, 1)),w:document.body.clientWidth})"
             webView.evaluateJavaScript(js) { result, _ in
                 guard let jsonStr = result as? String,
                       let data = jsonStr.data(using: .utf8),
