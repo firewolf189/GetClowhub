@@ -232,6 +232,15 @@ private final class RightInspectorSplitController: NSViewController {
         addChild(contentHost)
         addChild(sidebarHost)
 
+        // Both hosts are fully pinned by explicit constraints below, so their
+        // SwiftUI content must not feed intrinsic/min/max sizing back into
+        // AutoLayout. That feedback edge (inner NSHostingView
+        // _willUpdateConstraintsForSubtree -> minSize -> sizeThatFits while the
+        // outer SwiftUI graph is measuring this platform host) is what kept the
+        // 2026-07-22 livelock alive even after the synchronous-relayout fix.
+        contentHost.sizingOptions = []
+        sidebarHost.sizingOptions = []
+
         contentHost.view.translatesAutoresizingMaskIntoConstraints = false
         sidebarRail.translatesAutoresizingMaskIntoConstraints = false
         sidebarRail.clipsToBounds = true

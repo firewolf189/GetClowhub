@@ -65,6 +65,22 @@ require(
     "setSidebarWidth should mark needsLayout so AppKit coalesces the pass"
 )
 
+// --- Root edge: nested NSHostingControllers must not derive sizing from content ---
+// contentHost/sidebarHost are fully pinned by explicit constraints (edges +
+// width), so intrinsic-size derivation is pure overhead — and it IS the loop
+// edge: outer SwiftUI measures the platform host -> AppKit constraints pass ->
+// inner NSHostingView._willUpdateConstraintsForSubtree -> minSize ->
+// sizeThatFits -> inner graph update -> invalidates outer again (recurred
+// 2026-07-22 with v1.1.75's fixes in place). sizingOptions = [] severs it.
+require(
+    splitView.contains("contentHost.sizingOptions = []"),
+    "contentHost must opt out of SwiftUI-derived sizing (sizingOptions = []) — it is constraint-pinned and intrinsic sizing re-arms the livelock"
+)
+require(
+    splitView.contains("sidebarHost.sizingOptions = []"),
+    "sidebarHost must opt out of SwiftUI-derived sizing (sizingOptions = [])"
+)
+
 require(
     project.contains("ChatTimelineModels.swift in Sources"),
     "ChatTimelineModels.swift must be compiled by the app target"
