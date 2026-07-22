@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.76</title>
-      <sparkle:version>84</sparkle:version>
-      <sparkle:shortVersionString>1.1.76</sparkle:shortVersionString>
+      <title>Version 1.1.77</title>
+      <sparkle:version>85</sparkle:version>
+      <sparkle:shortVersionString>1.1.77</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.76</h2>
+        <h2>OpenClaw Helper 1.1.77</h2>
         <ul>
-          <li>修复:界面卡死彻底修复;新建智能体后无法发消息。新增:侧栏 Claude 式交互(会话圆点状态/未读提示);历史会话秒开不再白屏</li>
+          <li>修复:回复完成后消息底部出现大段空白(表格/emoji 内容场景)</li>
         </ul>
       ]]></description>
-      <pubDate>Wed, 22 Jul 2026 12:08:05 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.76/GetClawHub.dmg"
-                 length="229452875"
+      <pubDate>Wed, 22 Jul 2026 14:04:42 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.77/GetClawHub.dmg"
+                 length="234119766"
                  type="application/octet-stream"
-                 sparkle:edSignature="Lv4Zp0nXEkAisma4Wuyit6fqcwQu7vw8qUz3LNcD+gYaTGA5lOANmkiw4GtAhHpyLu69msr2KWuBvpRByVdzAQ==" />
+                 sparkle:edSignature="Df2UcmZopOhoj/iR8rCuPJYezWDmcVWPcwJiNgZn52xVGSB8k1iHdc2uySHOdYBzVELCYfTaVw1dq4Zu5MbYAQ==" />
     </item>
   </channel>
 </rss>
