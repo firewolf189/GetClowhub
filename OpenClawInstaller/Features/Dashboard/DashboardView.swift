@@ -31,10 +31,9 @@ enum DashboardSidebarMetrics {
     static let agentTitleSpacing: CGFloat = 10
     static let disclosureChevronWidth: CGFloat = 12
     static let disclosureChevronHeight: CGFloat = 20
-    /// Width of the bullet slot leading each session row. Was derived from the
-    /// agent avatar slot (24pt) back when agent rows had a leading icon; with
-    /// Claude-style flush names a shallow 12pt indent reads right.
-    static let sessionTitleLeadingSpacer: CGFloat = 12
+    /// Session-title leading inset: matches the bullet block on session rows
+    /// (4pt inset + 6pt dot + 8pt gap) so "show more" text aligns with titles.
+    static let sessionTitleLeadingSpacer: CGFloat = 18
     static let sessionRowContentHeight: CGFloat = 24
     static let sessionRowActionSize: CGFloat = 20
     static let sessionRowActionAreaWidth: CGFloat = sessionRowActionSize * 2 + 2
@@ -6894,6 +6893,38 @@ struct TasksLogsTabView: View {
 
 /// Single row inside the Sessions sidebar section. Renders the title and
 /// hover-only actions; the parent sidebar section drives `switchSession(to:)`.
+/// The leading dot on a sidebar session row. Hollow by default (Claude-style
+/// bullet); solid + breathing while a task is streaming in the session. The
+/// pulse animates opacity only — a render-layer property that never dirties
+/// layout (keep it that way: this sidebar has a livelock history).
+private struct SessionBulletDot: View {
+    let isActive: Bool
+    let isExecuting: Bool
+
+    @State private var pulseDimmed = false
+
+    var body: some View {
+        Group {
+            if isExecuting {
+                Circle()
+                    .fill(Color.accentColor)
+                    .opacity(pulseDimmed ? 0.3 : 1)
+                    .onAppear {
+                        pulseDimmed = false
+                        withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                            pulseDimmed = true
+                        }
+                    }
+                    .onDisappear { pulseDimmed = false }
+            } else {
+                Circle()
+                    .strokeBorder(Color.secondary.opacity(isActive ? 0.9 : 0.55), lineWidth: 1)
+            }
+        }
+        .frame(width: 6, height: 6)
+    }
+}
+
 struct ChatSessionRow: View {
     let meta: ChatSessionMetadata
     let isActive: Bool
@@ -6908,13 +6939,12 @@ struct ChatSessionRow: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Claude-style bullet: a small hollow dot marks each session row,
-            // centered inside the same leading slot the agent avatar occupies
-            // so titles stay aligned.
-            Circle()
-                .strokeBorder(Color.secondary.opacity(isActive ? 0.9 : 0.55), lineWidth: 1)
-                .frame(width: 5, height: 5)
-                .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer, alignment: .center)
+            // Claude-style bullet: small dot, tight fixed spacing (4pt inset,
+            // 6pt dot, 8pt gap to the title). While a task is streaming in the
+            // session the dot turns solid and pulses.
+            Color.clear.frame(width: 4)
+            SessionBulletDot(isActive: isActive, isExecuting: isExecuting)
+            Color.clear.frame(width: 8)
 
             Text(meta.title.isEmpty ? I18n.t("dashboard.session.newChat") : meta.title)
                 .lineLimit(1)
