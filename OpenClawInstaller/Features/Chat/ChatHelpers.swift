@@ -752,7 +752,16 @@ extension DashboardViewModel {
         }
 
         let userMessage = ChatMessage(role: .user, content: text, attachments: attachments)
-        let currentAgentId = selectedAgentId
+        // An empty selection would build an `agent::<uuid>` session key the
+        // gateway classifies as malformed and refuses (workspace resolution).
+        // Whatever upstream bug blanked the selection, never let it reach the
+        // wire — fall back to the gateway's default agent.
+        var currentAgentId = selectedAgentId
+        if currentAgentId.isEmpty {
+            NSLog("[Chat] sendChatMessage: selectedAgentId is EMPTY — falling back to 'main'")
+            currentAgentId = "main"
+            selectedAgentId = "main"
+        }
         chatMessagesByAgent[currentAgentId, default: []].append(userMessage)
         logChat("USER_MSG: agent=\(currentAgentId), totalMsgs=\(chatMessagesByAgent[currentAgentId]?.count ?? 0)")
 

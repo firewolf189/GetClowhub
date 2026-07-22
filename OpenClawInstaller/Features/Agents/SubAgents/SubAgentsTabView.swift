@@ -767,17 +767,23 @@ struct CreateAgentSheet: View {
 
                 Button(I18n.t("common.action.create")) {
                     let name = displayName.trimmingCharacters(in: .whitespaces)
-                    let finalName = name.isEmpty ? sanitizedId : name
+                    // Capture BEFORE the Task: `sanitizedId` derives from @State,
+                    // and reading it after `isPresented = false` tears the sheet
+                    // down returns the initial "" — the callback then selected an
+                    // empty agent and every send built a malformed `agent::<uuid>`
+                    // key the gateway refuses (2026-07-22 incident).
+                    let createdId = sanitizedId
+                    let finalName = name.isEmpty ? createdId : name
                     Task {
                         await viewModel.createAgent(
-                            agentId: sanitizedId,
+                            agentId: createdId,
                             displayName: name,
                             model: selectedModel,
                             division: selectedDivision
                         )
                         isPresented = false
                         onCreated?(finalName)
-                        onCreatedWithId?(sanitizedId)
+                        onCreatedWithId?(createdId)
                     }
                 }
                 .buttonStyle(.borderedProminent)

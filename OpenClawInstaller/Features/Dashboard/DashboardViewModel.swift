@@ -1125,10 +1125,13 @@ class DashboardViewModel: ObservableObject {
         guard let meta = chatSessionStore.index.first(where: { $0.id == sessionId }) else {
             return
         }
-        if selectedAgentId != meta.agentId {
-            selectedAgentId = meta.agentId
+        // Stored rows poisoned by the 2026-07-22 empty-agentId bug must not
+        // re-blank the selection (an empty agent builds malformed gateway keys).
+        let targetAgentId = meta.agentId.isEmpty ? "main" : meta.agentId
+        if selectedAgentId != targetAgentId {
+            selectedAgentId = targetAgentId
         }
-        activeProjectIdByAgent[meta.agentId] = meta.projectId
+        activeProjectIdByAgent[targetAgentId] = meta.projectId
         switchSession(to: sessionId)
     }
 
