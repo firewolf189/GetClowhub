@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.75</title>
-      <sparkle:version>83</sparkle:version>
-      <sparkle:shortVersionString>1.1.75</sparkle:shortVersionString>
+      <title>Version 1.1.76</title>
+      <sparkle:version>84</sparkle:version>
+      <sparkle:shortVersionString>1.1.76</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.75</h2>
+        <h2>OpenClaw Helper 1.1.76</h2>
         <ul>
-          <li>修复:主界面卡死(CPU 100% 无响应)问题;聊天长对话渲染性能优化</li>
+          <li>修复:界面卡死彻底修复;新建智能体后无法发消息。新增:侧栏 Claude 式交互(会话圆点状态/未读提示);历史会话秒开不再白屏</li>
         </ul>
       ]]></description>
-      <pubDate>Tue, 21 Jul 2026 17:45:09 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.75/GetClawHub.dmg"
-                 length="233448315"
+      <pubDate>Wed, 22 Jul 2026 12:08:05 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.76/GetClawHub.dmg"
+                 length="229452875"
                  type="application/octet-stream"
-                 sparkle:edSignature="uB8JGjLCABF2fOcRdTjG6Nd7vL4WLv8Hf2VLF9jv3OTsBOl/MdBaykHQYUiCTsbeVzMyBbMCHazJSYYzNOssDg==" />
+                 sparkle:edSignature="Lv4Zp0nXEkAisma4Wuyit6fqcwQu7vw8qUz3LNcD+gYaTGA5lOANmkiw4GtAhHpyLu69msr2KWuBvpRByVdzAQ==" />
     </item>
   </channel>
 </rss>
