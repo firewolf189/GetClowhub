@@ -53,6 +53,9 @@ struct DashboardSidebarState: Equatable {
 }
 
 struct DashboardSidebarActions {
+    /// Claude-style sidebar: clicking an agent row selects the agent and shows
+    /// its chat; the chevron alone toggles expansion.
+    let selectAgentChat: (String) -> Void
     let createNewSession: () -> Void
     let openGlobalSessionSearch: () -> Void
     let selectTab: (DashboardViewModel.DashboardTab) -> Void
@@ -399,6 +402,10 @@ struct DashboardView: View {
 
     private var sidebarActions: DashboardSidebarActions {
         DashboardSidebarActions(
+            selectAgentChat: { agentId in
+                viewModel.selectedAgentId = agentId
+                viewModel.selectedTab = .chat
+            },
             createNewSession: {
                 viewModel.createNewSession()
                 viewModel.selectedTab = .chat
@@ -1121,6 +1128,12 @@ struct SidebarView: View {
     @State private var hoveredSidebarAction: SidebarChromeAction?
     @State private var areAgentsCollapsed = false
     @State private var expandedAgentIds: Set<String> = []
+    /// Agents whose session list shows ALL rows. By default each expanded agent
+    /// renders only the most recent `collapsedSessionRowLimit` sessions plus a
+    /// "show more" row — long histories otherwise inflate the sidebar's view
+    /// tree (every row carries hover/context-menu/gesture machinery).
+    @State private var fullyExpandedSessionAgents: Set<String> = []
+    private static let collapsedSessionRowLimit = 8
     @State private var isPinnedSessionsExpanded = true
     @State private var isAgentSectionHeaderHovering = false
 
@@ -1402,7 +1415,39 @@ struct SidebarView: View {
     @ViewBuilder
     private func generalSessionsSectionContent(for agent: AgentOption) -> some View {
         let generalSessions = state.generalSessionsByAgent[agent.id] ?? []
-        sessionRows(generalSessions, for: agent)
+        let limit = Self.collapsedSessionRowLimit
+        let showAll = fullyExpandedSessionAgents.contains(agent.id)
+        let visible = showAll ? generalSessions : Array(generalSessions.prefix(limit))
+        let hiddenCount = generalSessions.count - visible.count
+
+        sessionRows(visible, for: agent)
+
+        if hiddenCount > 0 {
+            showMoreSessionsRow(agentId: agent.id, hiddenCount: hiddenCount)
+        }
+    }
+
+    private func showMoreSessionsRow(agentId: String, hiddenCount: Int) -> some View {
+        Button {
+            cancelSessionDeleteConfirmation()
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                _ = fullyExpandedSessionAgents.insert(agentId)
+            }
+        } label: {
+            HStack(spacing: 0) {
+                Color.clear
+                    .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer)
+                Text(I18n.format("dashboard.session.showMore", String(hiddenCount)))
+                    .font(DashboardTypography.sidebarSessionTitle)
+                    .foregroundColor(.secondary)
+                Spacer(minLength: 4)
+            }
+            .frame(height: DashboardSidebarMetrics.sessionRowContentHeight)
+            .padding(.horizontal, 8)
+            .padding(.vertical, DashboardSidebarMetrics.sessionRowVerticalPadding)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -1687,6 +1732,14 @@ struct SidebarView: View {
             onToggle: {
                 toggleAgentSelection(agent)
             },
+            onSelect: {
+                cancelSessionDeleteConfirmation()
+                // Claude-style: the row body opens the agent's chat (and keeps
+                // it expanded); collapsing is the chevron's job.
+                expandedAgentIds.insert(agent.id)
+                actions.selectAgentChat(agent.id)
+            },
+            showsChevronAlways: true,
             icon: {
                 AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize, isExpanded: expandedAgentIds.contains(agent.id))
             },
@@ -1855,6 +1908,13 @@ struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
     let verticalPadding: CGFloat
     let backgroundColor: (Bool) -> SwiftUI.Color
     let onToggle: () -> Void
+    /// Claude-style split interaction: when set, tapping the row body invokes
+    /// this (select) and ONLY the chevron toggles expansion. When nil the whole
+    /// row toggles (legacy behavior, e.g. the pinned-sessions header).
+    var onSelect: (() -> Void)? = nil
+    /// Keep the chevron visible even when not hovering (Claude keeps the
+    /// disclosure indicator persistently next to the name).
+    var showsChevronAlways: Bool = false
     @ViewBuilder let icon: () -> Icon
     @ViewBuilder let actions: () -> Actions
     @ViewBuilder let children: () -> Children
@@ -1907,8 +1967,12 @@ struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
                 .fill(backgroundColor(isHovering))
         )
         .onTapGesture {
-            withAnimation(Self.expansionAnimation) {
-                onToggle()
+            if let onSelect {
+                onSelect()
+            } else {
+                withAnimation(Self.expansionAnimation) {
+                    onToggle()
+                }
             }
         }
         .onHover { hovering in
@@ -1918,18 +1982,33 @@ struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
         }
     }
 
+    @ViewBuilder
     private var chevron: some View {
-        Image(systemName: "chevron.right")
+        let chevronImage = Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
             .font(.system(size: 10, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(
                 width: DashboardSidebarMetrics.disclosureChevronWidth,
                 height: DashboardSidebarMetrics.disclosureChevronHeight
             )
-            .opacity(isHovering || isExpanded ? 1 : 0)
-            .rotationEffect(.degrees(isExpanded ? 90 : 0))
-            .animation(.easeInOut(duration: 0.16), value: isExpanded)
+            .opacity(showsChevronAlways || isHovering || isExpanded ? 1 : 0)
             .animation(Self.hoverAnimation, value: isHovering)
+
+        if onSelect != nil {
+            // Dedicated hit target: only the chevron toggles when row taps select.
+            Button {
+                withAnimation(Self.expansionAnimation) {
+                    onToggle()
+                }
+            } label: {
+                chevronImage
+                    .frame(width: 18, height: rowHeight)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            chevronImage
+        }
     }
 }
 
@@ -6819,8 +6898,13 @@ struct ChatSessionRow: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Color.clear
-                .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer)
+            // Claude-style bullet: a small hollow dot marks each session row,
+            // centered inside the same leading slot the agent avatar occupies
+            // so titles stay aligned.
+            Circle()
+                .strokeBorder(Color.secondary.opacity(isActive ? 0.9 : 0.55), lineWidth: 1)
+                .frame(width: 5, height: 5)
+                .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer, alignment: .center)
 
             Text(meta.title.isEmpty ? I18n.t("dashboard.session.newChat") : meta.title)
                 .lineLimit(1)

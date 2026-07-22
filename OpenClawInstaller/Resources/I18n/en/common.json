@@ -278,6 +278,7 @@
   "dashboard.session.action.rename": "Rename",
   "dashboard.session.action.unpin": "Unpin",
   "dashboard.session.newChat": "New chat",
+  "dashboard.session.showMore": "Show %@ more…",
   "dashboard.sidebar.pinned": "Pinned",
   "dashboard.skills.empty": "No skills detected",
   "dashboard.skills.enabledCount": "%lld / %lld enabled",

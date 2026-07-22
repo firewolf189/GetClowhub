@@ -278,6 +278,7 @@
   "dashboard.session.action.rename": "Rename",
   "dashboard.session.action.unpin": "Unpin",
   "dashboard.session.newChat": "新規チャット",
+  "dashboard.session.showMore": "あと %@ 件を表示…",
   "dashboard.sidebar.pinned": "Pinned",
   "dashboard.skills.empty": "No skills detected",
   "dashboard.skills.enabledCount": "%lld / %lld enabled",

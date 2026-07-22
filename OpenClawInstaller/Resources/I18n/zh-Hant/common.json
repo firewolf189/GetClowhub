@@ -278,6 +278,7 @@
   "dashboard.session.action.rename": "重新命名",
   "dashboard.session.action.unpin": "取消置頂",
   "dashboard.session.newChat": "新會話",
+  "dashboard.session.showMore": "還有 %@ 條…",
   "dashboard.sidebar.pinned": "已置頂",
   "dashboard.skills.empty": "未偵測到技能",
   "dashboard.skills.enabledCount": "%lld / %lld 已啟用",

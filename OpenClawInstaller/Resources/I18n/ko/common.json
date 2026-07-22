@@ -278,6 +278,7 @@
   "dashboard.session.action.rename": "Rename",
   "dashboard.session.action.unpin": "Unpin",
   "dashboard.session.newChat": "새 채팅",
+  "dashboard.session.showMore": "%@개 더 보기…",
   "dashboard.sidebar.pinned": "Pinned",
   "dashboard.skills.empty": "No skills detected",
   "dashboard.skills.enabledCount": "%lld / %lld enabled",
