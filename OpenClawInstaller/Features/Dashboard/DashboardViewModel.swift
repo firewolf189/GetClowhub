@@ -178,6 +178,18 @@ class DashboardViewModel: ObservableObject {
             notifyError: { [weak self] message in self?.showErrorMessage(message) }
         )
 
+        // Unread indicator: when a run completes in a session the user is not
+        // currently viewing, flag it so the sidebar shows a solid dot until
+        // the session is opened.
+        taskState.onRunReachedTerminal = { [weak self] sessionId in
+            guard let self else { return }
+            let isViewingSession = self.selectedTab == .chat
+                && self.sessionState.selectedSessionIdByAgent[self.sessionState.selectedAgentId] == sessionId
+            if !isViewingSession {
+                self.sessionState.unreadSessionIds.insert(sessionId)
+            }
+        }
+
         // Forward nested ObservableObject changes so SwiftUI views re-render
         // (@Published on reference types only fires when the reference is replaced,
         //  not when the inner object's properties change)
@@ -1029,6 +1041,7 @@ class DashboardViewModel: ObservableObject {
     /// in-memory thread of the previous session to disk first so partial
     /// state isn't lost when the user clicks back.
     func switchSession(to sessionId: UUID) {
+        sessionState.unreadSessionIds.remove(sessionId)
         let switchStart = ContinuousClock.now
         let agentId = selectedAgentId
         let oldSid = selectedSessionIdByAgent[agentId]

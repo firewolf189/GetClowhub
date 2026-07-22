@@ -49,6 +49,7 @@ struct DashboardSidebarState: Equatable {
     let generalSessionsByAgent: [String: [ChatSessionMetadata]]
     let pinnedSessions: [ChatSessionMetadata]
     let inflightSessionIds: Set<UUID>
+    let unreadSessionIds: Set<UUID>
     let serviceStatus: ServiceStatus
     let serviceVersion: String
     let settingsShortcut: SettingsShortcutState
@@ -393,6 +394,7 @@ struct DashboardView: View {
             generalSessionsByAgent: sessionState.generalSessionsByAgent,
             pinnedSessions: sessionState.pinnedSessions,
             inflightSessionIds: taskState.inflightSessionIds,
+            unreadSessionIds: sessionState.unreadSessionIds,
             serviceStatus: viewModel.openclawService.status,
             serviceVersion: viewModel.openclawService.version,
             settingsShortcut: SettingsShortcutState(
@@ -407,6 +409,9 @@ struct DashboardView: View {
             selectAgentChat: { agentId in
                 viewModel.selectedAgentId = agentId
                 viewModel.selectedTab = .chat
+                if let visibleSession = viewModel.sessionState.selectedSessionIdByAgent[agentId] {
+                    viewModel.sessionState.unreadSessionIds.remove(visibleSession)
+                }
             },
             createNewSession: {
                 viewModel.createNewSession()
@@ -1468,6 +1473,7 @@ struct SidebarView: View {
                 meta: meta,
                 isActive: isSessionActive,
                 isExecuting: state.inflightSessionIds.contains(meta.id),
+                isUnread: state.unreadSessionIds.contains(meta.id) && !isSessionActive,
                 isHovering: isSessionHovering,
                 isDeleteConfirming: confirmingDeleteSessionId == meta.id,
                 onPinToggle: {
@@ -2178,6 +2184,11 @@ private struct DetailContentView: View {
         .onChange(of: viewModel.selectedTab) { newTab in
             // Only reload agents when entering chat tab, but preserve current agent selection
             if newTab == .chat {
+                // Re-entering chat makes the selected session visible again —
+                // its unread dot (if any) is now seen.
+                if let visibleSession = viewModel.sessionState.selectedSessionIdByAgent[viewModel.selectedAgentId] {
+                    viewModel.sessionState.unreadSessionIds.remove(visibleSession)
+                }
                 let currentAgent = viewModel.selectedAgentId
                 let msgCount = viewModel.chatMessages.count
                 print("[TAB_CHANGE] Switching to Chat: currentAgent=\(currentAgent), msgCount=\(msgCount)")
@@ -6893,13 +6904,16 @@ struct TasksLogsTabView: View {
 
 /// Single row inside the Sessions sidebar section. Renders the title and
 /// hover-only actions; the parent sidebar section drives `switchSession(to:)`.
-/// The leading dot on a sidebar session row. Hollow by default (Claude-style
-/// bullet); solid + breathing while a task is streaming in the session. The
-/// pulse animates opacity only — a render-layer property that never dirties
-/// layout (keep it that way: this sidebar has a livelock history).
+/// The leading dot on a sidebar session row. Three states, Claude-style:
+/// hollow bullet by default; solid + breathing while a task streams in the
+/// session; solid and STEADY once the reply finished but the user hasn't
+/// opened the session yet (unread). The pulse animates opacity only — a
+/// render-layer property that never dirties layout (keep it that way: this
+/// sidebar has a livelock history).
 private struct SessionBulletDot: View {
     let isActive: Bool
     let isExecuting: Bool
+    let isUnread: Bool
 
     @State private var pulseDimmed = false
 
@@ -6916,6 +6930,9 @@ private struct SessionBulletDot: View {
                         }
                     }
                     .onDisappear { pulseDimmed = false }
+            } else if isUnread {
+                Circle()
+                    .fill(Color.accentColor)
             } else {
                 Circle()
                     .strokeBorder(Color.secondary.opacity(isActive ? 0.9 : 0.55), lineWidth: 1)
@@ -6931,6 +6948,9 @@ struct ChatSessionRow: View {
     /// True when a foreground task is currently streaming inside this
     /// session (whether or not the session is the visible one).
     let isExecuting: Bool
+    /// True when the session's latest run finished while the user was away —
+    /// the dot stays solid (no pulse) until the session is opened.
+    var isUnread: Bool = false
     let isHovering: Bool
     let isDeleteConfirming: Bool
     let onPinToggle: () -> Void
@@ -6943,7 +6963,7 @@ struct ChatSessionRow: View {
             // 6pt dot, 8pt gap to the title). While a task is streaming in the
             // session the dot turns solid and pulses.
             Color.clear.frame(width: 4)
-            SessionBulletDot(isActive: isActive, isExecuting: isExecuting)
+            SessionBulletDot(isActive: isActive, isExecuting: isExecuting, isUnread: isUnread)
             Color.clear.frame(width: 8)
 
             Text(meta.title.isEmpty ? I18n.t("dashboard.session.newChat") : meta.title)

@@ -6,6 +6,10 @@ final class TaskActivityState: ObservableObject {
     @Published var isSendingMessage = false
     @Published private(set) var runsByMessageId: [UUID: ChatRunState] = [:]
 
+    /// Fired once when a run transitions into a terminal phase. Drives the
+    /// sidebar's unread indicator (solid dot until the session is viewed).
+    var onRunReachedTerminal: ((_ sessionId: UUID) -> Void)?
+
     var foregroundTaskIds: Set<UUID> {
         Set(activeRuns(in: .foreground).map(\.identity.messageId))
     }
@@ -51,6 +55,9 @@ final class TaskActivityState: ObservableObject {
         let updated = current.applying(event)
         guard updated != current else { return }
         runsByMessageId[messageId] = updated
+        if updated.phase.isTerminal && !current.phase.isTerminal {
+            onRunReachedTerminal?(updated.identity.sessionId)
+        }
     }
 
     /// Applies one shared transport transition with a single publication so a
@@ -59,15 +66,22 @@ final class TaskActivityState: ObservableObject {
         var updatedRuns = runsByMessageId
         var changed = false
 
+        var completedSessionIds: [UUID] = []
         for (messageId, run) in runsByMessageId where !run.phase.isTerminal {
             let updated = run.applying(event)
             guard updated != run else { continue }
             updatedRuns[messageId] = updated
             changed = true
+            if updated.phase.isTerminal {
+                completedSessionIds.append(updated.identity.sessionId)
+            }
         }
 
         if changed {
             runsByMessageId = updatedRuns
+            for sessionId in completedSessionIds {
+                onRunReachedTerminal?(sessionId)
+            }
         }
     }
 
