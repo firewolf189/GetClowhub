@@ -1740,8 +1740,9 @@ struct SidebarView: View {
                 actions.selectAgentChat(agent.id)
             },
             showsChevronAlways: true,
+            showsIconSlot: false,
             icon: {
-                AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize, isExpanded: expandedAgentIds.contains(agent.id))
+                EmptyView()
             },
             actions: {
                 Button {
@@ -1915,6 +1916,10 @@ struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
     /// Keep the chevron visible even when not hovering (Claude keeps the
     /// disclosure indicator persistently next to the name).
     var showsChevronAlways: Bool = false
+    /// Claude-style rows have no leading icon — the name starts flush. When
+    /// false the icon slot is not rendered at all (agent rows); legacy callers
+    /// (pinned header) keep their icon.
+    var showsIconSlot: Bool = true
     @ViewBuilder let icon: () -> Icon
     @ViewBuilder let actions: () -> Actions
     @ViewBuilder let children: () -> Children
@@ -1939,8 +1944,10 @@ struct SidebarCollapsibleRow<Icon: View, Actions: View, Children: View>: View {
 
     private var rowContent: some View {
         HStack(spacing: DashboardSidebarMetrics.agentTitleSpacing) {
-            icon()
-                .frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: DashboardSidebarMetrics.agentAvatarSize)
+            if showsIconSlot {
+                icon()
+                    .frame(width: DashboardSidebarMetrics.sidebarIconSlotWidth, height: DashboardSidebarMetrics.agentAvatarSize)
+            }
 
             Text(title)
                 .font(titleFont)
