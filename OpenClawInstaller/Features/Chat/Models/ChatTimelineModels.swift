@@ -57,6 +57,7 @@ struct ChatTimelineSnapshot: Equatable {
 final class ChatTimelineSnapshotCache {
     private struct Inputs: Equatable {
         let messages: [ChatMessage]
+        let tailLimit: Int?
         let activeStreamStatesByMessageId: [UUID: ChatActiveStreamState]
         let runStatesByMessageId: [UUID: ChatRunPresentationState]
         let highlightedMessageId: UUID?
@@ -66,8 +67,14 @@ final class ChatTimelineSnapshotCache {
     private var inputs: Inputs?
     private var cached: ChatTimelineSnapshot?
 
+    /// `tailLimit` renders only the LAST n messages — entering a long history
+    /// session materializes a bounded number of rows (each assistant row is an
+    /// NSTextView that lays out synchronously on insert; unbounded batches are
+    /// the "switch to history session" white-screen). The slice happens here,
+    /// after the cheap identity comparison, so cache hits stay O(1).
     func snapshot(
         messages: [ChatMessage],
+        tailLimit: Int? = nil,
         activeStreamStatesByMessageId: [UUID: ChatActiveStreamState],
         runStatesByMessageId: [UUID: ChatRunPresentationState],
         highlightedMessageId: UUID?,
@@ -75,6 +82,7 @@ final class ChatTimelineSnapshotCache {
     ) -> ChatTimelineSnapshot {
         let next = Inputs(
             messages: messages,
+            tailLimit: tailLimit,
             activeStreamStatesByMessageId: activeStreamStatesByMessageId,
             runStatesByMessageId: runStatesByMessageId,
             highlightedMessageId: highlightedMessageId,
@@ -83,8 +91,14 @@ final class ChatTimelineSnapshotCache {
         if let cached, inputs == next {
             return cached
         }
+        let visibleMessages: [ChatMessage]
+        if let tailLimit, messages.count > tailLimit {
+            visibleMessages = Array(messages.suffix(tailLimit))
+        } else {
+            visibleMessages = messages
+        }
         let built = ChatTimelineSnapshot.build(
-            messages: messages,
+            messages: visibleMessages,
             activeStreamStatesByMessageId: activeStreamStatesByMessageId,
             runStatesByMessageId: runStatesByMessageId,
             highlightedMessageId: highlightedMessageId,

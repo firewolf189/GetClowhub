@@ -167,6 +167,8 @@
   "dashboard.channels.toast.removeFailed": "Failed to remove %@: %@",
   "dashboard.channels.toast.removed": "%@ channel removed",
   "dashboard.chat.clearConversation": "Clear Conversation",
+  "dashboard.chat.loadEarlier": "以前の %@ 件を表示",
+  "dashboard.chat.loadingSession": "会話を読み込み中…",
   "dashboard.chat.modelSwitchFailedNotSent": "Could not switch to the selected model, so the message was not sent.",
   "dashboard.chat.moveToBackground": "Move to Background",
   "dashboard.chat.viewResult": "View result ↑",

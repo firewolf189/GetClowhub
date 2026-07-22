@@ -167,6 +167,8 @@
   "dashboard.channels.toast.removeFailed": "Failed to remove %@: %@",
   "dashboard.channels.toast.removed": "%@ channel removed",
   "dashboard.chat.clearConversation": "Clear Conversation",
+  "dashboard.chat.loadEarlier": "Show %@ earlier messages",
+  "dashboard.chat.loadingSession": "Loading conversation…",
   "dashboard.chat.modelSwitchFailedNotSent": "Could not switch to the selected model, so the message was not sent.",
   "dashboard.chat.moveToBackground": "Move to Background",
   "dashboard.chat.viewResult": "View result ↑",

@@ -2614,6 +2614,14 @@ struct ChatView: View {
     // Memoizes the timeline rows; rebuilding them per render amplified the
     // 2026-07-21 layout livelock (see ChatTimelineSnapshotCache).
     @State private var timelineSnapshotCache = ChatTimelineSnapshotCache()
+    /// Tail-window paging for history sessions, keyed by session id. Entering
+    /// a session renders only the last `historyTailWindow` messages (each
+    /// assistant row is an NSTextView that lays out synchronously on insert —
+    /// unbounded batches caused the long white screen on switch); "load
+    /// earlier" grows the window by `historyTailPageSize`.
+    @State private var historyTailLimitBySession: [UUID: Int] = [:]
+    private static let historyTailWindow = 30
+    private static let historyTailPageSize = 100
     @State private var highlightFlashTask: Task<Void, Never>?
     // Create agent sheet
     @State private var showCreateAgentSheet = false
@@ -2703,8 +2711,15 @@ struct ChatView: View {
 
     @ViewBuilder
     private func chatScrollContent(proxy: ScrollViewProxy) -> some View {
+        let allMessages = currentMessages
+        let activeSessionId = currentActiveSessionId
+        let tailLimit = activeSessionId.map { historyTailLimitBySession[$0] ?? Self.historyTailWindow }
+        let hiddenEarlierCount = tailLimit.map { max(0, allMessages.count - $0) } ?? 0
+        let isLoadingHistory = activeSessionId.map { chatState.loadingSessionIds.contains($0) } ?? false
+
         let timelineSnapshot = timelineSnapshotCache.snapshot(
-            messages: currentMessages,
+            messages: allMessages,
+            tailLimit: tailLimit,
             activeStreamStatesByMessageId: chatState.activeStreamStatesByMessageId,
             runStatesByMessageId: taskState.runsByMessageId.mapValues(\.presentationState),
             highlightedMessageId: highlightedMessageId,
@@ -2714,6 +2729,13 @@ struct ChatView: View {
             snapshot: timelineSnapshot,
             proxy: proxy,
             columnMaxWidth: Self.layoutMetrics.chatColumnMaxWidth,
+            hiddenEarlierCount: hiddenEarlierCount,
+            isLoadingHistory: isLoadingHistory && allMessages.isEmpty,
+            onLoadEarlier: {
+                guard let activeSessionId else { return }
+                let current = historyTailLimitBySession[activeSessionId] ?? Self.historyTailWindow
+                historyTailLimitBySession[activeSessionId] = current + Self.historyTailPageSize
+            },
             onConfirmEditResend: { messageId, editedText in
                 viewModel.rewindToMessage(id: messageId, replacementText: editedText)
             },

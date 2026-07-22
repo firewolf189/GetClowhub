@@ -167,6 +167,8 @@
   "dashboard.channels.toast.removeFailed": "移除 %@ 失敗：%@",
   "dashboard.channels.toast.removed": "%@ 頻道已移除",
   "dashboard.chat.clearConversation": "清空會話",
+  "dashboard.chat.loadEarlier": "查看更早的 %@ 則訊息",
+  "dashboard.chat.loadingSession": "正在載入會話…",
   "dashboard.chat.modelSwitchFailedNotSent": "無法切換到選取的模型，因此訊息未傳送。",
   "dashboard.chat.moveToBackground": "轉到後台",
   "dashboard.chat.viewResult": "查看結果 ↑",
