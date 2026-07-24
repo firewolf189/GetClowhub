@@ -199,6 +199,7 @@ struct WorkspaceInspectorPane: View {
     @State private var committedDetailWidth: CGFloat = 0
     @State private var renderedDetailMode: WorkspaceDetailMode = .none
     @State private var detailAnimationGeneration = 0
+    @State private var treeRevealToken = 0
 
     private var isProjectFilesVisible: Bool {
         detailMode == .projectTree || targetDetailMode == .projectTree || renderedDetailMode == .projectTree
@@ -231,6 +232,7 @@ struct WorkspaceInspectorPane: View {
                     WorkspaceFilePanel(
                         root: root,
                         editingFilePath: $editingFilePath,
+                        revealToken: treeRevealToken,
                         onOpenFile: openWorkspaceFile,
                         onCloseFile: closeWorkspaceDetail,
                         editingFileDirty: editingFileDirty,
@@ -260,7 +262,8 @@ struct WorkspaceInspectorPane: View {
                     onClose: closeWorkspacePreview,
                     onDirtyChanged: { dirty in
                         editingFileDirty = dirty
-                    }
+                    },
+                    onShowInFiles: { treeRevealToken += 1 }
                 )
                 .id(path)
             case .projectTree:
@@ -493,6 +496,7 @@ private struct WorkspaceInspectorContentSplit<Primary: View, Secondary: View>: V
 private struct WorkspaceFilePanel: View {
     let root: WorkspaceSidebarRoot
     @Binding var editingFilePath: String?
+    var revealToken: Int = 0
     let onOpenFile: (String) -> Void
     let onCloseFile: () -> Void
     let editingFileDirty: Bool
@@ -523,6 +527,7 @@ private struct WorkspaceFilePanel: View {
         EditableWorkspaceFileTreePanel(
             rootPath: workspacePath,
             selectedFilePath: $editingFilePath,
+            revealToken: revealToken,
             editingFileDirty: editingFileDirty,
             width: width,
             searchText: .constant(""),
@@ -729,6 +734,7 @@ private struct ProjectFilesPanel: View {
 private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View {
     let rootPath: String
     @Binding var selectedFilePath: String?
+    var revealToken: Int = 0
     let editingFileDirty: Bool
     let width: CGFloat
     @Binding var searchText: String
@@ -753,9 +759,23 @@ private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View {
 
     private static var newItemPlaceholderName: String { "__new_item_placeholder__" }
 
+    /// Expand every ancestor folder of the selected file so it becomes
+    /// visible in the tree (Claude's "show in files").
+    private func revealSelectedFile() {
+        guard let selected = selectedFilePath, selected.hasPrefix(rootPath) else { return }
+        searchText = ""
+        var dir = (selected as NSString).deletingLastPathComponent
+        while dir.hasPrefix(rootPath), dir.count >= rootPath.count {
+            expandedFolders.insert(dir)
+            if dir == rootPath { break }
+            dir = (dir as NSString).deletingLastPathComponent
+        }
+    }
+
     init(
         rootPath: String,
         selectedFilePath: Binding<String?>,
+        revealToken: Int = 0,
         editingFileDirty: Bool,
         width: CGFloat,
         searchText: Binding<String>,
@@ -769,6 +789,7 @@ private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View {
     ) {
         self.rootPath = rootPath
         self._selectedFilePath = selectedFilePath
+        self.revealToken = revealToken
         self.editingFileDirty = editingFileDirty
         self.width = width
         self._searchText = searchText
@@ -785,6 +806,8 @@ private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 let query = normalizedSearchText
+                Color.clear.frame(width: 0, height: 0)
+                    .onChange(of: revealToken) { _ in revealSelectedFile() }
                 if query.isEmpty {
                     let visibleItems = buildVisibleItems(root: rootPath, depth: 0)
                     if visibleItems.isEmpty {
@@ -1469,6 +1492,8 @@ private struct FileEditorPanel: View {
     let filePath: String
     let onClose: () -> Void
     var onDirtyChanged: ((Bool) -> Void)?
+    /// Claude-parity "show in files": reveal this file in the tree panel.
+    var onShowInFiles: (() -> Void)? = nil
 
     @State private var content: String = ""
     @State private var originalContent: String = ""
@@ -1479,6 +1504,7 @@ private struct FileEditorPanel: View {
     @State private var cursorLine: Int = 1
     @State private var cursorColumn: Int = 1
     @State private var wordWrap = true
+    @State private var findRequestToken = 0
 
     private var fileName: String {
         (filePath as NSString).lastPathComponent
@@ -1522,7 +1548,8 @@ private struct FileEditorPanel: View {
                     wordWrap: wordWrap,
                     fileExtension: fileExt,
                     cursorLine: $cursorLine,
-                    cursorColumn: $cursorColumn
+                    cursorColumn: $cursorColumn,
+                    findRequestToken: findRequestToken
                 )
             } else if category.supportsEditing && !["md", "html", "htm"].contains(fileExt.lowercased()) {
                 // Text/code preview: read-only with syntax highlighting
@@ -1533,7 +1560,8 @@ private struct FileEditorPanel: View {
                     fileExtension: fileExt,
                     cursorLine: $cursorLine,
                     cursorColumn: $cursorColumn,
-                    isReadOnly: true
+                    isReadOnly: true,
+                    findRequestToken: findRequestToken
                 )
             } else if fileExt.lowercased() == "md" {
                 MarkdownPreviewView(markdown: content)
@@ -1627,7 +1655,49 @@ private struct FileEditorPanel: View {
                 Divider().frame(height: 16)
             }
 
-            // Claude-parity quick actions: reveal / open externally / copy contents
+            // Claude-parity toolbar, in Claude's order:
+            // view source / find in file / show in files / open in Finder / copy contents
+            if category.supportsEditing {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        viewMode = (viewMode == .preview) ? .editor : .preview
+                    }
+                }) {
+                    Image(systemName: viewMode == .preview ? "chevron.left.forwardslash.chevron.right" : "eye")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .unifiedTooltip(UnifiedTooltipContent(title: viewMode == .preview ? I18n.t("workspace.files.viewSource") : I18n.t("common.action.preview")))
+            }
+
+            Button(action: {
+                // The native find bar lives on the text view — rendered
+                // markdown/HTML previews have none, so drop to source first.
+                if viewMode == .preview && !["md", "html", "htm"].contains(fileExt.lowercased()) {
+                    // code preview is already a text view; keep mode
+                } else if viewMode == .preview {
+                    withAnimation(.easeInOut(duration: 0.15)) { viewMode = .editor }
+                }
+                findRequestToken += 1
+            }) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.files.findInFile")))
+
+            if onShowInFiles != nil {
+                Button(action: { onShowInFiles?() }) {
+                    Image(systemName: "sidebar.left")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.files.showInFiles")))
+            }
+
             Button(action: {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: filePath)])
             }) {
@@ -1636,17 +1706,7 @@ private struct FileEditorPanel: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
-            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("chat.fileChip.revealInFinder")))
-
-            Button(action: {
-                NSWorkspace.shared.open(URL(fileURLWithPath: filePath))
-            }) {
-                Image(systemName: "arrow.up.forward.app")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("chat.fileChip.openExternal")))
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.outputs.openInFinder")))
 
             Button(action: {
                 NSPasteboard.general.clearContents()
@@ -1663,23 +1723,6 @@ private struct FileEditorPanel: View {
             }
             .buttonStyle(.plain)
             .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.files.copyContents")))
-
-            Divider().frame(height: 16)
-
-            // Toggle preview/edit for code files
-            if category.supportsEditing {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        viewMode = (viewMode == .preview) ? .editor : .preview
-                    }
-                }) {
-                    Image(systemName: viewMode == .preview ? "square.and.pencil" : "eye")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .unifiedTooltip(UnifiedTooltipContent(title: viewMode == .preview ? I18n.t("common.action.edit") : I18n.t("common.action.preview")))
-            }
 
             // Save via Cmd+S (hidden)
             if viewMode == .editor {
@@ -1807,6 +1850,8 @@ private struct CodeEditorView: NSViewRepresentable {
     @Binding var cursorLine: Int
     @Binding var cursorColumn: Int
     var isReadOnly: Bool = false
+    /// Bump to summon the native find bar (Claude's "find in file").
+    var findRequestToken: Int = 0
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -1882,6 +1927,17 @@ private struct CodeEditorView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        if context.coordinator.lastFindToken != findRequestToken {
+            context.coordinator.lastFindToken = findRequestToken
+            if findRequestToken > 0, let textView = scrollView.documentView as? NSTextView {
+                DispatchQueue.main.async {
+                    textView.window?.makeFirstResponder(textView)
+                    let item = NSMenuItem()
+                    item.tag = NSTextFinder.Action.showFindInterface.rawValue
+                    textView.performTextFinderAction(item)
+                }
+            }
+        }
         guard let textView = scrollView.documentView as? NSTextView else { return }
 
         // Never interrupt IME composition (e.g. Chinese/Japanese input)
@@ -1913,6 +1969,7 @@ private struct CodeEditorView: NSViewRepresentable {
     }
 
     class Coordinator: NSObject, NSTextViewDelegate {
+        var lastFindToken: Int = 0
         var parent: CodeEditorView
         weak var textView: NSTextView?
         var isUpdatingFromDelegate = false
