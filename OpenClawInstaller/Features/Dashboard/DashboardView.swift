@@ -2781,14 +2781,15 @@ struct ChatView: View {
         } message: {
             Text(viewModel.rewindError ?? "")
         }
-        // Recreate the scroll container per session. With
-        // defaultScrollAnchor(.bottom), swapping the whole LazyVStack content
-        // in place can leave the viewport pinned to a stale offset, so freshly
-        // built rows render off-screen and the timeline reads blank until you
-        // switch away and back (which recreates the view). Probes confirmed the
-        // rows reached the surface while the screen stayed empty; a per-session
-        // identity re-applies the bottom anchor against the new content.
-        .id(activeSessionId)
+        // NB: do NOT put `.id(activeSessionId)` here. It fixes the
+        // blank-on-cold-switch viewport bug by recreating the whole scroll
+        // subtree, but that synchronous rebuild of every ChatBubble + its
+        // NSViewRepresentable markdown host — especially with the workspace
+        // inspector open (extra nested NSHostingControllers) — reignites the
+        // SwiftUI<->AppKit layout livelock on session switch / send (froze the
+        // app, needed force-kill; 2026-07-24). The blank viewport is instead
+        // reset non-destructively by a no-animation jump to the last real row
+        // in `scrollToBottomIfAllowed` (see there).
 
         if #available(macOS 14.0, *) {
             scrollView
@@ -4038,6 +4039,16 @@ struct ChatView: View {
         if let generation, scheduledBottomScrollGeneration != generation { return }
         guard chatAutoScrollMode != .userDetached else { return }
         guard let proxy = chatScrollProxy else { return }
+        // On a session jump the content was swapped in place; an ANIMATED
+        // scroll to the empty "chatBottom" marker doesn't reliably drag the
+        // viewport off its stale offset (that was the blank-on-cold-switch
+        // bug). Jump instantly to the LAST REAL message row instead — a
+        // concrete row with `.bottom` anchor and no animation forces the
+        // viewport to land, without recreating the subtree.
+        if chatAutoScrollMode == .sessionJumping, let lastId = currentMessages.last?.id {
+            proxy.scrollTo(lastId, anchor: .bottom)
+            return
+        }
         withAnimation(.easeOut(duration: 0.25)) {
             proxy.scrollTo("chatBottom", anchor: .bottom)
         }
