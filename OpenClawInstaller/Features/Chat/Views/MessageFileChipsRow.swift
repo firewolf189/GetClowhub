@@ -7,6 +7,9 @@ import AppKit
 /// the context menu reveals it in Finder.
 struct MessageFileChipsRow: View {
     let paths: [String]
+    /// When set, clicks preview in-app (right inspector); otherwise fall back
+    /// to opening with the system default application.
+    var onOpen: ((String) -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 6) {
@@ -19,7 +22,11 @@ struct MessageFileChipsRow: View {
     private func chip(for path: String) -> some View {
         let url = URL(fileURLWithPath: path)
         return Button {
-            NSWorkspace.shared.open(url)
+            if let onOpen {
+                onOpen(path)
+            } else {
+                NSWorkspace.shared.open(url)
+            }
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: iconName(for: url.pathExtension.lowercased()))
@@ -38,6 +45,11 @@ struct MessageFileChipsRow: View {
         .buttonStyle(.plain)
         .help(path)
         .contextMenu {
+            Button {
+                NSWorkspace.shared.open(url)
+            } label: {
+                Label(I18n.t("chat.fileChip.openExternal"), systemImage: "arrow.up.forward.app")
+            }
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             } label: {

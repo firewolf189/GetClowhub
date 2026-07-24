@@ -822,6 +822,20 @@ class DashboardViewModel: ObservableObject {
         isPerformingAction = false
     }
 
+    /// A request to preview a file inside the right inspector (Claude-style
+    /// in-app preview instead of bouncing to an external app). The fresh UUID
+    /// makes repeat clicks on the same path re-fire onChange observers.
+    struct InspectorFileOpenRequest: Equatable {
+        let id: UUID
+        let path: String
+    }
+
+    @Published var inspectorFileOpenRequest: InspectorFileOpenRequest? = nil
+
+    func previewFileInInspector(_ path: String) {
+        inspectorFileOpenRequest = InspectorFileOpenRequest(id: UUID(), path: path)
+    }
+
     /// 强行修复网关 — macOS twin of the Windows client's repair_gateway.
     /// Bottom-line recovery when the graceful restart path is itself broken:
     /// config triage + oversized-log truncation + hard process purge + cold start.

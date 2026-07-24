@@ -217,6 +217,12 @@ struct DashboardView: View {
 
     var body: some View {
         presentationRoot
+        .onChange(of: viewModel.inspectorFileOpenRequest?.id) { _ in
+            guard viewModel.inspectorFileOpenRequest != nil else { return }
+            if !isWorkspaceSidebarExpanded {
+                revealWorkspaceSidebar()
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(colorSchemeForAppearance)
         .tint(AppAccentPalette.storedValue(appAccent).color)
@@ -603,7 +609,9 @@ struct DashboardView: View {
             onDetailWidthChanged: { detailWidth in
                 workspaceDetailWidth = detailWidth
             },
-            openFolder: openSelectedWorkspaceFolder
+            openFolder: openSelectedWorkspaceFolder,
+            externalOpenRequest: viewModel.inspectorFileOpenRequest,
+            onExternalOpenHandled: { viewModel.inspectorFileOpenRequest = nil }
         )
         .frame(maxWidth: .infinity, alignment: .top)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -2750,7 +2758,10 @@ struct ChatView: View {
                 viewModel.rewindToMessage(id: messageId, replacementText: editedText)
             },
             onCancel: { viewModel.cancelChat($0) },
-            onRetryConnection: viewModel.retryChatConnection
+            onRetryConnection: viewModel.retryChatConnection,
+            onOpenFileReference: { path in
+                viewModel.previewFileInInspector(path)
+            }
         )
         .alert(
             "回滚失败",
@@ -4706,6 +4717,8 @@ struct ChatBubble: View, Equatable {
     var onCancel: ((UUID) -> Void)? = nil
     /// Retry the shared gateway connection for a transport-lost run.
     var onRetryConnection: ((UUID) -> Void)? = nil
+    /// Preview a referenced document in-app (right inspector).
+    var onOpenFileReference: ((String) -> Void)? = nil
     @State private var isHovering = false
     @State private var cachedMediaURLs: [URL] = []
     @State private var lastMediaScanContent: String = ""
@@ -4876,7 +4889,7 @@ struct ChatBubble: View, Equatable {
                         }
 
                         if message.role == .assistant, !message.fileReferences.isEmpty {
-                            MessageFileChipsRow(paths: message.fileReferences)
+                            MessageFileChipsRow(paths: message.fileReferences, onOpen: onOpenFileReference)
                         }
 
                         // Action row: copy + (assistant) rewind. Shown only

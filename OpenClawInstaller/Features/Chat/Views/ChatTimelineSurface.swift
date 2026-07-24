@@ -14,6 +14,7 @@ struct ChatTimelineSurface: View {
     let onConfirmEditResend: (UUID, String) -> Void
     let onCancel: (UUID) -> Void
     let onRetryConnection: (UUID) -> Void
+    var onOpenFileReference: ((String) -> Void)? = nil
 
     var body: some View {
         if isLoadingHistory {
@@ -55,7 +56,8 @@ struct ChatTimelineSurface: View {
                                 message: message,
                                 onConfirmEditResend: onConfirmEditResend,
                                 onCancel: onCancel,
-                                onRetryConnection: onRetryConnection
+                                onRetryConnection: onRetryConnection,
+                                onOpenFileReference: onOpenFileReference
                             )
                             .equatable()
                             .id(message.id)

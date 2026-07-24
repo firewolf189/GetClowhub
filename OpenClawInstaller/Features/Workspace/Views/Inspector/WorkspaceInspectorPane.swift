@@ -180,6 +180,12 @@ struct WorkspaceInspectorPane: View {
     let editorWidth: CGFloat
     let onDetailWidthChanged: (CGFloat) -> Void
     let openFolder: () -> Void
+    /// Chat file-chips route here: preview the referenced document inside
+    /// this pane (Claude-style) instead of bouncing to an external app.
+    var externalOpenRequest: DashboardViewModel.InspectorFileOpenRequest? = nil
+    /// Called once a request has been applied so the owner can clear it —
+    /// otherwise a remount (tab switch) would replay the last request.
+    var onExternalOpenHandled: (() -> Void)? = nil
 
     @Environment(\.rightInspectorSidebarWidthCoordinator) private var sidebarWidthCoordinator
 
@@ -205,6 +211,8 @@ struct WorkspaceInspectorPane: View {
                 openFolder: openFolder,
                 toggleProjectFiles: toggleWorkspaceProjectFiles
             )
+            .onAppear { consumeExternalOpenRequest() }
+            .onChange(of: externalOpenRequest?.id) { _ in consumeExternalOpenRequest() }
 
             Divider()
 
@@ -266,6 +274,23 @@ struct WorkspaceInspectorPane: View {
             case .none:
                 EmptyView()
             }
+        }
+    }
+
+    private func consumeExternalOpenRequest() {
+        NSLog("[InspectorOpen] consume called, request=%@", externalOpenRequest?.path ?? "nil")
+        guard let request = externalOpenRequest else { return }
+        guard FileManager.default.fileExists(atPath: request.path) else {
+            onExternalOpenHandled?()
+            return
+        }
+        // On first mount the pane arrives mid reveal-animation; opening the
+        // detail panel in the same frame gets swallowed by the width/mode
+        // animation state machine. One short beat lets the reveal settle.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            NSLog("[InspectorOpen] opening %@", request.path)
+            openWorkspaceFile(request.path)
+            onExternalOpenHandled?()
         }
     }
 
@@ -1601,6 +1626,45 @@ private struct FileEditorPanel: View {
 
                 Divider().frame(height: 16)
             }
+
+            // Claude-parity quick actions: reveal / open externally / copy contents
+            Button(action: {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: filePath)])
+            }) {
+                Image(systemName: "folder")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("chat.fileChip.revealInFinder")))
+
+            Button(action: {
+                NSWorkspace.shared.open(URL(fileURLWithPath: filePath))
+            }) {
+                Image(systemName: "arrow.up.forward.app")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("chat.fileChip.openExternal")))
+
+            Button(action: {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(content, forType: .string)
+                let copied = I18n.t("workspace.files.contentsCopied")
+                saveMessage = copied
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    if saveMessage == copied { saveMessage = nil }
+                }
+            }) {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("workspace.files.copyContents")))
+
+            Divider().frame(height: 16)
 
             // Toggle preview/edit for code files
             if category.supportsEditing {
