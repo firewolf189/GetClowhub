@@ -180,12 +180,6 @@ struct WorkspaceInspectorPane: View {
     let editorWidth: CGFloat
     let onDetailWidthChanged: (CGFloat) -> Void
     let openFolder: () -> Void
-    /// Chat file-chips route here: preview the referenced document inside
-    /// this pane (Claude-style) instead of bouncing to an external app.
-    var externalOpenRequest: DashboardViewModel.InspectorFileOpenRequest? = nil
-    /// Called once a request has been applied so the owner can clear it —
-    /// otherwise a remount (tab switch) would replay the last request.
-    var onExternalOpenHandled: (() -> Void)? = nil
 
     @Environment(\.rightInspectorSidebarWidthCoordinator) private var sidebarWidthCoordinator
 
@@ -200,6 +194,9 @@ struct WorkspaceInspectorPane: View {
     @State private var renderedDetailMode: WorkspaceDetailMode = .none
     @State private var detailAnimationGeneration = 0
     @State private var treeRevealToken = 0
+    /// Claude-parity: a preview opened from a chat file-chip fills the pane
+    /// alone; the file tree only appears via the "show in files" action.
+    @State private var isTreeVisibleWithPreview = true
 
     private var isProjectFilesVisible: Bool {
         detailMode == .projectTree || targetDetailMode == .projectTree || renderedDetailMode == .projectTree
@@ -212,15 +209,22 @@ struct WorkspaceInspectorPane: View {
                 openFolder: openFolder,
                 toggleProjectFiles: toggleWorkspaceProjectFiles
             )
-            .onAppear { consumeExternalOpenRequest() }
-            .onChange(of: externalOpenRequest?.id) { _ in consumeExternalOpenRequest() }
+            .onReceive(NotificationCenter.default.publisher(for: .gchOpenWorkspaceFilePreview)) { note in
+                guard let path = note.object as? String else { return }
+                guard FileManager.default.fileExists(atPath: path) else { return }
+                openWorkspaceFile(path, hideTree: true)
+            }
 
             Divider()
 
             GeometryReader { proxy in
+                let isPreviewingWithoutTree: Bool = {
+                    if case .filePreview = renderedDetailMode { return !isTreeVisibleWithPreview }
+                    return false
+                }()
                 let layout = WorkspaceInspectorContentLayout(
                     availableWidth: proxy.size.width,
-                    preferredPrimaryWidth: browserWidth,
+                    preferredPrimaryWidth: isPreviewingWithoutTree ? 0 : browserWidth,
                     preferredSecondaryWidth: visualDetailWidth
                 )
 
@@ -229,15 +233,19 @@ struct WorkspaceInspectorPane: View {
                     primaryWidth: layout.primaryWidth,
                     secondaryWidth: layout.secondaryWidth
                 ) {
-                    WorkspaceFilePanel(
-                        root: root,
-                        editingFilePath: $editingFilePath,
-                        revealToken: treeRevealToken,
-                        onOpenFile: openWorkspaceFile,
-                        onCloseFile: closeWorkspaceDetail,
-                        editingFileDirty: editingFileDirty,
-                        width: layout.primaryWidth
-                    )
+                    if isPreviewingWithoutTree {
+                        Color.clear.frame(width: 0)
+                    } else {
+                        WorkspaceFilePanel(
+                            root: root,
+                            editingFilePath: $editingFilePath,
+                            revealToken: treeRevealToken,
+                            onOpenFile: openWorkspaceFile,
+                            onCloseFile: closeWorkspaceDetail,
+                            editingFileDirty: editingFileDirty,
+                            width: layout.primaryWidth
+                        )
+                    }
                 } secondary: {
                     detailPanel(width: layout.secondaryContentWidth)
                 }
@@ -263,7 +271,12 @@ struct WorkspaceInspectorPane: View {
                     onDirtyChanged: { dirty in
                         editingFileDirty = dirty
                     },
-                    onShowInFiles: { treeRevealToken += 1 }
+                    onShowInFiles: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isTreeVisibleWithPreview = true
+                        }
+                        treeRevealToken += 1
+                    }
                 )
                 .id(path)
             case .projectTree:
@@ -280,27 +293,17 @@ struct WorkspaceInspectorPane: View {
         }
     }
 
-    private func consumeExternalOpenRequest() {
-        NSLog("[InspectorOpen] consume called, request=%@", externalOpenRequest?.path ?? "nil")
-        guard let request = externalOpenRequest else { return }
-        guard FileManager.default.fileExists(atPath: request.path) else {
-            onExternalOpenHandled?()
-            return
-        }
-        // On first mount the pane arrives mid reveal-animation; opening the
-        // detail panel in the same frame gets swallowed by the width/mode
-        // animation state machine. One short beat lets the reveal settle.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            NSLog("[InspectorOpen] opening %@", request.path)
-            openWorkspaceFile(request.path)
-            onExternalOpenHandled?()
-        }
+    private func openWorkspaceFile(_ path: String) {
+        openWorkspaceFile(path, hideTree: false)
     }
 
-    private func openWorkspaceFile(_ path: String) {
+    private func openWorkspaceFile(_ path: String, hideTree: Bool) {
         editingFilePath = path
         previewReturnMode = isProjectFilesVisible ? .projectTree : .none
         editingFileDirty = false
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isTreeVisibleWithPreview = !hideTree
+        }
         requestWorkspaceDetail(.filePreview(path))
     }
 
@@ -320,6 +323,7 @@ struct WorkspaceInspectorPane: View {
     }
 
     private func clearWorkspaceDetail(animated: Bool) {
+        isTreeVisibleWithPreview = true
         targetDetailMode = .none
         editingFilePath = nil
         previewReturnMode = .none
@@ -2638,4 +2642,12 @@ private struct QuickLookPreview: NSViewRepresentable {
     func updateNSView(_ nsView: QLPreviewView, context: Context) {
         nsView.previewItem = url as QLPreviewItem
     }
+}
+
+
+extension Notification.Name {
+    /// Posted (object = absolute file path) to preview a document inside the
+    /// right inspector. NotificationCenter pierces the pane's retain-while-
+    /// hidden lifecycle, where parameter-based onChange never re-fired.
+    static let gchOpenWorkspaceFilePreview = Notification.Name("gchOpenWorkspaceFilePreview")
 }

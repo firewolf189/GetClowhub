@@ -218,9 +218,16 @@ struct DashboardView: View {
     var body: some View {
         presentationRoot
         .onChange(of: viewModel.inspectorFileOpenRequest?.id) { _ in
-            guard viewModel.inspectorFileOpenRequest != nil else { return }
+            guard let request = viewModel.inspectorFileOpenRequest else { return }
             if !isWorkspaceSidebarExpanded {
                 revealWorkspaceSidebar()
+            }
+            let path = request.path
+            viewModel.inspectorFileOpenRequest = nil
+            // Post after the reveal animation settles; the pane listens via
+            // NotificationCenter (survives its retain-while-hidden lifecycle).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                NotificationCenter.default.post(name: .gchOpenWorkspaceFilePreview, object: path)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -609,9 +616,7 @@ struct DashboardView: View {
             onDetailWidthChanged: { detailWidth in
                 workspaceDetailWidth = detailWidth
             },
-            openFolder: openSelectedWorkspaceFolder,
-            externalOpenRequest: viewModel.inspectorFileOpenRequest,
-            onExternalOpenHandled: { viewModel.inspectorFileOpenRequest = nil }
+            openFolder: openSelectedWorkspaceFolder
         )
         .frame(maxWidth: .infinity, alignment: .top)
         .frame(maxHeight: .infinity, alignment: .top)
