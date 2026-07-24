@@ -4894,14 +4894,13 @@ struct ChatBubble: View, Equatable {
 	                                .background(message.isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor)
 		                                .cornerRadius(12)
 	                            } else {
-                                    NativeSelectableMarkdownView(
-                                        content: message.content,
-                                        fullTextCopyFallback: message.content,
-                                        parsesMarkdown: false,
-                                        fontSize: 14,
-                                        lineSpacing: 2,
-	                                        paragraphSpacing: 0
-	                                    )
+                                    // Pure SwiftUI: user rows carried an
+                                    // NSTextView host per message, feeding the
+                                    // SwiftUI<->AppKit layout livelock.
+                                    Text(verbatim: message.content)
+                                        .font(.system(size: 14))
+                                        .lineSpacing(2)
+                                        .textSelection(.enabled)
                                         .fixedSize(horizontal: false, vertical: true)
 			                                    .padding(10)
 			                                    .background(message.isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor)

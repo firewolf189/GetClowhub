@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Foundation
+import MarkdownUI
 import os.log
 
 let chatRenderPerfLog = Logger(subsystem: "com.openclaw.installer", category: "SessionSwitchPerformance")
@@ -16,7 +17,14 @@ func dashboardElapsedMillisecondsText(since start: ContinuousClock.Instant) -> S
 // MARK: - Assistant Markdown Rendering
 
 enum MarkdownRenderMode {
-    case native
+    /// Streaming draft: raw text, cheapest possible per-token updates.
+    case plainText
+    /// Completed message default: pure-SwiftUI MarkdownUI. No platform view
+    /// participates in layout — this is the structural fix for the
+    /// SwiftUI<->AppKit layout livelocks (five incidents, 2026-07-21..24).
+    case markdownUI
+    /// Completed message containing math/LaTeX or raw HTML blocks, which
+    /// MarkdownUI cannot render — the only remaining WKWebView user.
     case webView
 }
 
@@ -25,9 +33,9 @@ enum MarkdownRenderPolicy {
     static let recentRichMessageLimit = 6
 
     static func mode(for content: String, isStreaming: Bool, allowsWebView: Bool = true) -> MarkdownRenderMode {
-        if isStreaming { return .native }
-        if !allowsWebView { return .native }
-        return requiresWebView(content) ? .webView : .native
+        if isStreaming { return .plainText }
+        if allowsWebView && requiresWebView(content) { return .webView }
+        return .markdownUI
     }
 
     static func shouldApplyMeasuredHeight(current: CGFloat, measured: CGFloat) -> Bool {
@@ -55,8 +63,10 @@ enum MarkdownRenderPolicy {
     }
 
     private static func requiresWebView(_ content: String) -> Bool {
-        containsMarkdownTable(content)
-            || containsMathSyntax(content)
+        // Tables intentionally NOT included: MarkdownUI renders GFM tables
+        // natively, and the webview's async height measurement was the source
+        // of the phantom-blank-space bug on emoji tables (v1.1.77).
+        containsMathSyntax(content)
             || containsHTMLBlock(content)
     }
 
@@ -112,7 +122,8 @@ enum MarkdownRenderPolicy {
 
 private struct MessageRenderModel {
     enum Renderer {
-        case nativeText
+        case plainText
+        case markdownUI
         case webViewFallback
     }
 
@@ -127,8 +138,10 @@ private struct MessageRenderModel {
             allowsWebView: allowsRichMarkdown
         )
         switch mode {
-        case .native:
-            return MessageRenderModel(content: content, isStreaming: isStreaming, renderer: .nativeText)
+        case .plainText:
+            return MessageRenderModel(content: content, isStreaming: isStreaming, renderer: .plainText)
+        case .markdownUI:
+            return MessageRenderModel(content: content, isStreaming: isStreaming, renderer: .markdownUI)
         case .webView:
             return MessageRenderModel(content: content, isStreaming: isStreaming, renderer: .webViewFallback)
         }
@@ -166,15 +179,23 @@ struct AssistantMessageContentView: View {
                 .onAppear {
                     logRenderMode("webview")
                 }
-        case .nativeText:
-            NativeSelectableMarkdownView(
-                content: renderModel.content,
-                fullTextCopyFallback: renderModel.content,
-                parsesMarkdown: !renderModel.isStreaming,
-                fontSize: 14
-            )
+        case .markdownUI:
+            Markdown(renderModel.content)
+                .markdownTextStyle(\.text) {
+                    FontSize(14)
+                }
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .onAppear {
-                    logRenderMode("native_selectable")
+                    logRenderMode("markdown_ui")
+                }
+        case .plainText:
+            Text(verbatim: renderModel.content)
+                .font(.system(size: 14))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onAppear {
+                    logRenderMode("plain_text")
                 }
         }
     }
