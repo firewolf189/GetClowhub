@@ -89,8 +89,8 @@ RESOURCES_DEST="$APP_PATH/Contents/Resources"
 # 所以这里 fail-fast，绝不静默打出空壳 DMG (参见 v1.1.38 事故)。
 REQUIRED_BUNDLES=(
     "openclaw-bundle.tar.gz"
-    "node-v24.14.0-darwin-arm64.tar.gz"
-    "node-v24.14.0-darwin-x64.tar.gz"
+    "node-v24.18.0-darwin-arm64.tar.gz"
+    "node-v24.18.0-darwin-x64.tar.gz"
 )
 echo "🔍 校验必需的 bundled 资源..."
 MISSING=()
@@ -110,7 +110,7 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     echo "openclaw-bundle.tar.gz 重建方式 (从已全局安装的 openclaw npm 包):"
     echo "   cd ~/.npm-global && tar -czf openclaw-bundle.tar.gz bin/openclaw lib/node_modules/openclaw"
     echo "Node.js tarball 下载:"
-    echo "   https://registry.npmmirror.com/-/binary/node/v24.14.0/"
+    echo "   https://registry.npmmirror.com/-/binary/node/v24.18.0/"
     exit 1
 fi
 echo "✅ Preflight 通过 (${#REQUIRED_BUNDLES[@]} 个必需 bundle 就位)"

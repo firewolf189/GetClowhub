@@ -119,6 +119,7 @@ struct ServiceStatusCard: View {
 
 struct ControlButtonsSection: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @State private var showForceRepairConfirm = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -176,6 +177,33 @@ struct ControlButtonsSection: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(viewModel.openclawService.status != .running || viewModel.isPerformingAction)
+            }
+
+            // 强行修复 — deliberately enabled in EVERY state (it exists for
+            // exactly the states where start/stop/restart are unusable).
+            Button {
+                showForceRepairConfirm = true
+            } label: {
+                HStack {
+                    Image(systemName: "wrench.and.screwdriver")
+                    Text(I18n.t("repair.action.forceRepair"))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.bordered)
+            .tint(.orange)
+            .disabled(viewModel.isPerformingAction)
+            .confirmationDialog(
+                I18n.t("repair.confirm.title"),
+                isPresented: $showForceRepairConfirm
+            ) {
+                Button(I18n.t("repair.confirm.proceed"), role: .destructive) {
+                    Task { await viewModel.forceRepairService() }
+                }
+                Button(I18n.t("catalog.action.cancel"), role: .cancel) {}
+            } message: {
+                Text(I18n.t("repair.confirm.message"))
             }
 
             SettingsInlineRefreshStatus(

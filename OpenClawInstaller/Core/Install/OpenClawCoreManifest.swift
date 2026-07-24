@@ -5,6 +5,11 @@ struct OpenClawCoreManifest: Codable, Equatable {
     let openclawVersion: String
     let bundleName: String
     let minimumAppVersion: String?
+    /// Node.js floor required by the bundled core's `engines` field
+    /// (e.g. openclaw 2026.7.x requires node >= 24.15). The upgrade
+    /// coordinator reinstalls the bundled Node BEFORE swapping the core in —
+    /// upgrading the core alone would leave the gateway unable to boot.
+    let minimumNodeVersion: String?
     let releaseNotes: String?
 
     static let resourceName = "openclaw-core-version"

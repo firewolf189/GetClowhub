@@ -12,7 +12,7 @@ struct NodeVersion: Codable {
 }
 
 enum BundledRuntimeVersions {
-    static let nodeJSVersion = "v24.14.0"
+    static let nodeJSVersion = "v24.18.0"
 }
 
 enum NodeInstallationError: LocalizedError {
@@ -56,8 +56,8 @@ class NodeInstaller: ObservableObject {
     /// verified against these; other versions verify against the
     /// mirror's SHASUMS256.txt. Update together with bundledNodeVersion.
     private static let pinnedNodeTarballSHA256: [String: String] = [
-        "arm64": "a1a54f46a750d2523d628d924aab61758a51c9dad3e0238beb14141be9615dd3",
-        "x64": "f2879eb810e25993a0578e5d878930266fd2eafcffe9f2839b3d8db354d4879e",
+        "arm64": "e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1",
+        "x64": "dfd0dbd3e721503434df7b7205e719f61b3a3a31b2bcf9729b8b91fea240f080",
     ]
 
     /// Node.js installation directory (user-local, no sudo needed)
@@ -80,6 +80,16 @@ class NodeInstaller: ObservableObject {
 
     init(commandExecutor: CommandExecutor) {
         self.commandExecutor = commandExecutor
+    }
+
+    /// Install the app-bundled Node.js into ~/.openclaw/node. Used by the
+    /// core-upgrade path when the installed Node no longer satisfies the
+    /// bundled openclaw core's `engines` floor.
+    func installBundledNode() async throws {
+        guard let tarPath = getBundledNodePath() else {
+            throw NodeInstallationError.installationFailed("bundled Node tarball missing from app resources")
+        }
+        try await installNodeFromTarGz(from: tarPath)
     }
 
     /// Check if bundled Node.js package exists

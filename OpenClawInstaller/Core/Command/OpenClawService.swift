@@ -503,7 +503,7 @@ class OpenClawService: ObservableObject {
     /// Run a shell command quietly without triggering UI updates
     /// Uses proper pipe reading pattern to avoid deadlocks, with timeout.
     /// Uses DispatchSemaphore instead of busy-wait to avoid CPU spinning.
-    private func runShellQuietly(_ command: String, timeout: TimeInterval = 15) async -> String? {
+    func runShellQuietly(_ command: String, timeout: TimeInterval = 15) async -> String? {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 let process = Process()
@@ -670,7 +670,7 @@ class OpenClawService: ObservableObject {
     // MARK: - Logs Management
 
     /// Add log entry
-    private func addLog(_ message: String) {
+    func addLog(_ message: String) {
         let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
         let logEntry = "[\(timestamp)] \(message)"
         logs.append(logEntry)

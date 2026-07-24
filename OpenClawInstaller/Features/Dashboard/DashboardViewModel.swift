@@ -822,6 +822,21 @@ class DashboardViewModel: ObservableObject {
         isPerformingAction = false
     }
 
+    /// 强行修复网关 — macOS twin of the Windows client's repair_gateway.
+    /// Bottom-line recovery when the graceful restart path is itself broken:
+    /// config triage + oversized-log truncation + hard process purge + cold start.
+    func forceRepairService() async {
+        isPerformingAction = true
+        let report = await openclawService.forceRepairGateway()
+        let summary = report.steps.joined(separator: "\n")
+        if report.succeeded {
+            showSuccessMessage(I18n.t("repair.toast.succeeded") + "\n" + summary)
+        } else {
+            showErrorMessage(I18n.t("repair.toast.failed") + "\n" + summary)
+        }
+        isPerformingAction = false
+    }
+
     func restartService() async {
         isPerformingAction = true
 

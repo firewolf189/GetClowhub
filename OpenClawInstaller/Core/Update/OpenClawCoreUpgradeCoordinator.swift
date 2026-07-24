@@ -42,6 +42,7 @@ struct OpenClawCoreUpgradePlan: Equatable {
             openclawVersion: targetVersion,
             bundleName: bundleName,
             minimumAppVersion: nil,
+            minimumNodeVersion: nil,
             releaseNotes: nil
         )
         .isBundledVersionNewer(than: installedVersion)
@@ -124,6 +125,17 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
     }
 
     func ensureBundledCoreIsCurrent() async {
+        // Decouple the upgrade from the CALLER's task: one entry point is a
+        // view-bound `.task(id:)`, and mid-upgrade the gateway restart can
+        // change view identity — SwiftUI then cancels that task, which used
+        // to abort a half-done core swap with CancellationError (observed on
+        // the 6.10 -> 7.1 upgrade). An unstructured Task does not inherit
+        // cancellation, so the swap always runs to completion or rollback.
+        let work = Task { await performUpgradeBody() }
+        await work.value
+    }
+
+    private func performUpgradeBody() async {
         guard !isRunning else { return }
         isRunning = true
         defer { isRunning = false }
@@ -159,6 +171,12 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             state = .upgrading(manifest.openclawVersion)
             appendLog("Upgrading OpenClaw core from \(installedVersion ?? "none") to \(manifest.openclawVersion)")
 
+            // Node floor FIRST: the new core's `engines` may reject the
+            // currently installed Node (2026.7.x needs >= 24.15). Swapping the
+            // core without upgrading Node bricks the gateway for existing
+            // users — the exact failure the Windows client hit in v0.6.31.
+            try await ensureNodeSatisfiesRequirement(manifest.minimumNodeVersion)
+
             let bundleURL = try bundledCoreBundleURL(named: manifest.bundleName)
             try await stopGatewayIfRunning()
             progress = 0.15
@@ -177,7 +195,18 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                 progress = 0.78
                 await runPostUpgradeDoctor()
                 progress = 0.86
-                try await openclawService.start()
+                do {
+                    try await openclawService.start()
+                } catch {
+                    // 2026.7.x first boot migrates the session store
+                    // (JSON -> SQLite) before binding the port; on real
+                    // profiles that overshoots start()'s ~28s window and the
+                    // upgrade used to roll back a perfectly healthy gateway.
+                    // install --force above already relaunched it — just give
+                    // it a longer grace to come up.
+                    appendLog("Gateway start window elapsed; extending wait for first-boot migration")
+                    try await waitForGatewayReady(timeoutSeconds: 300)
+                }
                 await openclawService.fetchVersion()
                 try removeBackupIfPossible(backup)
                 state = .upgraded(manifest.openclawVersion)
@@ -351,15 +380,60 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         }
     }
 
+    /// Poll until the gateway reports running. Used as the extended grace
+    /// after a core swap when the regular start window was not enough (e.g.
+    /// first-boot store migrations on major core upgrades).
+    private func waitForGatewayReady(timeoutSeconds: Int) async throws {
+        let deadline = Date().addingTimeInterval(TimeInterval(timeoutSeconds))
+        while Date() < deadline {
+            try await Task.sleep(nanoseconds: 5_000_000_000)
+            await openclawService.checkStatus()
+            if openclawService.status == .running {
+                appendLog("Gateway became ready during extended wait")
+                return
+            }
+        }
+        throw OpenClawCoreUpgradeError.commandFailed(
+            "gateway did not become ready within \(timeoutSeconds)s after core swap"
+        )
+    }
+
+    /// Reinstall the app-bundled Node.js when the installed one is older than
+    /// the core's engines floor. No-op when no floor is declared or the
+    /// installed Node already satisfies it.
+    private func ensureNodeSatisfiesRequirement(_ minimumNodeVersion: String?) async throws {
+        guard let minimumNodeVersion, !minimumNodeVersion.isEmpty else { return }
+        let nodePath = "\(homeDir)/.openclaw/node/bin/node"
+        var installedNode: String?
+        if fileManager.isExecutableFile(atPath: nodePath),
+           let out = try? await runShell("'\(nodePath)' --version", timeout: 10) {
+            installedNode = out.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let installedNode,
+           OpenClawVersionComparator.compare(installedNode, minimumNodeVersion) != .orderedAscending {
+            appendLog("Node \(installedNode) satisfies required >= \(minimumNodeVersion)")
+            return
+        }
+        appendLog("Node \(installedNode ?? "missing") is below required \(minimumNodeVersion); installing bundled Node")
+        let installer = NodeInstaller(commandExecutor: commandExecutor)
+        try await installer.installBundledNode()
+        appendLog("Bundled Node installed")
+    }
+
     private func installGateway() async throws {
         appendLog("Reinstalling OpenClaw gateway with upgraded core")
         let nodePath = "\(homeDir)/.openclaw/node/bin/node"
         let openclawPath = installedBinLink.path
+        // --force: after the core swap the LaunchAgent is still loaded from
+        // the previous install, and a plain `gateway install` just prints
+        // "already loaded — reinstall with --force" WITHOUT starting anything.
+        // The subsequent health wait then times out and the whole upgrade
+        // rolls back (observed live on the 6.10 -> 7.1 upgrade).
         let command: String
         if fileManager.isExecutableFile(atPath: nodePath) {
-            command = "'\(nodePath)' '\(openclawPath)' gateway install 2>&1"
+            command = "'\(nodePath)' '\(openclawPath)' gateway install --force 2>&1"
         } else {
-            command = "'\(openclawPath)' gateway install 2>&1"
+            command = "'\(openclawPath)' gateway install --force 2>&1"
         }
         let output = try await runShell(command, timeout: 45)
         appendLog("Gateway install output: \(output.isEmpty ? "(no output)" : output)")
