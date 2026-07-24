@@ -1960,6 +1960,35 @@ class DashboardViewModel: ObservableObject {
         return resolveAgentWorkspace(agentId, config: config)
     }
 
+    /// The directory the gateway ACTUALLY runs the agent in — which the
+    /// workspace inspector and file chips should point at. openclaw 2026.7.x
+    /// nests the default agent's run cwd one level down
+    /// (`<workspace>/main/`) even though the configured `workspace` is the
+    /// parent, so the parent shows only stale persona files while every real
+    /// deliverable lands in the subdir. Per-agent (`workspace-<id>`) agents
+    /// run at their root and are unaffected. `openclaw-workspace-state.json`
+    /// is the gateway's per-cwd run-state marker: if it lives in
+    /// `<workspace>/<agentId>/` but not the root, that subdir is the live
+    /// workspace. Older cores (no marker) keep the configured root.
+    static func effectiveAgentWorkspace(_ agentId: String, config: [String: Any]) -> String {
+        let configured = resolveAgentWorkspace(agentId, config: config)
+        let fm = FileManager.default
+        let marker = "openclaw-workspace-state.json"
+        let rootMarker = (configured as NSString).appendingPathComponent(marker)
+        if fm.fileExists(atPath: rootMarker) { return configured }
+        let nested = (configured as NSString).appendingPathComponent(agentId)
+        let nestedMarker = (nested as NSString).appendingPathComponent(marker)
+        if fm.fileExists(atPath: nestedMarker) { return nested }
+        return configured
+    }
+
+    static func effectiveAgentWorkspace(_ agentId: String) -> String {
+        let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
+        let config = FileManager.default.contents(atPath: configPath)
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        return effectiveAgentWorkspace(agentId, config: config)
+    }
+
     func loadAvailableAgents() {
         let configPath = NSString("~/.openclaw/openclaw.json").expandingTildeInPath
         let baseDir = NSString("~/.openclaw").expandingTildeInPath

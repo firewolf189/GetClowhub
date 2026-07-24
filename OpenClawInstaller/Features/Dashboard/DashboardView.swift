@@ -575,7 +575,9 @@ struct DashboardView: View {
             )
         }
 
-        let workspacePath = DashboardViewModel.resolveAgentWorkspace(sessionState.selectedAgentId)
+        // Use the EFFECTIVE workspace (descends into <workspace>/main on
+        // openclaw 2026.7.x) so the tree shows where deliverables actually land.
+        let workspacePath = DashboardViewModel.effectiveAgentWorkspace(sessionState.selectedAgentId)
         return WorkspaceSidebarRoot(
             displayName: "Agent Workspace",
             path: workspacePath,
@@ -2741,7 +2743,7 @@ struct ChatView: View {
                    !projectRoot.isEmpty {
                     return projectRoot
                 }
-                return DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
+                return DashboardViewModel.effectiveAgentWorkspace(viewModel.selectedAgentId)
             }(),
             activeStreamStatesByMessageId: chatState.activeStreamStatesByMessageId,
             runStatesByMessageId: taskState.runsByMessageId.mapValues(\.presentationState),
