@@ -2779,6 +2779,14 @@ struct ChatView: View {
         } message: {
             Text(viewModel.rewindError ?? "")
         }
+        // Recreate the scroll container per session. With
+        // defaultScrollAnchor(.bottom), swapping the whole LazyVStack content
+        // in place can leave the viewport pinned to a stale offset, so freshly
+        // built rows render off-screen and the timeline reads blank until you
+        // switch away and back (which recreates the view). Probes confirmed the
+        // rows reached the surface while the screen stayed empty; a per-session
+        // identity re-applies the bottom anchor against the new content.
+        .id(activeSessionId)
 
         if #available(macOS 14.0, *) {
             scrollView
