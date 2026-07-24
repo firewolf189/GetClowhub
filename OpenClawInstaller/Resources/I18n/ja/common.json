@@ -36,6 +36,8 @@
   "catalog.status.ready": "Ready",
   "catalog.status.unavailable": "Unavailable",
   "catalog.status.updateAvailable": "Update available",
+  "chat.fileChip.copyPath": "パスをコピー",
+  "chat.fileChip.revealInFinder": "Finder に表示",
   "collab.action.cancelAll": "Cancel",
   "collab.agent.running": "書き込み",
   "collab.commander.settings": "Commander",

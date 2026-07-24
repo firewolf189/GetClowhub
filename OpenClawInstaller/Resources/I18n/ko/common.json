@@ -36,6 +36,8 @@
   "catalog.status.ready": "Ready",
   "catalog.status.unavailable": "Unavailable",
   "catalog.status.updateAvailable": "Update available",
+  "chat.fileChip.copyPath": "경로 복사",
+  "chat.fileChip.revealInFinder": "Finder에서 보기",
   "collab.action.cancelAll": "Cancel",
   "collab.agent.running": "쓰기",
   "collab.commander.settings": "Commander",

@@ -9,7 +9,8 @@ struct ChatTimelineSnapshot: Equatable {
         activeStreamStatesByMessageId: [UUID: ChatActiveStreamState],
         runStatesByMessageId: [UUID: ChatRunPresentationState],
         highlightedMessageId: UUID?,
-        highlightedMessageFlashOn: Bool
+        highlightedMessageFlashOn: Bool,
+        workspaceRootPath: String? = nil
     ) -> ChatTimelineSnapshot {
         let richMarkdownMessageIds = MarkdownRenderPolicy.recentRichMessageIds(in: messages)
         var messageRows: [ChatMessageRowModel] = []
@@ -39,7 +40,14 @@ struct ChatTimelineSnapshot: Equatable {
                     allowsRichMarkdown: activeStreamState == nil
                         && runPhase?.isTerminal != false
                         && richMarkdownMessageIds.contains(message.id),
-                    isJumpHighlighted: highlightedMessageId == message.id && highlightedMessageFlashOn
+                    isJumpHighlighted: highlightedMessageId == message.id && highlightedMessageFlashOn,
+                    // Openable-document chips: only for settled assistant
+                    // replies (streaming drafts change every token and would
+                    // thrash the file-existence checks).
+                    fileReferences: (message.role == .assistant && activeStreamState == nil
+                        && runPhase?.isTerminal != false)
+                        ? MessageFileReferences.extract(from: message.content, workspaceRoot: workspaceRootPath)
+                        : []
                 )
             )
         }
@@ -58,6 +66,7 @@ final class ChatTimelineSnapshotCache {
     private struct Inputs: Equatable {
         let messages: [ChatMessage]
         let tailLimit: Int?
+        let workspaceRootPath: String?
         let activeStreamStatesByMessageId: [UUID: ChatActiveStreamState]
         let runStatesByMessageId: [UUID: ChatRunPresentationState]
         let highlightedMessageId: UUID?
@@ -75,6 +84,7 @@ final class ChatTimelineSnapshotCache {
     func snapshot(
         messages: [ChatMessage],
         tailLimit: Int? = nil,
+        workspaceRootPath: String? = nil,
         activeStreamStatesByMessageId: [UUID: ChatActiveStreamState],
         runStatesByMessageId: [UUID: ChatRunPresentationState],
         highlightedMessageId: UUID?,
@@ -83,6 +93,7 @@ final class ChatTimelineSnapshotCache {
         let next = Inputs(
             messages: messages,
             tailLimit: tailLimit,
+            workspaceRootPath: workspaceRootPath,
             activeStreamStatesByMessageId: activeStreamStatesByMessageId,
             runStatesByMessageId: runStatesByMessageId,
             highlightedMessageId: highlightedMessageId,
@@ -102,7 +113,8 @@ final class ChatTimelineSnapshotCache {
             activeStreamStatesByMessageId: activeStreamStatesByMessageId,
             runStatesByMessageId: runStatesByMessageId,
             highlightedMessageId: highlightedMessageId,
-            highlightedMessageFlashOn: highlightedMessageFlashOn
+            highlightedMessageFlashOn: highlightedMessageFlashOn,
+            workspaceRootPath: workspaceRootPath
         )
         inputs = next
         cached = built
@@ -127,6 +139,9 @@ struct ChatMessageRowModel: Identifiable, Equatable {
     let isStreamingDraft: Bool
     let allowsRichMarkdown: Bool
     let isJumpHighlighted: Bool
+    /// Resolved, existing local files this reply references — rendered as
+    /// one-click "open document" chips below the bubble.
+    var fileReferences: [String] = []
 
     init(
         message: ChatMessage,
@@ -135,7 +150,8 @@ struct ChatMessageRowModel: Identifiable, Equatable {
         runState: ChatRunPresentationState?,
         isStreamingDraft: Bool,
         allowsRichMarkdown: Bool,
-        isJumpHighlighted: Bool
+        isJumpHighlighted: Bool,
+        fileReferences: [String] = []
     ) {
         self.id = message.id
         self.role = message.role
@@ -153,6 +169,7 @@ struct ChatMessageRowModel: Identifiable, Equatable {
         self.isStreamingDraft = isStreamingDraft
         self.allowsRichMarkdown = allowsRichMarkdown
         self.isJumpHighlighted = isJumpHighlighted
+        self.fileReferences = fileReferences
     }
 
     var runPhase: ChatRunPhase? { runState?.phase }

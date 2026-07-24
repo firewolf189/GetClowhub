@@ -39,6 +39,8 @@
 		MDMODEL00000000000001 /* ModelInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDMODEL00000000000002 /* ModelInfo.swift */; };
 		CHMSG000000000000001 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHMSG000000000000002 /* ChatMessage.swift */; };
 		CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CTM000000000000000000002 /* ChatTimelineModels.swift */; };
+		FC01AB03C2D3E4F5A6B70003 /* MessageFileChipsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC01AB04C2D3E4F5A6B70004 /* MessageFileChipsRow.swift */; };
+		FC01AB01C2D3E4F5A6B70001 /* MessageFileReferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC01AB02C2D3E4F5A6B70002 /* MessageFileReferences.swift */; };
 		CSTREAM000000000000001 /* ChatStreamState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTREAM000000000000002 /* ChatStreamState.swift */; };
 		CHRUN0000000000000001 /* ChatRunState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHRUN0000000000000002 /* ChatRunState.swift */; };
 		THKEFF0000000000000001 /* ThinkingEffort.swift in Sources */ = {isa = PBXBuildFile; fileRef = THKEFF0000000000000002 /* ThinkingEffort.swift */; };
@@ -213,6 +215,8 @@
 			MDMODEL00000000000002 /* ModelInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/Models/ModelInfo.swift"; sourceTree = SOURCE_ROOT; };
 			CHMSG000000000000002 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatMessage.swift"; sourceTree = SOURCE_ROOT; };
 			CTM000000000000000000002 /* ChatTimelineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift"; sourceTree = SOURCE_ROOT; };
+		FC01AB04C2D3E4F5A6B70004 /* MessageFileChipsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/MessageFileChipsRow.swift"; sourceTree = SOURCE_ROOT; };
+		FC01AB02C2D3E4F5A6B70002 /* MessageFileReferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/MessageFileReferences.swift"; sourceTree = SOURCE_ROOT; };
 			CSTREAM000000000000002 /* ChatStreamState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatStreamState.swift"; sourceTree = SOURCE_ROOT; };
 			CHRUN0000000000000002 /* ChatRunState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatRunState.swift"; sourceTree = SOURCE_ROOT; };
 			THKEFF0000000000000002 /* ThinkingEffort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ThinkingEffort.swift"; sourceTree = SOURCE_ROOT; };
@@ -499,6 +503,8 @@
 				MDMODEL00000000000002 /* ModelInfo.swift */,
 				CHMSG000000000000002 /* ChatMessage.swift */,
 				CTM000000000000000000002 /* ChatTimelineModels.swift */,
+				FC01AB04C2D3E4F5A6B70004 /* MessageFileChipsRow.swift */,
+				FC01AB02C2D3E4F5A6B70002 /* MessageFileReferences.swift */,
 				CSTREAM000000000000002 /* ChatStreamState.swift */,
 				CHRUN0000000000000002 /* ChatRunState.swift */,
 				THKEFF0000000000000002 /* ThinkingEffort.swift */,
@@ -911,6 +917,8 @@
 				CHEVT000000000000001 /* ChatActivityEvent.swift in Sources */,
 				CHMSG000000000000001 /* ChatMessage.swift in Sources */,
 				CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */,
+				FC01AB03C2D3E4F5A6B70003 /* MessageFileChipsRow.swift in Sources */,
+				FC01AB01C2D3E4F5A6B70001 /* MessageFileReferences.swift in Sources */,
 				CSTREAM000000000000001 /* ChatStreamState.swift in Sources */,
 				CHRUN0000000000000001 /* ChatRunState.swift in Sources */,
 				THKEFF0000000000000001 /* ThinkingEffort.swift in Sources */,

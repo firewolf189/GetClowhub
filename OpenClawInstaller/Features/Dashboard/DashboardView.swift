@@ -2720,6 +2720,16 @@ struct ChatView: View {
         let timelineSnapshot = timelineSnapshotCache.snapshot(
             messages: allMessages,
             tailLimit: tailLimit,
+            workspaceRootPath: {
+                // Same resolution as the workspace inspector: bound project
+                // root first, else the current agent's workspace.
+                if let sid = activeSessionId,
+                   let projectRoot = viewModel.sessionMetadata(for: sid)?.projectRoot,
+                   !projectRoot.isEmpty {
+                    return projectRoot
+                }
+                return DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)
+            }(),
             activeStreamStatesByMessageId: chatState.activeStreamStatesByMessageId,
             runStatesByMessageId: taskState.runsByMessageId.mapValues(\.presentationState),
             highlightedMessageId: highlightedMessageId,
@@ -4863,6 +4873,10 @@ struct ChatBubble: View, Equatable {
                             Button(action: { performCopy(message.content) }) {
                                 Label(I18n.t("common.action.copy"), systemImage: "square.on.square")
                             }
+                        }
+
+                        if message.role == .assistant, !message.fileReferences.isEmpty {
+                            MessageFileChipsRow(paths: message.fileReferences)
                         }
 
                         // Action row: copy + (assistant) rewind. Shown only

@@ -1227,6 +1227,29 @@ class SubAgentsViewModel: ObservableObject {
         if !fm.fileExists(atPath: (workspace as NSString).appendingPathComponent("MEMORY.md")) {
             writeFile(workspace, "MEMORY.md", content: "# MEMORY.md\n\n_Long-term memory for this agent._\n")
         }
+        // Deliverable-output convention: keep generated documents inside THIS
+        // agent's workspace (outputs/) so the client's workspace inspector and
+        // the reply's file chips both find them. Seeded only when the user has
+        // no AGENTS.md of their own.
+        if !fm.fileExists(atPath: (workspace as NSString).appendingPathComponent("AGENTS.md")) {
+            let agentsTemplate = """
+            # AGENTS.md
+
+            ## 文件产出约定 / Output convention
+
+            - 生成的文档、报告、数据文件一律保存到本工作区的 `outputs/` 目录\
+            (使用相对路径 `outputs/<文件名>`),除非用户明确指定其他位置。
+            - Save generated documents, reports and data files under this \
+            workspace's `outputs/` directory unless the user explicitly asks \
+            for another location.
+            - 完成后在回复中给出保存路径。 Always state the saved path in your reply.
+            """
+            writeFile(workspace, "AGENTS.md", content: agentsTemplate)
+        }
+        try? fm.createDirectory(
+            atPath: (workspace as NSString).appendingPathComponent("outputs"),
+            withIntermediateDirectories: true
+        )
 
         await loadAgents()
         await MainActor.run {

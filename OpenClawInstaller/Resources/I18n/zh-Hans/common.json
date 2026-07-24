@@ -36,6 +36,8 @@
   "catalog.status.ready": "就绪",
   "catalog.status.unavailable": "不可用",
   "catalog.status.updateAvailable": "有更新",
+  "chat.fileChip.copyPath": "拷贝路径",
+  "chat.fileChip.revealInFinder": "在 Finder 中显示",
   "collab.action.cancelAll": "全部取消",
   "collab.agent.running": "Agent 运行中...",
   "collab.commander.settings": "Commander 设置",

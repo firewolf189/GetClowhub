@@ -36,6 +36,8 @@
   "catalog.status.ready": "Ready",
   "catalog.status.unavailable": "Unavailable",
   "catalog.status.updateAvailable": "Update available",
+  "chat.fileChip.copyPath": "Copy Path",
+  "chat.fileChip.revealInFinder": "Reveal in Finder",
   "collab.action.cancelAll": "Cancel All",
   "collab.agent.running": "Agent running...",
   "collab.commander.settings": "Commander Settings",
