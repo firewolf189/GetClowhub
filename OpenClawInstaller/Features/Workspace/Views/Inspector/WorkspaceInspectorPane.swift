@@ -210,6 +210,12 @@ struct WorkspaceInspectorPane: View {
         return false
     }
 
+    /// A file preview plus the file list below it (after "show in files").
+    private var isPreviewWithFileList: Bool {
+        if case .filePreview = renderedDetailMode { return isTreeVisibleWithPreview }
+        return false
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // While a chip/link-opened preview owns the pane, the "输出" header
@@ -228,22 +234,43 @@ struct WorkspaceInspectorPane: View {
             }
 
             GeometryReader { proxy in
-                let isPreviewingWithoutTree = isPreviewOwningPane
-                let layout = WorkspaceInspectorContentLayout(
-                    availableWidth: proxy.size.width,
-                    preferredPrimaryWidth: isPreviewingWithoutTree ? 0 : browserWidth,
-                    preferredSecondaryWidth: visualDetailWidth,
-                    fillsSecondary: isPreviewingWithoutTree
-                )
-
-                WorkspaceInspectorContentSplit(
-                    totalWidth: layout.totalWidth,
-                    primaryWidth: layout.primaryWidth,
-                    secondaryWidth: layout.secondaryWidth
-                ) {
-                    if isPreviewingWithoutTree {
-                        Color.clear.frame(width: 0)
-                    } else {
+                if isPreviewOwningPane {
+                    // Preview only (opened from a chat chip / inline link).
+                    detailPanel(width: proxy.size.width)
+                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                } else if isPreviewWithFileList {
+                    // "show in files": stack them — content on top, file list
+                    // underneath. A side-by-side split wasted the inspector's
+                    // limited width and left the list column mostly empty.
+                    let listHeight = min(max(proxy.size.height * 0.34, 150), 300)
+                    VStack(spacing: 0) {
+                        detailPanel(width: proxy.size.width)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        Divider()
+                        WorkspaceFilePanel(
+                            root: root,
+                            editingFilePath: $editingFilePath,
+                            revealToken: treeRevealToken,
+                            onOpenFile: openWorkspaceFile,
+                            onCloseFile: closeWorkspaceDetail,
+                            editingFileDirty: editingFileDirty,
+                            width: proxy.size.width
+                        )
+                        .frame(height: listHeight)
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                } else {
+                    // No preview: the file list (or nothing) owns the pane.
+                    let layout = WorkspaceInspectorContentLayout(
+                        availableWidth: proxy.size.width,
+                        preferredPrimaryWidth: browserWidth,
+                        preferredSecondaryWidth: visualDetailWidth
+                    )
+                    WorkspaceInspectorContentSplit(
+                        totalWidth: layout.totalWidth,
+                        primaryWidth: layout.primaryWidth,
+                        secondaryWidth: layout.secondaryWidth
+                    ) {
                         WorkspaceFilePanel(
                             root: root,
                             editingFilePath: $editingFilePath,
@@ -253,11 +280,11 @@ struct WorkspaceInspectorPane: View {
                             editingFileDirty: editingFileDirty,
                             width: layout.primaryWidth
                         )
+                    } secondary: {
+                        detailPanel(width: layout.secondaryContentWidth)
                     }
-                } secondary: {
-                    detailPanel(width: layout.secondaryContentWidth)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .gchOpenWorkspaceFilePreview)) { note in
