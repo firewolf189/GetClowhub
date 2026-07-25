@@ -223,11 +223,17 @@ struct DashboardView: View {
                 revealWorkspaceSidebar()
             }
             let path = request.path
+            // Decide the close behavior HERE: only the owner knows whether the
+            // inspector was already open before this click revealed it.
+            let collapseOnClose = !isWorkspaceSidebarExpanded
             viewModel.inspectorFileOpenRequest = nil
             // Post after the reveal animation settles; the pane listens via
             // NotificationCenter (survives its retain-while-hidden lifecycle).
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                NotificationCenter.default.post(name: .gchOpenWorkspaceFilePreview, object: path)
+                NotificationCenter.default.post(
+                    name: .gchOpenWorkspaceFilePreview,
+                    object: GCHFilePreviewRequest(path: path, collapseOnClose: collapseOnClose)
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

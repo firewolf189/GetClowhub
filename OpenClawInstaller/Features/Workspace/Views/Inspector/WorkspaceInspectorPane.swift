@@ -10,6 +10,14 @@ struct WorkspaceSidebarRoot: Equatable, Hashable {
     let isProjectBound: Bool
 }
 
+/// Where the inspector lands when the visible preview is closed.
+private enum PreviewDismissal {
+    /// The inspector was revealed just to show this file — put it away.
+    case collapseInspector
+    /// The file list was (or is now) the user's context — go back to it.
+    case fileList
+}
+
 private enum WorkspaceDetailMode: Equatable {
     case none
     case filePreview(String)
@@ -198,10 +206,13 @@ struct WorkspaceInspectorPane: View {
     @State private var renderedDetailMode: WorkspaceDetailMode = .none
     @State private var detailAnimationGeneration = 0
     @State private var treeRevealToken = 0
-    /// True while the visible preview was opened from a chat chip/link rather
-    /// than from the file list. Closing such a preview must NOT fall back into
-    /// the project-files browser the user never opened.
-    @State private var previewOpenedFromChat = false
+    /// What closing the CURRENT preview should land on. Captured when the
+    /// preview opens and updated if the user changes their mind (e.g. taps
+    /// "show in files"). Tracking *provenance* instead was wrong: a preview
+    /// opened from chat while the list was already up, or one where the user
+    /// then asked for the list, must return to the list — not tear the whole
+    /// inspector down.
+    @State private var previewDismissal: PreviewDismissal = .fileList
     /// Claude-parity: a preview opened from a chat file-chip fills the pane
     /// alone; the file tree only appears via the "show in files" action.
     @State private var isTreeVisibleWithPreview = true
@@ -216,6 +227,15 @@ struct WorkspaceInspectorPane: View {
     private var isPreviewOwningPane: Bool {
         if case .filePreview = renderedDetailMode { return !isTreeVisibleWithPreview }
         return false
+    }
+
+    /// "show in files" can only work for files inside the workspace tree.
+    /// Bare-name resolution can legitimately land on ~/Desktop or ~/Downloads,
+    /// and revealing those in the workspace tree is impossible — offering the
+    /// button there produced a silent no-op.
+    private var canRevealInFileList: Bool {
+        guard case .filePreview(let path) = renderedDetailMode else { return false }
+        return path.hasPrefix(root.path)
     }
 
     /// A file preview plus the file list below it (after "show in files").
@@ -296,9 +316,13 @@ struct WorkspaceInspectorPane: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .gchOpenWorkspaceFilePreview)) { note in
-            guard let path = note.object as? String else { return }
-            guard FileManager.default.fileExists(atPath: path) else { return }
-            openWorkspaceFile(path, hideTree: true)
+            guard let request = note.object as? GCHFilePreviewRequest else { return }
+            guard FileManager.default.fileExists(atPath: request.path) else { return }
+            openWorkspaceFile(
+                request.path,
+                hideTree: true,
+                dismissal: request.collapseOnClose ? .collapseInspector : .fileList
+            )
         }
         .onAppear {
             syncDetailWidth(visualDetailWidth, animated: false)
@@ -319,12 +343,15 @@ struct WorkspaceInspectorPane: View {
                     onDirtyChanged: { dirty in
                         editingFileDirty = dirty
                     },
-                    onShowInFiles: {
+                    onShowInFiles: canRevealInFileList ? {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             isTreeVisibleWithPreview = true
                         }
+                        // Asking for the list makes it the context: closing the
+                        // file now returns to it instead of collapsing.
+                        previewDismissal = .fileList
                         treeRevealToken += 1
-                    }
+                    } : nil
                 )
                 .id(path)
             case .projectTree:
@@ -342,14 +369,13 @@ struct WorkspaceInspectorPane: View {
     }
 
     private func openWorkspaceFile(_ path: String) {
-        openWorkspaceFile(path, hideTree: false)
+        // Opened from the file list: that list is the context to return to.
+        openWorkspaceFile(path, hideTree: false, dismissal: .fileList)
     }
 
-    private func openWorkspaceFile(_ path: String, hideTree: Bool) {
+    private func openWorkspaceFile(_ path: String, hideTree: Bool, dismissal: PreviewDismissal) {
         editingFilePath = path
-        previewOpenedFromChat = hideTree
-        // A chat-opened preview has no "previous" panel to return to; the
-        // inspector may even have been revealed by that very click.
+        previewDismissal = dismissal
         previewReturnMode = (!hideTree && isProjectFilesVisible) ? .projectTree : .none
         editingFileDirty = false
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -396,22 +422,24 @@ struct WorkspaceInspectorPane: View {
 
     private func closeWorkspacePreview() {
         let returnMode = previewReturnMode
-        let cameFromChat = previewOpenedFromChat
+        let dismissal = previewDismissal
         editingFilePath = nil
         previewReturnMode = .none
-        previewOpenedFromChat = false
+        previewDismissal = .fileList
         editingFileDirty = false
 
-        if cameFromChat {
-            // Dismiss the whole surface: clicking X on a file opened from chat
-            // used to leave (or even newly open) the project-files browser,
-            // which reads as "close did the opposite of closing".
+        switch dismissal {
+        case .collapseInspector:
+            // The inspector existed only to show this file (revealed by the
+            // chat click), so "close" must put everything back.
             clearWorkspaceDetail(animated: false)
             onCloseInspector?()
-        } else if returnMode == .projectTree {
-            requestWorkspaceDetail(returnMode)
-        } else {
-            clearWorkspaceDetail(animated: true)
+        case .fileList:
+            if returnMode == .projectTree {
+                requestWorkspaceDetail(returnMode)
+            } else {
+                clearWorkspaceDetail(animated: true)
+            }
         }
     }
 
@@ -1576,6 +1604,9 @@ private struct FileEditorPanel: View {
     @State private var cursorColumn: Int = 1
     @State private var wordWrap = true
     @State private var findRequestToken = 0
+    /// Closing an edited file used to discard the edits silently — the dirty
+    /// flag was decoration (a dot in the tree) and guarded nothing.
+    @State private var showDiscardConfirm = false
 
     private var fileName: String {
         (filePath as NSString).lastPathComponent
@@ -1658,6 +1689,21 @@ private struct FileEditorPanel: View {
         .onChange(of: filePath) { _ in loadFile() }
         .onChange(of: isDirty) { dirty in
             onDirtyChanged?(dirty)
+        }
+        .confirmationDialog(
+            I18n.format("workspace.files.unsavedTitle", fileName),
+            isPresented: $showDiscardConfirm
+        ) {
+            Button(I18n.t("workspace.files.saveAndClose")) {
+                save()
+                onClose()
+            }
+            Button(I18n.t("workspace.files.discardChanges"), role: .destructive) {
+                onClose()
+            }
+            Button(I18n.t("catalog.action.cancel"), role: .cancel) {}
+        } message: {
+            Text(I18n.t("workspace.files.unsavedMessage"))
         }
     }
 
@@ -1818,7 +1864,7 @@ private struct FileEditorPanel: View {
                     .hidden()
             }
 
-            Button(action: onClose) {
+            Button(action: { if isDirty { showDiscardConfirm = true } else { onClose() } }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.secondary)
@@ -2723,6 +2769,14 @@ private struct QuickLookPreview: NSViewRepresentable {
     }
 }
 
+
+/// Payload for `.gchOpenWorkspaceFilePreview`. `collapseOnClose` is decided by
+/// the owner (only it knows whether the inspector was already open), so closing
+/// the file can restore exactly what the user had.
+struct GCHFilePreviewRequest {
+    let path: String
+    let collapseOnClose: Bool
+}
 
 extension Notification.Name {
     /// Posted (object = absolute file path) to preview a document inside the
