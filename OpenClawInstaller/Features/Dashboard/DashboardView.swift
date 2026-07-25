@@ -618,7 +618,8 @@ struct DashboardView: View {
             onDetailWidthChanged: { detailWidth in
                 workspaceDetailWidth = detailWidth
             },
-            openFolder: openSelectedWorkspaceFolder
+            openFolder: openSelectedWorkspaceFolder,
+            onCloseInspector: { hideWorkspaceSidebar(resetEditor: true) }
         )
         .frame(maxWidth: .infinity, alignment: .top)
         .frame(maxHeight: .infinity, alignment: .top)

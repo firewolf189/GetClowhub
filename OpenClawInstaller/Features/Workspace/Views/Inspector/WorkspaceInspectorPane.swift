@@ -180,6 +180,10 @@ struct WorkspaceInspectorPane: View {
     let editorWidth: CGFloat
     let onDetailWidthChanged: (CGFloat) -> Void
     let openFolder: () -> Void
+    /// Called when a preview that was opened FROM CHAT is closed: the
+    /// inspector was auto-revealed just to show that file, so closing it
+    /// should put the sidebar back the way the user had it.
+    var onCloseInspector: (() -> Void)? = nil
 
     @Environment(\.rightInspectorSidebarWidthCoordinator) private var sidebarWidthCoordinator
 
@@ -194,6 +198,10 @@ struct WorkspaceInspectorPane: View {
     @State private var renderedDetailMode: WorkspaceDetailMode = .none
     @State private var detailAnimationGeneration = 0
     @State private var treeRevealToken = 0
+    /// True while the visible preview was opened from a chat chip/link rather
+    /// than from the file list. Closing such a preview must NOT fall back into
+    /// the project-files browser the user never opened.
+    @State private var previewOpenedFromChat = false
     /// Claude-parity: a preview opened from a chat file-chip fills the pane
     /// alone; the file tree only appears via the "show in files" action.
     @State private var isTreeVisibleWithPreview = true
@@ -339,7 +347,10 @@ struct WorkspaceInspectorPane: View {
 
     private func openWorkspaceFile(_ path: String, hideTree: Bool) {
         editingFilePath = path
-        previewReturnMode = isProjectFilesVisible ? .projectTree : .none
+        previewOpenedFromChat = hideTree
+        // A chat-opened preview has no "previous" panel to return to; the
+        // inspector may even have been revealed by that very click.
+        previewReturnMode = (!hideTree && isProjectFilesVisible) ? .projectTree : .none
         editingFileDirty = false
         withAnimation(.easeInOut(duration: 0.2)) {
             isTreeVisibleWithPreview = !hideTree
@@ -385,11 +396,19 @@ struct WorkspaceInspectorPane: View {
 
     private func closeWorkspacePreview() {
         let returnMode = previewReturnMode
+        let cameFromChat = previewOpenedFromChat
         editingFilePath = nil
         previewReturnMode = .none
+        previewOpenedFromChat = false
         editingFileDirty = false
 
-        if returnMode == .projectTree {
+        if cameFromChat {
+            // Dismiss the whole surface: clicking X on a file opened from chat
+            // used to leave (or even newly open) the project-files browser,
+            // which reads as "close did the opposite of closing".
+            clearWorkspaceDetail(animated: false)
+            onCloseInspector?()
+        } else if returnMode == .projectTree {
             requestWorkspaceDetail(returnMode)
         } else {
             clearWorkspaceDetail(animated: true)
