@@ -202,30 +202,38 @@ struct WorkspaceInspectorPane: View {
         detailMode == .projectTree || targetDetailMode == .projectTree || renderedDetailMode == .projectTree
     }
 
+    /// A file preview is filling the pane on its own (opened from a chat chip
+    /// or inline link, tree hidden). Drives both the fill-width layout and
+    /// hiding the redundant pane header.
+    private var isPreviewOwningPane: Bool {
+        if case .filePreview = renderedDetailMode { return !isTreeVisibleWithPreview }
+        return false
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            WorkspaceOutputsPaneHeader(
-                isProjectFilesVisible: isProjectFilesVisible,
-                openFolder: openFolder,
-                toggleProjectFiles: toggleWorkspaceProjectFiles
-            )
-            .onReceive(NotificationCenter.default.publisher(for: .gchOpenWorkspaceFilePreview)) { note in
-                guard let path = note.object as? String else { return }
-                guard FileManager.default.fileExists(atPath: path) else { return }
-                openWorkspaceFile(path, hideTree: true)
+            // While a chip/link-opened preview owns the pane, the "输出" header
+            // is redundant with the preview's own title bar and just steals
+            // vertical room — Claude's File surface shows a single header too.
+            // Its actions stay reachable: "show in files" brings the tree (and
+            // this header) back, closing the preview restores it outright.
+            if !isPreviewOwningPane {
+                WorkspaceOutputsPaneHeader(
+                    isProjectFilesVisible: isProjectFilesVisible,
+                    openFolder: openFolder,
+                    toggleProjectFiles: toggleWorkspaceProjectFiles
+                )
+
+                Divider()
             }
 
-            Divider()
-
             GeometryReader { proxy in
-                let isPreviewingWithoutTree: Bool = {
-                    if case .filePreview = renderedDetailMode { return !isTreeVisibleWithPreview }
-                    return false
-                }()
+                let isPreviewingWithoutTree = isPreviewOwningPane
                 let layout = WorkspaceInspectorContentLayout(
                     availableWidth: proxy.size.width,
                     preferredPrimaryWidth: isPreviewingWithoutTree ? 0 : browserWidth,
-                    preferredSecondaryWidth: visualDetailWidth
+                    preferredSecondaryWidth: visualDetailWidth,
+                    fillsSecondary: isPreviewingWithoutTree
                 )
 
                 WorkspaceInspectorContentSplit(
@@ -251,6 +259,11 @@ struct WorkspaceInspectorPane: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .gchOpenWorkspaceFilePreview)) { note in
+            guard let path = note.object as? String else { return }
+            guard FileManager.default.fileExists(atPath: path) else { return }
+            openWorkspaceFile(path, hideTree: true)
         }
         .onAppear {
             syncDetailWidth(visualDetailWidth, animated: false)
@@ -425,11 +438,19 @@ private struct WorkspaceInspectorContentLayout {
     init(
         availableWidth: CGFloat,
         preferredPrimaryWidth: CGFloat,
-        preferredSecondaryWidth: CGFloat
+        preferredSecondaryWidth: CGFloat,
+        /// When the file tree is hidden (chip-opened preview) the detail panel
+        /// should FILL the inspector. Without this it stayed clamped to the
+        /// fixed editor width and left a dead gray column where the tree used
+        /// to be.
+        fillsSecondary: Bool = false
     ) {
         let availableWidth = max(0, availableWidth)
         let preferredPrimaryWidth = max(0, preferredPrimaryWidth)
-        let preferredSecondaryWidth = max(0, preferredSecondaryWidth)
+        var preferredSecondaryWidth = max(0, preferredSecondaryWidth)
+        if fillsSecondary, preferredSecondaryWidth > 0 {
+            preferredSecondaryWidth = availableWidth
+        }
 
         guard preferredSecondaryWidth > 0 else {
             let primaryWidth = min(preferredPrimaryWidth, availableWidth)
@@ -1581,7 +1602,11 @@ private struct FileEditorPanel: View {
                 statusBar
             }
         }
-        .frame(maxWidth: 480)
+        // No hard width cap: with the tree hidden the preview fills the
+        // inspector, which spreadsheet/table content badly needs (a 480pt cap
+        // squeezed xlsx columns into unreadable slivers and left a dead gray
+        // column beside the card).
+        .frame(maxWidth: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear { loadFile() }
         .onChange(of: filePath) { _ in loadFile() }
