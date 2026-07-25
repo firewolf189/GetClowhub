@@ -3645,6 +3645,9 @@ struct ChatView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .gchChatInlineEditingChanged)) { note in
+            handleInlineEditingChanged(note)
+        }
         .onChange(of: viewModel.composerPrefill) { newValue in
             guard let prefill = newValue else { return }
             inputText = prefill
@@ -3961,6 +3964,19 @@ struct ChatView: View {
         pendingComposerMessagesBySession[sessionId, default: []].removeAll { $0.id == message.id }
         if pendingComposerMessagesBySession[sessionId]?.isEmpty == true {
             pendingComposerMessagesBySession.removeValue(forKey: sessionId)
+        }
+    }
+
+    /// The composer must not hold focus while a history message is being
+    /// edited inline, and should get it back when that edit ends.
+    private func handleInlineEditingChanged(_ note: Notification) {
+        guard let isEditing = note.object as? Bool else { return }
+        if isEditing {
+            isInputFocused = false
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
         }
     }
 
@@ -5065,6 +5081,10 @@ struct ChatBubble: View, Equatable {
         withAnimation(.easeInOut(duration: 0.16)) {
             isEditingForResend = true
             isHovering = true
+            // Tell the composer to release focus, otherwise SwiftUI's
+            // @FocusState keeps asserting it and the caret ends up back in the
+            // bottom input while the user is editing a history message.
+            NotificationCenter.default.post(name: .gchChatInlineEditingChanged, object: true)
         }
     }
 
@@ -5081,6 +5101,7 @@ struct ChatBubble: View, Equatable {
             isEditingForResend = false
         }
         editDraft = ""
+        NotificationCenter.default.post(name: .gchChatInlineEditingChanged, object: false)
     }
 
     private func confirmEditResend() {
@@ -5200,15 +5221,35 @@ private struct InlineMessageEditorTextView: NSViewRepresentable {
 
         scrollView.documentView = textView
 
-        DispatchQueue.main.async {
-            textView.window?.makeFirstResponder(textView)
-        }
+        // Claim focus RELIABLY. A single async hop was not enough: at
+        // makeNSView time the view is not in a window yet, and inside the
+        // lazily-built chat timeline it can take several runloop turns to get
+        // there — `textView.window` was nil, the call silently no-opped, and
+        // the caret stayed in the main composer.
+        claimFocus(for: textView, coordinator: context.coordinator, attempt: 0)
 
         return scrollView
     }
 
+    private func claimFocus(for textView: NSTextView, coordinator: Coordinator, attempt: Int) {
+        guard attempt < 20, !coordinator.hasClaimedFocus else { return }
+        DispatchQueue.main.async {
+            if let window = textView.window {
+                window.makeFirstResponder(textView)
+                coordinator.hasClaimedFocus = true
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+                claimFocus(for: textView, coordinator: coordinator, attempt: attempt + 1)
+            }
+        }
+    }
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? CommitAwareTextView else { return }
+        if !context.coordinator.hasClaimedFocus {
+            claimFocus(for: textView, coordinator: context.coordinator, attempt: 0)
+        }
         textView.onCommit = onCommit
         textView.onCancel = onCancel
         if textView.string != text {
@@ -5221,6 +5262,8 @@ private struct InlineMessageEditorTextView: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
+        /// Set once the text view has actually become first responder.
+        var hasClaimedFocus = false
         @Binding var text: String
 
         init(text: Binding<String>) {
@@ -7144,4 +7187,11 @@ struct ChatSessionRow: View {
         )
     )
     .frame(width: 960, height: 680)
+}
+
+
+extension Notification.Name {
+    /// Posted with `true` when an inline history-message edit begins and
+    /// `false` when it ends, so the main composer can yield/reclaim focus.
+    static let gchChatInlineEditingChanged = Notification.Name("gchChatInlineEditingChanged")
 }
