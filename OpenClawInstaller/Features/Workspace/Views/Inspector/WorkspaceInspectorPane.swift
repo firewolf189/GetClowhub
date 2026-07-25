@@ -1908,6 +1908,9 @@ private struct CodeEditorView: NSViewRepresentable {
     var isReadOnly: Bool = false
     /// Bump to summon the native find bar (Claude's "find in file").
     var findRequestToken: Int = 0
+    /// See MarkdownPreviewView: NSApp.effectiveAppearance disagrees with the
+    /// app's forced appearance, so take the scheme from SwiftUI.
+    @Environment(\.colorScheme) private var colorScheme
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -1937,7 +1940,7 @@ private struct CodeEditorView: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 4, height: 8)
         textView.identifier = NSUserInterfaceItemIdentifier("codeEditorTextView")
 
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let isDark = (colorScheme == .dark)
         textView.drawsBackground = true
         textView.backgroundColor = isDark
             ? NSColor(calibratedRed: 0.12, green: 0.12, blue: 0.13, alpha: 1.0)
@@ -2574,6 +2577,11 @@ private class LineNumberRulerView: NSRulerView {
 
 private struct MarkdownPreviewView: NSViewRepresentable {
     let markdown: String
+    // The app can force light while the SYSTEM is dark (and vice versa) via
+    // its appearance setting, so NSApp.effectiveAppearance is the WRONG source
+    // here — it rendered a dark preview inside a light app. Read SwiftUI's
+    // resolved scheme instead.
+    @Environment(\.colorScheme) private var colorScheme
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -2593,7 +2601,7 @@ private struct MarkdownPreviewView: NSViewRepresentable {
             .replacingOccurrences(of: "`", with: "\\`")
             .replacingOccurrences(of: "$", with: "\\$")
 
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let isDark = (colorScheme == .dark)
         let bgColor = isDark ? "#1e1e1e" : "#ffffff"
         let textColor = isDark ? "#d4d4d4" : "#1e1e1e"
         let codeBg = isDark ? "#2d2d2d" : "#f5f5f5"
