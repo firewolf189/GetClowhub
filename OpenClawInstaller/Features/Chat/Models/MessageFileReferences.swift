@@ -25,8 +25,28 @@ enum MessageFileReferences {
         #"(?<![:\w])~?/[\w\-./一-鿿]{2,240}"#
     private static let relativePattern =
         #"(?<![\w/.一-鿿])[\w\-一-鿿]{1,64}(?:/[\w\-一-鿿.]{1,64}){1,6}\.[A-Za-z0-9]{1,8}"#
+    /// Document/asset extensions accepted for BARE file names (no directory
+    /// part). Agents very often name a deliverable with no path at all —
+    /// especially inside a "产出文件" table — so those must link too. The
+    /// allowlist keeps prose like "v1.1.78" or "3.5" from being treated as a
+    /// file name; existence on disk is still required on top of it.
+    private static let bareNameExtensions =
+        "md|markdown|txt|rtf|csv|tsv|json|ya?ml|xlsx?|docx?|pptx?|pdf|numbers|pages|key"
+        + "|png|jpe?g|gif|svg|webp|heic|zip|gz|tar|7z|py|sh|swift|js|ts|tsx|rs|go|java|rb|php"
+        + "|html?|css|log|mp4|mov|mp3|wav|m4a"
+
+    /// A bare `name.ext` with no slash. Anchored so it never bites into a
+    /// longer path (those are handled by the two patterns above).
+    private static var bareNamePattern: String {
+        #"(?<![\w/.~一-鿿])[\w\-一-鿿][\w\-一-鿿.]{0,80}\.(?:"# + bareNameExtensions + #")(?![\w])"#
+    }
+
+    /// Order matters: absolute, then relative, then bare. Later matches that
+    /// overlap an already-staged range are skipped, so a bare name inside a
+    /// longer path never double-matches.
     private static let regexes: [NSRegularExpression] = {
-        [absolutePattern, relativePattern].compactMap { try? NSRegularExpression(pattern: $0) }
+        [absolutePattern, relativePattern, bareNamePattern]
+            .compactMap { try? NSRegularExpression(pattern: $0) }
     }()
 
     static func extract(
@@ -211,12 +231,30 @@ enum MessageFileReferences {
         } else if token.hasPrefix("/") {
             candidate = token
         } else if let workspaceRoot, !workspaceRoot.isEmpty {
-            // openclaw 2026.7.x moved the main agent's cwd one level down
-            // (~/.openclaw/workspace/main/); older cores and per-agent
-            // workspaces write at the root. Try both bases.
-            for base in [workspaceRoot, (workspaceRoot as NSString).appendingPathComponent("main")] {
+            // Search bases, cheapest first:
+            //  1. the workspace itself (also covers "outputs/x.md" style
+            //     relative paths, which already carry their subdirectory),
+            //  2. `<workspace>/main` — belt-and-braces for the openclaw
+            //     2026.7.x nested-cwd layout if the resolver ever lags,
+            //  3. immediate subdirectories, because a BARE name is very often
+            //     a file the agent wrote into outputs/ or reports/,
+            //  4. Desktop/Downloads, common "save it for me" destinations.
+            var bases = [workspaceRoot, (workspaceRoot as NSString).appendingPathComponent("main")]
+            for base in bases {
                 let path = (base as NSString).appendingPathComponent(token)
                 if existsAsFile(path, fileManager: fileManager) { return path }
+            }
+            if !token.contains("/") {
+                bases = immediateSubdirectories(of: workspaceRoot, fileManager: fileManager)
+                let home = fileManager.homeDirectoryForCurrentUser.path
+                bases += [
+                    (home as NSString).appendingPathComponent("Desktop"),
+                    (home as NSString).appendingPathComponent("Downloads"),
+                ]
+                for base in bases {
+                    let path = (base as NSString).appendingPathComponent(token)
+                    if existsAsFile(path, fileManager: fileManager) { return path }
+                }
             }
             return nil
         } else {
@@ -224,6 +262,25 @@ enum MessageFileReferences {
         }
 
         return existsAsFile(candidate, fileManager: fileManager) ? candidate : nil
+    }
+
+    /// Immediate, non-hidden subdirectories of `root`, capped so a workspace
+    /// with a huge tree can never make row-building expensive.
+    private static func immediateSubdirectories(
+        of root: String,
+        fileManager: FileManager
+    ) -> [String] {
+        guard let names = try? fileManager.contentsOfDirectory(atPath: root) else { return [] }
+        var dirs: [String] = []
+        for name in names.sorted() where !name.hasPrefix(".") {
+            let path = (root as NSString).appendingPathComponent(name)
+            var isDirectory: ObjCBool = false
+            if fileManager.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
+                dirs.append(path)
+                if dirs.count >= 40 { break }
+            }
+        }
+        return dirs
     }
 
     private static func existsAsFile(_ path: String, fileManager: FileManager) -> Bool {
