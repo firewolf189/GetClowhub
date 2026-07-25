@@ -3598,9 +3598,16 @@ struct ChatView: View {
 	            // Focus monitor: track whether the TextEditor has focus
 	            focusMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) { event in
 	                DispatchQueue.main.async {
+	                    // "Any non-field-editor NSTextView" is NOT the composer: the
+	                    // inline history-message editor, the workspace code editor and
+	                    // the commit field are NSTextViews too. On every keystroke this
+	                    // used to declare the composer focused, so SwiftUI yanked the
+	                    // caret out of whatever the user was really typing in. Our own
+	                    // text views carry identifiers; the composer's TextEditor has none.
 	                    if let responder = NSApp.keyWindow?.firstResponder,
 	                       let textView = responder as? NSTextView,
-	                       !textView.isFieldEditor {
+	                       !textView.isFieldEditor,
+	                       textView.identifier == nil {
 	                        if !isInputFocused { withAnimation(.easeOut(duration: 0.15)) { isInputFocused = true } }
 	                    } else {
 	                        if isInputFocused { withAnimation(.easeIn(duration: 0.15)) { isInputFocused = false } }
