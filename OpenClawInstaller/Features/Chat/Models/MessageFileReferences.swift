@@ -62,6 +62,144 @@ enum MessageFileReferences {
         return results
     }
 
+    /// Custom URL scheme used to make in-prose file references tappable.
+    /// `OpenURLAction` in the message view intercepts it and previews the file
+    /// in the right inspector instead of handing it to the system.
+    static let linkScheme = "gchfile"
+
+    /// Rewrites every resolvable file path in `content` into a markdown link
+    /// (`[name](gchfile://<percent-encoded-abs-path>)`) so MarkdownUI renders
+    /// it underlined and clickable — Claude-style inline document links.
+    ///
+    /// Only paths that exist on disk are rewritten, and paths already inside a
+    /// markdown link or a code span/fence are left alone (rewriting those would
+    /// corrupt the source or produce nested links).
+    static func linkify(
+        content: String,
+        workspaceRoot: String?,
+        fileManager: FileManager = .default
+    ) -> String {
+        guard !content.isEmpty, !regexes.isEmpty else { return content }
+        // Models most often present a saved path inside a code span
+        // (`outputs/report.md`). Unwrap those FIRST when the span's entire
+        // content is a resolvable file path, so the path becomes linkable —
+        // Claude underlines these too. Spans holding anything else (real code)
+        // stay untouched, and fenced blocks are never unwrapped.
+        let content = unwrapPathOnlyCodeSpans(
+            in: content, workspaceRoot: workspaceRoot, fileManager: fileManager
+        )
+        let protectedRanges = self.protectedRanges(in: content)
+
+        // Collect (range, resolvedPath) then apply back-to-front so earlier
+        // ranges stay valid while mutating.
+        var edits: [(Range<String.Index>, String)] = []
+        var seenRanges: [Range<String.Index>] = []
+        let nsRange = NSRange(content.startIndex..<content.endIndex, in: content)
+
+        for regex in regexes {
+            for match in regex.matches(in: content, range: nsRange) {
+                guard var tokenRange = Range(match.range, in: content) else { continue }
+                var token = String(content[tokenRange])
+                var trimmed = 0
+                while let last = token.last, ".,;:)".contains(last) {
+                    token.removeLast()
+                    trimmed += 1
+                }
+                guard token.count >= 3 else { continue }
+                if trimmed > 0 {
+                    tokenRange = tokenRange.lowerBound..<content.index(tokenRange.upperBound, offsetBy: -trimmed)
+                }
+                // Skip code spans / existing links.
+                if protectedRanges.contains(where: { $0.overlaps(tokenRange) }) { continue }
+                // Skip overlaps with an edit we already staged (the two
+                // patterns can both match the same span).
+                if seenRanges.contains(where: { $0.overlaps(tokenRange) }) { continue }
+                guard let resolved = resolve(token, workspaceRoot: workspaceRoot, fileManager: fileManager) else {
+                    continue
+                }
+                seenRanges.append(tokenRange)
+                edits.append((tokenRange, resolved))
+            }
+        }
+        guard !edits.isEmpty else { return content }
+
+        var result = content
+        for (range, resolved) in edits.sorted(by: { $0.0.lowerBound > $1.0.lowerBound }) {
+            let label = String(result[range])
+            // Percent-encode so spaces/CJK survive as a URL; the path is the
+            // link body, so `/` must be encoded too or it splits host/path.
+            let encoded = resolved.addingPercentEncoding(
+                withAllowedCharacters: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            ) ?? resolved
+            result.replaceSubrange(range, with: "[\(label)](\(linkScheme)://\(encoded))")
+        }
+        return result
+    }
+
+    /// Decodes a `gchfile://` link back into an absolute path.
+    static func path(fromLinkURL url: URL) -> String? {
+        guard url.scheme == linkScheme else { return nil }
+        let raw = url.absoluteString.dropFirst("\(linkScheme)://".count)
+        return String(raw).removingPercentEncoding
+    }
+
+    /// Strips the backticks from inline code spans whose ENTIRE content is a
+    /// resolvable file path, so the following linkify pass can turn them into
+    /// links. Fenced code blocks are excluded — code samples keep their paths
+    /// verbatim.
+    private static func unwrapPathOnlyCodeSpans(
+        in content: String,
+        workspaceRoot: String?,
+        fileManager: FileManager
+    ) -> String {
+        guard content.contains("`") else { return content }
+        guard let spanRegex = try? NSRegularExpression(pattern: #"`([^`\n]+)`"#) else { return content }
+        let fenced = fencedRanges(in: content)
+        let nsRange = NSRange(content.startIndex..<content.endIndex, in: content)
+
+        var edits: [(Range<String.Index>, String)] = []
+        for match in spanRegex.matches(in: content, range: nsRange) {
+            guard let full = Range(match.range, in: content),
+                  let inner = Range(match.range(at: 1), in: content) else { continue }
+            if fenced.contains(where: { $0.overlaps(full) }) { continue }
+            let token = String(content[inner]).trimmingCharacters(in: .whitespaces)
+            guard token.count >= 3,
+                  resolve(token, workspaceRoot: workspaceRoot, fileManager: fileManager) != nil else { continue }
+            edits.append((full, token))
+        }
+        guard !edits.isEmpty else { return content }
+
+        var result = content
+        for (range, token) in edits.sorted(by: { $0.0.lowerBound > $1.0.lowerBound }) {
+            result.replaceSubrange(range, with: token)
+        }
+        return result
+    }
+
+    private static func fencedRanges(in content: String) -> [Range<String.Index>] {
+        guard let regex = try? NSRegularExpression(pattern: #"```[\s\S]*?```"#) else { return [] }
+        let nsRange = NSRange(content.startIndex..<content.endIndex, in: content)
+        return regex.matches(in: content, range: nsRange).compactMap { Range($0.range, in: content) }
+    }
+
+    /// Ranges that must not be rewritten: fenced code blocks, inline code
+    /// spans, and the target/label of existing markdown links.
+    private static func protectedRanges(in content: String) -> [Range<String.Index>] {
+        var ranges: [Range<String.Index>] = []
+        for pattern in [
+            #"```[\s\S]*?```"#,          // fenced code
+            #"`[^`\n]*`"#,               // inline code
+            #"\[[^\]]*\]\([^)]*\)"#,     // existing markdown link
+        ] {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            let nsRange = NSRange(content.startIndex..<content.endIndex, in: content)
+            for match in regex.matches(in: content, range: nsRange) {
+                if let r = Range(match.range, in: content) { ranges.append(r) }
+            }
+        }
+        return ranges
+    }
+
     private static func resolve(
         _ token: String,
         workspaceRoot: String?,

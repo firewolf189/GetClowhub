@@ -1946,7 +1946,18 @@ class DashboardViewModel: ObservableObject {
             return (baseDir as NSString).appendingPathComponent("workspace")
         }
 
-        // 3. non-default agent
+        // 3. non-default agent. Mirror the gateway exactly
+        // (resolveAgentWorkspaceDir in agent-scope-config): when
+        // `agents.defaults.workspace` is set, a non-default agent WITHOUT its
+        // own `workspace` entry lives in a SUBDIRECTORY of it —
+        // `<defaults.workspace>/<agentId>` — not `workspace-<agentId>`.
+        // Getting this wrong pointed the workspace tree and in-prose file
+        // links at a non-existent `workspace-main`, so nothing resolved.
+        if let defWs = ((agentsSection?["defaults"] as? [String: Any])?["workspace"] as? String)?
+            .trimmingCharacters(in: .whitespaces), !defWs.isEmpty {
+            return ((defWs as NSString).expandingTildeInPath as NSString)
+                .appendingPathComponent(agentId)
+        }
         return (baseDir as NSString).appendingPathComponent("workspace-\(agentId)")
     }
 

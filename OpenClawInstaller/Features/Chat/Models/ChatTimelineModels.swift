@@ -47,7 +47,8 @@ struct ChatTimelineSnapshot: Equatable {
                     fileReferences: (message.role == .assistant && activeStreamState == nil
                         && runPhase?.isTerminal != false)
                         ? MessageFileReferences.extract(from: message.content, workspaceRoot: workspaceRootPath)
-                        : []
+                        : [],
+                    workspaceRootPath: workspaceRootPath
                 )
             )
         }
@@ -142,6 +143,9 @@ struct ChatMessageRowModel: Identifiable, Equatable {
     /// Resolved, existing local files this reply references — rendered as
     /// one-click "open document" chips below the bubble.
     var fileReferences: [String] = []
+    /// Workspace root used to resolve relative paths in the prose into
+    /// tappable inline document links.
+    var workspaceRootPath: String? = nil
 
     init(
         message: ChatMessage,
@@ -151,7 +155,8 @@ struct ChatMessageRowModel: Identifiable, Equatable {
         isStreamingDraft: Bool,
         allowsRichMarkdown: Bool,
         isJumpHighlighted: Bool,
-        fileReferences: [String] = []
+        fileReferences: [String] = [],
+        workspaceRootPath: String? = nil
     ) {
         self.id = message.id
         self.role = message.role
@@ -170,6 +175,7 @@ struct ChatMessageRowModel: Identifiable, Equatable {
         self.allowsRichMarkdown = allowsRichMarkdown
         self.isJumpHighlighted = isJumpHighlighted
         self.fileReferences = fileReferences
+        self.workspaceRootPath = workspaceRootPath
     }
 
     var runPhase: ChatRunPhase? { runState?.phase }

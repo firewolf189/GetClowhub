@@ -4877,7 +4877,9 @@ struct ChatBubble: View, Equatable {
                                     AssistantMessageContentView(
                                         content: message.content,
                                         isStreaming: isStreamingState,
-                                        allowsRichMarkdown: message.allowsRichMarkdown || isRichMarkdownActivated
+                                        allowsRichMarkdown: message.allowsRichMarkdown || isRichMarkdownActivated,
+                                        workspaceRootPath: message.workspaceRootPath,
+                                        onOpenFileReference: onOpenFileReference
                                     )
 	                                    .fixedSize(horizontal: false, vertical: true)
 			                                    .padding(10)

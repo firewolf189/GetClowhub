@@ -152,15 +152,24 @@ struct AssistantMessageContentView: View {
     let content: String
     let isStreaming: Bool
     let allowsRichMarkdown: Bool
+    /// Absolute workspace path used to resolve relative in-prose file
+    /// references so they can be turned into tappable links.
+    let workspaceRootPath: String?
+    /// Invoked when the user clicks an in-prose document link.
+    let onOpenFileReference: ((String) -> Void)?
 
     init(
         content: String,
         isStreaming: Bool,
-        allowsRichMarkdown: Bool = true
+        allowsRichMarkdown: Bool = true,
+        workspaceRootPath: String? = nil,
+        onOpenFileReference: ((String) -> Void)? = nil
     ) {
         self.content = content
         self.isStreaming = isStreaming
         self.allowsRichMarkdown = allowsRichMarkdown
+        self.workspaceRootPath = workspaceRootPath
+        self.onOpenFileReference = onOpenFileReference
     }
 
     var body: some View {
@@ -180,10 +189,31 @@ struct AssistantMessageContentView: View {
                     logRenderMode("webview")
                 }
         case .markdownUI:
-            Markdown(renderModel.content)
+            // Claude-style inline document links: rewrite resolvable file
+            // paths in the prose into markdown links, render them underlined,
+            // and intercept the custom scheme to preview in-app.
+            Markdown(MessageFileReferences.linkify(
+                content: renderModel.content,
+                workspaceRoot: workspaceRootPath
+            ))
                 .markdownTextStyle(\.text) {
                     FontSize(14)
                 }
+                .markdownTextStyle(\.link) {
+                    UnderlineStyle(.single)
+                    ForegroundColor(.accentColor)
+                }
+                .environment(\.openURL, OpenURLAction { url in
+                    if let path = MessageFileReferences.path(fromLinkURL: url) {
+                        if let onOpenFileReference {
+                            onOpenFileReference(path)
+                        } else {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                        }
+                        return .handled
+                    }
+                    return .systemAction
+                })
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .onAppear {
