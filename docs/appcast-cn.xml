@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.78</title>
-      <sparkle:version>86</sparkle:version>
-      <sparkle:shortVersionString>1.1.78</sparkle:shortVersionString>
+      <title>Version 1.1.79</title>
+      <sparkle:version>87</sparkle:version>
+      <sparkle:shortVersionString>1.1.79</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.78</h2>
+        <h2>OpenClaw Helper 1.1.79</h2>
         <ul>
-          <li>修复聊天渲染卡死；网关升级至 2026.7.1 并新增「强行修复」；会话产出文档可点击预览（右侧检查器，公式与表格本地渲染、离线可用）；新增「跨段选择文本」；修复文件预览关闭需点两次、打开时重复渲染、先闪文件列表；修复编辑历史消息时输入框焦点丢失</li>
+          <li>右侧文件面板与左侧栏统一：同一底色（浅色/深色皆有）、去掉突兀的分隔竖线、边界一带均可拖动调宽且鼠标变为左右箭头</li>
         </ul>
       ]]></description>
-      <pubDate>Sun, 26 Jul 2026 11:01:47 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.78/GetClawHub.dmg"
-                 length="239296089"
+      <pubDate>Sun, 26 Jul 2026 13:33:45 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.79/GetClawHub.dmg"
+                 length="237446144"
                  type="application/octet-stream"
-                 sparkle:edSignature="16JQhM9ES+SYSV5lgH8WqX5EsvXf5/TeZNyjCY8GjN2b1dxPBPYpaac3V3XxOahQ0IbVnOk7w+Yt26TLVVz6Ag==" />
+                 sparkle:edSignature="xJkEaxeaeW18DQ1x2IYhTz694F7G0a11iMomTcd9+WlpuFwN6IfcCoN+c5pZ/AOOx7XBCniqQhtVjnc9wEl0BA==" />
     </item>
   </channel>
 </rss>
