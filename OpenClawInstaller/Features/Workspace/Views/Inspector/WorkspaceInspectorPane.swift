@@ -771,7 +771,9 @@ private struct ProjectFilesPanel: View {
             }
         }
         .frame(width: width)
-        .background(Color(NSColor.windowBackgroundColor))
+        // Transparent so the pane's sidebar material shows through — the left
+        // column gets its tint the same way. Only document surfaces stay opaque.
+        .background(Color.clear)
         .onChange(of: root) { _ in searchText = "" }
     }
 
@@ -954,7 +956,7 @@ private struct EditableWorkspaceFileTreePanel<EmptyState: View>: View {
         }
         .id(refreshTrigger)
         .frame(width: width)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.clear)
         .alert(I18n.t("common.action.delete"), isPresented: Binding<Bool>(
             get: { deleteConfirmPath != nil },
             set: { if !$0 { deleteConfirmPath = nil } }

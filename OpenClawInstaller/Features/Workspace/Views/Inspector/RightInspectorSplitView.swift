@@ -87,7 +87,19 @@ struct RightInspectorSplitView<Content: View, Sidebar: View>: NSViewControllerRe
 private final class RightInspectorSplitController: NSViewController {
     private let contentHost = NSHostingController(rootView: AnyView(EmptyView()))
     private let sidebarRail = NSView()
+    /// The left NavigationSplitView column is, measured on screen, a nearly
+    /// opaque very light grey — not a translucent material. Sampling proved it:
+    /// the closest visual-effect material (.sidebar, withinWindow) renders
+    /// #DEDFE0 here, while the left column is #F7F7F7, and closing that gap
+    /// would take a ~0.76 white overlay — i.e. a flat colour. So this paints the
+    /// sampled tone directly, in both appearances, and the two panes match.
+    private let sidebarBackdrop = SidebarBackdropView()
     private let sidebarSeparator = NSBox()
+    /// Drag target for resizing. The pan gesture used to live on the 1pt
+    /// separator: technically draggable, practically un-grabbable, and with no
+    /// cursor feedback — the native left divider gives both. This overlay is
+    /// wider than the line it straddles and is excluded from layout.
+    private let sidebarResizeHandle = SidebarResizeHandleView()
     private let sidebarClipView = NSView()
     private let sidebarHost = NSHostingController(rootView: AnyView(EmptyView()))
 
@@ -127,6 +139,7 @@ private final class RightInspectorSplitController: NSViewController {
         super.viewDidLayout()
         applySidebarWidth()
     }
+
 
     func update(
         content: AnyView,
@@ -244,19 +257,31 @@ private final class RightInspectorSplitController: NSViewController {
         contentHost.view.translatesAutoresizingMaskIntoConstraints = false
         sidebarRail.translatesAutoresizingMaskIntoConstraints = false
         sidebarRail.clipsToBounds = true
+        sidebarBackdrop.translatesAutoresizingMaskIntoConstraints = false
         sidebarSeparator.translatesAutoresizingMaskIntoConstraints = false
         sidebarSeparator.boxType = .custom
         sidebarSeparator.wantsLayer = true
-        sidebarSeparator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        // Transparent on purpose: it only reserves the 1pt gutter now. The left
+        // column draws no line either, so a visible one made the two edges look
+        // like different kinds of boundary.
+        sidebarSeparator.layer?.backgroundColor = NSColor.clear.cgColor
+        // NSBox draws its OWN border for .custom boxes — clearing the layer
+        // colour alone left the hairline visible.
+        sidebarSeparator.borderWidth = 0
+        sidebarSeparator.borderColor = .clear
+        sidebarResizeHandle.translatesAutoresizingMaskIntoConstraints = false
         sidebarClipView.translatesAutoresizingMaskIntoConstraints = false
         sidebarClipView.clipsToBounds = true
         sidebarHost.view.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(contentHost.view)
         view.addSubview(sidebarRail)
+        sidebarRail.addSubview(sidebarBackdrop)
         sidebarRail.addSubview(sidebarSeparator)
         sidebarRail.addSubview(sidebarClipView)
         sidebarClipView.addSubview(sidebarHost.view)
+        // Above the rail so it wins hit-testing over the pane's own content.
+        view.addSubview(sidebarResizeHandle)
 
         let sidebarWidthConstraint = sidebarRail.widthAnchor.constraint(equalToConstant: 0)
         let sidebarContentWidthConstraint = sidebarHost.view.widthAnchor.constraint(equalToConstant: 0)
@@ -265,7 +290,7 @@ private final class RightInspectorSplitController: NSViewController {
         let separatorWidthConstraint = sidebarSeparator.widthAnchor.constraint(equalToConstant: 1)
         separatorWidthConstraint.priority = .fittingSizeCompression
         let resizePan = NSPanGestureRecognizer(target: self, action: #selector(handleSidebarResizePan(_:)))
-        sidebarSeparator.addGestureRecognizer(resizePan)
+        sidebarResizeHandle.addGestureRecognizer(resizePan)
 
         NSLayoutConstraint.activate([
             contentHost.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -275,10 +300,18 @@ private final class RightInspectorSplitController: NSViewController {
             sidebarRail.topAnchor.constraint(equalTo: view.topAnchor),
             sidebarRail.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sidebarRail.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            sidebarBackdrop.leadingAnchor.constraint(equalTo: sidebarRail.leadingAnchor),
+            sidebarBackdrop.trailingAnchor.constraint(equalTo: sidebarRail.trailingAnchor),
+            sidebarBackdrop.topAnchor.constraint(equalTo: sidebarRail.topAnchor),
+            sidebarBackdrop.bottomAnchor.constraint(equalTo: sidebarRail.bottomAnchor),
             sidebarSeparator.leadingAnchor.constraint(equalTo: sidebarRail.leadingAnchor),
             sidebarSeparator.topAnchor.constraint(equalTo: sidebarRail.topAnchor),
             sidebarSeparator.bottomAnchor.constraint(equalTo: sidebarRail.bottomAnchor),
             separatorWidthConstraint,
+            sidebarResizeHandle.centerXAnchor.constraint(equalTo: sidebarRail.leadingAnchor),
+            sidebarResizeHandle.widthAnchor.constraint(equalToConstant: 10),
+            sidebarResizeHandle.topAnchor.constraint(equalTo: view.topAnchor),
+            sidebarResizeHandle.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sidebarClipView.leadingAnchor.constraint(equalTo: sidebarSeparator.trailingAnchor),
             sidebarClipView.topAnchor.constraint(equalTo: sidebarRail.topAnchor),
             sidebarClipView.bottomAnchor.constraint(equalTo: sidebarRail.bottomAnchor),
@@ -295,6 +328,85 @@ private final class RightInspectorSplitController: NSViewController {
         self.sidebarContentWidthConstraint = sidebarContentWidthConstraint
         self.contentMinWidthConstraint = contentMinWidthConstraint
         hasInstalledLayout = true
+    }
+
+    /// Paints the sidebar tone. A CGColor is resolved once, so a dynamic
+    /// NSColor baked into a layer does not follow a light/dark switch by itself —
+    /// hence the explicit re-apply on appearance changes.
+    private final class SidebarBackdropView: NSView {
+        /// sRGB components on purpose: `NSColor(white:)` is calibrated gray, which
+        /// renders visibly darker on a P3 display — 0.969 there measured #EDEDED
+        /// against the left column's #F8F9F9.
+        private static let tone = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(srgbRed: 0.118, green: 0.118, blue: 0.118, alpha: 1)
+                : NSColor(srgbRed: 0.973, green: 0.976, blue: 0.976, alpha: 1)
+        }
+
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            wantsLayer = true
+            applyTone()
+        }
+
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+            wantsLayer = true
+            applyTone()
+        }
+
+        override func viewDidChangeEffectiveAppearance() {
+            super.viewDidChangeEffectiveAppearance()
+            applyTone()
+        }
+
+        private func applyTone() {
+            var resolved: CGColor = Self.tone.cgColor
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                resolved = Self.tone.cgColor
+            }
+            layer?.backgroundColor = resolved
+        }
+    }
+
+    /// Wider-than-a-line grab strip that also owns the resize cursor. Straddles
+    /// the pane's leading edge, so half of it overlaps the chat and half the
+    /// pane — the same feel as dragging the native left column divider.
+    private final class SidebarResizeHandleView: NSView {
+        private var trackingArea: NSTrackingArea?
+
+        override func resetCursorRects() {
+            super.resetCursorRects()
+            guard !isHidden else { return }
+            addCursorRect(bounds, cursor: .resizeLeftRight)
+        }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let trackingArea { removeTrackingArea(trackingArea) }
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeInKeyWindow, .cursorUpdate],
+                owner: self
+            )
+            addTrackingArea(area)
+            trackingArea = area
+        }
+
+        override func cursorUpdate(with event: NSEvent) {
+            if isHidden {
+                super.cursorUpdate(with: event)
+            } else {
+                NSCursor.resizeLeftRight.set()
+            }
+        }
+
+        /// Transparent to clicks that are not drags would be nicer, but the pane
+        /// has no click target under the divider, so owning the strip outright
+        /// keeps the drag reliable.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            isHidden ? nil : super.hitTest(point)
+        }
     }
 
     @objc private func handleSidebarResizePan(_ recognizer: NSPanGestureRecognizer) {
@@ -374,6 +486,13 @@ private final class RightInspectorSplitController: NSViewController {
 
     private func setSidebarWidth(_ width: CGFloat) {
         let clampedWidth = max(0, width)
+        // No pane, no divider to grab — and no resize cursor over the chat's
+        // right edge, which is what a stale handle would leave behind.
+        let handleShouldHide = clampedWidth <= 0
+        if sidebarResizeHandle.isHidden != handleShouldHide {
+            sidebarResizeHandle.isHidden = handleShouldHide
+            view.window?.invalidateCursorRects(for: sidebarResizeHandle)
+        }
         guard !isSidebarWidthApplied(clampedWidth) else { return }
         sidebarWidthConstraint?.constant = clampedWidth
         if clampedWidth > 0 {

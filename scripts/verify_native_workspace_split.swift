@@ -479,10 +479,14 @@ assertContains(
     "NSPanGestureRecognizer(target: self, action: #selector(handleSidebarResizePan(_:)))",
     "right inspector separator should support dragging to resize the sidebar like a native split"
 )
+// Moved 2026-07-26: a 1pt separator is technically draggable and practically
+// not, and it gave no cursor feedback. The gesture now lives on a wider overlay
+// handle that owns the resize cursor — contracted in
+// scripts/verify_right_inspector_sidebar_parity.swift.
 assertContains(
     rightInspectorSplitController,
-    "sidebarSeparator.addGestureRecognizer(resizePan)",
-    "right inspector resize gesture should be attached to the visible separator"
+    "sidebarResizeHandle.addGestureRecognizer(resizePan)",
+    "right inspector resize gesture should be attached to the wider grab handle"
 )
 assertContains(
     rightInspectorSplitController,
