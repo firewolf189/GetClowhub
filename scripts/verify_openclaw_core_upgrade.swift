@@ -82,7 +82,14 @@ require(coordinator.contains("gateway install"), "upgrade should reinstall gatew
 require(coordinator.contains("openclawService.start()"), "upgrade should restart gateway through OpenClawService")
 require(coordinator.contains("doctor --post-upgrade --json") && coordinator.contains("doctor --fix"), "upgrade should try post-upgrade doctor with fallback")
 
-let upgradeBlock = block(startingWith: "func ensureBundledCoreIsCurrent", in: coordinator)
+// The steps moved into `performUpgradeBody()`: the public entry point now only
+// spawns an unstructured Task so a cancelled caller cannot abort a half-done
+// core swap (observed on the 6.10 -> 7.1 upgrade).
+require(
+    coordinator.contains("let work = Task { await performUpgradeBody() }"),
+    "the upgrade must run in an unstructured Task so caller cancellation cannot abort a half-done swap"
+)
+let upgradeBlock = block(startingWith: "private func performUpgradeBody", in: coordinator)
 let stopIndex = upgradeBlock.range(of: "stopGatewayIfRunning")?.lowerBound
 let stageIndex = upgradeBlock.range(of: "extractBundleToStaging")?.lowerBound
 let verifyIndex = upgradeBlock.range(of: "verifyStagedCore")?.lowerBound

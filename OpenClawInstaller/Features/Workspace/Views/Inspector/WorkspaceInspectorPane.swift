@@ -229,6 +229,18 @@ struct WorkspaceInspectorPane: View {
         return false
     }
 
+    /// A chat-opened preview already owns the pane. Opening ANOTHER file from
+    /// chat in this state must inherit the existing dismissal instead of
+    /// re-deriving it from "is the inspector visible": the inspector is visible
+    /// only *because* of the first preview, so re-deriving flips the second
+    /// file's close to `.fileList` and makes closing take two clicks.
+    private var isChainedPreviewOpen: Bool {
+        guard !isTreeVisibleWithPreview else { return false }
+        if case .filePreview = targetDetailMode { return true }
+        if case .filePreview = renderedDetailMode { return true }
+        return false
+    }
+
     /// "show in files" can only work for files inside the workspace tree.
     /// Bare-name resolution can legitimately land on ~/Desktop or ~/Downloads,
     /// and revealing those in the workspace tree is impossible — offering the
@@ -317,15 +329,15 @@ struct WorkspaceInspectorPane: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .gchOpenWorkspaceFilePreview)) { note in
             guard let request = note.object as? GCHFilePreviewRequest else { return }
-            guard FileManager.default.fileExists(atPath: request.path) else { return }
-            openWorkspaceFile(
-                request.path,
-                hideTree: true,
-                dismissal: request.collapseOnClose ? .collapseInspector : .fileList
-            )
+            GCHPendingFilePreview.request = nil
+            handleFilePreviewRequest(request)
         }
         .onAppear {
             syncDetailWidth(visualDetailWidth, animated: false)
+            // First open: the request was posted before this pane existed.
+            if let pending = GCHPendingFilePreview.take() {
+                handleFilePreviewRequest(pending)
+            }
         }
         .onChange(of: root) { _ in
             clearWorkspaceDetail(animated: false)
@@ -366,6 +378,14 @@ struct WorkspaceInspectorPane: View {
                 EmptyView()
             }
         }
+    }
+
+    private func handleFilePreviewRequest(_ request: GCHFilePreviewRequest) {
+        guard FileManager.default.fileExists(atPath: request.path) else { return }
+        let dismissal: PreviewDismissal = isChainedPreviewOpen
+            ? previewDismissal
+            : (request.collapseOnClose ? .collapseInspector : .fileList)
+        openWorkspaceFile(request.path, hideTree: true, dismissal: dismissal)
     }
 
     private func openWorkspaceFile(_ path: String) {
@@ -2648,25 +2668,47 @@ private struct MarkdownPreviewView: NSViewRepresentable {
     // resolved scheme instead.
     @Environment(\.colorScheme) private var colorScheme
 
+    /// Remembers what the web view is currently showing. `updateNSView` runs on
+    /// EVERY SwiftUI update of the panel (loading flip, width animation frames,
+    /// the pane's mode reassignment), and it used to reload the document every
+    /// time — each reload is a visible re-render, which is what made opening a
+    /// file look like it rendered twice.
+    final class Coordinator {
+        var loadedMarkdown: String?
+        var loadedIsDark: Bool?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
-        loadMarkdown(webView)
+        loadMarkdown(webView, coordinator: context.coordinator)
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        loadMarkdown(webView)
+        loadMarkdown(webView, coordinator: context.coordinator)
     }
 
-    private func loadMarkdown(_ webView: WKWebView) {
-        let escaped = markdown
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "`", with: "\\`")
-            .replacingOccurrences(of: "$", with: "\\$")
-
+    private func loadMarkdown(_ webView: WKWebView, coordinator: Coordinator) {
         let isDark = (colorScheme == .dark)
+        guard coordinator.loadedMarkdown != markdown || coordinator.loadedIsDark != isDark else {
+            return
+        }
+        coordinator.loadedMarkdown = markdown
+        coordinator.loadedIsDark = isDark
+        webView.loadHTMLString(html(isDark: isDark), baseURL: nil)
+    }
+
+    private func html(isDark: Bool) -> String {
+        // Converted natively (same converter the chat uses). The old document
+        // pulled marked.min.js from jsdelivr and parsed in JS, so the preview
+        // stayed unparsed until that request came back — a second visible render
+        // on a good network, and no rendering at all on a blocked one. It also
+        // meant every file preview phoned a CDN.
+        let body = MarkdownHTML.convertMarkdown(markdown)
         let bgColor = isDark ? "#1e1e1e" : "#ffffff"
         let textColor = isDark ? "#d4d4d4" : "#1e1e1e"
         let codeBg = isDark ? "#2d2d2d" : "#f5f5f5"
@@ -2674,12 +2716,12 @@ private struct MarkdownPreviewView: NSViewRepresentable {
         let linkColor = isDark ? "#569cd6" : "#0366d6"
         let headingColor = isDark ? "#e0e0e0" : "#111111"
 
-        let html = """
+        return """
         <!DOCTYPE html>
         <html>
         <head>
         <meta charset="utf-8">
-        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        \(MathRenderAssets.styleTag(for: markdown))
         <style>
             body {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -2727,14 +2769,11 @@ private struct MarkdownPreviewView: NSViewRepresentable {
         </style>
         </head>
         <body>
-        <div id="content"></div>
-        <script>
-            document.getElementById('content').innerHTML = marked.parse(`\(escaped)`);
-        </script>
+        <div id="content">\(body)</div>
+        \(MathRenderAssets.scriptTag(for: markdown))
         </body>
         </html>
         """
-        webView.loadHTMLString(html, baseURL: nil)
     }
 }
 
@@ -2743,13 +2782,27 @@ private struct MarkdownPreviewView: NSViewRepresentable {
 private struct HTMLPreviewView: NSViewRepresentable {
     let fileURL: URL
 
+    /// Same reason as MarkdownPreviewView: `updateNSView` fires on every SwiftUI
+    /// update, and reloading the file each time re-rendered the page.
+    final class Coordinator {
+        var loadedURL: URL?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> WKWebView {
         let webView = WKWebView(frame: .zero)
-        webView.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
+        load(webView, coordinator: context.coordinator)
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        load(webView, coordinator: context.coordinator)
+    }
+
+    private func load(_ webView: WKWebView, coordinator: Coordinator) {
+        guard coordinator.loadedURL != fileURL else { return }
+        coordinator.loadedURL = fileURL
         webView.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
     }
 }
@@ -2765,6 +2818,8 @@ private struct QuickLookPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: QLPreviewView, context: Context) {
+        // Re-assigning the same item restarts the QuickLook render.
+        guard (nsView.previewItem as? URL) != url else { return }
         nsView.previewItem = url as QLPreviewItem
     }
 }
@@ -2776,6 +2831,19 @@ private struct QuickLookPreview: NSViewRepresentable {
 struct GCHFilePreviewRequest {
     let path: String
     let collapseOnClose: Bool
+}
+
+/// Hand-off slot for a preview requested while the inspector pane is not mounted
+/// yet (the first click that reveals it). The notification alone would be posted
+/// into the void; the pane drains this on appear. Cleared as soon as it is
+/// handled, so a later remount never re-opens a stale file.
+enum GCHPendingFilePreview {
+    static var request: GCHFilePreviewRequest?
+
+    static func take() -> GCHFilePreviewRequest? {
+        defer { request = nil }
+        return request
+    }
 }
 
 extension Notification.Name {

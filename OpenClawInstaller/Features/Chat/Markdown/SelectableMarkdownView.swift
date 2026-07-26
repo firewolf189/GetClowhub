@@ -26,6 +26,11 @@ private func makeMarkdownHeightCache() -> NSCache<NSString, NSNumber> {
 }
 
 private func setCachedMarkdownHTML(_ html: String, forKey cacheKey: NSString) {
+    // A math document carries the bundled KaTeX inline (~660 KB), so caching a
+    // dozen of them would evict every ordinary message from the 8 MB budget.
+    // Math messages are rare; rebuilding their HTML on a cold mount costs a few
+    // milliseconds, which is the cheaper trade.
+    guard !html.contains("__gchRenderMath") else { return }
     markdownHTMLCache.setObject(html as NSString, forKey: cacheKey, cost: html.utf8.count)
 }
 
@@ -477,9 +482,10 @@ private struct _MarkdownWebView: NSViewRepresentable {
             (function() {
                 var arr = \(jsonStr);
                 document.body.innerHTML = arr[0];
-                if (window.MathJax && window.MathJax.typesetPromise) {
-                    window.MathJax.typesetPromise([document.body]).catch(function(){});
-                }
+                // Math is KaTeX now (bundled, synchronous). The helper is a
+                // global, so it survives the innerHTML swap above even though
+                // the <script> tags in the replaced body do not.
+                if (window.__gchRenderMath) { window.__gchRenderMath(document.body); }
             })();
             """
             webView.evaluateJavaScript(js) { _, _ in

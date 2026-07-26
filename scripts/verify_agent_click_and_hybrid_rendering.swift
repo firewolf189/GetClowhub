@@ -113,10 +113,12 @@ assertContains(
     "private static func requiresWebView",
     "hybrid renderer should centralize the complex-content fallback decision"
 )
+// The NSTextView bridge was deleted 2026-07-26; ordinary content renders with
+// pure-SwiftUI MarkdownUI, and cross-block selection is its own opt-in path.
 assertContains(
     assistantRenderer,
-    "NativeSelectableMarkdownView(",
-    "hybrid renderer should use native direct-selection text for ordinary assistant content"
+    "case .markdownUI:",
+    "hybrid renderer should use MarkdownUI for ordinary assistant content"
 )
 assertContains(
     assistantRenderer,

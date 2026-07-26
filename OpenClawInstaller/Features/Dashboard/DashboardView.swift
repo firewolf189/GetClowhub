@@ -219,22 +219,29 @@ struct DashboardView: View {
         presentationRoot
         .onChange(of: viewModel.inspectorFileOpenRequest?.id) { _ in
             guard let request = viewModel.inspectorFileOpenRequest else { return }
+            let path = request.path
+            // Decide the close behavior HERE: only the owner knows whether the
+            // inspector was already open before this click revealed it. Read the
+            // flags BEFORE revealing — afterwards they are mid-animation, so the
+            // close behaviour would depend on timing.
+            let collapseOnClose = !isWorkspaceSidebarExpanded
             if !isWorkspaceSidebarExpanded {
                 revealWorkspaceSidebar()
             }
-            let path = request.path
-            // Decide the close behavior HERE: only the owner knows whether the
-            // inspector was already open before this click revealed it.
-            let collapseOnClose = !isWorkspaceSidebarExpanded
             viewModel.inspectorFileOpenRequest = nil
-            // Post after the reveal animation settles; the pane listens via
-            // NotificationCenter (survives its retain-while-hidden lifecycle).
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                NotificationCenter.default.post(
-                    name: .gchOpenWorkspaceFilePreview,
-                    object: GCHFilePreviewRequest(path: path, collapseOnClose: collapseOnClose)
-                )
-            }
+            // Hand the file over IMMEDIATELY, not after the reveal animation.
+            // Waiting meant the inspector slid open still showing the file list
+            // and only swapped to the document ~0.45s later — the list visibly
+            // flashed first. The pane sizes its content to the FINAL width right
+            // away (only the outer sidebar animates), so switching now costs no
+            // reflow. `pending` covers the first-ever open, where the pane is not
+            // mounted yet and would miss the notification.
+            let previewRequest = GCHFilePreviewRequest(path: path, collapseOnClose: collapseOnClose)
+            GCHPendingFilePreview.request = previewRequest
+            NotificationCenter.default.post(
+                name: .gchOpenWorkspaceFilePreview,
+                object: previewRequest
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(colorSchemeForAppearance)
@@ -3737,10 +3744,6 @@ struct ChatView: View {
             return true
         }
 
-        if NativeSelectableTextSelectionRegistry.copyActiveSelection() {
-            return true
-        }
-
         return WebViewMarkdownSelectionRegistry.copyActiveSelection()
     }
 
@@ -4781,6 +4784,11 @@ struct ChatBubble: View, Equatable {
     @State private var isEditingForResend = false
     @State private var editDraft = ""
     @State private var isRichMarkdownActivated = false
+    /// Per-bubble, LOCAL on purpose: cross-block selection swaps this message's
+    /// body for a single Text. Keeping it out of the timeline snapshot means
+    /// toggling it re-renders one row instead of rebuilding every message
+    /// (that rebuild was the livelock amplifier).
+    @State private var prefersFullMessageSelection = false
 
     /// Visual ack for the copy button — flips to `true` for ~1.5s after a
     /// successful clipboard write, swaps the icon to a green checkmark, and
@@ -4909,7 +4917,8 @@ struct ChatBubble: View, Equatable {
                                         isStreaming: isStreamingState,
                                         allowsRichMarkdown: message.allowsRichMarkdown || isRichMarkdownActivated,
                                         workspaceRootPath: message.workspaceRootPath,
-                                        onOpenFileReference: onOpenFileReference
+                                        onOpenFileReference: onOpenFileReference,
+                                        prefersFullMessageSelection: prefersFullMessageSelection
                                     )
 	                                    .fixedSize(horizontal: false, vertical: true)
 			                                    .padding(10)
@@ -4943,6 +4952,14 @@ struct ChatBubble: View, Equatable {
                             Button(action: { performCopy(message.content) }) {
                                 Label(I18n.t("common.action.copy"), systemImage: "square.on.square")
                             }
+                            if message.role == .assistant, !message.content.isEmpty {
+                                Button(action: { prefersFullMessageSelection.toggle() }) {
+                                    Label(
+                                        prefersFullMessageSelection ? "退出跨段选择" : "跨段选择文本",
+                                        systemImage: "selection.pin.in.out"
+                                    )
+                                }
+                            }
                         }
 
                         if message.role == .assistant, !message.fileReferences.isEmpty {
@@ -4970,6 +4987,18 @@ struct ChatBubble: View, Equatable {
                                         tint: .secondary,
                                         help: "渲染复杂内容",
                                         action: { isRichMarkdownActivated = true }
+                                    )
+                                }
+                                // Cross-block selection. Rendered blocks are
+                                // separate views, so a drag stops at the first
+                                // block boundary; this collapses the message
+                                // into one selectable Text.
+                                if message.role == .assistant {
+                                    MessageActionIcon(
+                                        systemName: "selection.pin.in.out",
+                                        tint: prefersFullMessageSelection ? .accentColor : .secondary,
+                                        help: prefersFullMessageSelection ? "退出跨段选择" : "跨段选择文本",
+                                        action: { prefersFullMessageSelection.toggle() }
                                     )
                                 }
                                 // Edit & resend only makes sense for the user's

@@ -45,15 +45,25 @@ expectContains(
     "enum MarkdownRenderPolicy",
     "Markdown rendering decisions should live in one policy type"
 )
+// The MarkdownUI refactor (2026-07-25) replaced the `.native` mode with the
+// explicit `.plainText` / `.markdownUI` pair. Streaming still must NOT reach a
+// WebView: re-parsing partial Markdown per token is what froze the timeline.
 expectContains(
     renderer,
-    "if isStreaming { return .native }",
-    "Streaming complex Markdown should stay on the native renderer"
+    "if isStreaming { return .plainText }",
+    "Streaming Markdown must stay on the cheap plain-text renderer"
+)
+// Only content the pure-SwiftUI renderer genuinely cannot draw (math, raw HTML)
+// is worth a WKWebView; tables and code blocks render natively since 2026-07-25.
+expectContains(
+    renderer,
+    "if allowsWebView && requiresWebView(content) { return .webView }",
+    "Math/HTML content should still upgrade to WKWebView"
 )
 expectContains(
     renderer,
-    "return requiresWebView(content) ? .webView : .native",
-    "Completed complex Markdown should still upgrade to WKWebView"
+    "return .markdownUI",
+    "Everything else should render through MarkdownUI, not a WebView"
 )
 expectContains(
     renderer,
@@ -90,10 +100,17 @@ expectContains(
     "let richMarkdownMessageIds = MarkdownRenderPolicy.recentRichMessageIds(in: messages)",
     "Chat timeline snapshot should compute recent rich-message eligibility once before layout"
 )
+// The eligibility expression now spans several lines (a terminal-run-phase
+// clause was added), so assert its parts rather than one formatted line.
 expectContains(
     timelineModels,
-    "allowsRichMarkdown: activeStreamState == nil && richMarkdownMessageIds.contains(message.id)",
-    "Each final chat row model should receive explicit WKWebView eligibility while streaming drafts stay native"
+    "allowsRichMarkdown: activeStreamState == nil",
+    "Streaming drafts must never be marked rich-markdown eligible"
+)
+expectContains(
+    timelineModels,
+    "&& richMarkdownMessageIds.contains(message.id)",
+    "Only recent messages should be eligible for the heavyweight renderer"
 )
 expectContains(
     dashboard,

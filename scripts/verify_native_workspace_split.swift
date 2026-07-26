@@ -866,7 +866,7 @@ assertContains(
 )
 assertContains(
     dashboard,
-    "DashboardViewModel.resolveAgentWorkspace(viewModel.selectedAgentId)",
+    "DashboardViewModel.resolveAgentWorkspace(sessionState.selectedAgentId)",
     "Open/Finder should resolve the workspace from the selected agent id"
 )
 assertContains(
@@ -1339,11 +1339,27 @@ assertNotContains(
     "arrow.down.right.and.arrow.up.left",
     "file editor should remove the non-functional collapse header button"
 )
+// Claude-parity toolbar (2026-07-26): view source / find in file / show in
+// files / open in Finder / copy contents / close. The old square.and.pencil
+// edit toggle became a source-vs-rendered toggle.
 assertContains(
     fileEditorPanel,
-    "Image(systemName: viewMode == .preview ? \"square.and.pencil\" : \"eye\")",
-    "editable files should use a standard edit/preview toggle icon"
+    "Image(systemName: viewMode == .preview ? \"chevron.left.forwardslash.chevron.right\" : \"eye\")",
+    "preview should toggle between rendered output and source"
 )
+for (icon, action) in [
+    ("magnifyingglass", "find in file"),
+    ("sidebar.left", "show in files"),
+    ("folder", "open in Finder"),
+    ("doc.on.doc", "copy file contents"),
+    ("xmark", "close"),
+] {
+    assertContains(
+        fileEditorPanel,
+        "Image(systemName: \"\(icon)\")",
+        "file preview toolbar is missing the \(action) action"
+    )
+}
 assertNotContains(
     fileEditorPanel,
     "Image(systemName: viewMode == .preview ? \"pencil.line\" : \"eye\")",

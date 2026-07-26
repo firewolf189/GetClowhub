@@ -141,6 +141,7 @@
 		GWCTX0000000000000001 /* GatewayWorkspaceContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */; };
 		I18NSVC00000000000001 /* I18nService.swift in Sources */ = {isa = PBXBuildFile; fileRef = I18NSVC00000000000002 /* I18nService.swift */; };
 		I18NRES00000000000001 /* I18n in Resources */ = {isa = PBXBuildFile; fileRef = I18NRES00000000000002 /* I18n */; };
+		KATEXRES0000000000001 /* KaTeX in Resources */ = {isa = PBXBuildFile; fileRef = KATEXRES0000000000002 /* KaTeX */; };
 		IRBS0001C2D3E4F5A6B70001 /* ImageReviewBatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */; };
 		MB01AC01D3E4F5A6B7C80001 /* MembershipManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */; };
 		MBUILD001000000000000000 /* DesignSystemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DESIGNMGR000000000000000 /* DesignSystemManager.swift */; };
@@ -328,6 +329,7 @@
 		GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/GatewayWorkspaceContext.swift"; sourceTree = SOURCE_ROOT; };
 		I18NSVC00000000000002 /* I18nService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Localization/I18nService.swift"; sourceTree = SOURCE_ROOT; };
 		I18NRES00000000000002 /* I18n */ = {isa = PBXFileReference; lastKnownFileType = folder; path = I18n; sourceTree = "<group>"; };
+		KATEXRES0000000000002 /* KaTeX */ = {isa = PBXFileReference; lastKnownFileType = folder; path = KaTeX; sourceTree = "<group>"; };
 		IPTFGQUADKOEPTYYGNMJ5M1V /* BillingTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/Account/BillingTabView.swift"; sourceTree = SOURCE_ROOT; };
 		IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Services/ImageReviewBatchStore.swift"; sourceTree = SOURCE_ROOT; };
 		MB01AC02D3E4F5A6B7C80002 /* MembershipManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Auth/MembershipManager.swift"; sourceTree = SOURCE_ROOT; };
@@ -665,6 +667,7 @@
 				PLBUNDLE0000000000002 /* BundledPluginCatalog */,
 				SKBUNDLE0000000000002 /* BundledSkillCatalog */,
 				I18NRES00000000000002 /* I18n */,
+				KATEXRES0000000000002 /* KaTeX */,
 				MP01AD05E4F5A6B7C8D90005 /* marketplace_agents.json */,
 				MP01AD07E4F5A6B7C8D90007 /* marketplace_agents.i18n.json */,
 				COREUPGRADE000000000006 /* openclaw-core-version.json */,
@@ -813,6 +816,7 @@
 				3564106D2F5802970045A6F7 /* Assets.xcassets in Resources */,
 				3564107B2F5802970045A6F7 /* Localizable.xcstrings in Resources */,
 				I18NRES00000000000001 /* I18n in Resources */,
+				KATEXRES0000000000001 /* KaTeX in Resources */,
 				COREUPGRADE000000000005 /* openclaw-core-version.json in Resources */,
 				356410712F5802970045A6F7 /* providers_preset.json in Resources */,
 				MP01AD06E4F5A6B7C8D90006 /* marketplace_agents.json in Resources */,

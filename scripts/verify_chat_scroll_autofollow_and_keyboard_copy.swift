@@ -96,21 +96,20 @@ require(
         assistantRenderer.contains("copy(nil)"),
     "Native selectable messages should handle Cmd+C directly instead of relying only on responder-chain menu routing."
 )
+// The NSTextView bridge these assertions described was deleted on 2026-07-26
+// (livelock host, unused after MarkdownUI). Message selection is SwiftUI's now,
+// so there is no first-responder ownership to keep — only the generic
+// first-responder copy helper survives, asserted below.
 require(
-    assistantRenderer.contains("override func mouseDragged(with event: NSEvent)") &&
-        assistantRenderer.contains("override func mouseUp(with event: NSEvent)") &&
-        assistantRenderer.contains("markActiveForCopy()") &&
-        assistantRenderer.contains("window?.makeFirstResponder(self)") &&
-        assistantRenderer.contains("enum NativeSelectableTextSelectionRegistry") &&
-        assistantRenderer.contains("static weak var activeTextView") &&
-        assistantRenderer.contains("copyActiveSelection()"),
-    "Native selectable messages should keep first responder ownership while selecting text."
+    assistantRenderer.contains("enum NativeSelectableTextSelectionRegistry") &&
+        !assistantRenderer.contains("static weak var activeTextView"),
+    "the registry should keep only the generic first-responder copy, not a per-message active text view"
 )
 require(
     appDelegate.contains("@objc func copy(_ sender: Any?)") &&
         appDelegate.contains("NativeSelectableTextSelectionRegistry.copySelectedTextFromFirstResponder(sender)") &&
-        appDelegate.contains("NativeSelectableTextSelectionRegistry.copyActiveSelection()"),
-    "AppDelegate should copy only a non-empty first-responder selection before falling back to the active assistant selection."
+        appDelegate.contains("WebViewMarkdownSelectionRegistry.copyActiveSelection()"),
+    "AppDelegate should copy a non-empty first-responder selection before falling back to the WebView selection."
 )
 require(
     !appDelegateCopy.contains("tryToPerform(#selector(NSText.copy(_:))"),
@@ -120,7 +119,7 @@ require(
     chatView.contains("handleCopyShortcut(event)") &&
         chatView.contains("private func handleCopyShortcut(_ event: NSEvent) -> Bool") &&
         chatView.contains("NativeSelectableTextSelectionRegistry.copySelectedTextFromFirstResponder(nil)") &&
-        chatView.contains("NativeSelectableTextSelectionRegistry.copyActiveSelection()"),
+        chatView.contains("WebViewMarkdownSelectionRegistry.copyActiveSelection()"),
     "ChatView should route Cmd+C to a real first-responder selection before composer shortcuts run."
 )
 require(

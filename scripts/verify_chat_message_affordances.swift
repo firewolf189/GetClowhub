@@ -45,7 +45,7 @@ let chatBubble = slice(
 let backgroundTaskNotification = slice(
     dashboard,
     from: "struct BackgroundTaskNotification: View",
-    to: "// MARK: - Thinking Indicator with Background Timer"
+    to: "// MARK: - Thinking Indicator"
 )
 let thinkingIndicator = slice(
     dashboard,

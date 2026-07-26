@@ -44,4 +44,11 @@ require(
     "AssistantMessageContentView must build a MarkdownUI Markdown view"
 )
 
+// Body text stays at the 14pt reading size the WebView used to set, so the
+// renderer swap is invisible to the user.
+require(
+    renderer.contains("FontSize(14)"),
+    "MarkdownUI body text must be pinned to 14pt"
+)
+
 print("chat-markdown-swiftui architectural guards hold")

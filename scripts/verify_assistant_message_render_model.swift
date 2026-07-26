@@ -77,7 +77,10 @@ require(!renderModel.isEmpty, "assistant messages should be parsed through Messa
 require(renderModel.contains("enum Renderer"), "MessageRenderModel should expose a renderer enum")
 require(!renderModel.contains("A2UI"), "release renderer should not reference A2UI")
 require(!renderModel.contains("a2ui"), "release renderer should not contain A2UI render cases")
-require(renderModel.contains("case nativeText"), "ordinary native rendering should be one render-model case")
+// The MarkdownUI refactor split the old single `nativeText` case into the
+// cheap streaming renderer and the full SwiftUI Markdown renderer.
+require(renderModel.contains("case plainText"), "streaming/plain rendering should be its own render-model case")
+require(renderModel.contains("case markdownUI"), "settled Markdown should render through the MarkdownUI case")
 require(renderModel.contains("case webViewFallback"), "WKWebView fallback should be one render-model case")
 require(renderModel.contains("let isStreaming: Bool"), "MessageRenderModel should carry streaming state into the renderer")
 require(renderModel.contains("static func build(content: String, isStreaming: Bool, allowsRichMarkdown: Bool) -> MessageRenderModel"), "MessageRenderModel should own render decisions")
@@ -88,31 +91,25 @@ require(renderModel.contains("allowsWebView: allowsRichMarkdown"), "MessageRende
 
 require(assistantView.contains("let renderModel = MessageRenderModel.build("), "AssistantMessageContentView should build one render model")
 require(assistantView.contains("switch renderModel.renderer"), "AssistantMessageContentView should switch on the render model")
-require(assistantView.contains("NativeSelectableMarkdownView("), "ordinary assistant content should use the direct selectable native text renderer")
-require(assistantView.contains("case .nativeText"), "AssistantMessageContentView should route ordinary native text separately")
-require(assistantView.contains("parsesMarkdown: !renderModel.isStreaming"), "native renderer should skip Markdown parsing while streaming")
+// NativeSelectableMarkdownView was replaced by MarkdownUI (2026-07-25); text
+// selection is now a modifier on the SwiftUI view instead of an NSTextView.
+require(assistantView.contains("Markdown("), "ordinary assistant content should render through MarkdownUI")
+require(assistantView.contains(".textSelection(.enabled)"), "assistant content must stay selectable")
+require(assistantView.contains("case .plainText"), "AssistantMessageContentView should route streaming/plain text separately")
+require(assistantView.contains("case .markdownUI"), "AssistantMessageContentView should route settled Markdown separately")
+// The streaming path no longer goes through an NSTextView bridge at all — it
+// renders `Text(verbatim:)`, which cannot parse Markdown by construction.
+require(assistantView.contains("Text(verbatim: renderModel.content)"), "streaming content should render verbatim, with no Markdown parsing")
 require(!assistantView.contains("prefersNativeTextSelection"), "direct text selection should not depend on a single-message selection mode")
 require(!assistantView.contains("Markdown(content)"), "assistant rendering should not directly use scattered Markdown(content)")
 
-require(!nativeBridge.isEmpty, "NativeSelectableMarkdownView should exist")
-require(nativeBridge.contains("NSViewRepresentable"), "native selectable bridge should wrap AppKit")
-require(nativeBridge.contains("NSTextView"), "native selectable bridge should use NSTextView for cross-line selection")
-require(nativeBridge.contains("isEditable = false"), "native selectable bridge should be read-only")
-require(nativeBridge.contains("isSelectable = true"), "native selectable bridge should allow text selection")
-require(nativeBridge.contains("override var acceptsFirstResponder: Bool"), "native selectable text view should be able to receive copy commands")
-require(nativeBridge.contains("window?.makeFirstResponder(self)"), "native selectable text view should become first responder when selected")
-require(nativeBridge.contains("override func copy(_ sender: Any?)"), "native selectable text view should copy its selected text")
-require(nativeBridge.contains("NSPasteboard.general"), "native selectable text view should write selected text to pasteboard")
-require(nativeBridge.contains("AttributedString("), "native selectable bridge should still parse lightweight Markdown")
-require(nativeBridge.contains("markdown: markdown"), "native selectable bridge should pass markdown source into AttributedString")
-require(nativeBridge.contains("if parsesMarkdown"), "native selectable bridge should be able to skip Markdown parsing while streaming")
-require(nativeBridge.contains("intrinsicContentSize"), "native selectable bridge should publish dynamic height")
-require(nativeBridge.contains("func refreshMeasuredHeightAfterContentChange()"), "native selectable bridge should centralize height invalidation after content changes")
-require(nativeBridge.contains("private func scheduleIntrinsicContentSizeInvalidation()"), "native selectable bridge should defer intrinsic-size invalidation (crash fix) instead of invalidating inline")
-require(nativeBridge.contains("cachedIntrinsicHeight"), "native selectable bridge should cache measured intrinsic height")
-require(nativeBridge.contains("lastMeasuredWidth"), "native selectable bridge should cache the width used for measurement")
-require(!nativeBridge.contains("textView.invalidateIntrinsicContentSize()"), "updateNSView should not directly invalidate intrinsic size on every SwiftUI update")
-require(!nativeBridge.contains("override func setFrameSize(_ newSize: NSSize) {\n            super.setFrameSize(newSize)\n            textContainer?.containerSize = NSSize(\n                width: max(newSize.width, 1),\n                height: CGFloat.greatestFiniteMagnitude\n            )\n            invalidateIntrinsicContentSize()"), "setFrameSize should not unconditionally invalidate intrinsic size")
+// The NSTextView bridge that used to live here was DELETED on 2026-07-26 (it
+// was the livelock's per-row AppKit host, and unused after the MarkdownUI
+// refactor). Its replacement is the single-Text cross-block selection path,
+// contracted in verify_direct_selection_without_swiftui_overlay.swift.
+require(nativeBridge.isEmpty, "the NSTextView selection bridge should stay deleted")
+require(!renderer.contains("NSViewRepresentable"), "no message renderer may host an AppKit view")
+require(renderer.contains("struct CrossBlockSelectableMessageText"), "cross-block selection should be a pure-SwiftUI single Text")
 
 require(!chatView.contains("@State private var activeNativeTextSelectionMessageId: UUID?"), "ChatView should not hold single-message selection mode state")
 require(!chatView.contains("activeNativeTextSelectionMessageId:"), "ChatView should not pass single-message selection state into ChatBubble")
@@ -122,8 +119,6 @@ require(!chatBubble.contains("let activeNativeTextSelectionMessageId: UUID?"), "
 require(!chatBubble.contains("var onSetActiveNativeTextSelectionMessageId: (UUID?) -> Void"), "ChatBubble should not request single-message selection mode changes")
 require(!chatBubble.contains("private var isSelectionModeEnabled: Bool"), "ChatBubble should not derive a removed selection mode")
 require(!chatBubble.contains("prefersNativeTextSelection:"), "ChatBubble should not pass selection mode into assistant renderer")
-require(renderer.contains("NativeSelectableMarkdownView("), "NSTextView bridge should provide direct selection by default")
-require(!renderer.contains(".textSelection(.enabled)"), "ordinary assistant renderer should avoid SwiftUI SelectionOverlay")
 require(!renderer.contains("A2UICardView("), "release assistant renderer should not render A2UI cards")
 require(!renderer.contains("logRenderMode(\"a2ui\")"), "release assistant renderer should not log A2UI render mode")
 

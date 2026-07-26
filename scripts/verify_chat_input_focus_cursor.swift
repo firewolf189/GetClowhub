@@ -60,9 +60,12 @@ assertContains(
     "static let userMessage = Font.system(size: 14",
     "user message typography should use the scoped 14pt text size"
 )
+// Post-MarkdownUI the bubble no longer hands a `fontSize:` to a WebView; the
+// size is applied natively (assistant side pins it via FontSize(14) in
+// AssistantMessageRenderer).
 assertContains(
     chatBubble,
-    "fontSize: 14",
+    ".font(.system(size: 14))",
     "user chat bubbles should use the scoped 14pt readable text size"
 )
 
@@ -119,10 +122,13 @@ assertContains(
     "private var sendButtonFillColor: SwiftUI.Color",
     "send button active/disabled colors should be centralized"
 )
+// Superseded: the active send button is now a solid black fill (its own
+// contract lives in verify_chat_send_button_black_fill.swift). Only the
+// centralization and the "not blue accent" rule are asserted here.
 assertContains(
     chatView,
-    "? Color.primary.opacity(0.62)",
-    "send button should use neutral high-grade gray when text is sendable"
+    "? Color.black",
+    "send button should use the solid black active fill"
 )
 assertNotContains(
     chatView,

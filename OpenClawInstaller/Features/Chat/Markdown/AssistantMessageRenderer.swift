@@ -157,19 +157,25 @@ struct AssistantMessageContentView: View {
     let workspaceRootPath: String?
     /// Invoked when the user clicks an in-prose document link.
     let onOpenFileReference: ((String) -> Void)?
+    /// Render the whole message as a single selectable Text so a drag can span
+    /// blocks. Off by default: it trades block layout for a continuous
+    /// selection, so it is a per-message user choice, not the reading mode.
+    let prefersFullMessageSelection: Bool
 
     init(
         content: String,
         isStreaming: Bool,
         allowsRichMarkdown: Bool = true,
         workspaceRootPath: String? = nil,
-        onOpenFileReference: ((String) -> Void)? = nil
+        onOpenFileReference: ((String) -> Void)? = nil,
+        prefersFullMessageSelection: Bool = false
     ) {
         self.content = content
         self.isStreaming = isStreaming
         self.allowsRichMarkdown = allowsRichMarkdown
         self.workspaceRootPath = workspaceRootPath
         self.onOpenFileReference = onOpenFileReference
+        self.prefersFullMessageSelection = prefersFullMessageSelection
     }
 
     var body: some View {
@@ -179,6 +185,27 @@ struct AssistantMessageContentView: View {
             allowsRichMarkdown: allowsRichMarkdown
         )
 
+        if prefersFullMessageSelection, !renderModel.isStreaming {
+            // Cross-block selection: every other renderer lays the message out
+            // as SIBLING views (MarkdownUI one per block, WebView one document),
+            // and `.textSelection` cannot span siblings — dragging from a
+            // paragraph into a list selected only the paragraph. Collapsing the
+            // message into ONE Text makes the drag continuous.
+            CrossBlockSelectableMessageText(
+                content: renderModel.content,
+                workspaceRootPath: workspaceRootPath,
+                onOpenFileReference: onOpenFileReference
+            )
+                .onAppear {
+                    logRenderMode("cross_block_selection")
+                }
+        } else {
+            renderedBody(for: renderModel)
+        }
+    }
+
+    @ViewBuilder
+    private func renderedBody(for renderModel: MessageRenderModel) -> some View {
         switch renderModel.renderer {
         case .webViewFallback:
             SelectableMarkdownView(
@@ -235,6 +262,78 @@ struct AssistantMessageContentView: View {
     }
 }
 
+// MARK: - Cross-Block Selectable Message
+
+/// One `Text` for the whole message, so a drag selects continuously across
+/// paragraphs, lists and headings — what MarkdownUI's per-block views cannot do.
+///
+/// Inline markup (bold, italic, code spans, links) still renders; block syntax
+/// stays as source text (`- `, `## `), which is also what lands on the clipboard.
+/// Pure SwiftUI on purpose: the previous cross-block implementation hosted an
+/// NSTextView per message and fed the SwiftUI<->AppKit layout livelock.
+struct CrossBlockSelectableMessageText: View {
+    let content: String
+    let workspaceRootPath: String?
+    let onOpenFileReference: ((String) -> Void)?
+
+    var body: some View {
+        Text(attributedContent)
+            .font(.system(size: 14))
+            .lineSpacing(2)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .environment(\.openURL, OpenURLAction { url in
+                if let path = MessageFileReferences.path(fromLinkURL: url) {
+                    if let onOpenFileReference {
+                        onOpenFileReference(path)
+                    } else {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                    }
+                    return .handled
+                }
+                return .systemAction
+            })
+    }
+
+    private var attributedContent: AttributedString {
+        let linkified = MessageFileReferences.linkify(
+            content: content,
+            workspaceRoot: workspaceRootPath
+        )
+        // `inlineOnlyPreservingWhitespace` is what keeps this ONE text run:
+        // block-level parsing would split the message into paragraphs again.
+        guard var parsed = try? AttributedString(
+            markdown: Self.strippingCodeFences(linkified),
+            options: AttributedString.MarkdownParsingOptions(
+                allowsExtendedAttributes: false,
+                interpretedSyntax: .inlineOnlyPreservingWhitespace,
+                failurePolicy: .returnPartiallyParsedIfPossible
+            )
+        ) else {
+            return AttributedString(content)
+        }
+        // Match the rendered mode's link affordance; AttributedString links are
+        // otherwise indistinguishable from body text here.
+        let linkRanges = parsed.runs.filter { $0.link != nil }.map(\.range)
+        for range in linkRanges {
+            parsed[range].underlineStyle = .single
+        }
+        return parsed
+    }
+
+    /// Drops ``` fence lines before inline parsing. Left in, the fence turns the
+    /// whole block into ONE inline-code run and its newlines are normalized
+    /// away — so the code collapsed onto a single line and copying it lost the
+    /// line structure. Without the fences the inner lines stay ordinary text
+    /// lines, which is exactly what should land on the clipboard.
+    static func strippingCodeFences(_ markdown: String) -> String {
+        guard markdown.contains("```") else { return markdown }
+        let kept = markdown.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("```") }
+        return kept.joined(separator: "\n")
+    }
+}
+
 // MARK: - Native Markdown View (lightweight, no WKWebView)
 
 /// Renders markdown using SwiftUI's native AttributedString.
@@ -253,367 +352,14 @@ struct NativeMarkdownView: View {
     }
 }
 
-struct NativeSelectableMarkdownView: NSViewRepresentable {
-    let content: String
-    let fullTextCopyFallback: String
-    let parsesMarkdown: Bool
-    let fontSize: CGFloat
-    let lineSpacing: CGFloat
-    let paragraphSpacing: CGFloat
+// The AppKit text-selection bridge that used to live here was deleted on
+// 2026-07-26: cross-block selection is now pure SwiftUI
+// (CrossBlockSelectableMessageText), and hosting an NSTextView per message was
+// what fed the SwiftUI<->AppKit layout livelock.
 
-    init(
-        content: String,
-        fullTextCopyFallback: String? = nil,
-        parsesMarkdown: Bool,
-        fontSize: CGFloat = 14,
-        lineSpacing: CGFloat = 2,
-        paragraphSpacing: CGFloat = 6
-    ) {
-        self.content = content
-        self.fullTextCopyFallback = fullTextCopyFallback ?? content
-        self.parsesMarkdown = parsesMarkdown
-        self.fontSize = fontSize
-        self.lineSpacing = lineSpacing
-        self.paragraphSpacing = paragraphSpacing
-    }
-
-    func makeNSView(context: Context) -> IntrinsicHeightTextView {
-        let textView = IntrinsicHeightTextView()
-        textView.isEditable = false
-        textView.isSelectable = true
-        textView.isRichText = true
-        textView.importsGraphics = false
-        textView.drawsBackground = false
-        textView.backgroundColor = .clear
-        textView.textContainerInset = .zero
-        textView.textContainer?.lineFragmentPadding = 0
-        textView.textContainer?.widthTracksTextView = false
-        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
-        textView.isHorizontallyResizable = false
-        textView.isVerticallyResizable = true
-        textView.autoresizingMask = [.width]
-        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        textView.fullTextCopyFallback = fullTextCopyFallback
-        apply(content, parsesMarkdown: parsesMarkdown, to: textView)
-        return textView
-    }
-
-    func updateNSView(_ textView: IntrinsicHeightTextView, context: Context) {
-        let width = max(textView.bounds.width, 1)
-        if abs(context.coordinator.lastWidth - width) > IntrinsicHeightTextView.layoutEpsilon {
-            _ = textView.updateContainerWidth(width)
-            context.coordinator.lastWidth = width
-        }
-        if context.coordinator.lastContent != content
-            || context.coordinator.lastFullTextCopyFallback != fullTextCopyFallback
-            || context.coordinator.lastParsesMarkdown != parsesMarkdown
-            || context.coordinator.lastFontSize != fontSize
-            || context.coordinator.lastLineSpacing != lineSpacing
-            || context.coordinator.lastParagraphSpacing != paragraphSpacing {
-            textView.fullTextCopyFallback = fullTextCopyFallback
-            apply(content, parsesMarkdown: parsesMarkdown, to: textView)
-            context.coordinator.lastContent = content
-            context.coordinator.lastFullTextCopyFallback = fullTextCopyFallback
-            context.coordinator.lastParsesMarkdown = parsesMarkdown
-            context.coordinator.lastFontSize = fontSize
-            context.coordinator.lastLineSpacing = lineSpacing
-            context.coordinator.lastParagraphSpacing = paragraphSpacing
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(
-            content: content,
-            fullTextCopyFallback: fullTextCopyFallback,
-            parsesMarkdown: parsesMarkdown,
-            fontSize: fontSize,
-            lineSpacing: lineSpacing,
-            paragraphSpacing: paragraphSpacing
-        )
-    }
-
-    private func apply(_ markdown: String, parsesMarkdown: Bool, to textView: IntrinsicHeightTextView) {
-        let rendered = Self.attributedString(
-            from: markdown,
-            parsesMarkdown: parsesMarkdown,
-            fontSize: fontSize,
-            lineSpacing: lineSpacing,
-            paragraphSpacing: paragraphSpacing
-        )
-        if let textStorage = textView.textStorage {
-            textStorage.beginEditing()
-            textStorage.setAttributedString(rendered)
-            textStorage.endEditing()
-        }
-        textView.font = NSFont.systemFont(ofSize: fontSize)
-        textView.textColor = .labelColor
-        textView.refreshMeasuredHeightAfterContentChange()
-    }
-
-    private static func attributedString(
-        from markdown: String,
-        parsesMarkdown: Bool,
-        fontSize: CGFloat,
-        lineSpacing: CGFloat,
-        paragraphSpacing: CGFloat
-    ) -> NSAttributedString {
-        let mutable: NSMutableAttributedString
-        if parsesMarkdown {
-            let attributed = (try? AttributedString(
-                markdown: markdown,
-                options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-            )) ?? AttributedString(markdown)
-            mutable = NSMutableAttributedString(attributed)
-        } else {
-            mutable = NSMutableAttributedString(string: markdown)
-        }
-        let fullRange = NSRange(location: 0, length: mutable.length)
-        if fullRange.length > 0 {
-            mutable.addAttributes(
-                [
-                    .font: NSFont.systemFont(ofSize: fontSize),
-                    .foregroundColor: NSColor.labelColor,
-                    .paragraphStyle: paragraphStyle(lineSpacing: lineSpacing, paragraphSpacing: paragraphSpacing)
-                ],
-                range: fullRange
-            )
-        }
-        return mutable
-    }
-
-    private static func paragraphStyle(lineSpacing: CGFloat, paragraphSpacing: CGFloat) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        style.lineSpacing = lineSpacing
-        style.paragraphSpacing = paragraphSpacing
-        style.lineBreakMode = .byWordWrapping
-        return style
-    }
-
-    final class Coordinator {
-        var lastContent: String
-        var lastFullTextCopyFallback: String
-        var lastParsesMarkdown: Bool
-        var lastFontSize: CGFloat
-        var lastLineSpacing: CGFloat
-        var lastParagraphSpacing: CGFloat
-        var lastWidth: CGFloat = 0
-
-        init(
-            content: String,
-            fullTextCopyFallback: String,
-            parsesMarkdown: Bool,
-            fontSize: CGFloat,
-            lineSpacing: CGFloat,
-            paragraphSpacing: CGFloat
-        ) {
-            self.lastContent = content
-            self.lastFullTextCopyFallback = fullTextCopyFallback
-            self.lastParsesMarkdown = parsesMarkdown
-            self.lastFontSize = fontSize
-            self.lastLineSpacing = lineSpacing
-            self.lastParagraphSpacing = paragraphSpacing
-        }
-    }
-
-    final class IntrinsicHeightTextView: NSTextView {
-        static let layoutEpsilon: CGFloat = 0.5
-
-        private var cachedIntrinsicHeight: CGFloat?
-        private var lastMeasuredWidth: CGFloat = 0
-        private var lastAppliedFrameWidth: CGFloat = 0
-        private var hasPendingIntrinsicSizeInvalidation = false
-        var fullTextCopyFallback: String = ""
-
-        override var acceptsFirstResponder: Bool { true }
-
-        override var intrinsicContentSize: NSSize {
-            guard let textContainer = textContainer else {
-                return NSSize(width: NSView.noIntrinsicMetric, height: 22)
-            }
-            let width = max(textContainer.containerSize.width, 1)
-            guard width > 1 else {
-                return NSSize(width: NSView.noIntrinsicMetric, height: max(22, cachedIntrinsicHeight ?? 22))
-            }
-            if let cachedIntrinsicHeight,
-               abs(lastMeasuredWidth - width) <= Self.layoutEpsilon {
-                return NSSize(width: NSView.noIntrinsicMetric, height: max(22, cachedIntrinsicHeight))
-            }
-            let height = measureHeight(for: textContainer)
-            cachedIntrinsicHeight = height
-            lastMeasuredWidth = width
-            return NSSize(width: NSView.noIntrinsicMetric, height: max(22, height))
-        }
-
-        @discardableResult
-        func updateContainerWidth(_ width: CGFloat) -> Bool {
-            let normalizedWidth = max(width, 1)
-            let currentWidth = textContainer?.containerSize.width ?? 0
-            guard abs(currentWidth - normalizedWidth) > Self.layoutEpsilon else { return false }
-            textContainer?.containerSize = NSSize(
-                width: normalizedWidth,
-                height: CGFloat.greatestFiniteMagnitude
-            )
-            return refreshMeasuredHeight()
-        }
-
-        func refreshMeasuredHeightAfterContentChange() {
-            _ = refreshMeasuredHeight()
-        }
-
-        @discardableResult
-        private func refreshMeasuredHeight() -> Bool {
-            guard let textContainer else {
-                let shouldInvalidate = cachedIntrinsicHeight != nil
-                cachedIntrinsicHeight = nil
-                if shouldInvalidate {
-                    scheduleIntrinsicContentSizeInvalidation()
-                }
-                return shouldInvalidate
-            }
-
-            let width = max(textContainer.containerSize.width, 1)
-            guard width > 1 else {
-                let shouldInvalidate = cachedIntrinsicHeight != nil
-                cachedIntrinsicHeight = nil
-                lastMeasuredWidth = width
-                if shouldInvalidate {
-                    scheduleIntrinsicContentSizeInvalidation()
-                }
-                return shouldInvalidate
-            }
-
-            let previousHeight = cachedIntrinsicHeight
-            let measuredHeight = measureHeight(for: textContainer)
-            cachedIntrinsicHeight = measuredHeight
-            lastMeasuredWidth = width
-
-            let heightChanged = previousHeight.map { abs($0 - measuredHeight) > Self.layoutEpsilon } ?? true
-            if heightChanged {
-                scheduleIntrinsicContentSizeInvalidation()
-                return true
-            }
-            return false
-        }
-
-        /// refreshMeasuredHeight can run inside an active layout pass —
-        /// setFrameSize during window resize, or updateNSView driven from
-        /// NSHostingView.layout while a reply streams. Calling
-        /// invalidateIntrinsicContentSize() there marks the window as
-        /// needing another update-constraints pass while one is running;
-        /// with many message bubbles resizing at once AppKit trips its
-        /// feedback-loop guard and throws in _postWindowNeedsUpdateConstraints
-        /// (crash via NSApplication _crashOnException). Deferring the
-        /// notification one runloop turn is lossless because
-        /// intrinsicContentSize already serves the freshly cached height.
-        private func scheduleIntrinsicContentSizeInvalidation() {
-            guard !hasPendingIntrinsicSizeInvalidation else { return }
-            hasPendingIntrinsicSizeInvalidation = true
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                self.hasPendingIntrinsicSizeInvalidation = false
-                self.invalidateIntrinsicContentSize()
-            }
-        }
-
-        private func measureHeight(for textContainer: NSTextContainer) -> CGFloat {
-            layoutManager?.ensureLayout(for: textContainer)
-            return ceil(layoutManager?.usedRect(for: textContainer).height ?? 22)
-        }
-
-        override func setFrameSize(_ newSize: NSSize) {
-            super.setFrameSize(newSize)
-            let width = max(newSize.width, 1)
-            guard abs(lastAppliedFrameWidth - width) > Self.layoutEpsilon else { return }
-            lastAppliedFrameWidth = width
-            _ = updateContainerWidth(width)
-        }
-
-        override func mouseDown(with event: NSEvent) {
-            markActiveForCopy()
-            super.mouseDown(with: event)
-        }
-
-        override func mouseDragged(with event: NSEvent) {
-            markActiveForCopy()
-            super.mouseDragged(with: event)
-        }
-
-        override func mouseUp(with event: NSEvent) {
-            markActiveForCopy()
-            super.mouseUp(with: event)
-        }
-
-        override func performKeyEquivalent(with event: NSEvent) -> Bool {
-            guard Self.isCommandCopyEvent(event) else {
-                return super.performKeyEquivalent(with: event)
-            }
-            copy(nil)
-            return true
-        }
-
-        override func keyDown(with event: NSEvent) {
-            if Self.isCommandCopyEvent(event) {
-                copy(nil)
-                return
-            }
-            super.keyDown(with: event)
-        }
-
-        override func copy(_ sender: Any?) {
-            guard copySelectedTextIfAvailable() else {
-                if !fullTextCopyFallback.isEmpty {
-                    Self.copyTextToPasteboard(fullTextCopyFallback)
-                    return
-                }
-                super.copy(sender)
-                return
-            }
-        }
-
-        func copySelectedTextIfAvailable() -> Bool {
-            let selected = selectedText
-            guard !selected.isEmpty else { return false }
-            Self.copyTextToPasteboard(selected)
-            return true
-        }
-
-        private var selectedText: String {
-            selectedRanges
-                .compactMap { rangeValue -> String? in
-                    let range = rangeValue.rangeValue
-                    guard range.length > 0,
-                          range.location != NSNotFound,
-                          NSMaxRange(range) <= string.utf16.count,
-                          let swiftRange = Range(range, in: string) else {
-                        return nil
-                    }
-                    return String(string[swiftRange])
-                }
-                .joined()
-        }
-
-        private func markActiveForCopy() {
-            NativeSelectableTextSelectionRegistry.activeTextView = self
-            window?.makeFirstResponder(self)
-        }
-
-        private static func isCommandCopyEvent(_ event: NSEvent) -> Bool {
-            event.type == .keyDown &&
-                event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command) &&
-                event.charactersIgnoringModifiers?.lowercased() == "c"
-        }
-
-        private static func copyTextToPasteboard(_ text: String) {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
-        }
-    }
-}
-
+/// Cmd+C for any focused AppKit text view (composer, inline editor). The
+/// per-message `activeTextView` registration went away with the bridge above.
 enum NativeSelectableTextSelectionRegistry {
-    static weak var activeTextView: NativeSelectableMarkdownView.IntrinsicHeightTextView?
-
     static func copySelectedTextFromFirstResponder(_ sender: Any?) -> Bool {
         guard let textView = NSApp.keyWindow?.firstResponder as? NSTextView,
               textView.selectedRanges.contains(where: { $0.rangeValue.length > 0 }) else {
@@ -623,7 +369,4 @@ enum NativeSelectableTextSelectionRegistry {
         return true
     }
 
-    static func copyActiveSelection() -> Bool {
-        activeTextView?.copySelectedTextIfAvailable() == true
-    }
 }

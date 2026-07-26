@@ -1,8 +1,85 @@
 import Foundation
 
+// MARK: - Bundled Math Renderer
+
+/// KaTeX, shipped inside the app (`Resources/KaTeX`).
+///
+/// Math used to be rendered by MathJax fetched from jsdelivr, alongside a
+/// polyfill.io script. Three problems: on a blocked or slow network the formula
+/// never rendered (jsdelivr is unreliable from mainland China); the WebView
+/// measured its height before the async renderer had run, so math bubbles were
+/// mis-sized; and polyfill.io is a domain with a known supply-chain incident and
+/// no purpose here (WebKit needs no ES6 polyfill).
+///
+/// KaTeX renders synchronously during page parse, so the height measured after
+/// `didFinish` is already correct. The CSS carries its 20 woff2 faces as data
+/// URIs, so the document has no subresources and works with `loadHTMLString`.
+enum MathRenderAssets {
+    static let css: String = load("katex-inline", "css")
+    static let js: String = load("katex.min", "js")
+    static let autoRender: String = load("auto-render.min", "js")
+
+    static var isAvailable: Bool { !js.isEmpty && !autoRender.isEmpty && !css.isEmpty }
+
+    /// Delimiters deliberately EXCLUDE a single `$`: support content is full of
+    /// currency ("$5 … $10"), and treating those as math produced red LaTeX
+    /// errors mid-sentence. Inline math is `\(…\)`; display is `$$…$$` / `\[…\]`.
+    /// Exposed as a global so streaming body patches (which replace
+    /// `document.body.innerHTML`) can re-render math without duplicating the
+    /// delimiter config. Globals survive an innerHTML swap; the <script> tags
+    /// themselves do not.
+    static let renderCall = """
+    window.__gchRenderMath = function(root) {
+        if (typeof renderMathInElement !== "function") { return; }
+        renderMathInElement(root || document.body, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "\\\\[", right: "\\\\]", display: true},
+                {left: "\\\\(", right: "\\\\)", display: false}
+            ],
+            throwOnError: false,
+            ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+            ignoredClasses: ["katex"]
+        });
+    };
+    window.__gchRenderMath(document.body);
+    """
+
+    /// Style block for the document head — empty unless the content has math, so
+    /// ordinary messages do not carry 360 KB of inlined fonts.
+    static func styleTag(for markdown: String) -> String {
+        guard MarkdownHTML.containsMath(markdown), isAvailable else { return "" }
+        return "<style>\(css)</style>"
+    }
+
+    /// Script block for the END of the body: the DOM is parsed by then, so the
+    /// render call runs immediately instead of waiting for a load event.
+    static func scriptTag(for markdown: String) -> String {
+        guard MarkdownHTML.containsMath(markdown), isAvailable else { return "" }
+        return "<script>\(js)</script><script>\(autoRender)</script><script>\(renderCall)</script>"
+    }
+
+    private static func load(_ name: String, _ ext: String) -> String {
+        guard let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "KaTeX"),
+              let text = try? String(contentsOf: url, encoding: .utf8) else {
+            return ""
+        }
+        return text
+    }
+}
+
 // MARK: - Markdown → HTML
 
 enum MarkdownHTML {
+    /// Cheap pre-check so the math assets are only inlined when needed. Matches
+    /// the delimiters MathRenderAssets configures, plus `\begin{…}` environments.
+    static func containsMath(_ content: String) -> Bool {
+        content.contains("$$")
+            || content.contains(#"\("#)
+            || content.contains(#"\["#)
+            || content.contains(#"\begin{"#)
+    }
+
     // MARK: - Cached Regex Patterns (Performance optimization)
 
     /// Cached regex for display math patterns ($$...$$)
@@ -61,28 +138,7 @@ enum MarkdownHTML {
 
         return """
         <html><head><meta charset='utf-8'>
-        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-        <script>
-        window.MathJax = {
-            tex: {
-                // Inline math uses LaTeX-style \\( ... \\) ONLY — never single
-                // '$'. Customer-support content is full of currency ("$5",
-                // "$5 ... $10 discount"), and treating '$' as an inline-math
-                // delimiter made MathJax parse the text between two dollar
-                // signs as a formula — e.g. it hit a literal '#' and rendered
-                // the red error "You can't use 'macro parameter character #'
-                // in math mode" right in the chat bubble. \\( ... \\) never
-                // collides with natural text.
-                inlineMath: [['\\\\(', '\\\\)']],
-                displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-                processEscapes: true
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
-        </script>
+        \(MathRenderAssets.styleTag(for: markdown))
         <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { background: transparent; }
@@ -127,7 +183,7 @@ enum MarkdownHTML {
         hr { border: none; border-top: 1px solid \(borderColor); margin: 10px 0; }
         img { max-width: 100%; }
         .math-formula { margin: 8px 0; }
-        </style></head><body>\(body)</body></html>
+        </style></head><body>\(body)\(MathRenderAssets.scriptTag(for: markdown))</body></html>
         """
     }
 

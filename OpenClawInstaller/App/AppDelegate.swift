@@ -101,9 +101,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         if NativeSelectableTextSelectionRegistry.copySelectedTextFromFirstResponder(sender) {
             return
         }
-        if NativeSelectableTextSelectionRegistry.copyActiveSelection() {
-            return
-        }
         if WebViewMarkdownSelectionRegistry.copyActiveSelection() {
             return
         }
