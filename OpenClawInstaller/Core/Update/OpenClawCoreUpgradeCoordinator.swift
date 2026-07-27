@@ -53,6 +53,35 @@ private struct OpenClawCoreSwapBackup {
     let root: URL
     var coreDir: URL?
     var binLink: URL?
+    /// Pre-upgrade config. The new core stamps `openclaw.json` with its own
+    /// version, and the OLD binary then REFUSES to (re)install its service
+    /// ("Refusing to install or rewrite the gateway service because this
+    /// OpenClaw binary is older than the config last written by ..."). Rolling
+    /// the core back without the config leaves the machine unable to repair
+    /// itself — observed in the field on 2026-07-27.
+    var configFile: URL?
+}
+
+/// Remembers a failed target so the next launch does not immediately retry.
+///
+/// Without this the upgrade re-ran on the very next trigger: on 2026-07-27 a
+/// user's failed 6.10 -> 7.1-2 attempt rolled back at 16:36:38, a second
+/// attempt started at 16:36:52, and it killed the gateway that had just
+/// recovered. `isRunning` only prevents OVERLAP; the two startup entry points
+/// (ContentView.onAppear and determineInitialView) still fire sequentially.
+private struct OpenClawCoreUpgradeFailureMemory: Codable {
+    var targetVersion: String
+    var appVersion: String
+    var failureCount: Int
+    var lastFailure: Date
+
+    /// A failed target is retried once the cooldown expires, and immediately if
+    /// the app itself was updated (a new app version means a new attempt is
+    /// worth making even if the previous one failed).
+    func blocksRetry(target: String, appVersion currentAppVersion: String, now: Date, cooldown: TimeInterval) -> Bool {
+        guard targetVersion == target, appVersion == currentAppVersion else { return false }
+        return now.timeIntervalSince(lastFailure) < cooldown
+    }
 }
 
 @MainActor
@@ -66,6 +95,16 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
     private let openclawService: OpenClawService
     private let fileManager: FileManager
     private var isRunning = false
+    /// At most ONE automatic attempt per app launch, even across the two
+    /// startup entry points.
+    private var didAttemptThisLaunch = false
+
+    private static let failureMemoryKey = "openclawCoreUpgradeFailure"
+    /// A day: long enough that a user hitting a broken plugin is not put
+    /// through a five-minute gateway outage on every launch, short enough that
+    /// a transient failure resolves itself by tomorrow.
+    private static let failureCooldown: TimeInterval = 24 * 60 * 60
+    private static let launchAgentLabel = "ai.openclaw.gateway"
 
     private var homeDir: String {
         fileManager.homeDirectoryForCurrentUser.path
@@ -99,6 +138,10 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         URL(fileURLWithPath: homeDir).appendingPathComponent(".openclaw/core-upgrade-backups")
     }
 
+    private var configFileURL: URL {
+        URL(fileURLWithPath: homeDir).appendingPathComponent(".openclaw/openclaw.json")
+    }
+
     private var logFileURL: URL {
         URL(fileURLWithPath: homeDir).appendingPathComponent(".openclaw/core-upgrade.log")
     }
@@ -124,20 +167,30 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         self.fileManager = fileManager
     }
 
-    func ensureBundledCoreIsCurrent() async {
+    /// `force` bypasses the per-launch guard and the failure cooldown — for a
+    /// user-initiated repair, where the user is watching and has presumably
+    /// fixed whatever blocked the last attempt.
+    func ensureBundledCoreIsCurrent(force: Bool = false) async {
         // Decouple the upgrade from the CALLER's task: one entry point is a
         // view-bound `.task(id:)`, and mid-upgrade the gateway restart can
         // change view identity — SwiftUI then cancels that task, which used
         // to abort a half-done core swap with CancellationError (observed on
         // the 6.10 -> 7.1 upgrade). An unstructured Task does not inherit
         // cancellation, so the swap always runs to completion or rollback.
-        let work = Task { await performUpgradeBody() }
+        let work = Task { await performUpgradeBody(force: force) }
         await work.value
     }
 
-    private func performUpgradeBody() async {
+    private func performUpgradeBody(force: Bool) async {
         guard !isRunning else { return }
+        if !force {
+            guard !didAttemptThisLaunch else {
+                appendLog("Skipping core upgrade: already attempted once this launch")
+                return
+            }
+        }
         isRunning = true
+        didAttemptThisLaunch = true
         defer { isRunning = false }
 
         state = .checking
@@ -165,6 +218,22 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                 appendLog("OpenClaw core \(version) is already current for bundled \(manifest.openclawVersion)")
                 state = .upToDate(version)
                 progress = 1
+                return
+            }
+
+            if !force, let memory = loadFailureMemory(),
+               memory.blocksRetry(
+                   target: manifest.openclawVersion,
+                   appVersion: Self.currentAppVersion,
+                   now: Date(),
+                   cooldown: Self.failureCooldown
+               ) {
+                // Retrying a target that just failed costs the user another
+                // five-minute gateway outage and, worse, tears down a gateway
+                // that the previous rollback had just brought back.
+                appendLog("Skipping core upgrade to \(manifest.openclawVersion): it failed \(memory.failureCount)x, last at \(memory.lastFailure). Use force repair to retry now.")
+                state = .failed("Upgrade to \(manifest.openclawVersion) failed previously; not retrying yet")
+                progress = 0
                 return
             }
 
@@ -209,11 +278,13 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                 }
                 await openclawService.fetchVersion()
                 try removeBackupIfPossible(backup)
+                clearFailureMemory()
                 state = .upgraded(manifest.openclawVersion)
                 progress = 1
                 appendLog("OpenClaw core upgraded to \(manifest.openclawVersion)")
             } catch {
                 appendLog("Upgrade failed after swap: \(error.localizedDescription)")
+                recordFailure(target: manifest.openclawVersion)
                 try await rollback(from: backup)
                 state = .rolledBack(error.localizedDescription)
                 throw error
@@ -225,6 +296,36 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             }
             state = .failed(error.localizedDescription)
         }
+    }
+
+    // MARK: - Failure memory
+
+    private static var currentAppVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    }
+
+    private func loadFailureMemory() -> OpenClawCoreUpgradeFailureMemory? {
+        guard let data = UserDefaults.standard.data(forKey: Self.failureMemoryKey) else { return nil }
+        return try? JSONDecoder().decode(OpenClawCoreUpgradeFailureMemory.self, from: data)
+    }
+
+    private func recordFailure(target: String) {
+        let previous = loadFailureMemory()
+        let sameTarget = previous?.targetVersion == target
+        let memory = OpenClawCoreUpgradeFailureMemory(
+            targetVersion: target,
+            appVersion: Self.currentAppVersion,
+            failureCount: (sameTarget ? (previous?.failureCount ?? 0) : 0) + 1,
+            lastFailure: Date()
+        )
+        if let data = try? JSONEncoder().encode(memory) {
+            UserDefaults.standard.set(data, forKey: Self.failureMemoryKey)
+        }
+        appendLog("Recorded upgrade failure #\(memory.failureCount) for \(target); auto-retry paused for 24h")
+    }
+
+    private func clearFailureMemory() {
+        UserDefaults.standard.removeObject(forKey: Self.failureMemoryKey)
     }
 
     private func bundledCoreBundleURL(named bundleName: String) throws -> URL {
@@ -256,6 +357,39 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             let output = try? await runShell("openclaw gateway stop 2>&1", timeout: 20)
             appendLog("Fallback gateway stop output: \(output ?? "(no output)")")
         }
+        await holdDownLaunchAgent()
+    }
+
+    /// Boot the LaunchAgent OUT for the duration of the swap.
+    ///
+    /// `gateway stop` stops the process, but the agent stays loaded with
+    /// KeepAlive, so launchd relaunches it every ~10s — straight into the new
+    /// core's first-boot migration, which then reports
+    /// "startup migrations are already running for this state directory".
+    /// Each respawn re-takes the lock the previous one is still holding, and
+    /// the whole 300s ready-window is consumed by that self-inflicted race
+    /// (observed in the field on 2026-07-27: 13 launchd runs, ~every 10-11s).
+    ///
+    /// `gateway install --force` at the end of the upgrade re-creates and
+    /// re-loads the agent, and the rollback path re-loads it too, so this is
+    /// never left booted out.
+    private func holdDownLaunchAgent() async {
+        let output = try? await runShell(
+            "launchctl bootout gui/$(id -u)/\(Self.launchAgentLabel) 2>&1 || true",
+            timeout: 20
+        )
+        appendLog("Held LaunchAgent down for the swap: \(output?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? output! : "(no output)")")
+    }
+
+    /// Re-load the agent after a rollback that could not reinstall it.
+    private func reloadLaunchAgentIfNeeded() async {
+        let plist = "\(homeDir)/Library/LaunchAgents/\(Self.launchAgentLabel).plist"
+        guard fileManager.fileExists(atPath: plist) else { return }
+        let output = try? await runShell(
+            "launchctl bootstrap gui/$(id -u) '\(plist)' 2>&1 || launchctl load -w '\(plist)' 2>&1 || true",
+            timeout: 20
+        )
+        appendLog("Re-loaded LaunchAgent: \(output?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? output! : "(no output)")")
     }
 
     private func extractBundleToStaging(bundleURL: URL) async throws -> URL {
@@ -357,7 +491,18 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
 
         let coreBackupURL = transactionBackupRoot.appendingPathComponent("openclaw")
         let binBackupURL = transactionBackupRoot.appendingPathComponent("openclaw-bin")
-        var backup = OpenClawCoreSwapBackup(root: transactionBackupRoot, coreDir: nil, binLink: nil)
+        var backup = OpenClawCoreSwapBackup(root: transactionBackupRoot, coreDir: nil, binLink: nil, configFile: nil)
+
+        // COPY (not move) the config: the upgrade must not disturb the live
+        // one, we only need a copy to restore if the new core stamps it and
+        // then fails.
+        if fileManager.fileExists(atPath: configFileURL.path) {
+            let configBackupURL = transactionBackupRoot.appendingPathComponent("openclaw.json")
+            try? fileManager.copyItem(at: configFileURL, to: configBackupURL)
+            if fileManager.fileExists(atPath: configBackupURL.path) {
+                backup.configFile = configBackupURL
+            }
+        }
 
         if itemExistsIncludingSymlink(at: installedCoreDir) {
             try fileManager.moveItem(at: installedCoreDir, to: coreBackupURL)
@@ -457,8 +602,43 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         appendLog("Rolling back OpenClaw core from backup")
         restoreOpenClawFiles(from: backup)
         openclawService.resolvedOpenclawPath = nil
+
+        // Restore the config BEFORE reinstalling the service. The new core
+        // stamps `openclaw.json` with its own version, and the restored older
+        // binary then refuses to touch its own service:
+        //   "Refusing to install or rewrite the gateway service because this
+        //    OpenClaw binary (2026.6.10) is older than the config last written
+        //    by OpenClaw 2026.7.1-2."
+        // Field report 2026-07-27: that machine only recovered because its
+        // LaunchAgent happened to still be loaded.
+        restoreConfigIfNeeded(from: backup)
+
         try? await installGateway()
+        // installGateway may still be refused (e.g. no config backup existed);
+        // make sure the agent is loaded either way, since the swap booted it out.
+        await reloadLaunchAgentIfNeeded()
         try? await openclawService.start()
+    }
+
+    private func restoreConfigIfNeeded(from backup: OpenClawCoreSwapBackup) {
+        guard let configBackup = backup.configFile,
+              fileManager.fileExists(atPath: configBackup.path) else {
+            appendLog("No config backup to restore")
+            return
+        }
+        // Keep what the failed upgrade wrote, for diagnosis.
+        let failedCopy = backup.root.appendingPathComponent("openclaw.json.upgrade-failed")
+        if fileManager.fileExists(atPath: configFileURL.path) {
+            try? fileManager.removeItem(at: failedCopy)
+            try? fileManager.copyItem(at: configFileURL, to: failedCopy)
+            try? fileManager.removeItem(at: configFileURL)
+        }
+        do {
+            try fileManager.copyItem(at: configBackup, to: configFileURL)
+            appendLog("Restored pre-upgrade config (the new core's copy kept at \(failedCopy.lastPathComponent))")
+        } catch {
+            appendLog("Config restore failed: \(error.localizedDescription)")
+        }
     }
 
     private func restoreOpenClawFiles(from backup: OpenClawCoreSwapBackup) {

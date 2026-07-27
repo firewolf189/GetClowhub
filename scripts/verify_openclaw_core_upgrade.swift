@@ -86,7 +86,7 @@ require(coordinator.contains("doctor --post-upgrade --json") && coordinator.cont
 // spawns an unstructured Task so a cancelled caller cannot abort a half-done
 // core swap (observed on the 6.10 -> 7.1 upgrade).
 require(
-    coordinator.contains("let work = Task { await performUpgradeBody() }"),
+    coordinator.contains("let work = Task { await performUpgradeBody(force: force) }"),
     "the upgrade must run in an unstructured Task so caller cancellation cannot abort a half-done swap"
 )
 let upgradeBlock = block(startingWith: "private func performUpgradeBody", in: coordinator)
