@@ -64,7 +64,13 @@ struct DashboardSidebarActions {
     let selectTab: (DashboardViewModel.DashboardTab) -> Void
     let createSessionForAgent: (String) -> Void
     let createSessionForProject: (String, String) -> Void
-    let switchSession: (UUID) -> Void
+    /// Session click inside an agent's group: activates the session AND that
+    /// agent. There is deliberately NO agent-agnostic variant here — the view
+    /// model's `switchSession(to:)` applies the session to whatever agent is
+    /// selected, which is exactly the bug this replaced: clicking a session
+    /// under another agent left the OLD agent active and pointed it at that
+    /// session, so the next send built `agent:<wrong-agent>:<session>`.
+    let switchSessionInAgent: (UUID, String) -> Void
     let switchSessionGlobally: (UUID) -> Void
     let togglePinSession: (UUID) -> Void
     let deleteSession: (UUID) -> Void
@@ -455,8 +461,8 @@ struct DashboardView: View {
                 viewModel.createNewSession(forAgent: agentId, projectId: projectId)
                 viewModel.selectedTab = .chat
             },
-            switchSession: { sessionId in
-                viewModel.switchSession(to: sessionId)
+            switchSessionInAgent: { sessionId, agentId in
+                viewModel.switchSession(to: sessionId, inAgent: agentId)
                 viewModel.selectedTab = .chat
             },
             switchSessionGlobally: { sessionId in
@@ -1534,7 +1540,11 @@ struct SidebarView: View {
                 if switchGlobally {
                     actions.switchSessionGlobally(meta.id)
                 } else {
-                    actions.switchSession(meta.id)
+                    // The row's own agent, not the selected one: clicking a
+                    // session under another agent must bring that agent forward
+                    // (the highlight below is already keyed on meta.agentId).
+                    let ownerAgentId = agent.map(\.id).flatMap { $0.isEmpty ? nil : $0 } ?? meta.agentId
+                    actions.switchSessionInAgent(meta.id, ownerAgentId)
                 }
                 actions.selectTab(.chat)
             }

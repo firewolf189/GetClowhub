@@ -135,10 +135,15 @@ assertContains(
     "actions.switchSessionGlobally(meta.id)",
     "global pinned rows should switch by session id across agents"
 )
+// Changed 2026-07-27: "the local same-agent switch path" WAS the bug. A row
+// under agent B clicked while agent A was selected applied B's session to A —
+// the sidebar kept highlighting A and the next send built `agent:A:<B-session>`.
+// Non-pinned rows now name their owning agent; contract in
+// scripts/verify_session_click_activates_owning_agent.swift.
 assertContains(
     sessionRows,
-    "actions.switchSession(meta.id)",
-    "normal rows should preserve the local same-agent switch path"
+    "actions.switchSessionInAgent(meta.id, ownerAgentId)",
+    "normal rows should switch to the session AND its owning agent"
 )
 
 let chatSessionRow = slice(

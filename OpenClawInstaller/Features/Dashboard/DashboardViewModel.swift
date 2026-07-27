@@ -1167,13 +1167,34 @@ class DashboardViewModel: ObservableObject {
         guard let meta = chatSessionStore.index.first(where: { $0.id == sessionId }) else {
             return
         }
-        // Stored rows poisoned by the 2026-07-22 empty-agentId bug must not
-        // re-blank the selection (an empty agent builds malformed gateway keys).
-        let targetAgentId = meta.agentId.isEmpty ? "main" : meta.agentId
-        if selectedAgentId != targetAgentId {
-            selectedAgentId = targetAgentId
+        switchSession(to: sessionId, inAgent: meta.agentId)
+    }
+
+    /// Activate a session AND the agent that owns it.
+    ///
+    /// `switchSession(to:)` alone applies the session to whatever agent happens
+    /// to be selected, so clicking a session belonging to another agent pointed
+    /// the WRONG agent at it: the sidebar kept highlighting the old agent (its
+    /// row highlight is keyed on `meta.agentId`), and the next send built the
+    /// gateway key `agent:<wrong-agent>:<session>`.
+    ///
+    /// `agentId` comes from the row's owning agent, which also covers a pending
+    /// session that is not in `chatSessionStore.index` yet — metadata lookup
+    /// alone would find nothing there and leave the agent untouched.
+    func switchSession(to sessionId: UUID, inAgent agentId: String) {
+        // Rows poisoned by the 2026-07-22 empty-agentId bug must not re-blank
+        // the selection (an empty agent builds malformed gateway keys).
+        let resolvedAgentId: String = {
+            if !agentId.isEmpty { return agentId }
+            let fromMetadata = sessionMetadata(for: sessionId)?.agentId ?? ""
+            return fromMetadata.isEmpty ? "main" : fromMetadata
+        }()
+        if selectedAgentId != resolvedAgentId {
+            selectedAgentId = resolvedAgentId
         }
-        activeProjectIdByAgent[targetAgentId] = meta.projectId
+        if let meta = sessionMetadata(for: sessionId) {
+            activeProjectIdByAgent[resolvedAgentId] = meta.projectId
+        }
         switchSession(to: sessionId)
     }
 
