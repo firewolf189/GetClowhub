@@ -97,7 +97,9 @@ let swapIndex = upgradeBlock.range(of: "swapStagedOpenClawIntoPlace")?.lowerBoun
 let installIndex = upgradeBlock.range(of: "installGateway")?.lowerBound
 let startIndex = upgradeBlock.range(of: "openclawService.start")?.lowerBound
 require(stopIndex != nil && stageIndex != nil && verifyIndex != nil && swapIndex != nil && installIndex != nil && startIndex != nil, "upgrade flow should call all major steps")
-require(stopIndex! < stageIndex! && stageIndex! < verifyIndex! && verifyIndex! < swapIndex! && swapIndex! < installIndex! && installIndex! < startIndex!, "upgrade flow should stop -> stage -> verify -> swap -> gateway install -> start")
+// Reordered 2026-07-28: staging and vetting moved AHEAD of the stop, so a core
+// that rejects this machine's config never costs the user their gateway.
+require(stageIndex! < verifyIndex! && verifyIndex! < stopIndex! && stopIndex! < swapIndex! && swapIndex! < installIndex! && installIndex! < startIndex!, "upgrade flow should stage -> verify -> stop -> swap -> gateway install -> start")
 
 // --- Readiness must come from the GATEWAY, not from launchd ---
 // Measured on 192.168.80.76 (2026-07-28): with another process holding
@@ -179,6 +181,31 @@ require(
 require(
     coordinator.contains("Cannot determine the installed OpenClaw version; skipping"),
     "with no readable version at all, skip rather than swap blind"
+)
+
+// --- Ask the NEW core before committing to it ---
+// A machine's config was valid for 2026.3.2 and rejected by 2026.7.1-2 (a
+// locally path-installed plugin whose entry "escapes package directory"). The
+// upgrade swapped anyway and the gateway crash-looped, so the vetting has to
+// happen with the STAGED binary and BEFORE the running gateway is touched.
+require(
+    coordinator.contains("private func configRejectedByStagedCore"),
+    "the staged core must be asked whether it accepts this machine's config"
+)
+require(
+    coordinator.contains("config validate 2>&1 || true"),
+    "the verdict comes from the output: `config validate` exits non-zero exactly when the config is invalid, and a throwing runShell made that look like the check could not run"
+)
+let body = block(startingWith: "private func performUpgradeBody", in: coordinator)
+guard let verifyIdx = body.range(of: "verifyStagedCore")?.lowerBound,
+      let precheckIdx = body.range(of: "configRejectedByStagedCore")?.lowerBound,
+      let stopIdx = body.range(of: "stopGatewayIfRunning")?.lowerBound else {
+    fputs("FAIL: could not locate stage/pre-check/stop in the upgrade body\n", stderr)
+    exit(1)
+}
+require(
+    verifyIdx < precheckIdx && precheckIdx < stopIdx,
+    "stage -> verify -> config pre-check must all precede stopping the gateway, so a core that cannot accept this config costs the user no downtime"
 )
 
 require(app.contains("private let coreUpgradeCoordinator: OpenClawCoreUpgradeCoordinator"), "AppServices should keep the core migration helper internal")
