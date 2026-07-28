@@ -51,6 +51,7 @@ struct DashboardSidebarState: Equatable {
     let inflightSessionIds: Set<UUID>
     let unreadSessionIds: Set<UUID>
     let serviceStatus: ServiceStatus
+    let serviceFailureReason: String?
     let serviceVersion: String
     let settingsShortcut: SettingsShortcutState
 }
@@ -428,6 +429,9 @@ struct DashboardView: View {
             inflightSessionIds: taskState.inflightSessionIds,
             unreadSessionIds: sessionState.unreadSessionIds,
             serviceStatus: viewModel.openclawService.status,
+            serviceFailureReason: viewModel.openclawService.status == .running
+                ? nil
+                : viewModel.openclawService.lastError,
             serviceVersion: viewModel.openclawService.version,
             settingsShortcut: SettingsShortcutState(
                 budgetSnapshots: viewModel.budgetSnapshots,
@@ -1318,7 +1322,11 @@ struct SidebarView: View {
     private var sidebarMainList: some View {
         SmoothScrollView {
             VStack(alignment: .leading, spacing: 4) {
-                ServiceStatusBadge(status: state.serviceStatus, version: state.serviceVersion)
+                ServiceStatusBadge(
+                    status: state.serviceStatus,
+                    version: state.serviceVersion,
+                    failureReason: state.serviceFailureReason
+                )
                     .padding(.bottom, 8)
 
                 Button {
@@ -2127,6 +2135,10 @@ private struct PulsingDot: View {
 struct ServiceStatusBadge: View {
     let status: ServiceStatus
     let version: String
+    /// Why the gateway is unhappy, in the gateway's own words. Shown instead of
+    /// the version line, because "not running" without a reason is what turned a
+    /// rejected plugin config into an unexplained restart loop.
+    var failureReason: String? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -2138,7 +2150,14 @@ struct ServiceStatusBadge: View {
                 Text(status.rawValue)
                     .font(.headline)
 
-                if !version.isEmpty {
+                if let failureReason, !failureReason.isEmpty {
+                    Text(failureReason)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .help(failureReason)
+                } else if !version.isEmpty {
                     Text("v\(version)")
                         .font(.caption)
                         .foregroundColor(.secondary)

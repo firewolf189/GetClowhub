@@ -280,14 +280,32 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             try await ensureNodeSatisfiesRequirement(manifest.minimumNodeVersion)
 
             let bundleURL = try bundledCoreBundleURL(named: manifest.bundleName)
-            try await stopGatewayIfRunning()
-            progress = 0.15
-
+            // Stage and vet the new core BEFORE touching the running one. None
+            // of this disturbs the live install, so a core that will not accept
+            // this machine's config costs the user nothing.
             let stagedInstallDir = try await extractBundleToStaging(bundleURL: bundleURL)
-            progress = 0.35
+            progress = 0.25
 
             try await verifyStagedCore(at: stagedInstallDir, expectedVersion: manifest.openclawVersion)
+            progress = 0.4
+
+            // Ask the NEW binary whether it accepts the current config. The old
+            // one cannot answer that: on 2026-07-27 a machine's config was
+            // perfectly valid for 2026.3.2 and rejected by 2026.7.1-2 (a locally
+            // path-installed plugin whose entry "escapes package directory"),
+            // so the upgrade swapped, the gateway crash-looped, and the user
+            // lost their gateway for the length of the readiness window.
+            if let rejection = await configRejectedByStagedCore(at: stagedInstallDir) {
+                appendLog("Not upgrading to \(manifest.openclawVersion): it rejects this machine's config")
+                appendLog(rejection)
+                state = .failed("config rejected by \(manifest.openclawVersion)")
+                progress = 0
+                return
+            }
             progress = 0.5
+
+            try await stopGatewayIfRunning()
+            progress = 0.55
 
             let backup = try swapStagedOpenClawIntoPlace(stagedInstallDir)
             writeInflightMarker(target: manifest.openclawVersion, backupRoot: backup.root)
@@ -412,6 +430,39 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             return nil
         }
         return version
+    }
+
+    /// Returns the validator's complaints when the staged core refuses the live
+    /// config, nil when it accepts it (or when the check itself cannot run —
+    /// an inconclusive check must not block an upgrade).
+    private func configRejectedByStagedCore(at stagedInstallDir: URL) async -> String? {
+        let stagedBin = stagedInstallDir.appendingPathComponent("bin/openclaw")
+        guard fileManager.isExecutableFile(atPath: stagedBin.path) || itemExistsIncludingSymlink(at: stagedBin) else {
+            return nil
+        }
+        let nodePath = "\(homeDir)/.openclaw/node/bin/node"
+        // `|| true`: an invalid config makes `config validate` exit non-zero,
+        // and runShell throws on that — so the one case this check exists for
+        // looked exactly like "the check could not run" and waved the upgrade
+        // through (measured 2026-07-28). The verdict is in the OUTPUT, not the
+        // exit status.
+        let command = fileManager.isExecutableFile(atPath: nodePath)
+            ? "'\(nodePath)' '\(stagedBin.path)' config validate 2>&1 || true"
+            : "'\(stagedBin.path)' config validate 2>&1 || true"
+        guard let output = try? await runShell(command, timeout: 60) else {
+            appendLog("Config pre-check could not run; continuing with the upgrade")
+            return nil
+        }
+        guard output.contains("is invalid") || output.contains("✗") || output.contains("×") else {
+            return nil
+        }
+        // Keep the validator's own wording — it names the offending keys.
+        let lines = output
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .prefix(8)
+        return lines.joined(separator: "\n")
     }
 
     private func stopGatewayIfRunning() async throws {

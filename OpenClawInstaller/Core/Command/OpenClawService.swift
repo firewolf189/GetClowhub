@@ -317,7 +317,19 @@ class OpenClawService: ObservableObject {
                         }
                     } else {
                         status = .error
-                        lastError = "Service process exists but gateway port \(port) is not listening"
+                        // "port not listening" says nothing about WHY. The
+                        // gateway writes the real reason to its stderr log and
+                        // nothing surfaces it, so a config the new core rejects
+                        // (2026-07-27: "extension entry escapes package
+                        // directory" from a locally installed plugin) shows up
+                        // as a silent restart loop and takes three log files to
+                        // diagnose. Lead with the reason when we have one.
+                        let base = "Service process exists but gateway port \(port) is not listening"
+                        if let reason = Self.lastGatewayFailureReason() {
+                            lastError = "\(base) — \(reason)"
+                        } else {
+                            lastError = base
+                        }
                         uptime = 0
                         startTime = nil
                     }
@@ -349,7 +361,11 @@ class OpenClawService: ObservableObject {
             }
         }
 
-        if status != .error {
+        // Only a HEALTHY gateway clears the reason. This used to clear on
+        // anything that was not `.error`, which wiped the explanation set on the
+        // stopped path moments earlier — a crash-looping gateway spends most of
+        // its time reported as stopped, so the reason never survived to the UI.
+        if status == .running {
             lastError = nil
         }
 
@@ -387,6 +403,124 @@ class OpenClawService: ObservableObject {
     }
 
     /// Check if the gateway port is currently listening
+    /// The most recent meaningful line from the gateway's stderr log.
+    ///
+    /// `~/.openclaw/logs/gateway.err.log` is where the gateway explains itself —
+    /// invalid config, refused migrations, a plugin it cannot load — and until
+    /// now nothing read it. Only the tail is scanned, and only for lines that
+    /// state a cause, so a chatty log does not turn into a wall of UI text.
+    static func lastGatewayFailureReason() -> String? {
+        for path in gatewayLogCandidates() {
+            if let reason = failureReason(inLogAt: path) { return reason }
+        }
+        // Nothing in the logs. That is the NORMAL case, not an edge one: the
+        // LaunchAgent installed by current cores sets StandardErrorPath to
+        // /dev/null (verified on two machines), so the gateway's fatal reason —
+        // "Invalid config …", a refused migration — is discarded and stdout
+        // only shows "loading configuration…" over and over. Reproduced
+        // locally: exit code 78 (EX_CONFIG), nothing logged anywhere. So ASK
+        // instead of searching: config errors are the dominant cause of a
+        // gateway that starts and immediately exits.
+        return configValidationComplaint()
+    }
+
+    /// The validator's own words, when the config is what the gateway is
+    /// choking on. Read-only and quick; nil when the config is fine or the
+    /// check cannot run.
+    private static func configValidationComplaint() -> String? {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let openclaw = "\(home)/.npm-global/bin/openclaw"
+        let node = "\(home)/.openclaw/node/bin/node"
+        guard FileManager.default.isExecutableFile(atPath: openclaw) else { return nil }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        let command = FileManager.default.isExecutableFile(atPath: node)
+            ? "'\(node)' '\(openclaw)' config validate 2>&1 || true"
+            : "'\(openclaw)' config validate 2>&1 || true"
+        process.arguments = ["-c", command]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        guard (try? process.run()) != nil else { return nil }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard let output = String(data: data, encoding: .utf8),
+              output.contains("is invalid") || output.contains("×") else {
+            return nil
+        }
+        let complaints = output
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.contains("×") || $0.contains("is invalid") }
+            .prefix(3)
+        let text = complaints.joined(separator: "; ")
+        return text.isEmpty ? nil : text
+    }
+
+    /// Where the gateway's output actually goes, most authoritative first.
+    ///
+    /// Hardcoding one path does not work: the LaunchAgent is written by whatever
+    /// core installed it, and they disagree. Measured on two machines the same
+    /// week — one had `StandardErrorPath = ~/.openclaw/logs/gateway.err.log`
+    /// with the real reason in it, the other sent stderr to /dev/null and put
+    /// everything on stdout. So ask the plist first, then fall back.
+    private static let launchAgentLabel = "ai.openclaw.gateway"
+
+    private static func isLaunchAgentInstalled() -> Bool {
+        let plist = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents/\(launchAgentLabel).plist")
+        return FileManager.default.fileExists(atPath: plist.path)
+    }
+
+    private static func gatewayLogCandidates() -> [URL] {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        var paths: [URL] = []
+        let plist = home.appendingPathComponent("Library/LaunchAgents/\(launchAgentLabel).plist")
+        if let data = try? Data(contentsOf: plist),
+           let root = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
+            for key in ["StandardErrorPath", "StandardOutPath"] {
+                if let value = root[key] as? String, value != "/dev/null" {
+                    paths.append(URL(fileURLWithPath: value))
+                }
+            }
+        }
+        paths.append(home.appendingPathComponent(".openclaw/logs/gateway.err.log"))
+        paths.append(home.appendingPathComponent("Library/Logs/openclaw/gateway.log"))
+        return paths
+    }
+
+    private static func failureReason(inLogAt path: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: path) else { return nil }
+        defer { try? handle.close() }
+
+        let tailBytes = 64 * 1024
+        let size = (try? handle.seekToEnd()) ?? 0
+        let offset = size > UInt64(tailBytes) ? size - UInt64(tailBytes) : 0
+        try? handle.seek(toOffset: offset)
+        guard let data = try? handle.readToEnd(),
+              let text = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        let markers = ["Invalid config", "Reason:", "refusing", "Refusing", "not allowed", "failed to", "Failed to"]
+        let candidate = text
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .reversed()
+            .first { line in markers.contains { line.contains($0) } }
+        guard let candidate else { return nil }
+
+        // Strip the leading ISO timestamp and collapse the escaped newlines the
+        // gateway writes into a single readable sentence.
+        var reason = String(candidate)
+        if let range = reason.range(of: "] ") { reason = String(reason[range.upperBound...]) }
+        reason = reason
+            .replacingOccurrences(of: "\\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return reason.count > 300 ? String(reason.prefix(300)) + "…" : reason
+    }
+
     private func isPortListening() async -> Bool {
         let lsofOutput = await runShellQuietly(
             "lsof -i :\(port) -sTCP:LISTEN 2>/dev/null | grep -c LISTEN",
@@ -405,6 +539,13 @@ class OpenClawService: ObservableObject {
             status = .stopped
             uptime = 0
             startTime = nil
+            // A gateway in a crash loop spends most of its time between spawns,
+            // so this — not the "PID but no port" branch — is what the UI
+            // usually samples. Say why while we are here; a genuinely
+            // user-stopped gateway has nothing to report and stays quiet.
+            if Self.isLaunchAgentInstalled() {
+                lastError = Self.lastGatewayFailureReason()
+            }
         }
     }
 

@@ -46,9 +46,16 @@ require(
 
 // Defense: switching to a session whose stored metadata carries an empty
 // agentId (already-poisoned index rows) must not re-poison the selection.
+// The normalization moved into `switchSession(to:inAgent:)` on 2026-07-27 when
+// session rows started carrying their owning agent; `switchSessionGlobally`
+// delegates there. Same contract, one implementation.
 require(
-    dvm.contains("meta.agentId.isEmpty"),
-    "switchSessionGlobally must normalize empty stored agentIds instead of assigning them to selectedAgentId"
+    dvm.contains("fromMetadata.isEmpty ? \"main\" : fromMetadata"),
+    "switching to a session must normalize an empty stored agentId instead of assigning it to selectedAgentId"
+)
+require(
+    dvm.contains("switchSession(to: sessionId, inAgent: meta.agentId)"),
+    "switchSessionGlobally should route through the one normalizing implementation"
 )
 
 print("agent-creation id-capture guards hold")
