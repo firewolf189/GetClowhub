@@ -274,8 +274,16 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                     // install --force above already relaunched it — just give
                     // it a longer grace to come up.
                     appendLog("Gateway start window elapsed; extending wait for first-boot migration")
-                    try await waitForGatewayReady(timeoutSeconds: 300)
                 }
+                // Whether or not start() reported success, the upgrade is only
+                // real once the gateway ANSWERS. start()/checkStatus() lean on
+                // `launchctl`, which reports `state = running` for a job that
+                // spawns, fails to bind and gets respawned — so a crash-looping
+                // gateway used to be declared a successful upgrade and the
+                // rollback below never ran (measured on 192.168.80.76: the port
+                // was held by another process for the whole window and the
+                // upgrade still "succeeded").
+                try await waitForGatewayReady(timeoutSeconds: 300)
                 await openclawService.fetchVersion()
                 try removeBackupIfPossible(backup)
                 clearFailureMemory()
@@ -378,7 +386,20 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             "launchctl bootout gui/$(id -u)/\(Self.launchAgentLabel) 2>&1 || true",
             timeout: 20
         )
-        appendLog("Held LaunchAgent down for the swap: \(output?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? output! : "(no output)")")
+        appendLog("Held LaunchAgent down for the swap: \(Self.describeLaunchctl(output, quietCode: 3, quietMeaning: "already unloaded"))")
+    }
+
+    /// launchctl reports the two no-op outcomes as errors: booting out a job
+    /// that is not loaded returns 3 (`No such process`) and bootstrapping one
+    /// that already is returns 5 (`Input/output error`). Both are the expected
+    /// path here — `gateway stop` usually unloaded it already, and
+    /// `gateway install --force` usually loaded it back — so logging the raw
+    /// text made a healthy upgrade read like it was failing.
+    private static func describeLaunchctl(_ output: String?, quietCode: Int, quietMeaning: String) -> String {
+        let text = output?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if text.isEmpty { return "ok" }
+        if text.contains(": \(quietCode):") { return quietMeaning }
+        return text
     }
 
     /// Re-load the agent after a rollback that could not reinstall it.
@@ -389,7 +410,7 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             "launchctl bootstrap gui/$(id -u) '\(plist)' 2>&1 || launchctl load -w '\(plist)' 2>&1 || true",
             timeout: 20
         )
-        appendLog("Re-loaded LaunchAgent: \(output?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? output! : "(no output)")")
+        appendLog("Re-loaded LaunchAgent: \(Self.describeLaunchctl(output, quietCode: 5, quietMeaning: "already loaded"))")
     }
 
     private func extractBundleToStaging(bundleURL: URL) async throws -> URL {
@@ -532,15 +553,47 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         let deadline = Date().addingTimeInterval(TimeInterval(timeoutSeconds))
         while Date() < deadline {
             try await Task.sleep(nanoseconds: 5_000_000_000)
-            await openclawService.checkStatus()
-            if openclawService.status == .running {
-                appendLog("Gateway became ready during extended wait")
+            if await gatewayIsServing() {
+                appendLog("Gateway answered on port \(gatewayPort())")
                 return
             }
         }
         throw OpenClawCoreUpgradeError.commandFailed(
-            "gateway did not become ready within \(timeoutSeconds)s after core swap"
+            "gateway did not answer on port \(gatewayPort()) within \(timeoutSeconds)s after core swap"
         )
+    }
+
+    /// Does the gateway actually SERVE?
+    ///
+    /// `launchctl` only knows whether launchd has a job: a gateway that spawns,
+    /// fails to bind (port taken, invalid config, EX_CONFIG) and gets respawned
+    /// every ~10s still reports `state = running`. Readiness therefore has to
+    /// come from the gateway itself — any HTTP response counts, including 401
+    /// or 404: it proves the process bound the port and is talking.
+    private func gatewayIsServing() async -> Bool {
+        guard let url = URL(string: "http://127.0.0.1:\(gatewayPort())/health") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 4
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            return response is HTTPURLResponse
+        } catch {
+            return false
+        }
+    }
+
+    /// Port from the user's config; the gateway's own default otherwise.
+    private func gatewayPort() -> Int {
+        let configURL = URL(fileURLWithPath: "\(homeDir)/.openclaw/openclaw.json")
+        guard let data = try? Data(contentsOf: configURL),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let gateway = root["gateway"] as? [String: Any],
+              let port = gateway["port"] as? Int else {
+            return 18789
+        }
+        return port
     }
 
     /// Reinstall the app-bundled Node.js when the installed one is older than

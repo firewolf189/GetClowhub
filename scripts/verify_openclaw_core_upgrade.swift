@@ -99,6 +99,49 @@ let startIndex = upgradeBlock.range(of: "openclawService.start")?.lowerBound
 require(stopIndex != nil && stageIndex != nil && verifyIndex != nil && swapIndex != nil && installIndex != nil && startIndex != nil, "upgrade flow should call all major steps")
 require(stopIndex! < stageIndex! && stageIndex! < verifyIndex! && verifyIndex! < swapIndex! && swapIndex! < installIndex! && installIndex! < startIndex!, "upgrade flow should stop -> stage -> verify -> swap -> gateway install -> start")
 
+// --- Readiness must come from the GATEWAY, not from launchd ---
+// Measured on 192.168.80.76 (2026-07-28): with another process holding
+// 127.0.0.1:18789 and [::1]:18789 for the whole window — so the gateway could
+// not possibly serve — `launchctl` still reported `state = running` for the
+// respawning job, and the upgrade was declared SUCCESSFUL. Every containment
+// step (cooldown, rollback, config restore) hangs off the failure branch, so a
+// crash-looping gateway silently kept the half-broken core.
+require(
+    coordinator.contains("private func gatewayIsServing() async -> Bool"),
+    "readiness needs a real probe of the gateway, not just the launchd job state"
+)
+require(
+    coordinator.contains("http://127.0.0.1:") && coordinator.contains("gatewayPort()") && coordinator.contains("/health"),
+    "the probe should ask the gateway itself on its configured port"
+)
+require(
+    coordinator.contains("return response is HTTPURLResponse"),
+    "any HTTP response proves the port is bound and answering — 401/404 count"
+)
+let readyBlock = block(startingWith: "private func waitForGatewayReady", in: coordinator)
+require(
+    readyBlock.contains("if await gatewayIsServing()"),
+    "the wait loop must poll the real probe"
+)
+require(
+    !readyBlock.contains("openclawService.status == .running"),
+    "launchctl state alone must not end the wait — that is what declared a crash-looping gateway ready"
+)
+let upgradeBody = block(startingWith: "private func performUpgradeBody", in: coordinator)
+guard let startRange = upgradeBody.range(of: "openclawService.start()"),
+      let waitRange = upgradeBody.range(of: "try await waitForGatewayReady(timeoutSeconds: 300)") else {
+    fputs("FAIL: could not locate start/wait in the upgrade body\n", stderr)
+    exit(1)
+}
+require(
+    startRange.upperBound < waitRange.lowerBound,
+    "the readiness wait must run AFTER start() on every path, including when start() reports success"
+)
+require(
+    coordinator.contains("private static func describeLaunchctl"),
+    "launchctl's no-op exit codes (3 = not loaded, 5 = already loaded) must not be logged as failures"
+)
+
 require(app.contains("private let coreUpgradeCoordinator: OpenClawCoreUpgradeCoordinator"), "AppServices should keep the core migration helper internal")
 require(app.contains("ensureBundledCoreForInstalledOpenClaw"), "App startup should run bundled core migration outside dashboard routing")
 require(app.contains("didStartBundledCoreCheck"), "App startup should guard bundled core migration so it only starts once")
