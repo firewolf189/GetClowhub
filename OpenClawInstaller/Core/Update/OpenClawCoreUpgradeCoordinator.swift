@@ -84,6 +84,22 @@ private struct OpenClawCoreUpgradeFailureMemory: Codable {
     }
 }
 
+/// Written to disk BEFORE the core is swapped and removed once the attempt
+/// resolves (success or rollback).
+///
+/// The rollback lives inside the running app, so anything that ends the process
+/// between the swap and the readiness verdict — user quits the app during the
+/// five-minute wait, crash, logout, shutdown — takes the recovery with it and
+/// leaves the machine on the new core with a gateway that never came up.
+/// Observed in the field on 2026-07-27: the app went away mid-wait and the box
+/// sat half-upgraded until someone noticed. A file survives that; the next
+/// launch reads it and finishes the job.
+private struct OpenClawCoreUpgradeInflightMarker: Codable {
+    var targetVersion: String
+    var backupRoot: String
+    var startedAt: Date
+}
+
 @MainActor
 final class OpenClawCoreUpgradeCoordinator: ObservableObject {
     @Published var state: OpenClawCoreUpgradePhase = .idle
@@ -142,6 +158,10 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         URL(fileURLWithPath: homeDir).appendingPathComponent(".openclaw/openclaw.json")
     }
 
+    private var inflightMarkerURL: URL {
+        URL(fileURLWithPath: homeDir).appendingPathComponent(".openclaw/core-upgrade-inflight.json")
+    }
+
     private var logFileURL: URL {
         URL(fileURLWithPath: homeDir).appendingPathComponent(".openclaw/core-upgrade.log")
     }
@@ -195,6 +215,9 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
 
         state = .checking
         progress = 0.05
+        // An attempt that never got to write its verdict must be finished here,
+        // before anything else looks at versions.
+        await recoverFromInterruptedUpgradeIfNeeded()
         appendLog("Checking bundled OpenClaw core manifest")
 
         do {
@@ -206,6 +229,16 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             }
 
             let installedVersion = await installedOpenClawVersion()
+            // Neither the manifest on disk nor the CLI could say what is
+            // installed. Upgrading on that basis means swapping the core (and
+            // dropping the gateway for minutes) without knowing whether there is
+            // anything to gain — so leave the machine alone and say why.
+            guard installedVersion != nil else {
+                appendLog("Cannot determine the installed OpenClaw version; skipping the core upgrade rather than swapping blind")
+                state = .idle
+                progress = 0
+                return
+            }
             let plan = OpenClawCoreUpgradePlan(
                 installedVersion: installedVersion,
                 targetVersion: manifest.openclawVersion,
@@ -257,6 +290,7 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             progress = 0.5
 
             let backup = try swapStagedOpenClawIntoPlace(stagedInstallDir)
+            writeInflightMarker(target: manifest.openclawVersion, backupRoot: backup.root)
             progress = 0.65
 
             do {
@@ -285,6 +319,7 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                 // upgrade still "succeeded").
                 try await waitForGatewayReady(timeoutSeconds: 300)
                 await openclawService.fetchVersion()
+                clearInflightMarker()
                 try removeBackupIfPossible(backup)
                 clearFailureMemory()
                 state = .upgraded(manifest.openclawVersion)
@@ -347,13 +382,36 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         return url
     }
 
+    /// Installed version, read from DISK first.
+    ///
+    /// `openclaw --version` is unreliable exactly when this matters: it comes
+    /// back nil during a cold start, while the gateway is booted out, or right
+    /// after an interrupted attempt (measured repeatedly on 2026-07-28). A nil
+    /// used to mean "older than the bundle" — so a machine ALREADY on the target
+    /// version got a full stop-swap-reinstall cycle, i.e. a needless gateway
+    /// outage. The package manifest is authoritative and does not care what the
+    /// process state is.
     private func installedOpenClawVersion() async -> String? {
+        if let version = installedCoreVersionFromDisk() {
+            return version
+        }
         guard let raw = await commandExecutor.getCommandVersion("openclaw", versionArg: "--version")?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         else {
             return nil
         }
         return OpenClawVersionComparator.extractVersionString(raw)
+    }
+
+    private func installedCoreVersionFromDisk() -> String? {
+        let packageJSON = installedCoreDir.appendingPathComponent("package.json")
+        guard let data = try? Data(contentsOf: packageJSON),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let version = root["version"] as? String,
+              !version.isEmpty else {
+            return nil
+        }
+        return version
     }
 
     private func stopGatewayIfRunning() async throws {
@@ -651,6 +709,84 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         }
     }
 
+    private func writeInflightMarker(target: String, backupRoot: URL) {
+        let marker = OpenClawCoreUpgradeInflightMarker(
+            targetVersion: target,
+            backupRoot: backupRoot.path,
+            startedAt: Date()
+        )
+        guard let data = try? JSONEncoder().encode(marker) else { return }
+        try? data.write(to: inflightMarkerURL, options: .atomic)
+    }
+
+    private func clearInflightMarker() {
+        try? fileManager.removeItem(at: inflightMarkerURL)
+    }
+
+    /// Finish an attempt whose app died between the core swap and the verdict.
+    ///
+    /// Three states are possible, and only one of them warrants a rollback —
+    /// blindly restoring the backup would undo a perfectly good upgrade whose
+    /// marker simply outlived it:
+    ///
+    ///   installed == target, gateway answers  -> it worked; just tidy up
+    ///   installed == target, gateway silent   -> half-upgraded; roll back
+    ///   installed != target                   -> swap never landed; tidy up
+    private func recoverFromInterruptedUpgradeIfNeeded() async {
+        guard let data = try? Data(contentsOf: inflightMarkerURL),
+              let marker = try? JSONDecoder().decode(OpenClawCoreUpgradeInflightMarker.self, from: data) else {
+            return
+        }
+        appendLog("Found an interrupted upgrade to \(marker.targetVersion) started at \(marker.startedAt)")
+
+        // The version probe is NOT the signal: right after an interrupted
+        // attempt it comes back nil (measured — a cold `openclaw --version`
+        // while the gateway is booted out), and treating that as "the swap
+        // never landed" walked straight past a half-upgraded machine. What
+        // proves the swap happened is the backup: the old core is only moved
+        // aside when the new one goes in.
+        let backupRoot = URL(fileURLWithPath: marker.backupRoot)
+        let coreBackup = backupRoot.appendingPathComponent("openclaw")
+        guard fileManager.fileExists(atPath: coreBackup.path) else {
+            appendLog("No backup at \(marker.backupRoot); nothing to finish, clearing marker")
+            clearInflightMarker()
+            return
+        }
+
+        // Health decides, with a grace period: the app may be launching right
+        // after a reboot, where the gateway simply has not come up yet, and
+        // rolling back a healthy upgrade would be worse than the bug.
+        var serving = await gatewayIsServing()
+        if !serving {
+            appendLog("Gateway silent; giving it 60s before deciding the interrupted upgrade failed")
+            let deadline = Date().addingTimeInterval(60)
+            while !serving, Date() < deadline {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                serving = await gatewayIsServing()
+            }
+        }
+
+        if serving {
+            appendLog("Interrupted upgrade to \(marker.targetVersion) is healthy after all; clearing marker")
+            clearFailureMemory()
+            clearInflightMarker()
+            return
+        }
+
+        appendLog("Rolling back the interrupted upgrade to \(marker.targetVersion)")
+        recordFailure(target: marker.targetVersion)
+        let binBackup = backupRoot.appendingPathComponent("openclaw-bin")
+        let configBackup = backupRoot.appendingPathComponent("openclaw.json")
+        let backup = OpenClawCoreSwapBackup(
+            root: backupRoot,
+            coreDir: coreBackup,
+            binLink: itemExistsIncludingSymlink(at: binBackup) ? binBackup : nil,
+            configFile: fileManager.fileExists(atPath: configBackup.path) ? configBackup : nil
+        )
+        try? await rollback(from: backup)
+        state = .rolledBack("interrupted upgrade to \(marker.targetVersion)")
+    }
+
     private func rollback(from backup: OpenClawCoreSwapBackup) async throws {
         appendLog("Rolling back OpenClaw core from backup")
         restoreOpenClawFiles(from: backup)
@@ -671,6 +807,7 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         // make sure the agent is loaded either way, since the swap booted it out.
         await reloadLaunchAgentIfNeeded()
         try? await openclawService.start()
+        clearInflightMarker()
     }
 
     private func restoreConfigIfNeeded(from backup: OpenClawCoreSwapBackup) {

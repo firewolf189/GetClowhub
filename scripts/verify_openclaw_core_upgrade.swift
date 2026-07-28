@@ -142,6 +142,45 @@ require(
     "launchctl's no-op exit codes (3 = not loaded, 5 = already loaded) must not be logged as failures"
 )
 
+// --- An interrupted attempt must be finishable by the NEXT launch ---
+// The rollback lives in the running app, so quitting during the five-minute
+// readiness wait left a machine on the new core with a dead gateway (field,
+// 2026-07-27; reproduced by killing the app mid-swap on 192.168.80.76).
+require(
+    coordinator.contains("private struct OpenClawCoreUpgradeInflightMarker"),
+    "the swap must leave a marker on disk so a lost process does not lose the recovery"
+)
+require(
+    coordinator.contains("writeInflightMarker(target:") && coordinator.contains("clearInflightMarker()"),
+    "the marker must be written at the swap and cleared once the attempt resolves"
+)
+require(
+    coordinator.contains("await recoverFromInterruptedUpgradeIfNeeded()"),
+    "the next launch must finish an interrupted attempt before looking at versions"
+)
+let recovery = block(startingWith: "private func recoverFromInterruptedUpgradeIfNeeded", in: coordinator)
+require(
+    recovery.contains("fileManager.fileExists(atPath: coreBackup.path)"),
+    "recovery must key on the BACKUP to know the swap happened — the version probe returns nil in exactly this state"
+)
+require(
+    recovery.contains("var serving = await gatewayIsServing()") && recovery.contains("giving it 60s"),
+    "recovery must decide on gateway health, with a grace period so a slow boot is not rolled back"
+)
+
+// --- An unknown installed version must not be read as "needs upgrade" ---
+// `openclaw --version` comes back nil during cold starts and while the gateway
+// is booted out; nil used to compare as older than the bundle, so a machine
+// ALREADY on the target version got a full stop-swap-reinstall cycle.
+require(
+    coordinator.contains("private func installedCoreVersionFromDisk"),
+    "the installed version should be read from the package manifest, which does not depend on process state"
+)
+require(
+    coordinator.contains("Cannot determine the installed OpenClaw version; skipping"),
+    "with no readable version at all, skip rather than swap blind"
+)
+
 require(app.contains("private let coreUpgradeCoordinator: OpenClawCoreUpgradeCoordinator"), "AppServices should keep the core migration helper internal")
 require(app.contains("ensureBundledCoreForInstalledOpenClaw"), "App startup should run bundled core migration outside dashboard routing")
 require(app.contains("didStartBundledCoreCheck"), "App startup should guard bundled core migration so it only starts once")
