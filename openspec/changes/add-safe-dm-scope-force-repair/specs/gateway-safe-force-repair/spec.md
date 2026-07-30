@@ -1,94 +1,83 @@
 ## ADDED Requirements
 
-### Requirement: Repair enforces isolated direct-message sessions
-The system SHALL ensure that the effective OpenClaw configuration sets
-`session.dmScope` to `per-channel-peer` during a successful repair.
+### Requirement: 修复流程强制启用私聊会话隔离
+成功修复后，系统 SHALL 确保生效的 OpenClaw 配置中 `session.dmScope` 为
+`per-channel-peer`。
 
-#### Scenario: DM scope is missing or different
-- **WHEN** safe repair runs while the Gateway is reachable and idle
-- **THEN** the client builds a candidate config with
-  `session.dmScope` set to `per-channel-peer`
-- **AND** all unrelated config fields are preserved
-
-#### Scenario: DM scope is already correct
-- **WHEN** safe repair runs while the effective value is already
+#### Scenario: DM Scope 缺失或取值错误
+- **WHEN** Gateway 可访问且空闲时执行安全修复
+- **THEN** 客户端构建候选配置，将 `session.dmScope` 设置为
   `per-channel-peer`
-- **THEN** the client does not rewrite the config unnecessarily
-- **AND** the idle Gateway is still gracefully restarted to clear stale
-  in-memory state
+- **AND** 保留所有无关配置字段
 
-### Requirement: Safe repair protects active tasks
-The system SHALL NOT change configuration or restart a reachable Gateway while
-real tasks are active.
+#### Scenario: DM Scope 已正确
+- **WHEN** 执行安全修复时，生效值已经是 `per-channel-peer`
+- **THEN** 客户端不重复写入配置
+- **AND** 仍然优雅重启空闲的 Gateway，以清理内存中的残留状态
 
-#### Scenario: One or more tasks are active
-- **WHEN** the Gateway reports an active-task count greater than zero
-- **THEN** repair stops without modifying config
-- **AND** repair does not restart or force-kill the Gateway
-- **AND** the client shows the active-task count
+### Requirement: 安全修复保护活动任务
+存在真实活动任务时，系统 SHALL NOT 修改配置或重启可访问的 Gateway。
 
-#### Scenario: A stale processing marker has no live run
-- **WHEN** the Gateway computes its active-task count
-- **THEN** the stale marker is not counted as an active task
+#### Scenario: 存在一个或多个活动任务
+- **WHEN** Gateway 返回的活动任务数大于零
+- **THEN** 修复流程停止且不修改配置
+- **AND** 不重启或强制结束 Gateway
+- **AND** 客户端显示活动任务数量
 
-### Requirement: Candidate config is validated before replacement
-The system SHALL validate a complete candidate config before replacing the live
-OpenClaw config.
+#### Scenario: 处理中标记没有对应的真实任务
+- **WHEN** Gateway 计算活动任务数量
+- **THEN** 不将该残留标记计为活动任务
 
-#### Scenario: Candidate validation succeeds
-- **WHEN** the repaired candidate passes validation
-- **THEN** the client creates a timestamped backup
-- **AND** atomically replaces the live config
+### Requirement: 替换正式配置前校验候选配置
+替换 OpenClaw 正式配置之前，系统 SHALL 校验完整的候选配置。
 
-#### Scenario: Candidate validation fails
-- **WHEN** the repaired candidate does not pass validation
-- **THEN** the live config remains unchanged
-- **AND** no Gateway restart occurs
+#### Scenario: 候选配置校验成功
+- **WHEN** 修复后的候选配置通过校验
+- **THEN** 客户端创建带时间戳的备份
+- **AND** 原子替换正式配置
 
-### Requirement: Idle repair uses graceful restart
-The system SHALL use a graceful restart for a reachable Gateway with no active
-tasks.
+#### Scenario: 候选配置校验失败
+- **WHEN** 修复后的候选配置未通过校验
+- **THEN** 正式配置保持不变
+- **AND** 不重启 Gateway
 
-#### Scenario: Reachable Gateway is idle
-- **WHEN** preflight reports zero active tasks and candidate validation succeeds
-- **THEN** the client requests a graceful Gateway restart
-- **AND** the safe path does not invoke process purge
+### Requirement: 空闲修复使用优雅重启
+对于没有活动任务且可访问的 Gateway，系统 SHALL 使用优雅重启。
 
-### Requirement: Unverifiable activity requires emergency confirmation
-The system SHALL separate unverified emergency repair from the safe repair
-path.
+#### Scenario: 可访问的 Gateway 处于空闲状态
+- **WHEN** 预检返回零个活动任务且候选配置校验成功
+- **THEN** 客户端请求优雅重启 Gateway
+- **AND** 安全流程不调用进程清理
 
-#### Scenario: Gateway activity cannot be verified
-- **WHEN** the Gateway is unreachable or does not support the activity query
-- **THEN** the client does not automatically modify config or restart
-- **AND** the client offers the existing force repair only after a separate
-  destructive confirmation
+### Requirement: 无法确认活动状态时需要应急确认
+系统 SHALL 将未经验证的应急修复与安全修复流程分离。
 
-#### Scenario: User declines emergency repair
-- **WHEN** the emergency confirmation is cancelled
-- **THEN** no process purge or cold start occurs
+#### Scenario: 无法确认 Gateway 活动状态
+- **WHEN** Gateway 不可访问或不支持活动状态查询
+- **THEN** 客户端不自动修改配置或重启
+- **AND** 仅在单独的危险确认后提供现有强制修复
 
-### Requirement: Successful repair is verified
-The system SHALL verify the repaired runtime after restart.
+#### Scenario: 用户取消应急修复
+- **WHEN** 用户取消应急确认
+- **THEN** 不执行进程清理或冷启动
 
-#### Scenario: Gateway restarts successfully
-- **WHEN** the Gateway becomes healthy after repair
-- **THEN** the effective `session.dmScope` is verified as
-  `per-channel-peer`
-- **AND** DingTalk channel connectivity is checked
+### Requirement: 验证成功修复后的运行状态
+重启后，系统 SHALL 验证修复后的运行状态。
 
-#### Scenario: DingTalk has not reconnected
-- **WHEN** the Gateway is healthy and the config is correct but DingTalk is not
-  connected
-- **THEN** the client reports partial repair success
-- **AND** the valid repaired config is retained
+#### Scenario: Gateway 重启成功
+- **WHEN** 修复后 Gateway 恢复健康
+- **THEN** 验证生效的 `session.dmScope` 为 `per-channel-peer`
+- **AND** 检查钉钉渠道连接状态
 
-### Requirement: Repair preserves user data and secrets
-The system SHALL preserve historical sessions and avoid exposing secrets during
-repair.
+#### Scenario: 钉钉尚未重新连接
+- **WHEN** Gateway 健康且配置正确，但钉钉未连接
+- **THEN** 客户端报告部分修复成功
+- **AND** 保留已修复的有效配置
 
-#### Scenario: Repair completes
-- **WHEN** safe or emergency repair reports its steps
-- **THEN** existing session transcripts are not deleted
-- **AND** tokens, API keys, and the complete config are not included in logs or
-  user-facing summaries
+### Requirement: 修复过程保护用户数据和密钥
+修复期间，系统 SHALL 保留历史会话且不暴露密钥。
+
+#### Scenario: 修复完成
+- **WHEN** 安全修复或应急修复报告执行步骤
+- **THEN** 不删除现有会话记录
+- **AND** 日志和用户提示中不包含令牌、API Key 或完整配置

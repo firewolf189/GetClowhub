@@ -1,115 +1,101 @@
-## Context
+## 背景
 
-The current macOS Force Repair flow is an emergency path: it repairs basic
-config-file damage, truncates oversized logs, force-kills Gateway processes,
-checks the Node runtime, and cold-starts the Gateway.
+当前 macOS“强制修复”属于应急流程：修复基础配置文件损坏、截断异常膨胀的日志、
+强制结束 Gateway 进程、检查 Node 运行环境，然后冷启动 Gateway。
 
-When `session.dmScope` is absent, OpenClaw defaults to `main`. Different
-DingTalk direct-message users can then share one agent session. A stale
-processing marker and queued messages in that shared session can produce
-delayed, repeated, or permanently stuck replies.
+当 `session.dmScope` 缺失时，OpenClaw 默认使用 `main`。不同钉钉私聊用户可能因此
+共用同一个 Agent 会话。共享会话中的处理中状态和排队消息一旦残留，就可能导致
+回复延迟、重复或长期卡住。
 
-The first release stays inside the existing repair entry. It does not introduce
-a general Gateway administration or session-management screen.
+首版只调整现有修复入口，不新增通用 Gateway 管理页或会话管理页。
 
-## Goals
+## 目标
 
-- Repair `session.dmScope` to `per-channel-peer`.
-- Protect real tasks started by DingTalk or any other channel.
-- Prefer a graceful restart when the Gateway is reachable and idle.
-- Preserve the existing emergency repair for unobservable or broken states.
-- Preserve unrelated configuration and historical transcripts.
-- Report a structured, verifiable result.
+- 将 `session.dmScope` 修复为 `per-channel-peer`。
+- 保护钉钉及其他渠道发起的真实任务。
+- Gateway 可访问且空闲时优先采用优雅重启。
+- 为无法观测或已经损坏的状态保留现有应急修复能力。
+- 保留无关配置和历史会话记录。
+- 返回结构化、可验证的修复结果。
 
-## Non-goals
+## 非目标
 
-- Per-session inspection, deletion, or bulk recovery.
-- Persistent background waiting for tasks to finish.
-- Automatically terminating active tasks.
-- Automatically repairing without user action.
-- Replacing the existing repair entry with a new management screen.
+- 按会话查看、删除或批量恢复。
+- 持久化等待后台任务执行完毕。
+- 自动终止活动任务。
+- 未经用户操作自动修复。
+- 使用新的管理页面替换现有修复入口。
 
-## Decisions
+## 设计决策
 
-1. **Use the existing repair entry.**
-   - The button starts with a read-only preflight.
-   - The flow chooses safe repair, busy refusal, or emergency confirmation.
-   - No new navigation or management page is introduced.
+1. **沿用现有修复入口。**
+   - 点击按钮后先执行只读预检。
+   - 根据结果进入安全修复、忙碌拒绝或应急确认。
+   - 不新增导航项或管理页面。
 
-2. **Use Gateway-wide activity, not client-local chat state.**
-   - The client must see tasks initiated through DingTalk and other channels.
-   - The Gateway exposes a minimal read-only active-task count.
-   - Only live runs count as active; stale `processing` markers do not.
-   - If the capability is unavailable, activity is unknown and safe restart is
-     forbidden.
+2. **使用 Gateway 全局活动状态，而不是客户端本地聊天状态。**
+   - 客户端必须能识别钉钉及其他渠道发起的任务。
+   - Gateway 提供最小的只读活动任务计数。
+   - 只有真实运行中的任务计入活动数；没有对应运行任务的残留 `processing`
+     标记不计入。
+   - 如果该能力不可用，则任务状态视为未知，禁止安全重启。
 
-3. **Validate before touching the live config.**
-   - Parse the complete current JSON object.
-   - Preserve all existing keys and set only
-     `session.dmScope = "per-channel-peer"`.
-   - Write the candidate to a temporary file.
-   - Validate the candidate with the installed OpenClaw core using the
-     temporary file as the config path.
-   - Create a timestamped backup and atomically replace the live config only
-     after validation succeeds.
+3. **先校验，再修改正式配置。**
+   - 解析完整的当前 JSON 配置。
+   - 保留所有现有字段，仅设置
+     `session.dmScope = "per-channel-peer"`。
+   - 将候选配置写入临时文件。
+   - 使用已安装的 OpenClaw 核心，并将临时文件作为配置路径执行校验。
+   - 校验通过后才创建时间戳备份并原子替换正式配置。
 
-4. **Restart an idle Gateway even when config is already correct.**
-   - A graceful restart clears stale in-memory queues and processing state.
-   - The former shared session remains on disk as history.
-   - New DingTalk direct messages route to per-channel-peer session keys, so the
-     old shared session is no longer reused.
+4. **配置已正确时，空闲 Gateway 仍需重启。**
+   - 优雅重启用于清理内存中残留的队列和处理中状态。
+   - 原共享会话继续保留在磁盘中作为历史记录。
+   - 新的钉钉私聊将路由到按渠道和联系人隔离的会话键，不再使用旧共享会话。
 
-5. **Keep process purge as a separate emergency action.**
-   - Reachable and idle uses only graceful restart.
-   - Reachable and busy performs no mutation and no restart.
-   - Unreachable or activity-unknown states require a second destructive
-     confirmation before using the existing force-kill path.
+5. **将进程清理保留为独立的应急操作。**
+   - Gateway 可访问且空闲时只使用优雅重启。
+   - Gateway 可访问但忙碌时不修改配置、不重启。
+   - Gateway 不可访问或活动状态未知时，必须经过第二次危险确认，才能执行原有
+     强制结束进程流程。
 
-6. **Return structured outcomes.**
-   - The service result distinguishes busy, already correct, safely repaired,
-     candidate validation failure, graceful restart failure, verification
-     failure, and emergency fallback required.
-   - Localized UI text is derived from the result rather than parsed back into
-     control flow.
+6. **返回结构化结果。**
+   - 服务结果至少区分：忙碌、配置已正确、安全修复成功、候选配置校验失败、
+     优雅重启失败、恢复验证失败、需要应急修复。
+   - UI 根据结果生成本地化文案，不通过解析提示文本控制流程。
 
-## Safe Repair Sequence
+## 安全修复顺序
 
-1. Read and parse `~/.openclaw/openclaw.json`.
-2. Check Gateway reachability and global active-task count.
-3. If the count is greater than zero, stop without mutation.
-4. Build and validate a temporary candidate config.
-5. If a change is needed, create a backup and atomically replace the live
-   config.
-6. Request a graceful Gateway restart.
-7. Wait for Gateway health.
-8. Verify the effective `session.dmScope`.
-9. Verify the DingTalk channel is configured and connected.
+1. 读取并解析 `~/.openclaw/openclaw.json`。
+2. 检查 Gateway 可访问性和全局活动任务数。
+3. 活动任务数大于零时，不做修改并停止。
+4. 构建并校验临时候选配置。
+5. 需要修改时，创建备份并原子替换正式配置。
+6. 请求优雅重启 Gateway。
+7. 等待 Gateway 恢复健康。
+8. 验证生效的 `session.dmScope`。
+9. 验证钉钉渠道已配置且连接正常。
 
-## Emergency Sequence
+## 应急修复顺序
 
-When reachability or activity cannot be established, the UI explains that
-running work may be interrupted and asks for a separate destructive
-confirmation. After confirmation, the existing BOM repair, invalid-config
-quarantine, oversized-log cleanup, runtime check, process purge, and cold start
-remain available. The emergency path applies the DM-scope repair and config
-validation when the config is parseable.
+无法确认 Gateway 可访问性或活动状态时，UI 明确提示运行中的工作可能被中断，并
+要求单独的危险确认。确认后继续保留现有 BOM 修复、无效配置隔离、超大日志清理、
+运行环境检查、进程清理和冷启动流程。配置仍可解析时，应急流程也要应用并校验
+`dmScope` 修复。
 
-## Configuration and Privacy Safety
+## 配置与隐私安全
 
-- Never log the complete config, tokens, or API keys.
-- Preserve sibling fields inside `session` and all unrelated sections.
-- Stop before mutation when candidate validation fails.
-- Stop before mutation when the backup cannot be created.
-- Use atomic replacement for the live config.
-- Keep the repaired, validated config if restart later fails; do not silently
-  restore the unsafe session isolation value.
-- Do not delete session stores or transcripts.
+- 不记录完整配置、令牌或 API Key。
+- 保留 `session` 中的其他字段和所有无关配置。
+- 候选配置校验失败时，在修改正式配置前停止。
+- 无法创建备份时，在修改正式配置前停止。
+- 使用原子替换写入正式配置。
+- 配置校验通过但重启失败时保留修复后的有效配置，不静默恢复为不安全的会话隔离值。
+- 不删除会话存储或聊天记录。
 
-## Risks / Trade-offs
+## 风险与权衡
 
-- The minimal Gateway activity capability is an upstream dependency. Without
-  it, the safe path must conservatively stop and offer emergency repair.
-- A Gateway may be reachable during preflight but fail during restart. Existing
-  failure-reason parsing should surface the concrete startup error.
-- DingTalk may reconnect later than the Gateway. Report this as partial success
-  rather than reverting a valid configuration.
+- 最小 Gateway 活动状态能力属于上游依赖。能力不可用时，安全流程必须保守停止，
+  仅允许用户选择应急修复。
+- Gateway 可能在预检时可访问、重启时失败，应复用现有失败原因解析并显示具体错误。
+- 钉钉重新连接可能晚于 Gateway。此时报告部分成功，不回滚已经生效的有效配置。

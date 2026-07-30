@@ -1,45 +1,38 @@
 ## Why
 
-The macOS client's current Force Repair action immediately purges Gateway
-processes. A DingTalk incident showed that a missing `session.dmScope` can also
-route multiple direct-message users into one shared session, leaving replies
-queued behind stale processing state. The repair entry should correct that
-configuration without interrupting real work when the Gateway is still healthy.
+macOS 客户端当前的“强制修复”会直接清理 Gateway 进程。一次钉钉故障表明，
+缺少 `session.dmScope` 还会导致多个私聊用户共用同一个会话，使回复阻塞在残留的
+处理中状态之后。当 Gateway 仍然健康时，修复入口应在不打断真实任务的前提下
+修正该配置。
 
 ## What Changes
 
-- Check whether `session.dmScope` is exactly `per-channel-peer`.
-- Repair a missing or different value while preserving unrelated config.
-- Check the Gateway's global active-task count before changing config or
-  restarting.
-- Refuse the safe path while tasks are active.
-- Validate a temporary candidate config before atomically replacing the live
-  config.
-- Gracefully restart an idle, reachable Gateway even when the setting was
-  already correct, clearing stale in-memory session state.
-- Keep the existing process-purge repair behind a separate destructive
-  confirmation when task activity cannot be verified.
-- Verify Gateway health, the effective setting, and DingTalk connectivity after
-  restart.
+- 检查 `session.dmScope` 是否严格等于 `per-channel-peer`。
+- 在保留其他配置的前提下修复缺失或错误的取值。
+- 修改配置或重启之前，检查 Gateway 全局活动任务数。
+- 存在活动任务时拒绝执行安全修复。
+- 先校验临时候选配置，再原子替换正式配置。
+- Gateway 可访问且空闲时执行优雅重启；即使配置已经正确，也通过重启清理内存中
+  残留的会话状态。
+- 无法确认任务状态时，将现有进程清理流程保留为需要单独危险确认的应急修复。
+- 重启后验证 Gateway 健康状态、生效配置以及钉钉连接状态。
 
 ## Capabilities
 
 ### New Capabilities
 
-- `gateway-safe-force-repair`: Defines safe DingTalk DM isolation repair,
-  active-task protection, graceful restart, emergency fallback, and recovery
-  verification.
+- `gateway-safe-force-repair`：定义钉钉私聊隔离安全修复、活动任务保护、优雅重启、
+  应急兜底和恢复验证。
 
 ### Modified Capabilities
 
-None.
+无。
 
 ## Impact
 
-- Affects the macOS repair flow in `OpenClawServiceForceRepair`,
-  `OpenClawService`, `DashboardViewModel`, and `StatusTabView`.
-- Requires a minimal read-only Gateway capability that reports the number of
-  real active tasks from all channels.
-- Adds localized repair states and focused automated coverage.
-- Does not add a Gateway management page or session-management UI.
-- Does not delete or rewrite historical session transcripts.
+- 影响 macOS 修复流程中的 `OpenClawServiceForceRepair`、`OpenClawService`、
+  `DashboardViewModel` 和 `StatusTabView`。
+- 需要 Gateway 提供一个最小的只读能力，返回所有渠道的真实活动任务数量。
+- 增加修复状态的本地化文案和针对性自动测试。
+- 不新增 Gateway 管理页面或会话管理界面。
+- 不删除或重写历史会话记录。
