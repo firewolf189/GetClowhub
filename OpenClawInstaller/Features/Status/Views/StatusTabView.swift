@@ -119,7 +119,8 @@ struct ServiceStatusCard: View {
 
 struct ControlButtonsSection: View {
     @ObservedObject var viewModel: DashboardViewModel
-    @State private var showForceRepairConfirm = false
+    @State private var showSafeRepairConfirm = false
+    @State private var showEmergencyRepairConfirm = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -179,14 +180,14 @@ struct ControlButtonsSection: View {
                 .disabled(viewModel.openclawService.status != .running || viewModel.isPerformingAction)
             }
 
-            // 强行修复 — deliberately enabled in EVERY state (it exists for
-            // exactly the states where start/stop/restart are unusable).
+            // Keep one entry in every state. Healthy gateways take the official
+            // safe path; destructive cleanup is only offered after that fails.
             Button {
-                showForceRepairConfirm = true
+                showSafeRepairConfirm = true
             } label: {
                 HStack {
                     Image(systemName: "wrench.and.screwdriver")
-                    Text(I18n.t("repair.action.forceRepair"))
+                    Text(I18n.t("repair.action.safeRepair"))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -195,21 +196,36 @@ struct ControlButtonsSection: View {
             .tint(.orange)
             .disabled(viewModel.isPerformingAction)
             .confirmationDialog(
-                I18n.t("repair.confirm.title"),
-                isPresented: $showForceRepairConfirm
+                I18n.t("repair.safe.confirm.title"),
+                isPresented: $showSafeRepairConfirm
             ) {
-                Button(I18n.t("repair.confirm.proceed"), role: .destructive) {
-                    Task { await viewModel.forceRepairService() }
+                Button(I18n.t("repair.safe.confirm.proceed")) {
+                    Task {
+                        if await viewModel.safeRepairService() {
+                            showEmergencyRepairConfirm = true
+                        }
+                    }
                 }
                 Button(I18n.t("catalog.action.cancel"), role: .cancel) {}
             } message: {
-                Text(I18n.t("repair.confirm.message"))
+                Text(I18n.t("repair.safe.confirm.message"))
             }
 
             SettingsInlineRefreshStatus(
                 isRefreshing: viewModel.isPerformingAction,
                 text: I18n.t("settings.updating", fallback: "Updating...")
             )
+        }
+        .confirmationDialog(
+            I18n.t("repair.emergency.confirm.title"),
+            isPresented: $showEmergencyRepairConfirm
+        ) {
+            Button(I18n.t("repair.emergency.confirm.proceed"), role: .destructive) {
+                Task { await viewModel.forceRepairService() }
+            }
+            Button(I18n.t("catalog.action.cancel"), role: .cancel) {}
+        } message: {
+            Text(I18n.t("repair.emergency.confirm.message"))
         }
     }
 }

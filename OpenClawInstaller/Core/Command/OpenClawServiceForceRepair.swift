@@ -1,10 +1,11 @@
 import Foundation
 
-/// macOS counterpart of the Windows client's 强行修复网关 (`repair_gateway`).
+/// macOS counterpart of the Windows client's emergency repair (`repair_gateway`).
 ///
-/// The regular restart path shells out to `openclaw gateway restart`, which
-/// only works while the CLI and the gateway are healthy. Force repair is the
-/// bottom-line recovery for when they are NOT:
+/// Healthy gateways use `safeRepairGateway()` below, which delegates active-work
+/// protection to OpenClaw's official `gateway restart --safe` implementation.
+/// Force repair is the separately confirmed bottom-line recovery for when the
+/// CLI or gateway is NOT healthy:
 ///   1. config triage  — strip a UTF-8 BOM from openclaw.json (Rust/Swift JSON
 ///      readers choke on it; observed on Windows as `token_missing` refusals),
 ///      and back up an unparseable config instead of letting the gateway spin
@@ -32,11 +33,32 @@ struct ForceRepairReport {
 extension OpenClawService {
     private static let oversizedLogThreshold: UInt64 = 512 * 1024 * 1024 // 512 MB
 
+    /// Repair the two safety settings and ask OpenClaw itself to restart only
+    /// after all channel work drains. This path never kills a process.
+    func safeRepairGateway() async -> SafeGatewayRepairOutcome {
+        addLog("Safe repair: checking core capability and required settings")
+        let previousPID = await gatewayListenerPID()
+        let coordinator = SafeGatewayRepairCoordinator(
+            runCommand: { [weak self] command, timeout in
+                guard let self else { return nil }
+                return await self.runCommand(command, timeout: timeout)
+            },
+            waitForRecovery: { [weak self] in
+                guard let self else { return false }
+                return await self.waitForSafeRestartRecovery(previousPID: previousPID)
+            }
+        )
+        let outcome = await coordinator.repair()
+        addLog("Safe repair: finished with \(String(describing: outcome))")
+        return outcome
+    }
+
     func forceRepairGateway() async -> ForceRepairReport {
         var report = ForceRepairReport()
-        addLog("Force repair: starting")
+        addLog("Emergency force repair: starting")
 
         repairConfigFile(report: &report)
+        await repairRequiredGatewaySettings(report: &report)
         truncateOversizedLogs(report: &report)
         await forceKillGatewayProcesses(report: &report)
         await reportNodeRuntimeSupport(report: &report)
@@ -50,8 +72,82 @@ extension OpenClawService {
             report.fail(I18n.format("repair.step.restartFailed", error.localizedDescription))
         }
 
-        addLog("Force repair: finished (success=\(report.succeeded))")
+        addLog("Emergency force repair: finished (success=\(report.succeeded))")
         return report
+    }
+
+    // MARK: - Safe repair support
+
+    private func gatewayListenerPID() async -> String? {
+        let pid = await runShellQuietly(
+            "lsof -ti tcp:\(port) -sTCP:LISTEN 2>/dev/null | head -n 1",
+            timeout: 5
+        )?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        return pid?.isEmpty == false ? pid : nil
+    }
+
+    private func waitForSafeRestartRecovery(previousPID: String?) async -> Bool {
+        // Let the RPC response flush before looking for the replacement process.
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        for _ in 0..<45 {
+            let currentPID = await gatewayListenerPID()
+            if let currentPID, previousPID == nil || currentPID != previousPID {
+                await checkStatus()
+                return status == .running
+            }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+        return false
+    }
+
+    private func repairRequiredGatewaySettings(report: inout ForceRepairReport) async {
+        let dmScopeOK = await ensureEmergencyConfigValue(
+            getCommand: SafeGatewayRepairCommands.getDMScope,
+            setCommand: SafeGatewayRepairCommands.setDMScope,
+            predicate: SafeGatewayConfigVerification.isExpectedDMScope
+        )
+        if dmScopeOK {
+            report.note(I18n.t("repair.step.dmScopeRepaired"))
+        } else {
+            report.fail(I18n.t("repair.step.dmScopeFailed"))
+        }
+
+        let deferralOK = await ensureEmergencyConfigValue(
+            getCommand: SafeGatewayRepairCommands.getDeferralTimeout,
+            setCommand: SafeGatewayRepairCommands.setDeferralTimeout,
+            predicate: SafeGatewayConfigVerification.isExpectedDeferralTimeout
+        )
+        if deferralOK {
+            report.note(I18n.t("repair.step.deferralRepaired"))
+        } else {
+            report.fail(I18n.t("repair.step.deferralFailed"))
+        }
+    }
+
+    private func ensureEmergencyConfigValue(
+        getCommand: String,
+        setCommand: String,
+        predicate: (String) -> Bool
+    ) async -> Bool {
+        if let current = await runSafeRepairShellCommand(getCommand),
+           current.succeeded,
+           predicate(current.output) {
+            return true
+        }
+        guard let write = await runSafeRepairShellCommand(setCommand), write.succeeded,
+              let verified = await runSafeRepairShellCommand(getCommand), verified.succeeded else {
+            return false
+        }
+        return predicate(verified.output)
+    }
+
+    private func runSafeRepairShellCommand(_ command: String) async -> SafeGatewayShellResult? {
+        let raw = await runCommand(
+            SafeGatewayRepairCommands.reportingExitStatus(command),
+            timeout: 30
+        )
+        return SafeGatewayShellResult.decode(raw)
     }
 
     // MARK: - Step 4: runtime triage

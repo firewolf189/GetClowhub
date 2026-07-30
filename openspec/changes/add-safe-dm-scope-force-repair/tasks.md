@@ -1,58 +1,46 @@
-## 1. Gateway Activity Contract
+## 1. 核心能力与版本门槛
 
-- [ ] 1.1 Define the minimal read-only response for the global count of real
-  active tasks.
-- [ ] 1.2 Add or integrate the Gateway activity query so tasks from DingTalk and
-  other external channels are included.
-- [ ] 1.3 Verify that stale processing markers without a live run are not
-  counted as active.
+- [x] 1.1 定义安全修复所需的最低能力和内置核心版本 `2026.7.1-2`。
+- [x] 1.2 检查已安装核心的安全重启能力；旧版返回结构化“需要升级”结果。
+- [x] 1.3 复用现有内置核心升级路径，不修改 OpenClaw 核心仓库。
 
-## 2. Configuration Repair
+## 2. 配置修复
 
-- [ ] 2.1 Add focused config transformation logic that preserves the complete
-  document and sets `session.dmScope` to `per-channel-peer`.
-- [ ] 2.2 Validate a temporary candidate with the installed OpenClaw core before
-  live-config replacement.
-- [ ] 2.3 Add timestamped backup and atomic replacement behavior.
-- [ ] 2.4 Cover missing `session`, missing `dmScope`, alternate values,
-  already-correct values, sibling preservation, validation failure, and write
-  failure.
+- [x] 2.1 新安装默认配置写入 `session.dmScope=per-channel-peer` 和
+  `gateway.reload.deferralTimeoutMs=0`，并保留其他配置字段。
+- [x] 2.2 通过 OpenClaw 官方配置命令将 `session.dmScope` 设置为
+  `per-channel-peer`。
+- [x] 2.3 将 `gateway.reload.deferralTimeoutMs` 设置为 `0`，保证安全重启不会因超时
+  转为强制执行。
+- [x] 2.4 写入后复核两个配置值，任一步失败时不请求重启。
+- [x] 2.5 覆盖配置已正确、配置缺失、写入失败和复核失败。
 
-## 3. Safe Repair Orchestration
+## 3. 安全修复编排
 
-- [ ] 3.1 Add structured preflight and repair outcome types.
-- [ ] 3.2 Stop without mutation or restart when active-task count is greater
-  than zero.
-- [ ] 3.3 Gracefully restart when the Gateway is reachable and idle, including
-  when `dmScope` was already correct.
-- [ ] 3.4 Verify Gateway health, effective `dmScope`, and DingTalk connectivity
-  after restart.
-- [ ] 3.5 Verify that the safe path can never invoke process purge.
+- [x] 3.1 增加安全重启 JSON 响应和结构化修复结果类型。
+- [x] 3.2 调用 `openclaw gateway restart --safe --json`，解析活动任务统计。
+- [x] 3.3 区分立即安排、等待活动任务和已有重启请求；`dmScope` 已正确时也要执行。
+- [x] 3.4 立即安排重启后验证 Gateway 健康状态、生效的 `dmScope` 和钉钉连接状态。
+- [x] 3.5 验证安全流程绝不会调用进程清理。
 
-## 4. Emergency Fallback
+## 4. 应急兜底
 
-- [ ] 4.1 Preserve the existing BOM, invalid-config, log, runtime, process-purge,
-  and cold-start repair steps.
-- [ ] 4.2 Require a distinct destructive confirmation when activity cannot be
-  verified.
-- [ ] 4.3 Apply and validate the DM-scope repair during emergency repair when
-  the config remains parseable.
-- [ ] 4.4 Cover unreachable, activity-unknown, and explicit emergency-confirmed
-  outcomes.
+- [x] 4.1 保留现有 BOM、无效配置、日志、运行环境、进程清理和冷启动修复步骤。
+- [x] 4.2 Gateway 不可访问或安全重启失败时，要求独立的危险确认。
+- [x] 4.3 在应急修复中应用并校验 `dmScope` 和无限期等待配置。
+- [x] 4.4 覆盖 Gateway 不可访问、安全能力不可用和用户明确确认应急修复的结果。
 
-## 5. UI and Localization
+## 5. 界面与本地化
 
-- [ ] 5.1 Keep the existing repair entry and present busy, safe-repair, partial
-  success, validation failure, and emergency-required states.
-- [ ] 5.2 Show the active-task count when safe repair is refused.
-- [ ] 5.3 Add the second destructive confirmation without exposing secrets or
-  raw config.
-- [ ] 5.4 Add Simplified Chinese, Traditional Chinese, and English strings.
+- [x] 5.1 保留现有修复入口，展示忙碌、安全修复、部分成功、校验失败和需要应急修复
+  等状态。
+- [x] 5.2 安全重启等待时显示活动任务数量和“任务结束后自动重启”。
+- [x] 5.3 增加第二次危险确认，不暴露密钥或原始配置。
+- [x] 5.4 增加简体中文、繁体中文和英文文案。
 
-## 6. Verification
+## 6. 验证
 
-- [ ] 6.1 Run targeted config, service, view-model, and repair-flow tests.
-- [ ] 6.2 Build the macOS app in Debug configuration.
-- [ ] 6.3 Manually verify repair on a Gateway with no active tasks.
-- [ ] 6.4 Send direct messages from two DingTalk users and confirm distinct
-  session keys after repair.
+- [x] 6.1 运行配置、服务、ViewModel 和修复流程的针对性测试。
+- [x] 6.2 构建 macOS Debug 版本。
+- [ ] 6.3 在无活动任务的 Gateway 上手动验证修复。
+- [ ] 6.4 使用两个钉钉用户分别发送私聊消息，确认修复后生成不同的会话键。

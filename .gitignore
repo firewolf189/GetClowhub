@@ -24,6 +24,7 @@ apple证书/
 openclaw_config_tmp.json
 安装文件/
 excalidraw.log
+.worktrees/
 
 # Large bundled resources (exceed GitHub 100MB limit)
 OpenClawInstaller/Resources/*.tar.gz
