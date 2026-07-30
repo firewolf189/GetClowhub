@@ -836,9 +836,49 @@ class DashboardViewModel: ObservableObject {
         inspectorFileOpenRequest = InspectorFileOpenRequest(id: UUID(), path: path)
     }
 
-    /// 强行修复网关 — macOS twin of the Windows client's repair_gateway.
-    /// Bottom-line recovery when the graceful restart path is itself broken:
-    /// config triage + oversized-log truncation + hard process purge + cold start.
+    /// Repair DingTalk DM isolation and request OpenClaw's official safe restart.
+    /// Returns true only when the UI should offer the separately confirmed
+    /// destructive fallback.
+    func safeRepairService() async -> Bool {
+        isPerformingAction = true
+        defer { isPerformingAction = false }
+
+        let outcome = await openclawService.safeRepairGateway()
+        switch outcome {
+        case .scheduled(let dingtalkReady):
+            if dingtalkReady {
+                showSuccessMessage(I18n.t("repair.safe.scheduled"))
+            } else {
+                showSuccessMessage(I18n.t("repair.safe.scheduledDingTalkPending"))
+            }
+            return false
+        case .deferred(let activeCount):
+            showSuccessMessage(I18n.format("repair.safe.deferred", activeCount))
+            return false
+        case .coalesced(let activeCount):
+            showSuccessMessage(I18n.format("repair.safe.coalesced", activeCount))
+            return false
+        case .upgradeRequired(let installedVersion, let minimumVersion):
+            showErrorMessage(I18n.format(
+                "repair.safe.upgradeRequired",
+                installedVersion ?? I18n.t("common.unknown", fallback: "unknown"),
+                minimumVersion
+            ))
+            return false
+        case .configurationFailed:
+            showErrorMessage(I18n.t("repair.safe.configurationFailed"))
+            return true
+        case .safeRestartFailed:
+            showErrorMessage(I18n.t("repair.safe.restartFailed"))
+            return true
+        case .recoveryVerificationFailed:
+            showErrorMessage(I18n.t("repair.safe.verificationFailed"))
+            return true
+        }
+    }
+
+    /// Separately confirmed emergency fallback: config triage, oversized-log
+    /// truncation, hard process purge and cold start.
     func forceRepairService() async {
         isPerformingAction = true
         let report = await openclawService.forceRepairGateway()

@@ -21,6 +21,7 @@ let manifest = read("OpenClawInstaller/Resources/openclaw-core-version.json")
 let coordinator = read("OpenClawInstaller/Core/Update/OpenClawCoreUpgradeCoordinator.swift")
 let nodeInstaller = read("OpenClawInstaller/Core/Install/NodeInstaller.swift")
 let repair = read("OpenClawInstaller/Core/Command/OpenClawServiceForceRepair.swift")
+let safeRepair = read("OpenClawInstaller/Core/Command/SafeGatewayRepair.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 let buildScript = read("build_dmg.sh")
 
@@ -82,6 +83,28 @@ require(
 require(
     project.contains("OpenClawServiceForceRepair.swift in Sources"),
     "OpenClawServiceForceRepair.swift must be compiled into the app target"
+)
+require(
+    safeRepair.contains(#"minimumCoreVersion = "2026.7.1-2""#),
+    "safe repair must require the first bundled core with official indefinite deferral"
+)
+require(
+    safeRepair.contains("gateway restart --safe --json")
+        && safeRepair.contains("gateway.reload.deferralTimeoutMs 0 --strict-json")
+        && safeRepair.contains("session.dmScope"),
+    "safe repair must use official validated config commands and official safe restart"
+)
+require(
+    !safeRepair.contains("pkill") && !safeRepair.contains("kill -9"),
+    "safe repair must never contain process-purge commands"
+)
+require(
+    repair.contains("repairRequiredGatewaySettings(report: &report)"),
+    "the separately confirmed emergency repair must also fix the required session settings"
+)
+require(
+    project.contains("SafeGatewayRepair.swift in Sources"),
+    "SafeGatewayRepair.swift must be compiled into the app target"
 )
 
 // --- Runtime guard reaches every path that starts a gateway ---

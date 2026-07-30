@@ -190,13 +190,24 @@ class InstallationViewModel: ObservableObject {
             dict = existing
         }
 
-        // Write gateway.auth.token and gateway.mode
+        // Write gateway auth plus the safe-restart default used by the repair
+        // flow. A zero deferral timeout means OpenClaw waits indefinitely for
+        // active work instead of eventually forcing a restart.
         var gateway = dict["gateway"] as? [String: Any] ?? [:]
         var auth = gateway["auth"] as? [String: Any] ?? [:]
         auth["token"] = gatewayAuthToken
         gateway["auth"] = auth
         gateway["mode"] = "local"
+        var reload = gateway["reload"] as? [String: Any] ?? [:]
+        reload["deferralTimeoutMs"] = 0
+        gateway["reload"] = reload
         dict["gateway"] = gateway
+
+        // Isolate every private chat by channel and peer from the first launch.
+        // This prevents two DingTalk contacts from sharing the `main` session.
+        var session = dict["session"] as? [String: Any] ?? [:]
+        session["dmScope"] = "per-channel-peer"
+        dict["session"] = session
 
         // Write tools.profile: "full"
         var tools = dict["tools"] as? [String: Any] ?? [:]

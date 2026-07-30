@@ -78,6 +78,7 @@
 		356410632F5802970045A6F7 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410412F5802970045A6F7 /* ErrorView.swift */; };
 		356410642F5802970045A6F7 /* OpenClawService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3564102C2F5802970045A6F7 /* OpenClawService.swift */; };
 		FR01AB01C2D3E4F5A6B70001 /* OpenClawServiceForceRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR01AB02C2D3E4F5A6B70002 /* OpenClawServiceForceRepair.swift */; };
+		SGR1AB01C2D3E4F5A6B70001 /* SafeGatewayRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = SGR1AB02C2D3E4F5A6B70002 /* SafeGatewayRepair.swift */; };
 		356410652F5802970045A6F7 /* StatusTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410362F5802970045A6F7 /* StatusTabView.swift */; };
 		356410672F5802970045A6F7 /* PluginsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410662F5802970045A6F7 /* PluginsTabView.swift */; };
 		356410692F5802970045A6F7 /* ChannelsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410682F5802970045A6F7 /* ChannelsTabView.swift */; };
@@ -210,6 +211,7 @@
 		3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/OpenClawInstaller.swift"; sourceTree = SOURCE_ROOT; };
 		3564102C2F5802970045A6F7 /* OpenClawService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/OpenClawService.swift"; sourceTree = SOURCE_ROOT; };
 		FR01AB02C2D3E4F5A6B70002 /* OpenClawServiceForceRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/OpenClawServiceForceRepair.swift"; sourceTree = SOURCE_ROOT; };
+		SGR1AB02C2D3E4F5A6B70002 /* SafeGatewayRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/SafeGatewayRepair.swift"; sourceTree = SOURCE_ROOT; };
 		3564102D2F5802970045A6F7 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/PermissionManager.swift"; sourceTree = SOURCE_ROOT; };
 		3564102E2F5802970045A6F7 /* SparkleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/SparkleUpdater.swift"; sourceTree = SOURCE_ROOT; };
 			356410302F5802970045A6F7 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift"; sourceTree = SOURCE_ROOT; };
@@ -483,6 +485,7 @@
 					COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */,
 					3564102C2F5802970045A6F7 /* OpenClawService.swift */,
 					FR01AB02C2D3E4F5A6B70002 /* OpenClawServiceForceRepair.swift */,
+					SGR1AB02C2D3E4F5A6B70002 /* SafeGatewayRepair.swift */,
 					3564102D2F5802970045A6F7 /* PermissionManager.swift */,
 					PLCAT0000000000000004 /* PluginCatalogService.swift */,
 					PLPAR0000000000000002 /* PluginListParser.swift */,
@@ -970,6 +973,7 @@
 				CACT0000000000000001 /* CatalogActionButton.swift in Sources */,
 				356410642F5802970045A6F7 /* OpenClawService.swift in Sources */,
 				FR01AB01C2D3E4F5A6B70001 /* OpenClawServiceForceRepair.swift in Sources */,
+				SGR1AB01C2D3E4F5A6B70001 /* SafeGatewayRepair.swift in Sources */,
 				356410652F5802970045A6F7 /* StatusTabView.swift in Sources */,
 				356410672F5802970045A6F7 /* PluginsTabView.swift in Sources */,
 				PLGMOD000000000000001 /* PluginListViewModel.swift in Sources */,
