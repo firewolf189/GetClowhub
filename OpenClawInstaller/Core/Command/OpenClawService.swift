@@ -101,6 +101,39 @@ class OpenClawService: ObservableObject {
         return "\(homeDir)/.openclaw/node/bin/node"
     }
 
+    /// Reinstall the bundled Node when the dedicated one falls outside the
+    /// bundled core's supported ranges.
+    ///
+    /// Existence is not enough: Node 25.0–25.8 is newer than the 24.15 floor and
+    /// still rejected outright, and a Node left behind by an older app version can
+    /// be below every range. Either way the gateway exits before binding a port,
+    /// launchd respawns it, and `launchctl` cheerfully reports it as loaded.
+    private func repairDedicatedNodeIfUnsupported() async {
+        guard let manifest = try? OpenClawCoreManifest.loadBundled(),
+              let requirement = manifest.nodeRuntimeRequirement else {
+            return
+        }
+
+        let nodePath = dedicatedNodePath
+        var installed: String?
+        if FileManager.default.isExecutableFile(atPath: nodePath) {
+            installed = await runShellQuietly("'\(nodePath)' --version", timeout: 10)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if requirement.isSatisfied(by: installed) { return }
+
+        addLog("Node \(installed ?? "missing") is outside core requirement \(requirement.displayText); reinstalling bundled Node \(BundledRuntimeVersions.nodeJSVersion)")
+        do {
+            try await NodeInstaller(commandExecutor: commandExecutor).installBundledNode()
+            addLog("Bundled Node reinstalled before gateway start")
+        } catch {
+            // Report and continue: the start attempt below may still be worth
+            // making, and its failure reason now names the runtime.
+            addLog("Could not reinstall bundled Node: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Service Control
 
     /// Start OpenClaw service
@@ -124,6 +157,14 @@ class OpenClawService: ObservableObject {
             let configOutput = await runShellQuietly(configCmd)
             addLog("Config gateway.mode=local: \(configOutput ?? "ok")")
         }
+
+        // Repair the runtime before asking the gateway to start. The core's
+        // `engines.node` is a set of disjoint ranges, and its launcher exits(1)
+        // on anything outside them before binding a port — so a stale or
+        // out-of-range Node here produces a gateway that never comes up, and
+        // launchd respawns it forever. Cheap to check, and it turns an
+        // unexplainable startup failure into a self-healing one.
+        await repairDedicatedNodeIfUnsupported()
 
         // Use our dedicated node to run `openclaw gateway install` so that
         // process.execPath points to ~/.openclaw/node/bin/node.
@@ -421,7 +462,49 @@ class OpenClawService: ObservableObject {
         // locally: exit code 78 (EX_CONFIG), nothing logged anywhere. So ASK
         // instead of searching: config errors are the dominant cause of a
         // gateway that starts and immediately exits.
+        //
+        // Ask about the runtime BEFORE the config: the core's Node guard exits
+        // before it ever reads a config, so on an unsupported Node the config
+        // probe below cannot answer either — it is blocked by the same guard and
+        // returns nil, which is how "gateway will not start because it needs a
+        // newer Node" used to reach the user as a bare "网关启动失败".
+        if let runtime = unsupportedRuntimeComplaint() { return runtime }
         return configValidationComplaint()
+    }
+
+    /// The core's own words when it refuses to run on the installed Node.
+    ///
+    /// `engines.node` is a set of disjoint ranges (2026.7.x rejects 23.x and
+    /// 25.0–25.8), and the launcher enforces it with `process.exit(1)` before
+    /// binding a port — so this failure never reaches a log the gateway writes.
+    /// Asking the launcher directly is the only reliable way to see it.
+    private static func unsupportedRuntimeComplaint() -> String? {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let openclaw = "\(home)/.npm-global/bin/openclaw"
+        let node = "\(home)/.openclaw/node/bin/node"
+        guard FileManager.default.isExecutableFile(atPath: openclaw) else { return nil }
+
+        // `--version` is the cheapest command that still passes through the
+        // runtime guard: the guard runs before argument handling.
+        let command = FileManager.default.isExecutableFile(atPath: node)
+            ? "'\(node)' '\(openclaw)' --version 2>&1 || true"
+            : "'\(openclaw)' --version 2>&1 || true"
+        guard let output = runCapturing(command) else { return nil }
+        return GatewayFailureReasonParser.unsupportedRuntimeCause(inOutput: output)
+    }
+
+    /// Run a shell command and capture its combined output. Read-only callers only.
+    private static func runCapturing(_ command: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", command]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        guard (try? process.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return String(data: data, encoding: .utf8)
     }
 
     /// The validator's own words, when the config is what the gateway is
@@ -504,21 +587,7 @@ class OpenClawService: ObservableObject {
             return nil
         }
 
-        let markers = ["Invalid config", "Reason:", "refusing", "Refusing", "not allowed", "failed to", "Failed to"]
-        let candidate = text
-            .split(separator: "\n", omittingEmptySubsequences: true)
-            .reversed()
-            .first { line in markers.contains { line.contains($0) } }
-        guard let candidate else { return nil }
-
-        // Strip the leading ISO timestamp and collapse the escaped newlines the
-        // gateway writes into a single readable sentence.
-        var reason = String(candidate)
-        if let range = reason.range(of: "] ") { reason = String(reason[range.upperBound...]) }
-        reason = reason
-            .replacingOccurrences(of: "\\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return reason.count > 300 ? String(reason.prefix(300)) + "…" : reason
+        return GatewayFailureReasonParser.firstCause(inLogText: text)
     }
 
     private func isPortListening() async -> Bool {

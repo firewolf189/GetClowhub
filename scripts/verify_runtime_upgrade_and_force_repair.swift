@@ -30,12 +30,24 @@ require(
     "bundled core manifest must declare the 2026.7.x core"
 )
 require(
-    manifest.contains("\"minimumNodeVersion\""),
-    "manifest must declare minimumNodeVersion — 2026.7.x cores refuse to boot on Node < 24.15"
+    manifest.contains("\"supportedNodeRanges\""),
+    "manifest must declare supportedNodeRanges — engines.node is a SET of disjoint ranges, and a core refuses to boot outside them"
 )
 require(
-    coordinator.contains("ensureNodeSatisfiesRequirement(manifest.minimumNodeVersion)"),
-    "core upgrade must raise the Node floor BEFORE swapping the core (Windows v0.6.31 lesson: core-only upgrade bricks the gateway)"
+    manifest.contains(">=24.15.0 <25") && manifest.contains(">=25.9.0"),
+    "supportedNodeRanges must carry the upper bounds too: Node 25.0–25.8 is newer than the 24.15 floor and STILL rejected, so a floor-only check ships a gateway that cannot start"
+)
+require(
+    coordinator.contains("ensureNodeSatisfiesRequirement(manifest.nodeRuntimeRequirement)"),
+    "core upgrade must bring Node into a supported range BEFORE swapping the core (Windows v0.6.31 lesson: core-only upgrade bricks the gateway)"
+)
+require(
+    coordinator.contains("nodeRequirementUnsatisfiable"),
+    "if even the bundled Node cannot satisfy the new core, the upgrade must abort while the OLD working core is still in place"
+)
+require(
+    !coordinator.contains("OpenClawVersionComparator.compare(installedNode, minimumNodeVersion)"),
+    "the Node check must not regress to a single >= floor comparison"
 )
 require(
     nodeInstaller.contains("func installBundledNode()"),
@@ -71,5 +83,26 @@ require(
     project.contains("OpenClawServiceForceRepair.swift in Sources"),
     "OpenClawServiceForceRepair.swift must be compiled into the app target"
 )
+
+// --- Runtime guard reaches every path that starts a gateway ---
+let service = read("OpenClawInstaller/Core/Command/OpenClawService.swift")
+require(
+    service.contains("repairDedicatedNodeIfUnsupported()"),
+    "start() must repair an out-of-range Node before asking the gateway to boot — existence alone is not enough"
+)
+require(
+    service.contains("unsupportedRuntimeComplaint()"),
+    "a gateway down because of the Node guard must be able to say so: the guard exits before any gateway-owned log exists"
+)
+for file in [
+    "OpenClawInstaller/Core/Install/NodeRuntimeRequirement.swift",
+    "OpenClawInstaller/Core/Command/GatewayFailureReasonParser.swift",
+] {
+    let name = (file as NSString).lastPathComponent
+    require(
+        project.contains("\(name) in Sources"),
+        "\(name) must be compiled into the app target"
+    )
+}
 
 print("runtime-upgrade + force-repair guards hold")

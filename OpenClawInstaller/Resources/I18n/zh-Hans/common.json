@@ -563,6 +563,8 @@
   "repair.step.configUnreadable": "配置文件损坏且无法备份:%@",
   "repair.step.configWriteFailed": "配置文件写入失败",
   "repair.step.logsTruncated": "已清理超大日志(释放 %@)",
+  "repair.step.nodeOK": "Node.js %@ 与当前核心兼容",
+  "repair.step.nodeUnsupported": "当前核心不支持 Node.js %@(需要 %@)——正在重装内置运行时",
   "repair.step.portStillBusy": "端口 %@ 仍被占用",
   "repair.step.processesKilled": "已清理残留网关进程",
   "repair.step.restartFailed": "重启失败:%@",

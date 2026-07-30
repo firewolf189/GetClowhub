@@ -116,6 +116,8 @@
 		CEFSEL0000000000000001 /* ComposerEffortSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFSEL0000000000000002 /* ComposerEffortSelector.swift */; };
 		CDOT0000000000000001 /* CursorDotOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDOT0000000000000002 /* CursorDotOverlay.swift */; };
 		COREUPGRADE000000000001 /* OpenClawCoreManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */; };
+		NODEREQ00000000000000001 /* NodeRuntimeRequirement.swift in Sources */ = {isa = PBXBuildFile; fileRef = NODEREQ00000000000000002 /* NodeRuntimeRequirement.swift */; };
+		GWFAIL00000000000000001 /* GatewayFailureReasonParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWFAIL00000000000000002 /* GatewayFailureReasonParser.swift */; };
 		COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */; };
 		COREUPGRADE000000000005 /* openclaw-core-version.json in Resources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000006 /* openclaw-core-version.json */; };
 		CS01AA01D1E2F3A4B5C60001 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */; };
@@ -303,6 +305,8 @@
 		CEFSEL0000000000000002 /* ComposerEffortSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ComposerEffortSelector.swift"; sourceTree = SOURCE_ROOT; };
 		CDOT0000000000000002 /* CursorDotOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CursorDotOverlay.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/OpenClawCoreManifest.swift"; sourceTree = SOURCE_ROOT; };
+		NODEREQ00000000000000002 /* NodeRuntimeRequirement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/NodeRuntimeRequirement.swift"; sourceTree = SOURCE_ROOT; };
+		GWFAIL00000000000000002 /* GatewayFailureReasonParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/GatewayFailureReasonParser.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawCoreUpgradeCoordinator.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000006 /* openclaw-core-version.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "openclaw-core-version.json"; sourceTree = "<group>"; };
 		CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Models/ChatSession.swift"; sourceTree = SOURCE_ROOT; };
@@ -437,6 +441,8 @@
 				SKSRC0000000000000002 /* SkillSourcePresentation.swift */,
 				356410252F5802970045A6F7 /* SystemEnvironment.swift */,
 				COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */,
+				NODEREQ00000000000000002 /* NodeRuntimeRequirement.swift */,
+				GWFAIL00000000000000002 /* GatewayFailureReasonParser.swift */,
 				CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */,
 				CS01AA06D1E2F3A4B5C60006 /* ChatSessionSearch.swift */,
 			);
@@ -874,6 +880,8 @@
 				3564104E2F5802970045A6F7 /* SystemEnvironment.swift in Sources */,
 				3564104F2F5802970045A6F7 /* AppSettings.swift in Sources */,
 				COREUPGRADE000000000001 /* OpenClawCoreManifest.swift in Sources */,
+				NODEREQ00000000000000001 /* NodeRuntimeRequirement.swift in Sources */,
+				GWFAIL00000000000000001 /* GatewayFailureReasonParser.swift in Sources */,
 				COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */,
 				APPA0000000000000001 /* AppAppearance.swift in Sources */,
 				356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */,

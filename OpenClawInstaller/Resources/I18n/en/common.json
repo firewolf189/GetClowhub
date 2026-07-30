@@ -563,6 +563,8 @@
   "repair.step.configUnreadable": "Config is corrupt and could not be quarantined: %@",
   "repair.step.configWriteFailed": "Could not write repaired config",
   "repair.step.logsTruncated": "Trimmed oversized logs (freed %@)",
+  "repair.step.nodeOK": "Node.js %@ is supported by the current core",
+  "repair.step.nodeUnsupported": "Node.js %@ is not supported by the current core (needs %@) — reinstalling the bundled runtime",
   "repair.step.portStillBusy": "Port %@ is still occupied",
   "repair.step.processesKilled": "Stale gateway processes cleared",
   "repair.step.restartFailed": "Restart failed: %@",

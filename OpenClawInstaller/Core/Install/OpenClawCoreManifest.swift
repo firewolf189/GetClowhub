@@ -5,12 +5,29 @@ struct OpenClawCoreManifest: Codable, Equatable {
     let openclawVersion: String
     let bundleName: String
     let minimumAppVersion: String?
-    /// Node.js floor required by the bundled core's `engines` field
-    /// (e.g. openclaw 2026.7.x requires node >= 24.15). The upgrade
-    /// coordinator reinstalls the bundled Node BEFORE swapping the core in —
-    /// upgrading the core alone would leave the gateway unable to boot.
+    /// Legacy single Node floor. Superseded by `supportedNodeRanges` but still
+    /// decoded so an older manifest keeps working; only used as a fallback.
     let minimumNodeVersion: String?
+    /// The bundled core's `engines.node` verbatim, e.g.
+    /// `">=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0"`.
+    ///
+    /// This is a set of DISJOINT ranges, not a floor: openclaw 2026.7.x rejects
+    /// Node 23.x and Node 25.0–25.8 outright. The upgrade coordinator brings Node
+    /// into one of these ranges BEFORE swapping the core in — swapping first
+    /// leaves the gateway unable to boot at all.
+    let supportedNodeRanges: String?
     let releaseNotes: String?
+
+    /// What the bundled core will actually run on. Prefers the declared range
+    /// set; falls back to treating a legacy `minimumNodeVersion` as an
+    /// open-ended floor. `nil` when the manifest declares neither.
+    var nodeRuntimeRequirement: NodeRuntimeRequirement? {
+        if let requirement = NodeRuntimeRequirement(rangeExpression: supportedNodeRanges) {
+            return requirement
+        }
+        guard let minimumNodeVersion, !minimumNodeVersion.isEmpty else { return nil }
+        return NodeRuntimeRequirement(rangeExpression: ">=\(minimumNodeVersion)")
+    }
 
     static let resourceName = "openclaw-core-version"
     static let resourceExtension = "json"

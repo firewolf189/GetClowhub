@@ -563,6 +563,8 @@
   "repair.step.configUnreadable": "설정이 손상되어 격리할 수 없음: %@",
   "repair.step.configWriteFailed": "설정 쓰기 실패",
   "repair.step.logsTruncated": "비대해진 로그 정리(%@ 확보)",
+  "repair.step.nodeOK": "Node.js %@은(는) 현재 코어에서 지원됩니다",
+  "repair.step.nodeUnsupported": "현재 코어는 Node.js %@을(를) 지원하지 않습니다(필요: %@) — 내장 런타임을 다시 설치합니다",
   "repair.step.portStillBusy": "포트 %@이(가) 여전히 사용 중",
   "repair.step.processesKilled": "잔류 프로세스 정리됨",
   "repair.step.restartFailed": "재시작 실패: %@",

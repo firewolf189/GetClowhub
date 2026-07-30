@@ -13,7 +13,11 @@ import Foundation
 ///      was observed in the field filling the disk).
 ///   3. process purge  — kill whatever holds the gateway port plus any orphan
 ///      gateway processes `gateway stop` can no longer reach.
-///   4. cold start     — bring the gateway back with the normal start path.
+///   4. runtime triage — report whether the installed Node is one the core will
+///      actually run on. The core's launcher exits(1) on an unsupported Node
+///      before binding a port, so this is a silent cause of a gateway that
+///      "starts" and vanishes; `start()` below repairs it.
+///   5. cold start     — bring the gateway back with the normal start path.
 struct ForceRepairReport {
     var steps: [String] = []
     var succeeded = true
@@ -35,8 +39,11 @@ extension OpenClawService {
         repairConfigFile(report: &report)
         truncateOversizedLogs(report: &report)
         await forceKillGatewayProcesses(report: &report)
+        await reportNodeRuntimeSupport(report: &report)
 
         do {
+            // start() reinstalls the bundled Node first when the installed one is
+            // outside the core's supported ranges, so the runtime is repaired here.
             try await start()
             report.note(I18n.t("repair.step.restarted"))
         } catch {
@@ -45,6 +52,39 @@ extension OpenClawService {
 
         addLog("Force repair: finished (success=\(report.succeeded))")
         return report
+    }
+
+    // MARK: - Step 4: runtime triage
+
+    /// Note whether the installed Node is one the bundled core will run on.
+    ///
+    /// Purely diagnostic — `start()` does the repair. It is reported separately
+    /// because an unsupported Node is invisible otherwise: the core's launcher
+    /// exits before writing any log the gateway owns, and `launchctl` reports the
+    /// respawning job as loaded.
+    private func reportNodeRuntimeSupport(report: inout ForceRepairReport) async {
+        guard let manifest = try? OpenClawCoreManifest.loadBundled(),
+              let requirement = manifest.nodeRuntimeRequirement else {
+            return
+        }
+
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let nodePath = "\(home)/.openclaw/node/bin/node"
+        var installed: String?
+        if FileManager.default.isExecutableFile(atPath: nodePath) {
+            installed = await runShellQuietly("'\(nodePath)' --version", timeout: 10)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if requirement.isSatisfied(by: installed) {
+            report.note(I18n.format("repair.step.nodeOK", installed ?? "unknown"))
+        } else {
+            report.note(I18n.format(
+                "repair.step.nodeUnsupported",
+                installed ?? "missing",
+                requirement.displayText
+            ))
+        }
     }
 
     // MARK: - Step 1: config triage

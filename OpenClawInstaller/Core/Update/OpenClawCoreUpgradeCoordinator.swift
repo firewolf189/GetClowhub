@@ -16,6 +16,7 @@ enum OpenClawCoreUpgradeError: LocalizedError {
     case stagedCoreVerificationFailed(expected: String, actual: String?)
     case installDirectoryMissing(String)
     case commandFailed(String)
+    case nodeRequirementUnsatisfiable(String)
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ enum OpenClawCoreUpgradeError: LocalizedError {
         case .installDirectoryMissing(let path):
             return "OpenClaw install directory is missing: \(path)"
         case .commandFailed(let message):
+            return message
+        case .nodeRequirementUnsatisfiable(let message):
             return message
         }
     }
@@ -43,6 +46,7 @@ struct OpenClawCoreUpgradePlan: Equatable {
             bundleName: bundleName,
             minimumAppVersion: nil,
             minimumNodeVersion: nil,
+            supportedNodeRanges: nil,
             releaseNotes: nil
         )
         .isBundledVersionNewer(than: installedVersion)
@@ -277,7 +281,7 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             // currently installed Node (2026.7.x needs >= 24.15). Swapping the
             // core without upgrading Node bricks the gateway for existing
             // users — the exact failure the Windows client hit in v0.6.31.
-            try await ensureNodeSatisfiesRequirement(manifest.minimumNodeVersion)
+            try await ensureNodeSatisfiesRequirement(manifest.nodeRuntimeRequirement)
 
             let bundleURL = try bundledCoreBundleURL(named: manifest.bundleName)
             // Stage and vet the new core BEFORE touching the running one. None
@@ -705,26 +709,48 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         return port
     }
 
-    /// Reinstall the app-bundled Node.js when the installed one is older than
-    /// the core's engines floor. No-op when no floor is declared or the
-    /// installed Node already satisfies it.
-    private func ensureNodeSatisfiesRequirement(_ minimumNodeVersion: String?) async throws {
-        guard let minimumNodeVersion, !minimumNodeVersion.isEmpty else { return }
-        let nodePath = "\(homeDir)/.openclaw/node/bin/node"
-        var installedNode: String?
-        if fileManager.isExecutableFile(atPath: nodePath),
-           let out = try? await runShell("'\(nodePath)' --version", timeout: 10) {
-            installedNode = out.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        if let installedNode,
-           OpenClawVersionComparator.compare(installedNode, minimumNodeVersion) != .orderedAscending {
-            appendLog("Node \(installedNode) satisfies required >= \(minimumNodeVersion)")
+    /// Reinstall the app-bundled Node.js when the installed one falls outside the
+    /// core's supported ranges. No-op when nothing is declared or the installed
+    /// Node already qualifies.
+    ///
+    /// The ranges are honoured literally rather than as a floor. Node 25.0–25.8
+    /// is NEWER than the 24.15 floor and still rejected by the core, so a floor
+    /// check waves it through, the swap "succeeds", and the gateway exits on
+    /// every respawn.
+    private func ensureNodeSatisfiesRequirement(_ requirement: NodeRuntimeRequirement?) async throws {
+        guard let requirement else { return }
+        let installedNode = await installedDedicatedNodeVersion()
+
+        if requirement.isSatisfied(by: installedNode) {
+            appendLog("Node \(installedNode ?? "unknown") satisfies core requirement \(requirement.displayText)")
             return
         }
-        appendLog("Node \(installedNode ?? "missing") is below required \(minimumNodeVersion); installing bundled Node")
+
+        appendLog("Node \(installedNode ?? "missing") is outside core requirement \(requirement.displayText); installing bundled Node \(BundledRuntimeVersions.nodeJSVersion)")
         let installer = NodeInstaller(commandExecutor: commandExecutor)
         try await installer.installBundledNode()
-        appendLog("Bundled Node installed")
+
+        // Verify rather than assume. If the Node we ship does not itself satisfy
+        // the core we are about to install, continuing would swap in a core that
+        // cannot boot — exactly the failure this check exists to prevent. Better
+        // to abort with the reason while the old, working core is still in place.
+        let reinstalled = await installedDedicatedNodeVersion()
+        guard requirement.isSatisfied(by: reinstalled) else {
+            let message = "bundled Node \(reinstalled ?? "unknown") does not satisfy core requirement \(requirement.displayText); refusing to swap in a core that cannot start"
+            appendLog(message)
+            throw OpenClawCoreUpgradeError.nodeRequirementUnsatisfiable(message)
+        }
+        appendLog("Bundled Node \(reinstalled ?? "unknown") installed and satisfies \(requirement.displayText)")
+    }
+
+    private func installedDedicatedNodeVersion() async -> String? {
+        let nodePath = "\(homeDir)/.openclaw/node/bin/node"
+        guard fileManager.isExecutableFile(atPath: nodePath),
+              let out = try? await runShell("'\(nodePath)' --version", timeout: 10) else {
+            return nil
+        }
+        let trimmed = out.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func installGateway() async throws {

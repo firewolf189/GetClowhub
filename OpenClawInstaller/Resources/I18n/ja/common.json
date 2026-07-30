@@ -563,6 +563,8 @@
   "repair.step.configUnreadable": "設定が破損し隔離できません: %@",
   "repair.step.configWriteFailed": "設定の書き込みに失敗",
   "repair.step.logsTruncated": "肥大化したログを整理(%@ 解放)",
+  "repair.step.nodeOK": "Node.js %@ は現在のコアに対応しています",
+  "repair.step.nodeUnsupported": "現在のコアは Node.js %@ に非対応です(必要: %@)— 内蔵ランタイムを再インストールします",
   "repair.step.portStillBusy": "ポート %@ が依然使用中",
   "repair.step.processesKilled": "残留プロセスをクリア",
   "repair.step.restartFailed": "再起動に失敗: %@",
