@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.83</title>
-      <sparkle:version>91</sparkle:version>
-      <sparkle:shortVersionString>1.1.83</sparkle:shortVersionString>
+      <title>Version 1.1.84</title>
+      <sparkle:version>92</sparkle:version>
+      <sparkle:shortVersionString>1.1.84</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.83</h2>
+        <h2>OpenClaw Helper 1.1.84</h2>
         <ul>
-          <li>修复钉钉私聊共用旧会话后反复卡在处理中：安全修复会把 session.dmScope 调整为 per-channel-peer，并在无活动任务时受控重启网关；不修改 OpenClaw 核心。</li>
+          <li>老安装启动自动修好钉钉私聊隔离；新建定时任务进独立会话；修复添加钉钉后频道列表空白。</li>
         </ul>
       ]]></description>
-      <pubDate>Thu, 30 Jul 2026 14:20:40 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.83/GetClawHub.dmg"
-                 length="238798249"
+      <pubDate>Wed, 19 Aug 2026 11:21:40 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.84/GetClawHub.dmg"
+                 length="238291772"
                  type="application/octet-stream"
-                 sparkle:edSignature="HftidQzt6x8hK3WmwNrHrZt5WGQeUrdGvyLXfGss1sQ2GusoT+JwPzxrmirlR1YKkBUPIh8PbPOge08kjf4jBA==" />
+                 sparkle:edSignature="HYaMna/h7ZrQq3rMBliQAoHfzQAGmpzvwcUwmrJIPDH6eX7oouoiBE0arMTWMGzR2i9OZrYhRD35Aq0AB1abCg==" />
     </item>
   </channel>
 </rss>
