@@ -5,4 +5,5 @@ import Foundation
 final class ChannelListViewModel: ObservableObject {
     @Published var channels: [ChannelInfo] = []
     @Published var isLoadingChannels = false
+    @Published var channelsLoadError: String?
 }

@@ -22,10 +22,14 @@ extension DashboardViewModel {
     /// Load channels by running `openclaw channels status`
     func loadChannels() async {
         isLoadingChannels = true
+        channelsLoadError = nil
+        if sanitizeRejectedDingTalkKeysIfNeeded() {
+            // Status refuses to list rows while the config is invalid.
+        }
         let output = await openclawService.runCommand(
             "openclaw channels status 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g'"
         )
-        channels = Self.parseChannelStatus(output: output)
+        let parsed = Self.parseChannelStatus(output: output)
             .filter { $0.enabled }
             .sorted { a, b in
                 let aPriority = a.configured && a.linked ? 0 : a.configured ? 1 : 2
@@ -33,6 +37,10 @@ extension DashboardViewModel {
                 if aPriority != bPriority { return aPriority < bPriority }
                 return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
             }
+        if parsed.isEmpty {
+            channelsLoadError = DingTalkChannelConfig.statusLoadError(from: output)
+        }
+        channels = parsed
         isLoadingChannels = false
     }
 
@@ -170,20 +178,15 @@ extension DashboardViewModel {
                     "groupPolicy": "open",
                     "requireMention": false
                 ]
+                if !trimmedDisplayName.isEmpty {
+                    channelConfig["name"] = trimmedDisplayName
+                }
             } else {
-                channelConfig = [
-                    "allowFrom": ["*"],
-                    "clientId": appKey,
-                    "clientSecret": appSecret,
-                    "dmPolicy": "open",
-                    "enableAICard": false,
-                    "enabled": true,
-                    "groupPolicy": "open",
-                    "requireMention": true
-                ]
-            }
-            if !trimmedDisplayName.isEmpty {
-                channelConfig["name"] = trimmedDisplayName
+                channelConfig = DingTalkChannelConfig.defaultAccountConfig(
+                    clientId: appKey,
+                    clientSecret: appSecret,
+                    displayName: trimmedDisplayName
+                )
             }
 
             let channelRoot = channels[channelType] as? [String: Any] ?? [:]
@@ -207,6 +210,7 @@ extension DashboardViewModel {
                 channels[channelType] = mergedRoot
             }
             root["channels"] = channels
+            DingTalkChannelConfig.stripRejectedKeys(from: &root)
 
             let updatedData = try JSONSerialization.data(
                 withJSONObject: root,
@@ -263,6 +267,25 @@ extension DashboardViewModel {
         if let updatedData = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
             try? updatedData.write(to: URL(fileURLWithPath: configPath))
         }
+    }
+
+    @discardableResult
+    private func sanitizeRejectedDingTalkKeysIfNeeded() -> Bool {
+        let configPath = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".openclaw/openclaw.json").path
+        guard let data = FileManager.default.contents(atPath: configPath),
+              var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+        guard DingTalkChannelConfig.stripRejectedKeys(from: &root) else { return false }
+        guard let updatedData = try? JSONSerialization.data(
+            withJSONObject: root,
+            options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        ) else {
+            return false
+        }
+        try? updatedData.write(to: URL(fileURLWithPath: configPath), options: .atomic)
+        return true
     }
 
     private nonisolated static func normalizedChannelAccountId(_ accountId: String) -> String {

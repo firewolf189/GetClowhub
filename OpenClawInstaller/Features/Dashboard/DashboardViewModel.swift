@@ -571,6 +571,10 @@ class DashboardViewModel: ObservableObject {
         get { channelListViewModel.isLoadingChannels }
         set { channelListViewModel.isLoadingChannels = newValue }
     }
+    var channelsLoadError: String? {
+        get { channelListViewModel.channelsLoadError }
+        set { channelListViewModel.channelsLoadError = newValue }
+    }
 
     // Weixin QR Login
     var weixinQRImage: NSImage? {

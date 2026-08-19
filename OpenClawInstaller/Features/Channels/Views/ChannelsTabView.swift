@@ -50,6 +50,25 @@ struct ChannelsTabView: View {
                             title: I18n.t("dashboard.channels.loading"),
                             systemImage: "bubble.left.and.bubble.right"
                         )
+                    } else if let error = viewModel.channelsLoadError {
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 40))
+                                .foregroundColor(.orange)
+                            Text(I18n.t("dashboard.channels.empty.title"))
+                                .foregroundColor(.secondary)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .textSelection(.enabled)
+                            Button(I18n.t("common.action.retry")) {
+                                Task { await viewModel.loadChannels() }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(40)
                     } else {
                         VStack(spacing: 12) {
                             Image(systemName: "bubble.left.and.bubble.right")

@@ -36,6 +36,7 @@
 		356410612F5802970045A6F7 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356410302F5802970045A6F7 /* DashboardViewModel.swift */; };
 		DM01AB01C2D3E4F5A6B70001 /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */; };
 		CHMODEL00000000000001 /* ChannelInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHMODEL00000000000002 /* ChannelInfo.swift */; };
+		DTCONF00000000000001 /* DingTalkChannelConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTCONF00000000000002 /* DingTalkChannelConfig.swift */; };
 		MDMODEL00000000000001 /* ModelInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDMODEL00000000000002 /* ModelInfo.swift */; };
 		CHMSG000000000000001 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHMSG000000000000002 /* ChatMessage.swift */; };
 		CTM000000000000000000001 /* ChatTimelineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CTM000000000000000000002 /* ChatTimelineModels.swift */; };
@@ -217,6 +218,7 @@
 			356410302F5802970045A6F7 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift"; sourceTree = SOURCE_ROOT; };
 			DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardModels.swift"; sourceTree = SOURCE_ROOT; };
 			CHMODEL00000000000002 /* ChannelInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/Models/ChannelInfo.swift"; sourceTree = SOURCE_ROOT; };
+			DTCONF00000000000002 /* DingTalkChannelConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Channels/Models/DingTalkChannelConfig.swift"; sourceTree = SOURCE_ROOT; };
 			MDMODEL00000000000002 /* ModelInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Settings/ProviderModels/Models/ModelInfo.swift"; sourceTree = SOURCE_ROOT; };
 			CHMSG000000000000002 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatMessage.swift"; sourceTree = SOURCE_ROOT; };
 			CTM000000000000000000002 /* ChatTimelineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift"; sourceTree = SOURCE_ROOT; };
@@ -511,6 +513,7 @@
 				356410302F5802970045A6F7 /* DashboardViewModel.swift */,
 				DM01AB02C2D3E4F5A6B70002 /* DashboardModels.swift */,
 				CHMODEL00000000000002 /* ChannelInfo.swift */,
+				DTCONF00000000000002 /* DingTalkChannelConfig.swift */,
 				MDMODEL00000000000002 /* ModelInfo.swift */,
 				CHMSG000000000000002 /* ChatMessage.swift */,
 				CTM000000000000000000002 /* ChatTimelineModels.swift */,
@@ -942,6 +945,7 @@
 				CHRECON00000000000001 /* ChatRunReconciliation.swift in Sources */,
 				MDMODEL00000000000001 /* ModelInfo.swift in Sources */,
 				CHMODEL00000000000001 /* ChannelInfo.swift in Sources */,
+				DTCONF00000000000001 /* DingTalkChannelConfig.swift in Sources */,
 				WX01AB01C2D3E4F5A6B70001 /* WeixinLogin.swift in Sources */,
 				WXVM0000000000000001 /* WeixinChannelViewModel.swift in Sources */,
 				PL01AB01C2D3E4F5A6B70001 /* PluginManagement.swift in Sources */,

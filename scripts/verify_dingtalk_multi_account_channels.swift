@@ -95,5 +95,20 @@ require(
         disableChannel.contains("channels[channelType] = chConfig"),
     "disableChannelInConfig should handle account-specific channel entries."
 )
+require(
+    !appKeyAdd.contains("\"enableAICard\"") &&
+        !appKeyAdd.contains("\"requireMention\": true"),
+    "DingTalk add must not write plugin-rejected root keys that empty the channel list."
+)
+require(
+    appKeyAdd.contains("DingTalkChannelConfig.defaultAccountConfig") &&
+        appKeyAdd.contains("DingTalkChannelConfig.stripRejectedKeys"),
+    "DingTalk add should use the shared account payload and strip rejected keys before save."
+)
+require(
+    channelManagement.contains("sanitizeRejectedDingTalkKeysIfNeeded") &&
+        channelManagement.contains("channelsLoadError"),
+    "Channel load should self-heal rejected DingTalk keys and surface leftover validate errors."
+)
 
 print("DingTalk multi-account channel verification passed")
