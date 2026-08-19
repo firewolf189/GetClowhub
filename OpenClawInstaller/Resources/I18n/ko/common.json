@@ -205,7 +205,7 @@
   "dashboard.cron.sheet.namePlaceholder": "e.g. daily-report",
   "dashboard.cron.sheet.session.isolated": "Isolated",
   "dashboard.cron.sheet.session.main": "Main",
-  "dashboard.cron.sheet.sessionHelp": "Isolated: each run in a separate session. Main: reuse the main session.",
+  "dashboard.cron.sheet.sessionHelp": "Conversation: one stable chat thread for every run. Isolated: a throwaway session each run. Main: reuse the agent's main session.",
   "dashboard.cron.sheet.sessionTarget": "Session Target",
   "dashboard.cron.sheet.timezone": "Timezone",
   "dashboard.cron.sheet.timezonePlaceholder": "e.g. Asia/Shanghai",
@@ -653,5 +653,8 @@
   "workspace.outputs.title": "Outputs",
   "workspace.project.newChat": "New chat in project",
   "workspace.project.removeFromAgent": "Remove from Agent",
-  "workspace.project.revealInFinder": "Reveal in Finder"
+  "workspace.project.revealInFinder": "Reveal in Finder",
+  "dashboard.cron.sheet.session.conversation": "Conversation",
+  "dashboard.cron.openChat": "Open chat",
+  "dashboard.cron.sessionTitle": "Cron: %@"
 }

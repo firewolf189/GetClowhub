@@ -92,6 +92,9 @@ struct CronTabView: View {
                                 CronJobRow(
                                     job: job,
                                     isPerformingAction: viewModel.isPerformingAction,
+                                    onOpenChat: CronConversationBinding.parse(job.sessionTarget) == nil
+                                        ? nil
+                                        : { viewModel.openCronConversation(job) },
                                     onToggle: {
                                         Task {
                                             if job.enabled {
@@ -197,6 +200,7 @@ private struct CronInlineWarning: View {
 struct CronJobRow: View {
     let job: CronJobInfo
     let isPerformingAction: Bool
+    let onOpenChat: (() -> Void)?
     let onToggle: () -> Void
     let onRemove: () -> Void
 
@@ -270,6 +274,15 @@ struct CronJobRow: View {
 
             Spacer()
 
+            if let onOpenChat {
+                Button(action: onOpenChat) {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isPerformingAction)
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("dashboard.cron.openChat")))
+            }
+
             // Enable/Disable toggle
             Button(action: onToggle) {
                 Image(systemName: job.enabled ? "pause.circle" : "play.circle")
@@ -320,7 +333,7 @@ struct AddCronJobSheet: View {
     @State private var timezone = "Asia/Shanghai"
     @State private var selectedAgentId = "main"
     @State private var message = ""
-    @State private var sessionTarget = "isolated"
+    @State private var sessionTarget = "conversation"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -399,6 +412,7 @@ struct AddCronJobSheet: View {
                             .fontWeight(.medium)
 
                         Picker("", selection: $sessionTarget) {
+                            Text(I18n.t("dashboard.cron.sheet.session.conversation")).tag("conversation")
                             Text(I18n.t("dashboard.cron.sheet.session.isolated")).tag("isolated")
                             Text(I18n.t("dashboard.cron.sheet.session.main")).tag("main")
                         }

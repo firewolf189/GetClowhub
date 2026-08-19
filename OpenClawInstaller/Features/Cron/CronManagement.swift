@@ -154,18 +154,25 @@ extension DashboardViewModel {
     /// Add a new cron job
     func addCronJob(name: String, schedule: String, timezone: String, agentId: String, message: String, sessionTarget: String) async {
         isPerformingAction = true
+        let agent = agentId.isEmpty ? "main" : agentId
+        let resolvedTarget: String
+        if sessionTarget == "conversation" || sessionTarget.isEmpty {
+            resolvedTarget = bindCronConversation(name: name, agentId: agent)
+        } else {
+            resolvedTarget = sessionTarget
+        }
         var cmd = "openclaw cron add --name '\(name)' --cron '\(schedule)'"
         if !timezone.isEmpty {
             cmd += " --tz '\(timezone)'"
         }
-        if !agentId.isEmpty {
-            cmd += " --agent '\(agentId)'"
+        if !agent.isEmpty {
+            cmd += " --agent '\(agent)'"
         }
-        if !sessionTarget.isEmpty {
+        if !resolvedTarget.isEmpty {
             // openclaw CLI 实际接受的是 `--session <target>` (target ∈ main|isolated|current|session:<id>),
             // 不是 `--session-target` — 后者从 v1.1.15 起就拼错了,但定时任务功能用户少,40+ 版本一直没人撞到。
             // 2026.3.2 / 2026.5.10 都不认 --session-target,本地脚手架就是 --session。
-            cmd += " --session '\(sessionTarget)'"
+            cmd += " --session '\(resolvedTarget)'"
         }
         if !message.isEmpty {
             let escapedMessage = message.replacingOccurrences(of: "'", with: "'\\''")
@@ -181,6 +188,63 @@ extension DashboardViewModel {
         }
         await loadCronJobs()
         isPerformingAction = false
+    }
+
+    func bindCronConversation(name: String, agentId: String) -> String {
+        let session = ChatSession(
+            agentId: agentId,
+            title: I18n.format("dashboard.cron.sessionTitle", name)
+        )
+        chatSessionStore.saveSession(session)
+        rebuildSessionsMirror()
+        return CronConversationBinding.dedicatedTarget(agentId: agentId, sessionId: session.id)
+    }
+
+    func openCronConversation(_ job: CronJobInfo) {
+        guard let parsed = CronConversationBinding.parse(job.sessionTarget) else { return }
+        if chatSessionStore.loadSession(id: parsed.sessionId) == nil {
+            let session = ChatSession(
+                id: parsed.sessionId,
+                agentId: parsed.agentId,
+                title: job.name
+            )
+            chatSessionStore.saveSession(session)
+            rebuildSessionsMirror()
+        }
+        selectTab(.chat)
+        switchSession(to: parsed.sessionId, inAgent: parsed.agentId)
+        Task { await hydrateCronConversation(sessionId: parsed.sessionId, agentId: parsed.agentId) }
+    }
+
+    func hydrateCronConversation(sessionId: UUID, agentId: String) async {
+        let key = sessionKeyForAgent(agentId, sessionId: sessionId)
+        guard let snapshot = await gatewayClient.fetchChatRecoverySnapshot(sessionKey: key) else {
+            return
+        }
+        let incoming = snapshot.assistantMessages.compactMap { item -> ChatMessage? in
+            let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            return ChatMessage(
+                role: .assistant,
+                content: text,
+                agentId: agentId,
+                timestamp: item.timestamp
+            )
+        }
+        guard !incoming.isEmpty else { return }
+
+        var session = chatSessionStore.loadSession(id: sessionId)
+            ?? ChatSession(id: sessionId, agentId: agentId)
+        let existing = Set(session.messages.map(\.content))
+        let fresh = incoming.filter { !existing.contains($0.content) }
+        guard !fresh.isEmpty else { return }
+        session.messages.append(contentsOf: fresh)
+        session.updatedAt = Date()
+        chatSessionStore.saveSession(session)
+        rebuildSessionsMirror()
+        if selectedSessionIdByAgent[agentId] == sessionId {
+            chatMessagesByAgent[agentId] = session.messages
+        }
     }
 
     /// Enable a cron job

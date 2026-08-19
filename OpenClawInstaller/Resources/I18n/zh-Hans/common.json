@@ -205,7 +205,7 @@
   "dashboard.cron.sheet.namePlaceholder": "例如 daily-report",
   "dashboard.cron.sheet.session.isolated": "隔离",
   "dashboard.cron.sheet.session.main": "主会话",
-  "dashboard.cron.sheet.sessionHelp": "隔离：每次运行使用独立会话。主会话：复用主会话。",
+  "dashboard.cron.sheet.sessionHelp": "独立会话：每次运行写入同一条聊天。隔离：每次新建一次性会话。主会话：复用 Agent 主会话。",
   "dashboard.cron.sheet.sessionTarget": "会话目标",
   "dashboard.cron.sheet.timezone": "时区",
   "dashboard.cron.sheet.timezonePlaceholder": "例如 Asia/Shanghai",
@@ -653,5 +653,8 @@
   "workspace.outputs.title": "输出",
   "workspace.project.newChat": "在项目中新建会话",
   "workspace.project.removeFromAgent": "从 Agent 移除",
-  "workspace.project.revealInFinder": "在 Finder 中显示"
+  "workspace.project.revealInFinder": "在 Finder 中显示",
+  "dashboard.cron.sheet.session.conversation": "独立会话",
+  "dashboard.cron.openChat": "打开对话",
+  "dashboard.cron.sessionTitle": "定时任务：%@"
 }
