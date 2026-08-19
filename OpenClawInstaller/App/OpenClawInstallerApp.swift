@@ -56,6 +56,7 @@ class AppServices: ObservableObject {
 
     func ensureOpenClawCoreIsCurrent() async {
         await coreUpgradeCoordinator.ensureBundledCoreIsCurrent()
+        await openclawService.applySessionIsolationIfNeeded()
     }
 
     func ensureBundledCoreForInstalledOpenClaw() async {

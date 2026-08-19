@@ -33,6 +33,23 @@ struct ForceRepairReport {
 extension OpenClawService {
     private static let oversizedLogThreshold: UInt64 = 512 * 1024 * 1024 // 512 MB
 
+    /// Silent launch/upgrade housekeeping: write `session.dmScope` when missing.
+    /// Restarts only via official safe restart if DingTalk is configured.
+    func applySessionIsolationIfNeeded() async {
+        let previousPID = await gatewayListenerPID()
+        let outcome = await SessionIsolationBootstrap.applyIfNeeded(
+            runCommand: { [weak self] command, timeout in
+                guard let self else { return nil }
+                return await self.runCommand(command, timeout: timeout)
+            },
+            waitForRecovery: { [weak self] in
+                guard let self else { return false }
+                return await self.waitForSafeRestartRecovery(previousPID: previousPID)
+            }
+        )
+        addLog("Session isolation bootstrap: \(String(describing: outcome))")
+    }
+
     /// Repair the two safety settings and ask OpenClaw itself to restart only
     /// after all channel work drains. This path never kills a process.
     func safeRepairGateway() async -> SafeGatewayRepairOutcome {

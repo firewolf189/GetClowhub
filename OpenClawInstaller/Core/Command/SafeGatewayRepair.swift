@@ -343,6 +343,129 @@ struct SafeGatewayRepairCoordinator {
     }
 }
 
+/// JSON-level isolation defaults. Used on launch so existing installs pick up
+/// `per-channel-peer` without waiting for the user to click Safe Repair.
+enum SessionIsolationConfig {
+    static let dmScope = "per-channel-peer"
+    static let deferralTimeoutMs = 0
+    static let dingtalkKeys = ["dingtalk", "dingtalk-connector"]
+
+    static func isSatisfied(_ dict: [String: Any]) -> Bool {
+        let session = dict["session"] as? [String: Any]
+        let gateway = dict["gateway"] as? [String: Any]
+        let reload = gateway?["reload"] as? [String: Any]
+        let deferral = reload?["deferralTimeoutMs"]
+        let deferralOK: Bool
+        if let n = deferral as? Int {
+            deferralOK = n == deferralTimeoutMs
+        } else if let n = deferral as? NSNumber {
+            deferralOK = n.intValue == deferralTimeoutMs
+        } else {
+            deferralOK = false
+        }
+        return session?["dmScope"] as? String == dmScope && deferralOK
+    }
+
+    @discardableResult
+    static func apply(to dict: inout [String: Any]) -> Bool {
+        let before = isSatisfied(dict)
+        var session = dict["session"] as? [String: Any] ?? [:]
+        session["dmScope"] = dmScope
+        dict["session"] = session
+
+        var gateway = dict["gateway"] as? [String: Any] ?? [:]
+        var reload = gateway["reload"] as? [String: Any] ?? [:]
+        reload["deferralTimeoutMs"] = deferralTimeoutMs
+        gateway["reload"] = reload
+        dict["gateway"] = gateway
+        return !before
+    }
+
+    static func hasDingTalk(_ dict: [String: Any]) -> Bool {
+        let channels = dict["channels"] as? [String: Any] ?? [:]
+        let plugins = ((dict["plugins"] as? [String: Any])?["entries"] as? [String: Any]) ?? [:]
+        return dingtalkKeys.contains { channels[$0] != nil || plugins[$0] != nil }
+    }
+}
+
+enum SessionIsolationBootstrapOutcome: Equatable {
+    case alreadyCorrect
+    case wroteConfigOnly
+    case scheduled
+    case deferred(activeCount: Int)
+    case coalesced(activeCount: Int)
+}
+
+enum SessionIsolationBootstrap {
+    static var defaultConfigURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".openclaw/openclaw.json")
+    }
+
+    /// One-shot per launch: write the isolation keys if needed. Restarts only
+    /// via official `gateway restart --safe` when DingTalk is configured and
+    /// the core supports it. Never force-kills a process.
+    static func applyIfNeeded(
+        configURL: URL = defaultConfigURL,
+        runCommand: @escaping SafeGatewayRepairCoordinator.CommandRunner,
+        waitForRecovery: @escaping SafeGatewayRepairCoordinator.RecoveryWaiter
+    ) async -> SessionIsolationBootstrapOutcome {
+        var dict: [String: Any] = [:]
+        if let data = try? Data(contentsOf: configURL) {
+            guard let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                // Unparseable config is not ours to rewrite; force-repair handles it.
+                return .alreadyCorrect
+            }
+            dict = parsed
+        } else {
+            return .alreadyCorrect
+        }
+
+        let changed = SessionIsolationConfig.apply(to: &dict)
+        if changed {
+            if let data = try? JSONSerialization.data(
+                withJSONObject: dict,
+                options: [.prettyPrinted, .sortedKeys]
+            ) {
+                try? data.write(to: configURL, options: .atomic)
+            }
+        } else {
+            return .alreadyCorrect
+        }
+
+        guard SessionIsolationConfig.hasDingTalk(dict) else {
+            return .wroteConfigOnly
+        }
+
+        let version = await runCommand(SafeGatewayRepairCommands.version, 15)
+        let restartHelp = await runCommand(SafeGatewayRepairCommands.restartHelp, 15)
+        let capability = SafeGatewayRepairCapability.evaluate(
+            versionOutput: version,
+            restartHelpOutput: restartHelp
+        )
+        if case .upgradeRequired = capability {
+            return .wroteConfigOnly
+        }
+
+        let coordinator = SafeGatewayRepairCoordinator(
+            runCommand: runCommand,
+            waitForRecovery: waitForRecovery
+        )
+        switch await coordinator.repair() {
+        case .scheduled:
+            return .scheduled
+        case .deferred(let count):
+            return .deferred(activeCount: count)
+        case .coalesced(let count):
+            return .coalesced(activeCount: count)
+        case .upgradeRequired:
+            return .wroteConfigOnly
+        case .configurationFailed, .safeRestartFailed, .recoveryVerificationFailed:
+            return .wroteConfigOnly
+        }
+    }
+}
+
 enum SafeGatewayChannelVerification {
     static func isDingTalkReady(_ output: String?) -> Bool {
         guard let output else { return false }
@@ -350,7 +473,8 @@ enum SafeGatewayChannelVerification {
             let normalized = line
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
-            guard normalized.hasPrefix("- dingtalk ") else { continue }
+            guard normalized.hasPrefix("- dingtalk ")
+                || normalized.hasPrefix("- dingtalk-connector ") else { continue }
             return normalized.contains("enabled")
                 && normalized.contains("configured")
                 && !normalized.contains("not configured")

@@ -31,6 +31,10 @@ private enum SafeGatewayRepairTests {
         try await oldCoreStopsBeforeAnyConfigurationChange()
         try await configWriteFailureStopsBeforeRestart()
         try await failedSafeRestartRequiresExplicitEmergencyChoice()
+        try sessionIsolationConfigWritesMissingKeysOnly()
+        try sessionIsolationDetectsEitherDingTalkId()
+        try await sessionIsolationBootstrapSkipsRestartWhenAlreadyCorrect()
+        try await sessionIsolationBootstrapWritesWithoutRestartWhenNoDingTalk()
 
         print("PASS: safe gateway repair")
     }
@@ -370,6 +374,80 @@ private enum SafeGatewayRepairTests {
 
     private static func shellResult(_ output: String, exitCode: Int32 = 0) -> String {
         "\(output)\n\(SafeGatewayShellResult.marker)\(exitCode)"
+    }
+
+    private static func sessionIsolationConfigWritesMissingKeysOnly() throws {
+        var dict: [String: Any] = [
+            "gateway": ["mode": "local"],
+            "session": ["scope": "per-peer"],
+        ]
+        try expect(SessionIsolationConfig.apply(to: &dict), "missing isolation keys must be written")
+        try expect(SessionIsolationConfig.isSatisfied(dict), "apply must leave the document satisfied")
+        try expect(dict["session"] as? [String: String] != nil || (dict["session"] as? [String: Any])?["scope"] as? String == "per-peer", "unrelated session keys stay")
+        try expect(!SessionIsolationConfig.apply(to: &dict), "a second apply must be a no-op")
+    }
+
+    private static func sessionIsolationDetectsEitherDingTalkId() throws {
+        try expect(
+            SessionIsolationConfig.hasDingTalk(["channels": ["dingtalk": ["enabled": true]]]),
+            "Mac historical id is DingTalk"
+        )
+        try expect(
+            SessionIsolationConfig.hasDingTalk(["channels": ["dingtalk-connector": [:]]]),
+            "Windows plugin id is DingTalk"
+        )
+        try expect(
+            !SessionIsolationConfig.hasDingTalk(["channels": ["feishu": [:]]]),
+            "Feishu is not DingTalk"
+        )
+    }
+
+    private static func sessionIsolationBootstrapSkipsRestartWhenAlreadyCorrect() async throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gch-isolation-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("openclaw.json")
+        var dict: [String: Any] = ["gateway": ["mode": "local"]]
+        _ = SessionIsolationConfig.apply(to: &dict)
+        let data = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted])
+        try data.write(to: url)
+
+        var ran = false
+        let outcome = await SessionIsolationBootstrap.applyIfNeeded(
+            configURL: url,
+            runCommand: { _, _ in
+                ran = true
+                return nil
+            },
+            waitForRecovery: { true }
+        )
+        try expect(outcome == .alreadyCorrect, "satisfied config must not restart, got \(outcome)")
+        try expect(!ran, "already-correct bootstrap must not spawn CLI")
+    }
+
+    private static func sessionIsolationBootstrapWritesWithoutRestartWhenNoDingTalk() async throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gch-isolation-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("openclaw.json")
+        let data = try JSONSerialization.data(withJSONObject: ["gateway": ["mode": "local"]], options: [])
+        try data.write(to: url)
+
+        var ran = false
+        let outcome = await SessionIsolationBootstrap.applyIfNeeded(
+            configURL: url,
+            runCommand: { _, _ in
+                ran = true
+                return nil
+            },
+            waitForRecovery: { true }
+        )
+        try expect(outcome == .wroteConfigOnly, "no DingTalk means write-only, got \(outcome)")
+        try expect(!ran, "write-only path must not call gateway restart")
+        let written = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        try expect(SessionIsolationConfig.isSatisfied(written ?? [:]), "file must contain isolation keys")
     }
 }
 

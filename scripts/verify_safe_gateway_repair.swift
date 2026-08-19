@@ -47,6 +47,15 @@ guard installationViewModel.contains(#"session["dmScope"] = "per-channel-peer""#
       installationViewModel.contains(#"reload["deferralTimeoutMs"] = 0"#) else {
     fail("new installations must start with isolated DMs and indefinite safe-restart deferral")
 }
+let appServices = read("OpenClawInstaller/App/OpenClawInstallerApp.swift")
+let forceRepair = read("OpenClawInstaller/Core/Command/OpenClawServiceForceRepair.swift")
+let safeRepair = read("OpenClawInstaller/Core/Command/SafeGatewayRepair.swift")
+guard appServices.contains("applySessionIsolationIfNeeded()"),
+      forceRepair.contains("func applySessionIsolationIfNeeded()"),
+      safeRepair.contains("enum SessionIsolationBootstrap"),
+      safeRepair.contains("dingtalk-connector") else {
+    fail("launch path must silently write session isolation and treat both DingTalk ids as one channel")
+}
 
 // Every locale must have the repair keys; English is the fallback for locales
 // that do not yet have a dedicated translation.
