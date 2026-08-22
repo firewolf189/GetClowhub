@@ -328,6 +328,9 @@ for token in [
     "I18n.t(\"dashboard.alert.error\")",
     "I18n.t(\"dashboard.agent.remove.title\")",
     "I18n.t(\"dashboard.session.action.rename\")",
+    "I18n.t(\"dashboard.session.action.unarchive\")",
+    "I18n.t(\"dashboard.session.filter.tooltip\")",
+    "I18n.format(\"dashboard.session.row.messageCount\"",
     "I18n.t(\"dashboard.sidebar.pinned\")",
     "I18n.t(\"dashboard.skills.title\")",
     "I18n.t(\"dashboard.composer.mode.label\")"

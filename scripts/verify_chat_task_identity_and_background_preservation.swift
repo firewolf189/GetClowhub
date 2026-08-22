@@ -74,6 +74,14 @@ try require(
     "Normal chat tasks should capture their exact backend sessionKey and recovery start in the gateway binding."
 )
 try require(
+    sendChatMessage.contains("let userIdempotencyKey = UUID().uuidString") &&
+        sendChatMessage.contains("idempotencyKey: userIdempotencyKey") &&
+        sendChatMessage.range(of: "let userIdempotencyKey = UUID().uuidString")!.lowerBound
+        < sendChatMessage.range(of: "let gatewayBinding = ChatGatewayRunBinding(")!.lowerBound &&
+        sendChatMessage.contains("ChatGatewayRunBinding(\n            sessionKey: sessionKey,\n            idempotencyKey: userIdempotencyKey,"),
+    "the user message must stamp the send idempotency key before ChatGatewayRunBinding is created."
+)
+try require(
     helpers.contains("sessionKey: run.gatewayBinding.sessionKey") &&
         reconciliation.contains("run.gatewayBinding.sessionKey == sessionKey") &&
         !cancelChat.contains("taskSid.map({ sessionKeyForAgent(taskAgent, sessionId: $0) })"),
@@ -99,8 +107,10 @@ try require(
         messageModel.contains("timestamp: timestamp") &&
         messageModel.contains("completedAt: completedAt") &&
         messageModel.contains("activityEvents: activityEvents") &&
-        messageModel.contains("scrollTargetId: scrollTargetId"),
-    "ChatMessage should expose a status-copy helper that preserves attachments, timestamps, activity events, and scroll targets."
+        messageModel.contains("scrollTargetId: scrollTargetId") &&
+        messageModel.contains("gatewayEntryId: gatewayEntryId") &&
+        messageModel.contains("idempotencyKey: idempotencyKey"),
+    "ChatMessage should expose a status-copy helper that preserves attachments, timestamps, activity events, scroll targets, and gateway identity."
 )
 
 print("PASS: chat task identity and background preservation verified")

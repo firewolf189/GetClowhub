@@ -85,6 +85,8 @@ assertContains(
 for forbidden in [
     "viewModel.deleteSession(",
     "viewModel.archiveSession(",
+    "viewModel.unarchiveSession(",
+    "viewModel.setSessionListFilter(",
     "viewModel.togglePinSession(",
     "viewModel.switchSession(",
     "viewModel.switchSessionGlobally(",

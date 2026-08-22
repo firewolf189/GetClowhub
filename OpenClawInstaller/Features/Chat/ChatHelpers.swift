@@ -586,7 +586,9 @@ extension ChatViewModel {
             taskStatus: status, id: msgId,
             timestamp: existing?.timestamp,
             completedAt: resolvedCompletedAt,
-            activityEvents: resolvedActivityEvents
+            activityEvents: resolvedActivityEvents,
+            gatewayEntryId: existing?.gatewayEntryId,
+            idempotencyKey: existing?.idempotencyKey
         )
         // Route to wherever this msgId currently lives. The task may have
         // started in the (then-visible) active session and migrated to
@@ -752,7 +754,15 @@ extension ChatViewModel {
             return
         }
 
-        let userMessage = ChatMessage(role: .user, content: text, attachments: attachments)
+        // Stamp the user identity before the run binding so the local user
+        // row, chat.send, and later history backfill share one key.
+        let userIdempotencyKey = UUID().uuidString
+        let userMessage = ChatMessage(
+            role: .user,
+            content: text,
+            attachments: attachments,
+            idempotencyKey: userIdempotencyKey
+        )
         // An empty selection would build an `agent::<uuid>` session key the
         // gateway classifies as malformed and refuses (workspace resolution).
         // Whatever upstream bug blanked the selection, never let it reach the
@@ -781,12 +791,21 @@ extension ChatViewModel {
         )
         // Insert a placeholder assistant message for streaming updates
         let msgId = UUID()
-        let placeholderMsg = ChatMessage(role: .assistant, content: "", agentId: currentAgentId, agentEmoji: currentAgentEmoji, taskStatus: .loading, id: msgId)
+        let placeholderMsg = ChatMessage(
+            role: .assistant,
+            content: "",
+            agentId: currentAgentId,
+            agentEmoji: currentAgentEmoji,
+            taskStatus: .loading,
+            id: msgId,
+            idempotencyKey: userIdempotencyKey
+        )
         chatMessagesByAgent[currentAgentId, default: []].append(placeholderMsg)
         logChat("PLACEHOLDER: agent=\(currentAgentId), msgId=\(msgId.uuidString.prefix(8)), totalMsgs=\(chatMessagesByAgent[currentAgentId]?.count ?? 0)")
 
         let gatewayBinding = ChatGatewayRunBinding(
             sessionKey: sessionKey,
+            idempotencyKey: userIdempotencyKey,
             startedAt: placeholderMsg.timestamp ?? Date(),
             processEpoch: gatewayClient.capturedProcessEpoch()
         )

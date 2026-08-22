@@ -1584,6 +1584,24 @@ class DashboardViewModel: ObservableObject {
         rebuildSessionsMirror()
     }
 
+    /// Restore an archived session into the active list. Does not steal the
+    /// current selection — Cursor unarchive leaves you in the archived filter
+    /// until you switch it.
+    func unarchiveSession(_ sessionId: UUID) {
+        guard var session = chatSessionStore.loadSession(id: sessionId), session.isArchived else { return }
+        session.isArchived = false
+        session.updatedAt = Date()
+        chatSessionStore.saveSession(session)
+        rebuildSessionsMirror()
+    }
+
+    func setSessionListFilter(_ filter: ChatSessionListFilter) {
+        guard sessionState.sessionListFilter != filter else { return }
+        sessionState.sessionListFilter = filter
+        UserDefaults.standard.set(filter.rawValue, forKey: SessionNavigationState.sessionListFilterDefaultsKey)
+        rebuildSessionsMirror()
+    }
+
     /// Export a session to Markdown via NSSavePanel. The file uses the
     /// session title as the default name.
     func exportSession(_ sessionId: UUID) {

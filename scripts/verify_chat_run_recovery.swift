@@ -79,8 +79,12 @@ try require(
 try require(
     persistedRuns.contains("msg.withTaskStatus(.timedOut, content: content)") &&
         reconciliation.contains("attachments: message.attachments") &&
-        reconciliation.contains("scrollTargetId: message.scrollTargetId"),
-    "Recovery terminalization must preserve the latest persisted message metadata."
+        reconciliation.contains("scrollTargetId: message.scrollTargetId") &&
+        reconciliation.contains("gatewayEntryId: message.gatewayEntryId") &&
+        reconciliation.contains("idempotencyKey: message.idempotencyKey") &&
+        reconciliation.contains("applyGatewayIdentityBackfill(") &&
+        reconciliation.contains("ChatMessageGatewayIdentityBinder.applying("),
+    "Recovery terminalization must preserve the latest persisted message metadata and stamp history identity."
 )
 try require(
     policy.contains("backgroundHardLimit: TimeInterval = 60 * 60") &&

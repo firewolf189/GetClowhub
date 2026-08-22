@@ -229,6 +229,28 @@ enum GatewayProtocolTimestamp {
 struct GatewayAssistantMessageSnapshot: Codable, Equatable, Sendable {
     let text: String
     let timestamp: Date?
+    let entryId: String?
+    let idempotencyKey: String?
+
+    init(
+        text: String,
+        timestamp: Date?,
+        entryId: String? = nil,
+        idempotencyKey: String? = nil
+    ) {
+        self.text = text
+        self.timestamp = timestamp
+        self.entryId = entryId
+        self.idempotencyKey = idempotencyKey
+    }
+}
+
+struct GatewayHistoryMessageSnapshot: Codable, Equatable, Sendable {
+    let role: String
+    let text: String
+    let timestamp: Date?
+    let entryId: String?
+    let idempotencyKey: String?
 }
 
 struct GatewayInFlightRunSnapshot: Codable, Equatable, Sendable {
@@ -257,6 +279,19 @@ struct GatewayChatRecoverySnapshot: Codable, Equatable, Sendable {
     let assistantMessages: [GatewayAssistantMessageSnapshot]
     let inFlightRun: GatewayInFlightRunSnapshot?
     let hasActiveRun: Bool
+    let historyMessages: [GatewayHistoryMessageSnapshot]
+
+    init(
+        assistantMessages: [GatewayAssistantMessageSnapshot],
+        inFlightRun: GatewayInFlightRunSnapshot?,
+        hasActiveRun: Bool,
+        historyMessages: [GatewayHistoryMessageSnapshot] = []
+    ) {
+        self.assistantMessages = assistantMessages
+        self.inFlightRun = inFlightRun
+        self.hasActiveRun = hasActiveRun
+        self.historyMessages = historyMessages
+    }
 
     func decision(
         expectedRunId: String,

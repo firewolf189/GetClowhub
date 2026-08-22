@@ -16,6 +16,7 @@ enum DashboardTypography {
     static let sidebarAgentName = Font.system(size: 14, weight: .regular)
     static let sidebarAgentNameActive = Font.system(size: 14, weight: .regular)
     static let sidebarSessionTitle = Font.system(size: 13.5, weight: .regular)
+    static let sidebarSessionMeta = Font.system(size: 11, weight: .regular)
     static let composer = Font.system(size: 14, weight: .regular)
     static let composerPlaceholder = Font.system(size: 14, weight: .regular)
     static let message = Font.system(size: 14, weight: .regular)
@@ -36,7 +37,7 @@ enum DashboardSidebarMetrics {
     /// Session-title leading inset: matches the bullet block on session rows
     /// (4pt inset + 6pt dot + 8pt gap) so "show more" text aligns with titles.
     static let sessionTitleLeadingSpacer: CGFloat = 18
-    static let sessionRowContentHeight: CGFloat = 24
+    static let sessionRowContentHeight: CGFloat = 36
     static let sessionRowActionSize: CGFloat = 20
     static let sessionRowActionAreaWidth: CGFloat = sessionRowActionSize * 2 + 2
     static let sessionRowVerticalPadding: CGFloat = 4

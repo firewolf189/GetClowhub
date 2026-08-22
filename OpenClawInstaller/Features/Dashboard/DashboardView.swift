@@ -347,6 +347,7 @@ struct DashboardView: View {
             pinnedSessions: sessionState.pinnedSessions,
             inflightSessionIds: taskState.inflightSessionIds,
             unreadSessionIds: sessionState.unreadSessionIds,
+            sessionListFilter: sessionState.sessionListFilter,
             serviceStatus: viewModel.openclawService.status,
             serviceFailureReason: viewModel.openclawService.status == .running
                 ? nil
@@ -395,6 +396,8 @@ struct DashboardView: View {
             togglePinSession: viewModel.togglePinSession,
             deleteSession: viewModel.deleteSession,
             archiveSession: viewModel.archiveSession,
+            unarchiveSession: viewModel.unarchiveSession,
+            setSessionListFilter: viewModel.setSessionListFilter,
             exportSession: viewModel.exportSession,
             toggleProjectCollapse: { agentId, projectId in
                 viewModel.toggleProjectCollapse(agentId: agentId, projectId: projectId)

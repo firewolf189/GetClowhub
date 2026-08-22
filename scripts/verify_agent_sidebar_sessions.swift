@@ -64,8 +64,8 @@ assertContains(
 )
 assertContains(
     dashboard,
-    "static let sessionRowContentHeight: CGFloat = 24",
-    "session row vertical content height should match agent and project row height"
+    "static let sessionRowContentHeight: CGFloat = 36",
+    "session rows are two-line Cursor-style history rows and need 36pt of content height"
 )
 assertContains(
     dashboard,
@@ -427,6 +427,46 @@ assertNotContains(
     sessionRow,
     "if isHovering || isDeleteConfirming {",
     "session row hover action must not be conditionally inserted into the layout"
+)
+assertContains(
+    sessionRow,
+    "I18n.format(\"dashboard.session.row.messageCount\"",
+    "session rows should show a muted message-count subtitle"
+)
+assertContains(
+    sessionRow,
+    "Text(Self.shortRelative(meta.updatedAt))",
+    "session rows should show relative time on the trailing edge"
+)
+assertContains(
+    sessionRow,
+    "ZStack(alignment: .trailing)",
+    "relative time and hover actions should share one reserved trailing slot"
+)
+assertContains(
+    dashboard,
+    "static let sidebarSessionMeta = Font.system(size: 11, weight: .regular)",
+    "session row subtitle and time should use a dedicated 11pt meta token"
+)
+assertContains(
+    agentSectionContent,
+    "sessionListFilterMenu",
+    "Agent header should expose the Cursor-style active/archived/all filter"
+)
+assertContains(
+    dashboard,
+    "line.3.horizontal.decrease",
+    "session list filter should use the standard decrease-line filter icon"
+)
+assertContains(
+    dashboard,
+    "actions.unarchiveSession(meta.id)",
+    "archived session rows should offer unarchive from the context menu"
+)
+assertContains(
+    dashboard,
+    "I18n.t(state.sessionListFilter.emptyCopyKey)",
+    "empty session lists should follow the current Active/Archived/All filter"
 )
 
 print("Agent sidebar session verification passed")

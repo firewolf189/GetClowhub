@@ -299,6 +299,13 @@ extension ChatViewModel {
         case .completed, .running, .unknown:
             let processTrust = recoveryProcessTrust(for: run)
             let snapshot = await gatewayClient.fetchChatRecoverySnapshot(sessionKey: sessionKey)
+            if let snapshot {
+                applyGatewayIdentityBackfill(
+                    sessionId: run.identity.sessionId,
+                    agentId: run.identity.agentId,
+                    history: snapshot.historyMessages
+                )
+            }
             let decision = snapshot?.decision(
                 expectedRunId: runId,
                 expectedRunStatus: status,
@@ -308,6 +315,43 @@ extension ChatViewModel {
             ) ?? (processTrust == .unknownOrRestarted ? .unrecoverable : .awaitingAuthoritativeState)
             return ChatRunReconciliationObservation(status: status, decision: decision)
         }
+    }
+
+    private func applyGatewayIdentityBackfill(
+        sessionId: UUID,
+        agentId: String,
+        history: [GatewayHistoryMessageSnapshot]
+    ) {
+        guard !history.isEmpty else { return }
+        let identities = history.map {
+            ChatGatewayMessageIdentity(
+                role: $0.role,
+                entryId: $0.entryId,
+                idempotencyKey: $0.idempotencyKey
+            )
+        }
+        func apply(_ messages: [ChatMessage]) -> [ChatMessage] {
+            ChatMessageGatewayIdentityBinder.applying(messages, history: identities)
+        }
+
+        if selectedSessionIdByAgent[agentId] == sessionId,
+           let messages = chatMessagesByAgent[agentId] {
+            let updated = apply(messages)
+            if updated != messages {
+                chatMessagesByAgent[agentId] = updated
+            }
+        } else if let messages = chatMessagesByInactiveSession[sessionId] {
+            let updated = apply(messages)
+            if updated != messages {
+                chatMessagesByInactiveSession[sessionId] = updated
+            }
+        }
+
+        guard var session = chatSessionStore.loadSession(id: sessionId) else { return }
+        let updated = apply(session.messages)
+        guard updated != session.messages else { return }
+        session.messages = updated
+        chatSessionStore.saveSession(session)
     }
 
     private func recoveryProcessTrust(for run: ChatRunState) -> GatewayChatRecoveryProcessTrust {
@@ -441,7 +485,9 @@ extension ChatViewModel {
             scrollTargetId: message.scrollTargetId,
             timestamp: message.timestamp,
             completedAt: Date(),
-            activityEvents: resolvedActivityEvents
+            activityEvents: resolvedActivityEvents,
+            gatewayEntryId: message.gatewayEntryId,
+            idempotencyKey: message.idempotencyKey
         )
         session.updatedAt = Date()
         chatSessionStore.saveSession(session)

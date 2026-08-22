@@ -58,10 +58,14 @@ require(
 )
 require(
     snapshot.contains("let assistantMessages: [GatewayAssistantMessageSnapshot]") &&
+        snapshot.contains("let historyMessages: [GatewayHistoryMessageSnapshot]") &&
+        snapshot.contains("let entryId: String?") &&
+        snapshot.contains("let idempotencyKey: String?") &&
         gateway.contains("GatewayProtocolTimestamp.date(from:") &&
+        gateway.contains("parseGatewayHistoryMessage") &&
         gateway.contains("chatRecoveryHistoryMessageLimit = 200") &&
         gateway.contains("\"limit\": Self.chatRecoveryHistoryMessageLimit"),
-    "chat.history must retain every assistant message text and timestamp"
+    "chat.history must retain assistant text/timestamp plus entry id and idempotency for identity backfill"
 )
 require(
     snapshot.contains("private static func isTerminalTimeout(") &&

@@ -14,7 +14,15 @@ final class SessionNavigationState: ObservableObject {
     /// Sessions whose latest run finished while the user was NOT viewing them.
     /// The sidebar shows a solid (non-pulsing) dot until the session is opened.
     @Published var unreadSessionIds: Set<UUID> = []
+    @Published var sessionListFilter: ChatSessionListFilter
     @Published var availableAgents: [AgentOption] = [
         AgentOption(id: "main", name: "main", emoji: "", description: "", model: "", division: "")
     ]
+
+    init() {
+        let stored = UserDefaults.standard.string(forKey: Self.sessionListFilterDefaultsKey) ?? ""
+        self.sessionListFilter = ChatSessionListFilter(rawValue: stored) ?? .active
+    }
+
+    static let sessionListFilterDefaultsKey = "dashboard.sessionListFilter"
 }

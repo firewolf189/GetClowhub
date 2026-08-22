@@ -20,6 +20,7 @@ struct DashboardSidebarState: Equatable {
     let pinnedSessions: [ChatSessionMetadata]
     let inflightSessionIds: Set<UUID>
     let unreadSessionIds: Set<UUID>
+    let sessionListFilter: ChatSessionListFilter
     let serviceStatus: ServiceStatus
     let serviceFailureReason: String?
     let serviceVersion: String
@@ -46,6 +47,8 @@ struct DashboardSidebarActions {
     let togglePinSession: (UUID) -> Void
     let deleteSession: (UUID) -> Void
     let archiveSession: (UUID) -> Void
+    let unarchiveSession: (UUID) -> Void
+    let setSessionListFilter: (ChatSessionListFilter) -> Void
     let exportSession: (UUID) -> Void
     let toggleProjectCollapse: (String, String) -> Void
     let revealProjectInFinder: (String) -> Void
@@ -355,7 +358,7 @@ struct SidebarView: View {
         let generalSessions = state.generalSessionsByAgent[agent.id] ?? []
 
         if projectGroups.isEmpty && generalSessions.isEmpty {
-            Text(String(localized: "No sessions yet", bundle: languageManager.localizedBundle))
+            Text(I18n.t(state.sessionListFilter.emptyCopyKey))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 8)
@@ -498,10 +501,20 @@ struct SidebarView: View {
                     Label(I18n.t("dashboard.session.action.export"), systemImage: "square.and.arrow.up")
                 }
                 Divider()
-                Button {
-                    actions.archiveSession(meta.id)
-                } label: {
-                    Label(I18n.t("dashboard.session.action.archive"), systemImage: "archivebox")
+                if meta.isArchived {
+                    Button {
+                        cancelSessionDeleteConfirmation()
+                        actions.unarchiveSession(meta.id)
+                    } label: {
+                        Label(I18n.t("dashboard.session.action.unarchive"), systemImage: "archivebox")
+                    }
+                } else {
+                    Button {
+                        cancelSessionDeleteConfirmation()
+                        actions.archiveSession(meta.id)
+                    } label: {
+                        Label(I18n.t("dashboard.session.action.archive"), systemImage: "archivebox")
+                    }
                 }
                 Button(role: .destructive) {
                     setSessionDeleteConfirmation(meta.id)
@@ -605,19 +618,22 @@ struct SidebarView: View {
         }
         .frame(height: 20)
         .overlay(alignment: .trailing) {
-            Button {
-                cancelSessionDeleteConfirmation()
-                actions.requestCreateAgent()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .frame(width: 20, height: 20)
+            HStack(spacing: 0) {
+                sessionListFilterMenu
+                Button {
+                    cancelSessionDeleteConfirmation()
+                    actions.requestCreateAgent()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 20, height: 20)
+                }
+                .buttonStyle(.plain)
+                .opacity(isAgentSectionHeaderHovering ? 1 : 0)
+                .disabled(!isAgentSectionHeaderHovering)
+                .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("subAgents.action.new")))
             }
-            .buttonStyle(.plain)
-            .opacity(isAgentSectionHeaderHovering ? 1 : 0)
-            .disabled(!isAgentSectionHeaderHovering)
-            .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("subAgents.action.new")))
         }
         .padding(.horizontal, 8)
         .padding(.top, 10)
@@ -801,6 +817,35 @@ struct SidebarView: View {
             return SwiftUI.Color.primary.opacity(isDark ? 0.11 : 0.07)
         }
         return SwiftUI.Color.clear
+    }
+
+    private var sessionListFilterMenu: some View {
+        Menu {
+            ForEach(ChatSessionListFilter.allCases, id: \.self) { filter in
+                Button {
+                    cancelSessionDeleteConfirmation()
+                    actions.setSessionListFilter(filter)
+                } label: {
+                    if state.sessionListFilter == filter {
+                        Label(I18n.t(filter.titleKey), systemImage: "checkmark")
+                    } else {
+                        Text(I18n.t(filter.titleKey))
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: state.sessionListFilter == .active
+                  ? "line.3.horizontal.decrease"
+                  : "line.3.horizontal.decrease.circle.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(state.sessionListFilter == .active ? .secondary : .accentColor)
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
+        .unifiedTooltip(UnifiedTooltipContent(title: I18n.t("dashboard.session.filter.tooltip")))
     }
 
     private func setSessionDeleteConfirmation(_ sessionId: UUID) {
@@ -1159,40 +1204,54 @@ struct ChatSessionRow: View {
             SessionBulletDot(isActive: isActive, isExecuting: isExecuting, isUnread: isUnread)
             Color.clear.frame(width: 8)
 
-            Text(meta.title.isEmpty ? I18n.t("dashboard.session.newChat") : meta.title)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundColor(.primary)
-                .font(DashboardTypography.sidebarSessionTitle)
-                .fontWeight(isActive ? .medium : .regular)
-            Spacer(minLength: 4)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(meta.title.isEmpty ? I18n.t("dashboard.session.newChat") : meta.title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundColor(.primary)
+                    .font(DashboardTypography.sidebarSessionTitle)
+                    .fontWeight(isActive ? .medium : .regular)
+                Text(I18n.format("dashboard.session.row.messageCount", Int64(meta.messageCount)))
+                    .lineLimit(1)
+                    .foregroundColor(.secondary)
+                    .font(DashboardTypography.sidebarSessionMeta)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 2) {
-                Button(action: onPinToggle) {
-                    Image(systemName: meta.isPinned ? "pin.fill" : "pin")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: DashboardSidebarMetrics.sessionRowActionSize, height: DashboardSidebarMetrics.sessionRowActionSize)
-                }
-                .buttonStyle(.plain)
-                .unifiedTooltip(UnifiedTooltipContent(title: meta.isPinned
-                    ? I18n.t("dashboard.session.action.unpin")
-                    : I18n.t("dashboard.session.action.pin")))
+            ZStack(alignment: .trailing) {
+                Text(Self.shortRelative(meta.updatedAt))
+                    .lineLimit(1)
+                    .foregroundColor(.secondary)
+                    .font(DashboardTypography.sidebarSessionMeta)
+                    .opacity(isHovering || isDeleteConfirming ? 0 : 1)
 
-                Button(action: isDeleteConfirming ? onDeleteConfirm : onDeleteIntent) {
-                    Image(systemName: isDeleteConfirming ? "trash.fill" : "trash")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(isDeleteConfirming ? .red : .secondary)
-                        .frame(width: DashboardSidebarMetrics.sessionRowActionSize, height: DashboardSidebarMetrics.sessionRowActionSize)
+                HStack(spacing: 2) {
+                    Button(action: onPinToggle) {
+                        Image(systemName: meta.isPinned ? "pin.fill" : "pin")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .frame(width: DashboardSidebarMetrics.sessionRowActionSize, height: DashboardSidebarMetrics.sessionRowActionSize)
+                    }
+                    .buttonStyle(.plain)
+                    .unifiedTooltip(UnifiedTooltipContent(title: meta.isPinned
+                        ? I18n.t("dashboard.session.action.unpin")
+                        : I18n.t("dashboard.session.action.pin")))
+
+                    Button(action: isDeleteConfirming ? onDeleteConfirm : onDeleteIntent) {
+                        Image(systemName: isDeleteConfirming ? "trash.fill" : "trash")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(isDeleteConfirming ? .red : .secondary)
+                            .frame(width: DashboardSidebarMetrics.sessionRowActionSize, height: DashboardSidebarMetrics.sessionRowActionSize)
+                    }
+                    .buttonStyle(.plain)
+                    .unifiedTooltip(UnifiedTooltipContent(title: isDeleteConfirming
+                        ? I18n.t("dashboard.session.action.confirmDelete")
+                        : I18n.t("common.action.delete")))
                 }
-                .buttonStyle(.plain)
-                .unifiedTooltip(UnifiedTooltipContent(title: isDeleteConfirming
-                    ? I18n.t("dashboard.session.action.confirmDelete")
-                    : I18n.t("common.action.delete")))
+                .opacity(isHovering || isDeleteConfirming ? 1 : 0)
+                .disabled(!(isHovering || isDeleteConfirming))
             }
             .frame(width: DashboardSidebarMetrics.sessionRowActionAreaWidth, alignment: .trailing)
-            .opacity(isHovering || isDeleteConfirming ? 1 : 0)
-            .disabled(!(isHovering || isDeleteConfirming))
         }
         .frame(height: DashboardSidebarMetrics.sessionRowContentHeight)
         .help(isExecuting

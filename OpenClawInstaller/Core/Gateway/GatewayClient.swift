@@ -900,13 +900,14 @@ class GatewayClient: ObservableObject {
                     let isError = json["error"] != nil
                     if !isError, let payloadDict = json["payload"] as? [String: Any] {
                         let messages = payloadDict["messages"] as? [[String: Any]] ?? []
-                        let assistantMessages = messages.compactMap { message -> GatewayAssistantMessageSnapshot? in
-                            guard (message["role"] as? String) == "assistant" else { return nil }
+                        let historyMessages = messages.compactMap { self.parseGatewayHistoryMessage($0) }
+                        let assistantMessages = historyMessages.compactMap { row -> GatewayAssistantMessageSnapshot? in
+                            guard row.role == "assistant" else { return nil }
                             return GatewayAssistantMessageSnapshot(
-                                text: self.extractTextFromMessage(message),
-                                timestamp: GatewayProtocolTimestamp.date(
-                                    from: message["timestamp"] ?? message["ts"]
-                                )
+                                text: row.text,
+                                timestamp: row.timestamp,
+                                entryId: row.entryId,
+                                idempotencyKey: row.idempotencyKey
                             )
                         }
 
@@ -926,7 +927,8 @@ class GatewayClient: ObservableObject {
                         chatHistoryCont.resume(returning: GatewayChatRecoverySnapshot(
                             assistantMessages: assistantMessages,
                             inFlightRun: inFlightRun,
-                            hasActiveRun: hasActiveRun
+                            hasActiveRun: hasActiveRun,
+                            historyMessages: historyMessages
                         ))
                     } else {
                         chatHistoryCont.resume(returning: nil)
@@ -1648,6 +1650,45 @@ class GatewayClient: ObservableObject {
         broadcastEvent(event)
     }
 
+    private func parseGatewayHistoryMessage(_ message: [String: Any]) -> GatewayHistoryMessageSnapshot? {
+        let payload: [String: Any]
+        let envelopeId: String?
+        if let nested = message["message"] as? [String: Any] {
+            payload = nested
+            envelopeId = stringValue(message["id"])
+        } else {
+            payload = message
+            envelopeId = stringValue(message["id"])
+        }
+        guard let role = stringValue(payload["role"])?.lowercased(),
+              role == "user" || role == "assistant" else {
+            return nil
+        }
+        let entryId = envelopeId
+            ?? stringValue(payload["id"])
+            ?? stringValue(payload["entryId"])
+        let idempotencyKey = stringValue(payload["idempotencyKey"])
+            ?? {
+                guard let nested = payload["__openclaw"] as? [String: Any] else { return nil }
+                return stringValue(nested["idempotencyKey"])
+            }()
+        return GatewayHistoryMessageSnapshot(
+            role: role,
+            text: extractTextFromMessage(payload),
+            timestamp: GatewayProtocolTimestamp.date(
+                from: payload["timestamp"] ?? payload["ts"] ?? message["timestamp"] ?? message["ts"]
+            ),
+            entryId: entryId,
+            idempotencyKey: idempotencyKey
+        )
+    }
+
+    private func stringValue(_ value: Any?) -> String? {
+        guard let text = value as? String else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private func extractTextFromMessage(_ message: Any?) -> String {
         guard let message = message else { return "" }
 
@@ -1664,6 +1705,9 @@ class GatewayClient: ObservableObject {
                     return block["text"] as? String
                 }
                 return texts.joined()
+            }
+            if let content = dict["content"] as? String {
+                return content
             }
             // Dict with text property
             if let text = dict["text"] as? String {

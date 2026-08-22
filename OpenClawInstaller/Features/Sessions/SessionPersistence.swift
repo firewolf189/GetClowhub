@@ -12,19 +12,20 @@ import os.log
 extension DashboardViewModel {
 
     /// Refresh `sessionsByAgent` from the store's index. Newest-first within
-    /// each derived display group. Archived sessions are excluded so the
-    /// sidebar list stays clean; the underlying file remains on disk.
+    /// each derived display group. Visibility follows the Cursor-style
+    /// active / archived / all filter; the underlying file remains on disk.
     func rebuildSessionsMirror() {
         let persistedSessionIds = Set(chatSessionStore.index.map(\.id))
         pendingSessionMetadataByAgent = pendingSessionMetadataByAgent.filter {
             !persistedSessionIds.contains($0.value.id)
         }
 
+        let filter = sessionState.sessionListFilter
         var grouped: [String: [ChatSessionMetadata]] = [:]
-        for meta in chatSessionStore.index where !meta.isArchived {
+        for meta in chatSessionStore.index where filter.includes(isArchived: meta.isArchived) {
             grouped[meta.agentId, default: []].append(meta)
         }
-        for pending in pendingSessionMetadataByAgent.values where !pending.isArchived {
+        for pending in pendingSessionMetadataByAgent.values where filter.includes(isArchived: pending.isArchived) {
             grouped[pending.agentId, default: []].append(pending)
         }
         for key in grouped.keys {

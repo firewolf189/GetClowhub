@@ -75,6 +75,34 @@ struct GlobalSessionSearchVerification {
             fail("empty global search should show recent unarchived sessions from all agents")
         }
 
+        let archivedOnly = ChatSessionSearch.search(
+            [mainSession, ux, archived],
+            query: "project",
+            filter: .archived
+        )
+        guard archivedOnly.map(\.id) == [archived.id] else {
+            fail("archived filter should return only archived sessions")
+        }
+
+        let allSessions = ChatSessionSearch.search(
+            [mainSession, ux, archived],
+            query: "",
+            filter: .all
+        )
+        guard allSessions.map(\.id) == [archived.id, ux.id, mainSession.id] else {
+            fail("all filter should return archived and active sessions, newest first")
+        }
+
+        let includeArchivedOverridesFilter = ChatSessionSearch.search(
+            [mainSession, ux, archived],
+            query: "project",
+            includeArchived: true,
+            filter: .active
+        )
+        guard includeArchivedOverridesFilter.map(\.id) == [archived.id, ux.id, mainSession.id] else {
+            fail("includeArchived should still expand the list even when filter defaults to active")
+        }
+
         print("Global session search verification passed")
     }
 }
