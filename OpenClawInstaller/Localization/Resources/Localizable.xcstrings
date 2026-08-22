@@ -25356,6 +25356,9 @@
     "Failed to send message. Please try again." : {
 
     },
+    "Connection was interrupted. The response may be incomplete." : {
+
+    },
     "Fallback" : {
       "extractionState" : "stale",
       "localizations" : {

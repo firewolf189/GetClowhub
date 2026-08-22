@@ -35,7 +35,8 @@ require(
     reconciliation.contains("case .failed") &&
         reconciliation.contains("case .cancelled") &&
         reconciliation.contains("case .complete") &&
-        reconciliation.contains("case .awaitingAuthoritativeState"),
+        reconciliation.contains("case .awaitingAuthoritativeState") &&
+        reconciliation.contains("case .unrecoverable"),
     "the coordinator must preserve all authoritative run outcomes"
 )
 require(

@@ -177,6 +177,13 @@ compileAndRun(
 )
 compileAndRun(
     sources: [
+        "OpenClawInstaller/Core/Gateway/GatewayChatRecoverySnapshot.swift",
+        "Tests/GatewayChatRecoverySnapshotTests.swift",
+    ],
+    label: "GatewayChatRecoverySnapshot tests"
+)
+compileAndRun(
+    sources: [
         "OpenClawInstaller/Core/Gateway/GatewayConnectionState.swift",
         "Tests/GatewayReconnectPolicyTests.swift",
     ],

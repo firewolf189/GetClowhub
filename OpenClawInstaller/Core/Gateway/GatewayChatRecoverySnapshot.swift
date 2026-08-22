@@ -242,6 +242,15 @@ enum GatewayChatRecoveryDecision: Equatable, Sendable {
     case awaitingAuthoritativeState
     case failed(message: String?)
     case cancelled
+    /// History cannot uniquely prove this run. Preserve any local draft and
+    /// stop polling as if the gateway run were still alive.
+    case unrecoverable
+}
+
+/// Whether reconnect landed on the same Gateway process that originated the run.
+enum GatewayChatRecoveryProcessTrust: Equatable, Sendable {
+    case sameProcess
+    case unknownOrRestarted
 }
 
 struct GatewayChatRecoverySnapshot: Codable, Equatable, Sendable {
@@ -252,10 +261,14 @@ struct GatewayChatRecoverySnapshot: Codable, Equatable, Sendable {
     func decision(
         expectedRunId: String,
         expectedRunStatus: GatewayChatRunStatusSnapshot,
-        fallbackStartedAt: Date? = nil
+        fallbackStartedAt: Date? = nil,
+        processTrust: GatewayChatRecoveryProcessTrust = .sameProcess,
+        deliveryAcknowledged: Bool = false
     ) -> GatewayChatRecoveryDecision {
         guard expectedRunStatus.runId == expectedRunId else {
-            return .awaitingAuthoritativeState
+            return processTrust == .unknownOrRestarted
+                ? .unrecoverable
+                : .awaitingAuthoritativeState
         }
 
         switch expectedRunStatus.state {
@@ -264,19 +277,27 @@ struct GatewayChatRecoverySnapshot: Codable, Equatable, Sendable {
         case .cancelled:
             return .cancelled
         case .completed:
-            guard let startedAt = expectedRunStatus.startedAt ?? fallbackStartedAt,
-                  let endedAt = expectedRunStatus.endedAt,
-                  startedAt <= endedAt,
-                  let message = latestAssistantMessage(from: startedAt, through: endedAt) else {
+            if let startedAt = expectedRunStatus.startedAt ?? fallbackStartedAt,
+               let endedAt = expectedRunStatus.endedAt,
+               startedAt <= endedAt,
+               let message = latestAssistantMessage(from: startedAt, through: endedAt) {
+                return .complete(text: message.text)
+            }
+            return processTrust == .unknownOrRestarted
+                ? .unrecoverable
+                : .awaitingAuthoritativeState
+        case .running, .unknown:
+            if processTrust == .sameProcess {
+                if let inFlightRun, inFlightRun.runId == expectedRunId {
+                    let bufferedText = inFlightRun.text?.isEmpty == false ? inFlightRun.text : nil
+                    return .resume(bufferedText: bufferedText)
+                }
+                if deliveryAcknowledged, expectedRunStatus.indicatesNoRegisteredRun {
+                    return .unrecoverable
+                }
                 return .awaitingAuthoritativeState
             }
-            return .complete(text: message.text)
-        case .running, .unknown:
-            if let inFlightRun, inFlightRun.runId == expectedRunId {
-                let bufferedText = inFlightRun.text?.isEmpty == false ? inFlightRun.text : nil
-                return .resume(bufferedText: bufferedText)
-            }
-            return .awaitingAuthoritativeState
+            return .unrecoverable
         }
     }
 

@@ -95,6 +95,20 @@ try require(
         reconciliation.contains("ChatRunDeliveryPolicy.unregisteredRunGracePeriod"),
     "Only an unacknowledged send with authoritative missing-run evidence may leave infinite foreground polling."
 )
+let snapshot = try read("OpenClawInstaller/Core/Gateway/GatewayChatRecoverySnapshot.swift")
+try require(
+    snapshot.contains("case unrecoverable") &&
+        snapshot.contains("enum GatewayChatRecoveryProcessTrust") &&
+        snapshot.contains("processTrust: GatewayChatRecoveryProcessTrust") &&
+        snapshot.contains("deliveryAcknowledged: Bool") &&
+        snapshot.contains("if deliveryAcknowledged, expectedRunStatus.indicatesNoRegisteredRun") &&
+        snapshot.contains("return .unrecoverable") &&
+        reconciliation.contains("recoveryProcessTrust(for: run)") &&
+        reconciliation.contains("case .unrecoverable:") &&
+        reconciliation.contains("chatRunInterruptedMessage") &&
+        localization.contains("\"Connection was interrupted. The response may be incomplete.\" : {"),
+    "Process restart recovery must not complete from unbounded history or resume a new process in-flight run."
+)
 try require(
     reconciliation.contains("switch gatewayClient.connectionState") &&
         reconciliation.contains("case .reconnecting(let attempt, let maximum):") &&

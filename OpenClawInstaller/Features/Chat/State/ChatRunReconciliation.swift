@@ -100,11 +100,7 @@ extension ChatViewModel {
                 }
             }
 
-            guard let observation = await fetchChatRunReconciliationObservation(
-                runId: expectedRunId,
-                sessionKey: sessionKey,
-                fallbackStartedAt: run.gatewayBinding.startedAt
-            ) else {
+            guard let observation = await fetchChatRunReconciliationObservation(run: run) else {
                 guard currentChatRun(
                     messageId: messageId,
                     expectedRunId: expectedRunId,
@@ -151,6 +147,9 @@ extension ChatViewModel {
 
             case .cancelled:
                 return .terminal(.cancelled)
+
+            case .unrecoverable:
+                return .terminal(.failed(message: Self.chatRunInterruptedMessage))
 
             case .resume(let bufferedText):
                 applyRecoveredChatDraft(messageId: messageId, bufferedText: bufferedText)
@@ -281,10 +280,10 @@ extension ChatViewModel {
     }
 
     private func fetchChatRunReconciliationObservation(
-        runId: String,
-        sessionKey: String,
-        fallbackStartedAt: Date
+        run: ChatRunState
     ) async -> ChatRunReconciliationObservation? {
+        let runId = run.expectedRunId
+        let sessionKey = run.gatewayBinding.sessionKey
         guard let status = await gatewayClient.fetchChatRunStatus(runId: runId) else {
             return nil
         }
@@ -298,14 +297,24 @@ extension ChatViewModel {
         case .cancelled:
             return ChatRunReconciliationObservation(status: status, decision: .cancelled)
         case .completed, .running, .unknown:
+            let processTrust = recoveryProcessTrust(for: run)
             let snapshot = await gatewayClient.fetchChatRecoverySnapshot(sessionKey: sessionKey)
             let decision = snapshot?.decision(
                 expectedRunId: runId,
                 expectedRunStatus: status,
-                fallbackStartedAt: fallbackStartedAt
-            ) ?? .awaitingAuthoritativeState
+                fallbackStartedAt: run.gatewayBinding.startedAt,
+                processTrust: processTrust,
+                deliveryAcknowledged: run.runId != nil
+            ) ?? (processTrust == .unknownOrRestarted ? .unrecoverable : .awaitingAuthoritativeState)
             return ChatRunReconciliationObservation(status: status, decision: decision)
         }
+    }
+
+    private func recoveryProcessTrust(for run: ChatRunState) -> GatewayChatRecoveryProcessTrust {
+        guard run.gatewayBinding.processEpoch != nil else { return .sameProcess }
+        return gatewayClient.allowsChatSendProbe(originatingEpoch: run.gatewayBinding.processEpoch)
+            ? .sameProcess
+            : .unknownOrRestarted
     }
 
     private func currentChatRun(
@@ -385,6 +394,13 @@ extension ChatViewModel {
             bundle: LanguageManager.shared.localizedBundle
         )
         finishChatRun(messageId: messageId, outcome: .timedOut(message: message))
+    }
+
+    private static var chatRunInterruptedMessage: String {
+        String(
+            localized: "Connection was interrupted. The response may be incomplete.",
+            bundle: LanguageManager.shared.localizedBundle
+        )
     }
 
     private func terminalChatContent(draft: String?, notice: String) -> String {

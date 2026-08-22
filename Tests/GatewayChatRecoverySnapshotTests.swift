@@ -209,6 +209,149 @@ private enum GatewayChatRecoverySnapshotTests {
             "an authoritative rejection must not pretend a run exists"
         )
 
+        try testConservativeHistoryDoesNotStealAnotherTurn()
+        try testUnknownProcessResumesNeitherInFlightNorLatestHistory()
+
         print("PASS: gateway chat recovery snapshot")
+    }
+
+    private static func unregisteredStatus(runId: String) -> GatewayChatRunStatusSnapshot {
+        GatewayChatRunStatusSnapshot(
+            runId: runId,
+            state: .running,
+            startedAt: nil,
+            endedAt: nil,
+            errorMessage: nil,
+            stopReason: nil,
+            timeoutPhase: "queue",
+            providerStarted: false
+        )
+    }
+
+    private static func testConservativeHistoryDoesNotStealAnotherTurn() throws {
+        let mixedHistory = GatewayChatRecoverySnapshot(
+            assistantMessages: [
+                GatewayAssistantMessageSnapshot(
+                    text: "older turn",
+                    timestamp: Date(timeIntervalSince1970: 90)
+                ),
+                GatewayAssistantMessageSnapshot(
+                    text: "this run",
+                    timestamp: Date(timeIntervalSince1970: 105)
+                ),
+                GatewayAssistantMessageSnapshot(
+                    text: "later turn",
+                    timestamp: Date(timeIntervalSince1970: 140)
+                )
+            ],
+            inFlightRun: nil,
+            hasActiveRun: false
+        )
+        try expect(
+            mixedHistory.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: unregisteredStatus(runId: "run-1"),
+                fallbackStartedAt: Date(timeIntervalSince1970: 100),
+                processTrust: .unknownOrRestarted
+            ) == .unrecoverable,
+            "without an authoritative endedAt window, later-turn history must not complete this run"
+        )
+
+        let uniqueHistory = GatewayChatRecoverySnapshot(
+            assistantMessages: [
+                GatewayAssistantMessageSnapshot(
+                    text: "this run",
+                    timestamp: Date(timeIntervalSince1970: 105)
+                )
+            ],
+            inFlightRun: nil,
+            hasActiveRun: false
+        )
+        try expect(
+            uniqueHistory.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: unregisteredStatus(runId: "run-1"),
+                fallbackStartedAt: Date(timeIntervalSince1970: 100),
+                processTrust: .unknownOrRestarted
+            ) == .unrecoverable,
+            "a single post-start reply is still not proof after a process restart"
+        )
+        try expect(
+            uniqueHistory.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: unregisteredStatus(runId: "run-1"),
+                fallbackStartedAt: Date(timeIntervalSince1970: 100),
+                processTrust: .sameProcess,
+                deliveryAcknowledged: true
+            ) == .unrecoverable,
+            "an acknowledged run that vanished from wait must interrupt rather than poll as running"
+        )
+        try expect(
+            uniqueHistory.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: unregisteredStatus(runId: "run-1"),
+                fallbackStartedAt: Date(timeIntervalSince1970: 100),
+                processTrust: .sameProcess,
+                deliveryAcknowledged: false
+            ) == .awaitingAuthoritativeState,
+            "an unacknowledged missing run must keep the registration grace path"
+        )
+        try expect(
+            uniqueHistory.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: runStatus(
+                    runId: "run-1",
+                    state: .completed,
+                    startedAt: 100,
+                    endedAt: 110
+                ),
+                processTrust: .unknownOrRestarted
+            ) == .complete(text: "this run"),
+            "an authoritative completed window may still recover after a process restart"
+        )
+    }
+
+    private static func testUnknownProcessResumesNeitherInFlightNorLatestHistory() throws {
+        let snapshot = GatewayChatRecoverySnapshot(
+            assistantMessages: [
+                GatewayAssistantMessageSnapshot(
+                    text: "later turn",
+                    timestamp: Date(timeIntervalSince1970: 140)
+                )
+            ],
+            inFlightRun: GatewayInFlightRunSnapshot(runId: "run-1", text: "new process draft"),
+            hasActiveRun: true
+        )
+        try expect(
+            snapshot.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: runStatus(runId: "run-1", state: .running, startedAt: 100),
+                fallbackStartedAt: Date(timeIntervalSince1970: 100),
+                processTrust: .unknownOrRestarted
+            ) == .unrecoverable,
+            "a restarted process must not resume in-flight text or steal a later turn"
+        )
+        try expect(
+            snapshot.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: runStatus(runId: "run-1", state: .running, startedAt: 100),
+                fallbackStartedAt: Date(timeIntervalSince1970: 100),
+                processTrust: .sameProcess
+            ) == .resume(bufferedText: "new process draft"),
+            "the same process may still resume a matching in-flight draft"
+        )
+        try expect(
+            snapshot.decision(
+                expectedRunId: "run-1",
+                expectedRunStatus: runStatus(
+                    runId: "another-run",
+                    state: .completed,
+                    startedAt: 100,
+                    endedAt: 110
+                ),
+                processTrust: .unknownOrRestarted
+            ) == .unrecoverable,
+            "a status snapshot for another run must not complete after a process restart"
+        )
     }
 }
