@@ -415,6 +415,10 @@ class DashboardViewModel: ObservableObject {
         chatViewModel.cancelChat(msgId)
     }
 
+    func awaitStopIsolation(for messageId: UUID) async -> Bool {
+        await chatViewModel.awaitStopIsolation(for: messageId)
+    }
+
     func clearChat() {
         chatViewModel.clearChat()
     }

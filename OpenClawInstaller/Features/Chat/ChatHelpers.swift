@@ -1325,6 +1325,32 @@ extension ChatViewModel {
         finishCancelledChatRun(messageId)
     }
 
+    /// Move the OpenClaw jsonl branch back to the stopped user turn so the
+    /// aborted assistant text stays visible but is not model context.
+    func isolateStoppedRunTranscript(sessionKey: String, idempotencyKey: String) {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".openclaw", isDirectory: true)
+        let outcome = StoppedRunTranscriptIsolation.isolate(
+            openclawHome: home,
+            sessionKey: sessionKey,
+            idempotencyKey: idempotencyKey
+        )
+        switch outcome {
+        case .isolated, .alreadyIsolated:
+            chatLog.info("phase=chat_stop_isolated session=\(sessionKey, privacy: .public)")
+        case .refusedBecauseSessionAdvanced:
+            chatLog.warning("phase=chat_stop_isolation_skipped session=\(sessionKey, privacy: .public) reason=session_advanced")
+        case .failed(let message):
+            chatLog.warning("phase=chat_stop_isolation_failed session=\(sessionKey, privacy: .public) error=\(message, privacy: .public)")
+        }
+    }
+
+    func awaitStopIsolation(for messageId: UUID) async -> Bool {
+        await chatRunLifecycleCoordinator.waitForCancellation(messageId: messageId)
+        guard let run = taskState.run(for: messageId) else { return true }
+        return run.phase.isTerminal
+    }
+
     /// Contract: `chat.abort` `aborted=true` is not the run terminal. Wait for
     /// `state: aborted` (the live stream finishes the run) or this timeout.
     private func waitForAbortedStreamEvent(messageId: UUID) async {
@@ -1340,6 +1366,12 @@ extension ChatViewModel {
     }
 
     func finishCancelledChatRun(_ messageId: UUID) {
+        if let run = taskState.run(for: messageId), run.phase != .preparing {
+            isolateStoppedRunTranscript(
+                sessionKey: run.gatewayBinding.sessionKey,
+                idempotencyKey: run.gatewayBinding.idempotencyKey
+            )
+        }
         finishChatRun(messageId: messageId, outcome: .cancelled)
     }
 

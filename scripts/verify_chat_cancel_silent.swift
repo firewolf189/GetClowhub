@@ -87,6 +87,13 @@ require(
     "confirmed cancellation must preserve visible text and clear runtime state centrally"
 )
 require(
+    chatHelpers.contains("isolateStoppedRunTranscript(") &&
+        chatHelpers.contains("StoppedRunTranscriptIsolation.isolate(") &&
+        chatHelpers.contains("func awaitStopIsolation(for messageId: UUID)") &&
+        chatHelpers.contains("waitForCancellation(messageId:"),
+    "a confirmed stop must isolate the OpenClaw jsonl branch before the next send"
+)
+require(
     imageReviewChunk.contains("taskState.run(for: msgId) == nil") &&
         imageReviewChunk.contains("return (\"cancelled\", accumulatedText)"),
     "ending an image-review event stream after cancellation should remain cancelled, not become failed"

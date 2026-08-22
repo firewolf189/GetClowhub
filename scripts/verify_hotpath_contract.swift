@@ -226,6 +226,13 @@ compileAndRun(
 )
 compileAndRun(
     sources: [
+        "OpenClawInstaller/Features/Chat/State/StoppedRunTranscriptIsolation.swift",
+        "Tests/StoppedRunTranscriptIsolationTests.swift",
+    ],
+    label: "StoppedRunTranscriptIsolation tests"
+)
+compileAndRun(
+    sources: [
         "OpenClawInstaller/Core/Gateway/GatewayProcessIdentity.swift",
         "OpenClawInstaller/Core/Gateway/GatewayChatAbortRequestRegistry.swift",
         "Tests/GatewayFakeWebSocketTests.swift",

@@ -55,6 +55,13 @@ require(agentRow.contains("Image(systemName: isExpanded ? \"chevron.down\" : \"c
 require(dashboard.contains("struct PendingComposerMessage: Identifiable, Equatable"), "chat view should define a pending composer message model")
 require(dashboard.contains("@State private var pendingComposerMessagesBySession"), "pending composer queue should be session-scoped")
 require(dashboard.contains("enqueuePendingComposerMessage(text: text, attachments: files)"), "send while streaming should enqueue the composer text")
+require(
+    dashboard.contains("cancellingRun(inSession:") &&
+        dashboard.contains("awaitStopIsolation(for:") &&
+        dashboard.contains("if isolated") &&
+        dashboard.contains("sendMessage()"),
+    "a send during stop must wait for transcript isolation instead of entering the composer queue"
+)
 require(dashboard.contains("deletePendingComposerMessage"), "queued composer messages should support delete")
 require(dashboard.contains("editPendingComposerMessage"), "queued composer messages should support edit")
 require(dashboard.contains("drainPendingComposerQueueIfPossible()"), "queued messages should drain after the active response completes")

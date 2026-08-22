@@ -1349,6 +1349,21 @@ struct ChatView: View {
         inputText = ""
         attachedFiles = []
 
+        if let sessionId = currentActiveSessionId,
+           let cancelling = taskState.cancellingRun(inSession: sessionId) {
+            Task {
+                let isolated = await viewModel.awaitStopIsolation(for: cancelling.identity.messageId)
+                await MainActor.run {
+                    inputText = text
+                    attachedFiles = files
+                    if isolated {
+                        sendMessage()
+                    }
+                }
+            }
+            return
+        }
+
         if taskState.isSendingMessage {
             enqueuePendingComposerMessage(text: text, attachments: files)
             return

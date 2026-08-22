@@ -131,6 +131,14 @@ final class TaskActivityState: ObservableObject {
         runsByMessageId[messageId]
     }
 
+    func cancellingRun(inSession sessionId: UUID) -> ChatRunState? {
+        runsByMessageId.values.first {
+            $0.identity.sessionId == sessionId
+                && $0.cancellationRequested
+                && !$0.phase.isTerminal
+        }
+    }
+
     func foregroundTaskId(inSession sessionId: UUID) -> UUID? {
         activeRuns(in: .foreground)
             .first(where: { $0.identity.sessionId == sessionId })?

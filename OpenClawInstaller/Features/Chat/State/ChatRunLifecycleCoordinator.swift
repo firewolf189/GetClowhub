@@ -96,6 +96,10 @@ final class ChatRunLifecycleCoordinator {
         cancellationOperations[messageId] = Operation(token: token, task: task)
     }
 
+    func waitForCancellation(messageId: UUID) async {
+        await cancellationOperations[messageId]?.task.value
+    }
+
     func cancelAutomaticBackground(messageId: UUID) {
         automaticBackgroundOperations.removeValue(forKey: messageId)?.task.cancel()
     }
