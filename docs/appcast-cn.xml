@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.86</title>
-      <sparkle:version>94</sparkle:version>
-      <sparkle:shortVersionString>1.1.86</sparkle:shortVersionString>
+      <title>Version 1.1.87</title>
+      <sparkle:version>95</sparkle:version>
+      <sparkle:shortVersionString>1.1.87</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.86</h2>
+        <h2>OpenClaw Helper 1.1.87</h2>
         <ul>
-          <li>点停止后，半截回复仍显示，但不会再当作下一轮的上下文；停止过程中再发送会等切枝完成再直发。</li>
+          <li>侧栏会话可按活跃、已归档或全部筛选，行上显示相对时间和消息条数；发出的消息会带上网关身份，恢复时能对上历史。</li>
         </ul>
       ]]></description>
-      <pubDate>Sat, 22 Aug 2026 13:16:05 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.86/GetClawHub.dmg"
-                 length="238794240"
+      <pubDate>Sat, 22 Aug 2026 15:44:19 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.87/GetClawHub.dmg"
+                 length="237880973"
                  type="application/octet-stream"
-                 sparkle:edSignature="aIM0qVdET6mfrrAFl3FfufAyexJzqy53WUM9cDLMgxKJFq1K24YSGIy3guOpobQABV/J/PpN3WqcnTDNCWGDBA==" />
+                 sparkle:edSignature="JqyfQ0s/sZRN8jfMPD/f+W3i/zsNtxtGZDA5kgfZgFe5wu3hF8Y6U0U6C6H6efml6H1BM4wWcB3khHJdlbmlDA==" />
     </item>
   </channel>
 </rss>
