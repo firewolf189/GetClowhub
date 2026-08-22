@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.87</title>
-      <sparkle:version>95</sparkle:version>
-      <sparkle:shortVersionString>1.1.87</sparkle:shortVersionString>
+      <title>Version 1.1.88</title>
+      <sparkle:version>96</sparkle:version>
+      <sparkle:shortVersionString>1.1.88</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.87</h2>
+        <h2>OpenClaw Helper 1.1.88</h2>
         <ul>
-          <li>侧栏会话可按活跃、已归档或全部筛选，行上显示相对时间和消息条数；发出的消息会带上网关身份，恢复时能对上历史。</li>
+          <li>侧栏当天会话显示 m/h，不再用当天时钟</li>
         </ul>
       ]]></description>
-      <pubDate>Sat, 22 Aug 2026 15:44:19 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.87/GetClawHub.dmg"
-                 length="237880973"
+      <pubDate>Sun, 23 Aug 2026 00:00:50 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.88/GetClawHub.dmg"
+                 length="242161099"
                  type="application/octet-stream"
-                 sparkle:edSignature="JqyfQ0s/sZRN8jfMPD/f+W3i/zsNtxtGZDA5kgfZgFe5wu3hF8Y6U0U6C6H6efml6H1BM4wWcB3khHJdlbmlDA==" />
+                 sparkle:edSignature="VEPJJsKAnDgSs0Ow0K5wJfruBc6Wgxg71vAw2E1bHILvw7IbDzEavwaL/lEBT3ucDXi8TmvpB+Gr/UuJQD4yCw==" />
     </item>
   </channel>
 </rss>
