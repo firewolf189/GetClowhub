@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.85</title>
-      <sparkle:version>93</sparkle:version>
-      <sparkle:shortVersionString>1.1.85</sparkle:shortVersionString>
+      <title>Version 1.1.86</title>
+      <sparkle:version>94</sparkle:version>
+      <sparkle:shortVersionString>1.1.86</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.85</h2>
+        <h2>OpenClaw Helper 1.1.86</h2>
         <ul>
-          <li>断线或网关重启后，聊天不会重复发送，也不会把别的回合回复算到当前这条。</li>
+          <li>点停止后，半截回复仍显示，但不会再当作下一轮的上下文；停止过程中再发送会等切枝完成再直发。</li>
         </ul>
       ]]></description>
-      <pubDate>Sat, 22 Aug 2026 11:57:25 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.85/GetClawHub.dmg"
-                 length="238607673"
+      <pubDate>Sat, 22 Aug 2026 13:16:05 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.86/GetClawHub.dmg"
+                 length="238794240"
                  type="application/octet-stream"
-                 sparkle:edSignature="YLVW+he5O7RG1LDe6nbR9E42dARU6aOQdf4sO0eajtRukjpgJbTjtU3zGAvZ67sswrQRncNpC21ugAatzLeZAQ==" />
+                 sparkle:edSignature="aIM0qVdET6mfrrAFl3FfufAyexJzqy53WUM9cDLMgxKJFq1K24YSGIy3guOpobQABV/J/PpN3WqcnTDNCWGDBA==" />
     </item>
   </channel>
 </rss>
