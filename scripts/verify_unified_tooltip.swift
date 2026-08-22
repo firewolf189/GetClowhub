@@ -227,7 +227,7 @@ require(
 let attachments = slice(
     dashboard,
     from: "struct AttachmentPreview: View",
-    to: "struct SuccessToast: View"
+    to: "extension Notification.Name"
 )
 require(
     attachments.contains(#"title: I18n.t("dashboard.tooltip.removeAttachment")"#) &&

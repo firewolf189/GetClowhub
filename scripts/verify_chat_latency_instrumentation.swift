@@ -18,6 +18,7 @@ func require(_ condition: Bool, _ message: String) {
 
 let chatHelpers = read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let gateway = read("OpenClawInstaller/Core/Gateway/GatewayClient.swift")
+let sendRegistry = read("OpenClawInstaller/Core/Gateway/GatewayChatRecoverySnapshot.swift")
 
 require(
     chatHelpers.contains("let chatSendStart = ContinuousClock.now"),
@@ -48,7 +49,7 @@ require(
     "sendChatMessage should log error event timing"
 )
 require(
-    gateway.contains("let startedAt: ContinuousClock.Instant") &&
+    sendRegistry.contains("let startedAt: ContinuousClock.Instant") &&
         gateway.contains("startedAt: chatSendStartedAt"),
     "GatewayClient should retain each chat.send start time in its typed pending request"
 )

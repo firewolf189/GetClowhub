@@ -25,14 +25,15 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
-let rebuildSessionsMirror = slice(viewModel, from: "func rebuildSessionsMirror()", to: "/// Remove in-memory UI state")
+let persistence = read("OpenClawInstaller/Features/Sessions/SessionPersistence.swift")
+let rebuildSessionsMirror = slice(persistence, from: "func rebuildSessionsMirror()", to: "/// Remove in-memory UI state")
 let switchSession = slice(viewModel, from: "func switchSession(to sessionId: UUID)", to: "/// Switch to a session")
 let createNewSession = slice(viewModel, from: "func createNewSession(forAgent agentId: String)", to: "/// Cancel any pending debounced write")
 let pendingHelpers = slice(viewModel, from: "private func discardEmptyPendingSessionIfNeeded", to: "/// Cancel any pending debounced write")
 
 assertContains(
     viewModel,
-    "private var pendingSessionMetadataByAgent: [String: ChatSessionMetadata] = [:]",
+    "var pendingSessionMetadataByAgent: [String: ChatSessionMetadata] = [:]",
     "view model should track unsaved empty sessions separately from persisted sessions"
 )
 assertContains(

@@ -51,13 +51,13 @@ let cancelDelete = slice(
 )
 let tooltipCoordinator = slice(
     tooltip,
-    from: "private final class UnifiedTooltipCoordinator",
+    from: "private final class UnifiedTooltipPresenter",
     to: "private struct UnifiedTooltipBubble"
 )
 let tooltipPresent = slice(
     tooltipCoordinator,
-    from: "private func present(relativeTo sourceView: NSView)",
-    to: "private var fittingSize"
+    from: "private func presentIfNeeded",
+    to: "private func updateRenderedContentIfNeeded"
 )
 
 require(
@@ -81,7 +81,7 @@ require(
 require(
     tooltipPresent.contains("guard !panel.isVisible") &&
         tooltipPresent.contains("visibleFrame != frame") &&
-        tooltipPresent.contains("visibleContent != self.content") &&
+        tooltipPresent.contains("visibleContent != content") &&
         tooltipPresent.contains("else { return }"),
     "UnifiedTooltip present should be idempotent when the panel is already visible with the same frame and content"
 )

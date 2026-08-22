@@ -62,7 +62,17 @@ let membershipManagerURL = root
     .appendingPathComponent("Auth")
     .appendingPathComponent("MembershipManager.swift")
 
-let dashboard = try String(contentsOf: dashboardURL, encoding: .utf8)
+let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+let dashboard = try dashboardUIRelativePaths
+    .map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }
+    .joined(separator: "\n")
 let settingsPanel = try String(contentsOf: settingsPanelURL, encoding: .utf8)
 let settingsMenu = try String(contentsOf: settingsMenuURL, encoding: .utf8)
 let settingsRows = try String(contentsOf: settingsRowsURL, encoding: .utf8)

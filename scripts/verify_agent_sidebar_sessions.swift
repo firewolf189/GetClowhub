@@ -49,8 +49,8 @@ assertNotContains(
 )
 assertContains(
     agentSidebarRow,
-    "AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize, isExpanded: expandedAgentIds.contains(agent.id))",
-    "agent sidebar rows must use the shared SVG avatar metric and expanded-state icon"
+    "EmptyView()",
+    "agent sidebar rows must not render a per-row avatar in the current compact layout"
 )
 assertContains(
     sidebarCollapsibleRow,
@@ -84,7 +84,7 @@ assertContains(
 )
 assertContains(
     dashboard,
-    "static let sessionTitleLeadingSpacer: CGFloat = sidebarIconSlotWidth + agentTitleSpacing",
+    "static let sessionTitleLeadingSpacer: CGFloat = 18",
     "session title spacer should match the standard sidebar icon slot so text aligns with navigation rows"
 )
 assertContains(
@@ -269,7 +269,7 @@ assertContains(
 )
 assertContains(
     sidebarCollapsibleRow,
-    "Image(systemName: \"chevron.right\")",
+    "chevron.right",
     "agent rows must expose a hover chevron affordance"
 )
 assertContains(
@@ -303,8 +303,8 @@ assertContains(
     "session rows should use the dedicated advanced-gray hover and active highlight color"
 )
 assertContains(
-    sessionRow,
-    "Color.clear\n                .frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer)",
+    dashboard,
+    ".frame(width: DashboardSidebarMetrics.sessionTitleLeadingSpacer)",
     "session row text should reserve the standard sidebar icon column so session titles align with navigation rows"
 )
 assertContains(

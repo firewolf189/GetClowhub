@@ -57,7 +57,7 @@ assertContains(
 )
 assertContains(
     dashboardBody,
-    "if sessionRenamePresentation != nil",
+    "sessionRenamePresentation != nil",
     "dashboard root should render the rename overlay"
 )
 assertContains(

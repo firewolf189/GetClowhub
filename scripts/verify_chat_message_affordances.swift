@@ -50,7 +50,7 @@ let backgroundTaskNotification = slice(
 let thinkingIndicator = slice(
     dashboard,
     from: "struct ThinkingIndicator: View",
-    to: "// MARK: - Chat Bubble"
+    to: "// MARK: - Model Picker Row"
 )
 
 assertContains(

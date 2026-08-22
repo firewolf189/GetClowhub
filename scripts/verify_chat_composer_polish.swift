@@ -68,12 +68,12 @@ assertContains(
 )
 assertContains(
     dashboard,
-    #"String(localized: "New chat", bundle: LanguageManager.shared.localizedBundle)"#,
+    #"I18n.t("dashboard.session.newChat")"#,
     "empty session fallback title must be localized"
 )
 assertContains(
     dashboard,
-    #"String(localized: "Delete", bundle: LanguageManager.shared.localizedBundle)"#,
+    #"I18n.t("common.action.delete")"#,
     "session-row delete affordance help must be localized"
 )
 

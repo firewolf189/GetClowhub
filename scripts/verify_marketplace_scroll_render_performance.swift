@@ -35,12 +35,12 @@ let skills = read("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
 let pluginCatalogSection = slice(
     plugins,
     from: "private func catalogSection",
-    to: "private func installedSection"
+    to: "private func matchesSearch"
 )
 let pluginInstalledSection = slice(
     plugins,
-    from: "private func installedSection",
-    to: "private func matchesSearch"
+    from: "private func installedPluginSection",
+    to: "private func pluginSectionHeader"
 )
 let pluginIcon = slice(
     plugins,
@@ -91,7 +91,7 @@ let skillInstalledRow = slice(
 
 require(
     pluginCatalogSection.contains("LazyVStack(spacing: 0)") &&
-        pluginInstalledSection.contains("LazyVStack(spacing: 0)"),
+        pluginInstalledSection.contains("LazyVStack("),
     "Plugins catalog and installed sections should use LazyVStack so offscreen rows are not eagerly built."
 )
 require(

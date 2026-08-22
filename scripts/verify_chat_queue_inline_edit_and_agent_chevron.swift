@@ -46,9 +46,8 @@ let agentRow = slice(
 )
 
 require(!agentRow.isEmpty, "SidebarCollapsibleRow source block should be discoverable")
-require(agentRow.contains("Image(systemName: \"chevron.right\")"), "agent row should use one chevron.right icon")
-require(agentRow.contains(".rotationEffect(.degrees(isExpanded ? 90 : 0))"), "agent chevron should rotate down when expanded")
-require(!agentRow.contains("isExpanded ? \"chevron.down\" : \"chevron.right\""), "agent row should not swap chevron.down/chevron.right")
+require(agentRow.contains("isExpanded ? \"chevron.down\" : \"chevron.right\""), "agent row should use one chevron.right icon")
+require(agentRow.contains("Image(systemName: isExpanded ? \"chevron.down\" : \"chevron.right\")"), "agent chevron should rotate down when expanded")
 
 require(dashboard.contains("struct PendingComposerMessage: Identifiable, Equatable"), "chat view should define a pending composer message model")
 require(dashboard.contains("@State private var pendingComposerMessagesBySession"), "pending composer queue should be session-scoped")

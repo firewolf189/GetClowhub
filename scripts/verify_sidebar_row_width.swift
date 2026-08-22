@@ -43,7 +43,7 @@ let sidebarRowContent = slice(
 let agentSidebarRow = slice(
     dashboard,
     from: "private func agentSidebarRow",
-    to: "private func agentRowWithContextMenu"
+    to: "private func canDeleteAgent"
 )
 
 let collapsibleRowContent = slice(

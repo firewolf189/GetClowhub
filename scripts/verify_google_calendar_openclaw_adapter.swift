@@ -7,10 +7,12 @@ let repoRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let appSources = [
     "OpenClawInstaller/Features/Plugins/Services/PluginCatalogService.swift",
     "OpenClawInstaller/Features/Plugins/Models/PluginCatalogItem.swift",
+    "OpenClawInstaller/Features/Plugins/Models/PluginInfo.swift",
     "OpenClawInstaller/Localization/I18nService.swift",
     "OpenClawInstaller/Localization/LanguageManager.swift",
     "OpenClawInstaller/Features/Agents/Marketplace/MarketplaceAgent.swift",
     "OpenClawInstaller/Features/Skills/Models/SkillCatalogItem.swift",
+    "OpenClawInstaller/Features/Skills/Models/SkillInfo.swift",
 ]
 
 let driverSource = #"""

@@ -37,7 +37,7 @@ func slice(_ source: String, from start: String, to end: String) -> String {
 let chatView = slice(
     dashboard,
     from: "struct ChatView: View",
-    to: "// MARK: - Typewriter Text for Streaming"
+    to: "struct ComposerInputCardBoundsKey"
 )
 let chatBody = slice(
     chatView,
@@ -80,7 +80,7 @@ require(dashboard.contains("private var showSlashPanel: Bool"), "chat view shoul
 require(dashboard.contains("private var showSkillsPanel: Bool"), "chat view should still compute skills panel visibility")
 require(dashboard.contains("private var showAgentPanel: Bool"), "chat view should still compute agent mention panel visibility")
 
-require(dashboard.contains("private struct ComposerInputCardBoundsKey: PreferenceKey"), "composer suggestions need a root-level input-card anchor")
+require(dashboard.contains("struct ComposerInputCardBoundsKey: PreferenceKey"), "composer suggestions need a root-level input-card anchor")
 require(chatBody.contains(".overlayPreferenceValue(ComposerInputCardBoundsKey.self)"), "chat root should render composer suggestions from an overlay preference")
 require(chatBody.contains("composerSuggestionOverlay(anchor: anchor)"), "chat root should call composerSuggestionOverlay")
 require(composerArea.contains(".anchorPreference(key: ComposerInputCardBoundsKey.self, value: .bounds)"), "composer input card should publish its bounds for suggestion positioning")

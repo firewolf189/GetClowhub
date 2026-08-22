@@ -71,12 +71,12 @@ assertContains(
 )
 assertContains(
     sessionRows,
-    "actions.switchSession(meta.id)",
+    "actions.switchSessionInAgent(meta.id, ownerAgentId)",
     "the full session row should keep click-to-switch behavior"
 )
 assertContains(
     viewModel,
-    "private var shouldSuppressNextSessionSwitchBottomScroll = false",
+    "var shouldSuppressNextSessionSwitchBottomScroll = false",
     "DashboardViewModel should track one-shot suppression for delete-triggered active-session promotion"
 )
 assertContains(

@@ -33,17 +33,18 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let popover = read("OpenClawInstaller/Features/Sessions/Views/SessionTitleUserMessagesPopover.swift")
 let timeline = read("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
+let models = read("OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 let titleToolbar = slice(
     dashboard,
     from: #".toolbar {"#,
-    to: #".alert("Error""#
+    to: #"I18n.t("dashboard.alert.error")"#
 )
 let titleToolbarChip = slice(
     dashboard,
-    from: "private var sessionTitleToolbarChip: some View",
-    to: "private var currentSessionTitle: String?"
+    from: "private struct DashboardSessionTitleToolbarChip: View",
+    to: "struct DashboardView: View"
 )
 let chatView = slice(
     dashboard,
@@ -83,7 +84,7 @@ assertContains(
 )
 assertContains(
     titleToolbarChip,
-    "onTapMessage: jumpToUserMessage",
+    "onTapMessage: onTapMessage",
     "conversation title popover should only call back to Dashboard when a user message is selected"
 )
 assertNotContains(
@@ -584,13 +585,13 @@ assertContains(
     "ChatView must pass the flashing phase into the timeline surface"
 )
 assertContains(
-    timeline,
+    models,
     "isJumpHighlighted: highlightedMessageId == message.id && highlightedMessageFlashOn",
     "ChatTimelineSurface must pass transient selected-message highlighting into ChatBubble"
 )
 
 assertContains(
-    chatBubble,
+    models,
     "let isJumpHighlighted: Bool",
     "ChatBubble must accept an explicit jump-highlight flag"
 )
@@ -601,7 +602,7 @@ assertContains(
 )
 assertContains(
     chatBubble,
-    "isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor",
+    "message.isJumpHighlighted ? jumpHighlightBackgroundColor : bubbleBackgroundColor",
     "user bubble background must switch to the deep gray flash color while highlighted"
 )
 

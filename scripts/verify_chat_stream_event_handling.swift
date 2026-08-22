@@ -105,11 +105,12 @@ try require(
     "Task cleanup should clear active stream state for completed, cancelled, timed-out, and failed tasks."
 )
 try require(
-    markdownPolicy.contains("if isStreaming { return .native }"),
+    markdownPolicy.contains("if isStreaming { return .plainText }"),
     "Streaming rows should stay on the native renderer and never mount WKWebView."
 )
 try require(
-    assistantView.contains("parsesMarkdown: !renderModel.isStreaming"),
+    assistantView.contains("case .plainText:") &&
+        renderer.contains("if isStreaming { return .plainText }"),
     "Streaming rows should render visible draft as plain/native text without markdown parsing."
 )
 

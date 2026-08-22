@@ -8,11 +8,14 @@ let overlayPath = root
     .appendingPathComponent("DesignSystem")
     .appendingPathComponent("Components")
     .appendingPathComponent("CursorDotOverlay.swift")
-let dashboardPath = root
-    .appendingPathComponent("OpenClawInstaller")
-    .appendingPathComponent("Features")
-    .appendingPathComponent("Dashboard")
-    .appendingPathComponent("DashboardView.swift")
+let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
 let projectPath = root
     .appendingPathComponent("OpenClawInstaller.xcodeproj")
     .appendingPathComponent("project.pbxproj")
@@ -42,7 +45,9 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let overlay = read(overlayPath)
-let dashboard = read(dashboardPath)
+let dashboard = dashboardUIRelativePaths
+    .map { read(root.appendingPathComponent($0)) }
+    .joined(separator: "\n")
 let project = read(projectPath)
 let dashboardRoot = slice(
     dashboard,

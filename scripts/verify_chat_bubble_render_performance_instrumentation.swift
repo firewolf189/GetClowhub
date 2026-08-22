@@ -69,7 +69,7 @@ assertContains(
 )
 assertContains(
     assistantContent,
-    #"logRenderMode("native_selectable")"#,
+    #"logRenderMode("plain_text")"#,
     "assistant content should log lightweight native text render mode"
 )
 assertContains(

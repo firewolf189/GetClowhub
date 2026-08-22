@@ -99,8 +99,8 @@ assertContains(
 )
 assertContains(
     agentSidebarRow,
-    "AgentAvatarImage(size: DashboardSidebarMetrics.agentAvatarSize, isExpanded: expandedAgentIds.contains(agent.id))",
-    "agent sidebar rows must pass expanded state into the shared avatar"
+    "EmptyView()",
+    "agent sidebar rows must not render a per-row avatar in the current compact layout"
 )
 assertContains(
     agentSidebarRow,
@@ -109,7 +109,7 @@ assertContains(
 )
 assertContains(
     agentSidebarRow,
-    #"Label("Remove Agent", systemImage: "trash")"#,
+    #"I18n.t("dashboard.agent.remove.title")"#,
     "agent sidebar row context menu must keep the custom agent delete action"
 )
 assertContains(
@@ -119,7 +119,7 @@ assertContains(
 )
 assertContains(
     sidebarCollapsibleRow,
-    ".opacity(isHovering || isExpanded ? 1 : 0)",
+    ".opacity(showsChevronAlways || isHovering || isExpanded ? 1 : 0)",
     "agent row chevron must reserve layout space and fade on hover or expanded state"
 )
 assertContains(

@@ -27,6 +27,7 @@ let state = try source("OpenClawInstaller/Features/Chat/Models/ChatRunState.swif
 let reconciliation = try source("OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift")
 let helpers = try source("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let viewModel = try source("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let chatViewModel = try source("OpenClawInstaller/Features/Chat/ViewModels/ChatViewModel.swift")
 let imageChunk = slice(
     helpers,
     from: "private func runLocalImageReviewChunk(",
@@ -112,9 +113,10 @@ require(
     "the batch must remain the parent terminal owner and use the centralized terminalizer"
 )
 require(
-    viewModel.contains("run.executionKind == .conversation") &&
-        viewModel.contains("let conversationRunIds") &&
-        viewModel.contains("scheduleChatRunReconciliation(messageId: messageId)"),
+    chatViewModel.contains("run.executionKind == .conversation") &&
+        chatViewModel.contains("let conversationRunIds") &&
+        chatViewModel.contains("scheduleChatRunReconciliation(messageId: messageId)") &&
+        viewModel.contains("chatViewModel.handleGatewayConnectionState(state)"),
     "shared transport recovery must schedule only conversation-owned runs without live subscribers"
 )
 

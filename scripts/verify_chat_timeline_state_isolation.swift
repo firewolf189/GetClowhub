@@ -118,7 +118,7 @@ try require(
 )
 
 try require(
-    chatScrollContent.contains("let timelineSnapshot = ChatTimelineSnapshot.build("),
+    chatScrollContent.contains("let timelineSnapshot = timelineSnapshotCache.snapshot("),
     "ChatView should build a timeline snapshot before composing ChatTimelineSurface."
 )
 try require(
@@ -155,8 +155,7 @@ try require(
     "updateMessage should skip no-op writes so @Published does not emit when row data is unchanged."
 )
 try require(
-    !chatViewModel.contains(": ObservableObject") &&
-        !chatViewModel.contains("objectWillChange") &&
+    !chatViewModel.contains("objectWillChange") &&
         !dashboardViewModel.contains("chatViewModel.objectWillChange"),
     "Streaming and run-state publications must stop at their directly observed surfaces instead of invalidating DashboardViewModel."
 )

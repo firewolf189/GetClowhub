@@ -38,7 +38,7 @@ func read(_ url: URL, _ label: String) -> String {
     return value
 }
 
-let dashboard = read(dashboardPath, "DashboardView.swift")
+let dashboard = try loadDashboardUI(root: root)
 let marketplace = read(marketplacePath, "MarketplaceView.swift")
 let overview = read(overviewPath, "MarketplaceOverviewView.swift")
 let detail = read(detailPath, "MarketplaceDetailView.swift")
@@ -78,7 +78,8 @@ require(
     "New shared modal and Marketplace page files should be part of the Xcode target."
 )
 require(
-    dashboard.contains("if let agent = viewModel.selectedMarketplaceAgent, shouldShowMarketplaceDetailOverlay") &&
+    dashboard.contains("let agent = viewModel.selectedMarketplaceAgent") &&
+        dashboard.contains("shouldShowMarketplaceDetailOverlay") &&
         dashboard.contains("marketplaceDetailOverlay(for: agent)") &&
         dashboard.contains(".animation(marketplaceDetailAnimation, value: viewModel.selectedMarketplaceAgent?.id)") &&
         !marketBranch.contains("marketplaceDetailOverlay(for: agent)") &&

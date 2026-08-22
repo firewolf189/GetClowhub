@@ -49,7 +49,7 @@ let agentSection = slice(
 
 assertContains(
     agentSection,
-    "onRequestCreateAgent()",
+    "actions.requestCreateAgent()",
     "Agent section header plus must request the root create-agent overlay"
 )
 assertContains(
@@ -93,7 +93,7 @@ assertContains(
     "create-agent callback must switch the detail pane to chat"
 )
 assertContains(
-    dashboardRoot,
+    dashboard,
     "expandedAgentIds.insert(agentId)",
     "create-agent callback must expand the newly created agent sessions"
 )

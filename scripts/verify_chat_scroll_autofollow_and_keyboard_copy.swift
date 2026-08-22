@@ -35,11 +35,11 @@ let appDelegate = read("OpenClawInstaller/App/AppDelegate.swift")
 let chatView = slice(
     dashboard,
     from: "struct ChatView: View",
-    to: "private struct ComposerInputCardBoundsKey"
+    to: "struct ComposerInputCardBoundsKey"
 )
 let messageCountHandler = slice(
     dashboard,
-    from: ".onChange(of: viewModel.chatMessages.count)",
+    from: ".onChange(of: currentMessages.count)",
     to: "} else {"
 )
 let sessionScrollHelper = slice(
@@ -85,16 +85,10 @@ require(
     "Delayed session-switch scrolls should be cancellable when the user scrolls away."
 )
 require(
-    assistantRenderer.contains("fullTextCopyFallback") &&
-        assistantRenderer.contains("copyTextToPasteboard(fullTextCopyFallback)"),
-    "Native selectable messages should copy the whole message when Cmd+C has no selection."
-)
-require(
-    assistantRenderer.contains("override func performKeyEquivalent(with event: NSEvent) -> Bool") &&
-        assistantRenderer.contains("override func keyDown(with event: NSEvent)") &&
-        assistantRenderer.contains("isCommandCopyEvent") &&
-        assistantRenderer.contains("copy(nil)"),
-    "Native selectable messages should handle Cmd+C directly instead of relying only on responder-chain menu routing."
+    assistantRenderer.contains("enum NativeSelectableTextSelectionRegistry") &&
+        assistantRenderer.contains("copySelectedTextFromFirstResponder") &&
+        chatView.contains("handleCopyShortcut(event)"),
+    "Native selectable messages should copy through the first-responder registry on Cmd+C."
 )
 // The NSTextView bridge these assertions described was deleted on 2026-07-26
 // (livelock host, unused after MarkdownUI). Message selection is SwiftUI's now,

@@ -44,7 +44,7 @@ let assistantRenderer = read("OpenClawInstaller/Features/Chat/Markdown/Assistant
 let agentSidebarRow = slice(
     dashboard,
     from: "private func agentSidebarRow(_ agent: AgentOption) -> some View",
-    to: "private func agentRowWithContextMenu(_ agent: AgentOption) -> some View"
+    to: "private func canDeleteAgent(_ agent: AgentOption) -> Bool"
 )
 let toggleAgentSelection = slice(
     dashboard,
@@ -89,12 +89,12 @@ assertNotContains(
 )
 assertContains(
     sessionRowTap,
-    "viewModel.switchSession(to: meta.id)",
+    "actions.switchSessionInAgent(meta.id, ownerAgentId)",
     "clicking a concrete session should still switch the right-side conversation"
 )
 assertContains(
     sessionRowTap,
-    "selectedTab = .chat",
+    "actions.selectTab(.chat)",
     "clicking a concrete session should still move the detail pane to chat"
 )
 

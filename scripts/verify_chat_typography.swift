@@ -68,13 +68,12 @@ guard !markdownHTML.contains("font-size: 15px; color:") else {
 
 assertContains(
     assistantRenderer,
-    "return requiresWebView(content) ? .webView : .native",
+    "if allowsWebView && requiresWebView(content) { return .webView }",
     "Complex Markdown such as tables should still upgrade to WKWebView"
 )
 
-guard assistantRenderer.contains("fontSize: CGFloat = 14") &&
-        assistantRenderer.contains("NSFont.systemFont(ofSize: fontSize)") &&
-        assistantRenderer.contains("fontSize: 14") else {
+guard assistantRenderer.contains("FontSize(14)") &&
+        assistantRenderer.contains(".font(.system(size: 14))") else {
     fatalError("Native direct-selection renderer should match the 14pt chat message size")
 }
 

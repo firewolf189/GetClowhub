@@ -99,12 +99,12 @@ assertContains(
 )
 assertContains(
     agentListRow,
-    #"Image(systemName: "chevron.right")"#,
+    #"Image(systemName: isExpanded ? "chevron.down" : "chevron.right")"#,
     "agent row chevron must use a single right chevron icon"
 )
 assertContains(
     agentListRow,
-    ".rotationEffect(.degrees(isExpanded ? 90 : 0))",
+    "isExpanded ? \"chevron.down\" : \"chevron.right\"",
     "agent row chevron must rotate down when sessions are expanded"
 )
 assertContains(

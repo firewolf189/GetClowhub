@@ -60,7 +60,6 @@ let requiredDashboardKeys = [
     "dashboard.model.label",
     "dashboard.model.defaultInherit",
     "dashboard.chat.viewResult",
-    "dashboard.chat.moveToBackground",
     "dashboard.diagnostics.title",
     "dashboard.outputs.title",
     "dashboard.outputs.empty",

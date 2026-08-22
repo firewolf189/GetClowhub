@@ -75,9 +75,9 @@ expect(workspaceFolderIcon.contains(".foregroundStyle(.secondary)"), "shared fol
 expect(!workspaceFolderIcon.contains(".foregroundColor(.black)") && !workspaceFolderIcon.contains(".foregroundColor(.white)"), "shared folder icon should not hardcode light/dark colors")
 expect(workspaceFolderIcon.contains(".frame(width: size, height: size)"), "shared folder icon should expose a reusable size")
 expect(project.contains("WorkspaceFolderIcon.swift in Sources"), "WorkspaceFolderIcon should be part of the app target sources")
-expect(workspaceInspector.contains("private func workspaceItemIcon(item: FileItem, isExpanded: Bool) -> some View"), "WorkspaceFilePanel should render folders through a shared helper")
+expect(workspaceInspector.contains("private struct WorkspaceFileItemIcon: View"), "WorkspaceFilePanel should render folders through a shared helper")
 expect(workspaceInspector.contains("WorkspaceFolderIcon(isExpanded: isExpanded, size: 20)"), "expanded workspace folders should use the shared folder icon component")
-expect(workspaceInspector.contains("projectItemIcon(item: item, isExpanded: false)"), "search result directory rows should use the closed shared folder icon")
+expect(workspaceInspector.contains("WorkspaceFileItemIcon(item: item, isExpanded: isExpanded)"), "search result directory rows should use the closed shared folder icon")
 expect(agentProjectFolderRow.contains("SidebarProjectBookIcon(isExpanded: !group.binding.isCollapsed, size: 18)"), "agent project folder rows should use the sidebar-only book icon component")
 expect(dashboard.contains("WorkspaceFolderIcon(isExpanded: false, size: 20)"), "attachment directory previews should use the shared closed folder icon at 20pt")
 
@@ -87,7 +87,7 @@ expect(
     "WorkspaceFilePanel should not use the old filled SF Symbol folder"
 )
 
-let attachmentPreview = slice(dashboard, from: "struct AttachmentPreview: View", to: "// MARK: - Success Toast")
+let attachmentPreview = slice(dashboard, from: "struct AttachmentPreview: View", to: "extension Notification.Name")
 expect(
     !attachmentPreview.contains(#""folder.fill""#),
     "AttachmentPreview should not use the old filled SF Symbol folder"

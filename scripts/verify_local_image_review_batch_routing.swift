@@ -1,7 +1,7 @@
 import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let viewModelURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let viewModelURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let storeURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Services/ImageReviewBatchStore.swift")
 let projectURL = root.appendingPathComponent("OpenClawInstaller.xcodeproj/project.pbxproj")
 
@@ -32,7 +32,7 @@ require(store.contains("maxCacheBytes"), "batch store should enforce a maximum l
 require(store.contains("successfulImageRetentionDays"), "batch store should enforce retention by age")
 
 require(viewModel.contains("ImageReviewBatchStore.isImageReviewBatchCandidate"), "upload flow should detect local image review batches")
-require(viewModel.contains("runLocalImageReviewBatch"), "DashboardViewModel should run local image review batches")
+require(viewModel.contains("runLocalImageReviewBatch"), "chat send pipeline should run local image review batches")
 require(viewModel.contains("ImageReviewBatchStore.chunkSessionKey"), "local batch worker should use unique chunk session keys")
 require(viewModel.contains("buildChunkReviewPrompt"), "local batch worker should send chunk-scoped prompts")
 require(viewModel.contains("appendChunkResult"), "local batch worker should persist chunk results incrementally")

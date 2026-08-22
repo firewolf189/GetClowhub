@@ -53,7 +53,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let chatView = slice(
     source,
     from: "struct ChatView: View",
-    to: "private struct ComposerInputCardBoundsKey"
+    to: "struct ComposerInputCardBoundsKey"
 )
 let composerInputCardWrapper = slice(
     source,
@@ -105,7 +105,7 @@ require(
 )
 require(
     source.contains("ChatTimelineSurface(") &&
-        source.contains("messages: currentMessages"),
+        source.contains("snapshot: timelineSnapshot"),
     "ChatView should pass messages into ChatTimelineSurface instead of mixing timeline layout with composer input state."
 )
 require(

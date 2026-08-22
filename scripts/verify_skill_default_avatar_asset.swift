@@ -11,7 +11,8 @@ let dashboardView = root
     .appendingPathComponent("OpenClawInstaller")
     .appendingPathComponent("Features")
     .appendingPathComponent("Dashboard")
-    .appendingPathComponent("DashboardView.swift")
+    .appendingPathComponent("Sidebar")
+    .appendingPathComponent("DashboardSidebar.swift")
 let dashboardViewModel = root
     .appendingPathComponent("OpenClawInstaller")
     .appendingPathComponent("Features")

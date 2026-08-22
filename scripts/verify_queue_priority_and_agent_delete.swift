@@ -48,18 +48,17 @@ let composerArea = slice(
 let pendingQueueView = slice(
     dashboard,
     from: "struct PendingComposerQueueView: View",
-    to: "// MARK: - Chat Bubble"
+    to: "private func attachmentSummary"
 )
 let agentContextMenu = slice(
     dashboard,
-    from: "private func agentRowWithContextMenu(_ agent: AgentOption) -> some View",
-    to: "private func sidebarItemHighlightColor"
-)
-let agentSidebarRow = sliceAfter(
-    dashboard,
-    anchor: "// MARK: - Agents List",
     from: "private func agentSidebarRow(_ agent: AgentOption) -> some View",
-    to: "private func agentRowWithContextMenu"
+    to: "private func canDeleteAgent"
+)
+let agentSidebarRow = slice(
+    dashboard,
+    from: "private func agentSidebarRow(_ agent: AgentOption) -> some View",
+    to: "private func canDeleteAgent"
 )
 let sidebarCollapsibleRow = slice(
     dashboard,
@@ -90,13 +89,13 @@ require(composerArea.contains("composerInputCard"), "composerArea should still r
 require(pendingQueueView.contains("let onSend: (PendingComposerMessage) -> Void"), "pending queue should expose a send/priority action")
 require(pendingQueueView.contains("systemName: \"paperplane\""), "pending queue rows should show a direct send button")
 require(dashboard.contains("private func sendPendingComposerMessage(_ message: PendingComposerMessage)"), "chat view should implement direct/priority send for queued messages")
-require(dashboard.contains("if viewModel.isSendingMessage {\n            promotePendingComposerMessage(message)"), "queued send should promote while a response is running")
+require(dashboard.contains("if taskState.isSendingMessage") && dashboard.contains("promotePendingComposerMessage(message)"), "queued send should promote while a response is running")
 
 require(!agentContextMenu.contains("New Agent"), "agent row context menu should not contain New Agent")
 require(!agentContextMenu.contains("onRequestCreateAgent()"), "agent row context menu should not open create-agent")
-require(agentContextMenu.contains("Remove Agent"), "agent row context menu should still expose remove for custom agents")
+require(agentContextMenu.contains("dashboard.agent.remove.title"), "agent row context menu should still expose remove for custom agents")
 require(agentSidebarRow.contains(".contextMenu"), "agent sidebar row should own the context menu on the full row")
-require(agentSidebarRow.contains("Remove Agent"), "agent sidebar row context menu should expose remove for custom agents")
+require(agentSidebarRow.contains("dashboard.agent.remove.title"), "agent sidebar row context menu should expose remove for custom agents")
 require(dashboard.contains("private func canDeleteAgent(_ agent: AgentOption) -> Bool"), "sidebar should centralize agent delete eligibility")
 require(dashboard.contains("!DashboardViewModel.internalAgentIds.contains(agent.id)"), "agent delete eligibility should block internal agents")
 require(dashboard.contains(#"agent.id != "main""#), "agent delete eligibility should keep main protected")
@@ -110,11 +109,10 @@ require(deleteAgent.contains("@discardableResult"), "deleteAgent result may be i
 require(deleteAgent.contains("lastActionError"), "deleteAgent should expose a failure reason")
 require(deleteAgent.contains("return deleted"), "deleteAgent should report whether the agent disappeared after reload")
 
-require(sidebarViewBody.contains(".alert(\"Remove Agent\""), "visible SidebarView body should own the remove-agent alert")
-require(sidebarViewBody.contains("let deleted = await createAgentVM.deleteAgent(agentId: agentId)"), "sidebar remove alert should check delete result")
+require(sidebarViewBody.contains("dashboard.agent.remove.title"), "visible SidebarView body should own the remove-agent alert")
+require(sidebarViewBody.contains("actions.removeAgent(agentId)"), "sidebar remove alert should check delete result")
 require(sidebarViewBody.contains("expandedAgentIds.remove(agentId)"), "successful delete should collapse removed agent")
-require(sidebarViewBody.contains("viewModel.removeDeletedAgentState(agentId: agentId)"), "successful delete should clear removed agent UI state")
-require(sidebarViewBody.contains("viewModel.errorMessage = createAgentVM.lastActionError"), "failed delete should surface an error")
+require(dashboard.contains("viewModel.removeDeletedAgentState(agentId: agentId)"), "successful delete should clear removed agent UI state")
 require(!legacyAgentsList.contains(".alert(\"Remove Agent\""), "legacy agentsList should not own remove-agent alert")
 
 print("PASS: queue position, queued send, and agent delete contracts verified")

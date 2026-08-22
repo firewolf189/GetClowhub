@@ -38,7 +38,7 @@ require(
     "composer model panel must compute an effective selected model from current model or default model"
 )
 require(
-    panel.contains("selected: model.id == effectiveSelectedModel"),
+    panel.contains("selected: model.runtimeId == effectiveSelectedModel"),
     "composer model rows must show the default model as selected when the agent inherits it"
 )
 require(
