@@ -96,7 +96,9 @@ require(
         dashboard.contains("actions.unarchiveSession(meta.id)") &&
         dashboard.contains("I18n.t(filter.titleKey)") &&
         dashboard.contains("I18n.format(\"dashboard.session.row.messageCount\"") &&
-        dashboard.contains("Text(Self.shortRelative(meta.updatedAt))"),
+        dashboard.contains("Text(Self.shortRelative(meta.updatedAt))") &&
+        dashboard.contains("return \"\\(min)m\"") &&
+        dashboard.contains("return \"\\(min / 60)h\""),
     "sidebar chrome must expose the filter, unarchive, relative time, and message count"
 )
 require(

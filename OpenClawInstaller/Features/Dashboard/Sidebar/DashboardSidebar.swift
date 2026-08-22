@@ -1260,22 +1260,25 @@ struct ChatSessionRow: View {
     }
 
     /// Compact form for inline sidebar display.
-    /// Today    → "HH:mm"
+    /// Today    → "now" / "Nm" / "Nh"
     /// Yesterday→ "昨天"
     /// 2-6 days → "N 天前"
     /// Older    → "MM-dd"
     static func shortRelative(_ date: Date) -> String {
+        let now = Date()
         let cal = Calendar.current
-        if cal.isDateInToday(date) {
-            let f = DateFormatter()
-            f.dateFormat = "HH:mm"
-            return f.string(from: date)
+        if cal.isDate(date, inSameDayAs: now) {
+            let sec = max(0, Int(now.timeIntervalSince(date)))
+            if sec < 60 { return "now" }
+            let min = sec / 60
+            if min < 60 { return "\(min)m" }
+            return "\(min / 60)h"
         }
         if cal.isDateInYesterday(date) {
             return "昨天"
         }
         let days = cal.dateComponents([.day], from: cal.startOfDay(for: date),
-                                      to: cal.startOfDay(for: Date())).day ?? 0
+                                      to: cal.startOfDay(for: now)).day ?? 0
         if days < 7 {
             return "\(days) 天前"
         }
