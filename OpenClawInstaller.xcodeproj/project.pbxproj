@@ -120,6 +120,9 @@
 		COMPCH00000000000001 /* ComposerChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMPCH00000000000002 /* ComposerChrome.swift */; };
 		DTYPO000000000000001 /* DashboardTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTYPO000000000000002 /* DashboardTypography.swift */; };
 		DSBAR000000000000001 /* DashboardSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSBAR000000000000002 /* DashboardSidebar.swift */; };
+		ASETPN00000000000001 /* AgentSettingsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASETPN00000000000002 /* AgentSettingsPanel.swift */; };
+		TERMPN00000000000001 /* TerminalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = TERMPN00000000000002 /* TerminalPanel.swift */; };
+		SESDET00000000000001 /* SessionDetailsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESDET00000000000002 /* SessionDetailsPanel.swift */; };
 		CEFSEL0000000000000001 /* ComposerEffortSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFSEL0000000000000002 /* ComposerEffortSelector.swift */; };
 		CDOT0000000000000001 /* CursorDotOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDOT0000000000000002 /* CursorDotOverlay.swift */; };
 		COREUPGRADE000000000001 /* OpenClawCoreManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */; };
@@ -316,6 +319,9 @@
 		COMPCH00000000000002 /* ComposerChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift"; sourceTree = SOURCE_ROOT; };
 		DTYPO000000000000002 /* DashboardTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift"; sourceTree = SOURCE_ROOT; };
 		DSBAR000000000000002 /* DashboardSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift"; sourceTree = SOURCE_ROOT; };
+		ASETPN00000000000002 /* AgentSettingsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Agents/Views/AgentSettingsPanel.swift"; sourceTree = SOURCE_ROOT; };
+		TERMPN00000000000002 /* TerminalPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/TerminalPanel.swift"; sourceTree = SOURCE_ROOT; };
+		SESDET00000000000002 /* SessionDetailsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Views/SessionDetailsPanel.swift"; sourceTree = SOURCE_ROOT; };
 		CEFSEL0000000000000002 /* ComposerEffortSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ComposerEffortSelector.swift"; sourceTree = SOURCE_ROOT; };
 		CDOT0000000000000002 /* CursorDotOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CursorDotOverlay.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/OpenClawCoreManifest.swift"; sourceTree = SOURCE_ROOT; };
@@ -592,6 +598,9 @@
 				356410342F5802970045A6F7 /* DashboardView.swift */,
 				DTYPO000000000000002 /* DashboardTypography.swift */,
 				DSBAR000000000000002 /* DashboardSidebar.swift */,
+				ASETPN00000000000002 /* AgentSettingsPanel.swift */,
+				TERMPN00000000000002 /* TerminalPanel.swift */,
+				SESDET00000000000002 /* SessionDetailsPanel.swift */,
 				MDH000000000000000000002 /* MarkdownHTML.swift */,
 				A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */,
 				F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */,
@@ -917,6 +926,9 @@
 				356410592F5802970045A6F7 /* DashboardView.swift in Sources */,
 				DTYPO000000000000001 /* DashboardTypography.swift in Sources */,
 				DSBAR000000000000001 /* DashboardSidebar.swift in Sources */,
+				ASETPN00000000000001 /* AgentSettingsPanel.swift in Sources */,
+				TERMPN00000000000001 /* TerminalPanel.swift in Sources */,
+				SESDET00000000000001 /* SessionDetailsPanel.swift in Sources */,
 				CTV000000000000000000001 /* ChatTimelineSurface.swift in Sources */,
 				CCV000000000000000000001 /* ChatComposerView.swift in Sources */,
 				CHVIEW00000000000001 /* ChatView.swift in Sources */,

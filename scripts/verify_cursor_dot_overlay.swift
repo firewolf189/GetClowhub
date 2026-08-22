@@ -15,6 +15,9 @@ let dashboardUIRelativePaths = [
     "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
     "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
     "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+    "OpenClawInstaller/Features/Agents/Views/AgentSettingsPanel.swift",
+    "OpenClawInstaller/Features/Dashboard/TerminalPanel.swift",
+    "OpenClawInstaller/Features/Sessions/Views/SessionDetailsPanel.swift",
 ]
 let projectPath = root
     .appendingPathComponent("OpenClawInstaller.xcodeproj")

@@ -32,7 +32,7 @@ func slice(_ text: String, from start: String, to end: String) throws -> String 
 
 let sessionPersistence = try contents("OpenClawInstaller/Features/Sessions/SessionPersistence.swift")
 let chatSessionStore = try contents("OpenClawInstaller/Features/Sessions/Services/ChatSessionStore.swift")
-let dashboardView = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try contents($0) }.joined(separator: "\n")
+let dashboardView = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift", "OpenClawInstaller/Features/Agents/Views/AgentSettingsPanel.swift", "OpenClawInstaller/Features/Dashboard/TerminalPanel.swift", "OpenClawInstaller/Features/Sessions/Views/SessionDetailsPanel.swift"].map { try contents($0) }.joined(separator: "\n")
 
 let rebuildProjectGroups = try slice(
     sessionPersistence,

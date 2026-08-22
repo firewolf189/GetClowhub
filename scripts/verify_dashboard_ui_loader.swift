@@ -15,6 +15,9 @@ let requiredPaths = [
     "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
     "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
     "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+    "OpenClawInstaller/Features/Agents/Views/AgentSettingsPanel.swift",
+    "OpenClawInstaller/Features/Dashboard/TerminalPanel.swift",
+    "OpenClawInstaller/Features/Sessions/Views/SessionDetailsPanel.swift",
 ]
 
 let lib = root.appendingPathComponent("scripts/lib/dashboard_ui.swift")
@@ -48,6 +51,9 @@ let movedNeedles = [
     "struct ThinkingIndicator",
     "composerSuggestionOverlay",
     "sessionRows(",
+    "struct SessionDetailsPanel",
+    "struct AgentSettingsPanel",
+    "struct TerminalPanelView",
 ]
 
 var offenders: [String] = []

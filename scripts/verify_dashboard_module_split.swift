@@ -112,4 +112,18 @@ try require(
     "transport retry and connection-state application live on ChatViewModel; Dashboard only observes"
 )
 
+let agentSettings = try read("OpenClawInstaller/Features/Agents/Views/AgentSettingsPanel.swift")
+let terminal = try read("OpenClawInstaller/Features/Dashboard/TerminalPanel.swift")
+let sessionDetails = try read("OpenClawInstaller/Features/Sessions/Views/SessionDetailsPanel.swift")
+try require(
+    agentSettings.contains("struct AgentSettingsPanel: View") &&
+        terminal.contains("struct TerminalPanelView: View") &&
+        terminal.contains("struct TerminalDragHandle: View") &&
+        sessionDetails.contains("struct SessionDetailsPanel: View") &&
+        !dashboard.contains("struct AgentSettingsPanel: View") &&
+        !dashboard.contains("struct TerminalPanelView: View") &&
+        !dashboard.contains("struct SessionDetailsPanel: View"),
+    "AgentSettings, Terminal, and SessionDetails panels must live outside DashboardView.swift"
+)
+
 print("PASS: dashboard module split")
