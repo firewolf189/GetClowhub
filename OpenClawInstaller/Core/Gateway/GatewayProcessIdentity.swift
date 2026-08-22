@@ -85,3 +85,34 @@ struct GatewayProcessIdentity: Equatable, Sendable {
         return nil
     }
 }
+
+/// Repeating `chat.send` with the original idempotency key is safe only on the
+/// same known Gateway process. A restart drops the in-memory dedupe cache, so
+/// a probe would start a duplicate run.
+enum GatewayChatSendMode: Equatable, Sendable {
+    case initial
+    case recoveryProbe(originatingEpoch: UInt64?)
+}
+
+enum GatewayChatSendProbePolicy {
+    static func allowsProbe(
+        originatingEpoch: UInt64?,
+        current: GatewayProcessFingerprint
+    ) -> Bool {
+        guard current.allowsIdempotencyProbe,
+              let originatingEpoch,
+              originatingEpoch == current.epoch else {
+            return false
+        }
+        return true
+    }
+
+    static func allows(_ mode: GatewayChatSendMode, current: GatewayProcessFingerprint) -> Bool {
+        switch mode {
+        case .initial:
+            return true
+        case .recoveryProbe(let originatingEpoch):
+            return allowsProbe(originatingEpoch: originatingEpoch, current: current)
+        }
+    }
+}

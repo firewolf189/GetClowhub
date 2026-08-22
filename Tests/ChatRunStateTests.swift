@@ -26,7 +26,8 @@ private enum ChatRunStateTests {
         )
         let gatewayBinding = ChatGatewayRunBinding(
             sessionKey: "agent:main:\(sessionId.uuidString)",
-            startedAt: Date(timeIntervalSince1970: 999)
+            startedAt: Date(timeIntervalSince1970: 999),
+            processEpoch: 7
         )
         let idempotencyKey = gatewayBinding.idempotencyKey
         var run = ChatRunState(
@@ -76,6 +77,7 @@ private enum ChatRunStateTests {
         try expect(run.gatewayBinding == gatewayBinding.acknowledging(runId: "run-1"), "reconnecting must preserve the complete gateway binding")
         try expect(run.gatewayBinding.startedAt == gatewayBinding.startedAt, "acknowledgement must preserve the gateway child start time")
         try expect(run.gatewayBinding.idempotencyKey == idempotencyKey, "reconnecting must preserve the original idempotency key")
+        try expect(run.gatewayBinding.processEpoch == 7, "acknowledgement must preserve the originating gateway process epoch")
 
         run = run.applying(.transportReconnected)
         try expect(run.phase == .reconciling, "a restored transport must reconcile authoritative run state before resuming")

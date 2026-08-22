@@ -51,9 +51,11 @@ try require(
         helpers.contains("submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts") &&
         helpers.contains("idempotencyKey: gatewayBinding.idempotencyKey") &&
         helpers.contains("activeRun.runId == nil") &&
+        helpers.contains("allowsChatSendProbe(originatingEpoch:") &&
+        helpers.contains("mode: .recoveryProbe(originatingEpoch:") &&
         helpers.contains("recordRunEventDelivery(eventRunId)") &&
         helpers.contains("scheduleChatRunReconciliation(messageId: msgId)"),
-    "Reconnect may retry only an unacknowledged, evidence-free submission with the original idempotency key."
+    "Reconnect may retry only an unacknowledged same-process submission with the original idempotency key."
 )
 try require(
     !helpers.contains("let inactivityLimit: TimeInterval") &&

@@ -75,8 +75,8 @@ class GatewayClient: ObservableObject {
 
     /// Process identity from the last successful `hello-ok`. Recovery may
     /// repeat `chat.send` only while `fingerprint.allowsIdempotencyProbe` and
-    /// the run's originating epoch still matches.
-    private(set) var processIdentity = GatewayProcessIdentity()
+    /// the run's originating epoch still matches. Mutated on `stateQueue`.
+    private var processIdentity = GatewayProcessIdentity()
 
     /// Timestamp of the last WebSocket message received (any chat event, response, etc.).
     /// Used by the ViewModel as a coarse "WebSocket is alive" signal — note the gateway
@@ -380,16 +380,43 @@ class GatewayClient: ObservableObject {
         }
     }
 
+    func currentProcessFingerprint() -> GatewayProcessFingerprint {
+        if DispatchQueue.getSpecific(key: stateQueueKey) != nil {
+            return processIdentity.fingerprint
+        }
+        return stateQueue.sync { processIdentity.fingerprint }
+    }
+
+    func capturedProcessEpoch() -> UInt64? {
+        let fingerprint = currentProcessFingerprint()
+        return fingerprint.isKnown ? fingerprint.epoch : nil
+    }
+
+    func allowsChatSendProbe(originatingEpoch: UInt64?) -> Bool {
+        GatewayChatSendProbePolicy.allowsProbe(
+            originatingEpoch: originatingEpoch,
+            current: currentProcessFingerprint()
+        )
+    }
+
     /// Submit one idempotent chat run. An acknowledgement timeout is not an
     /// authoritative failure: the gateway may have accepted the request, so
     /// callers keep the same expected run id and reconcile instead of resending.
+    /// Recovery retries must use `mode: .recoveryProbe` so a process restart
+    /// cannot start a duplicate run.
     func chatSend(
         sessionKey: String,
         message: String,
         idempotencyKey: String,
         attachments: [[String: Any]]? = nil,
-        thinking: String? = nil
+        thinking: String? = nil,
+        mode: GatewayChatSendMode = .initial
     ) async -> GatewayChatSendResult {
+        if case .recoveryProbe = mode,
+           !GatewayChatSendProbePolicy.allows(mode, current: currentProcessFingerprint()) {
+            gwLog.warning("chat.send probe skipped: gateway process identity unknown or changed")
+            return .rejected(message: "Gateway process identity changed")
+        }
         guard let ws = currentWebSocketTask() else {
             return .rejected(message: "Gateway is not connected")
         }

@@ -24,17 +24,22 @@ struct ChatGatewayRunBinding: Codable, Equatable, Sendable {
     let idempotencyKey: String
     let startedAt: Date
     let runId: String?
+    /// Gateway process epoch observed when this run was prepared. Nil means
+    /// unknown (crash-rehydrated runs, or a hello-ok without uptimeMs).
+    let processEpoch: UInt64?
 
     init(
         sessionKey: String,
         idempotencyKey: String = UUID().uuidString,
         startedAt: Date = Date(),
-        runId: String? = nil
+        runId: String? = nil,
+        processEpoch: UInt64? = nil
     ) {
         self.sessionKey = sessionKey
         self.idempotencyKey = idempotencyKey
         self.startedAt = startedAt
         self.runId = runId
+        self.processEpoch = processEpoch
     }
 
     func acknowledging(runId: String) -> ChatGatewayRunBinding {
@@ -42,7 +47,8 @@ struct ChatGatewayRunBinding: Codable, Equatable, Sendable {
             sessionKey: sessionKey,
             idempotencyKey: idempotencyKey,
             startedAt: startedAt,
-            runId: runId
+            runId: runId,
+            processEpoch: processEpoch
         )
     }
 }

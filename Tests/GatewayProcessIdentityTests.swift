@@ -72,7 +72,48 @@ private enum GatewayProcessIdentityTests {
             "hello-ok.snapshot.uptimeMs is the canonical path"
         )
 
+        try testProbePolicy()
+
         print("PASS: gateway process identity")
+    }
+
+    private static func testProbePolicy() throws {
+        var identity = GatewayProcessIdentity()
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        identity.applyHello(payload: helloPayload(uptimeMs: 1_000), now: t0)
+        let known = identity.fingerprint
+        try expect(known.epoch == 1 && known.isKnown, "fixture hello must be known")
+
+        try expect(
+            GatewayChatSendProbePolicy.allowsProbe(originatingEpoch: 1, current: known),
+            "same known epoch may probe"
+        )
+        try expect(
+            !GatewayChatSendProbePolicy.allowsProbe(originatingEpoch: 99, current: known),
+            "a different epoch must not probe"
+        )
+        try expect(
+            !GatewayChatSendProbePolicy.allowsProbe(originatingEpoch: nil, current: known),
+            "a run without an originating epoch must not probe"
+        )
+        try expect(
+            GatewayChatSendProbePolicy.allows(.initial, current: known),
+            "the first chat.send is not a probe"
+        )
+        try expect(
+            GatewayChatSendProbePolicy.allows(.recoveryProbe(originatingEpoch: 1), current: known),
+            "a same-process recovery probe is allowed"
+        )
+        try expect(
+            !GatewayChatSendProbePolicy.allows(.recoveryProbe(originatingEpoch: nil), current: known),
+            "crash-rehydrated runs with no epoch must take the conservative path"
+        )
+
+        identity.applyHello(payload: ["type": "hello-ok"], now: t0.addingTimeInterval(1))
+        try expect(
+            !GatewayChatSendProbePolicy.allowsProbe(originatingEpoch: 1, current: identity.fingerprint),
+            "unknown process identity must not probe even if the old epoch is remembered by the run"
+        )
     }
 
     private static func helloPayload(uptimeMs: Double) -> [String: Any] {

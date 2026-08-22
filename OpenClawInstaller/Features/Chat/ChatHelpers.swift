@@ -217,7 +217,8 @@ extension ChatViewModel {
         taskState.prepareGatewayRun(
             messageId: msgId,
             sessionKey: sessionKey,
-            idempotencyKey: idempotencyKey
+            idempotencyKey: idempotencyKey,
+            processEpoch: gatewayClient.capturedProcessEpoch()
         )
 
         defer {
@@ -351,13 +352,15 @@ extension ChatViewModel {
                    !activeRun.phase.isTerminal,
                    activeRun.runId == nil,
                    !activeRun.cancellationRequested,
-                   submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts {
+                   submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts,
+                   gatewayClient.allowsChatSendProbe(originatingEpoch: activeRun.gatewayBinding.processEpoch) {
                     submissionAttemptCount += 1
                     let retryResult = await gatewayClient.chatSend(
                         sessionKey: sessionKey,
                         message: prompt,
                         idempotencyKey: idempotencyKey,
-                        attachments: nil
+                        attachments: nil,
+                        mode: .recoveryProbe(originatingEpoch: activeRun.gatewayBinding.processEpoch)
                     )
                     guard let currentRun = taskState.run(for: msgId),
                           !currentRun.phase.isTerminal,
@@ -784,7 +787,8 @@ extension ChatViewModel {
 
         let gatewayBinding = ChatGatewayRunBinding(
             sessionKey: sessionKey,
-            startedAt: placeholderMsg.timestamp ?? Date()
+            startedAt: placeholderMsg.timestamp ?? Date(),
+            processEpoch: gatewayClient.capturedProcessEpoch()
         )
         taskState.registerRun(ChatRunState(
             identity: ChatRunIdentity(
@@ -1190,14 +1194,16 @@ extension ChatViewModel {
                    !activeRun.phase.isTerminal,
                    activeRun.runId == nil,
                    !activeRun.cancellationRequested,
-                   submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts {
+                   submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts,
+                   gatewayClient.allowsChatSendProbe(originatingEpoch: activeRun.gatewayBinding.processEpoch) {
                     submissionAttemptCount += 1
                     let retryResult = await gatewayClient.chatSend(
                         sessionKey: sessionKey,
                         message: baseMessage,
                         idempotencyKey: gatewayBinding.idempotencyKey,
                         attachments: processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments,
-                        thinking: sendThinking
+                        thinking: sendThinking,
+                        mode: .recoveryProbe(originatingEpoch: activeRun.gatewayBinding.processEpoch)
                     )
                     guard let currentRun = taskState.run(for: msgId),
                           !currentRun.phase.isTerminal,

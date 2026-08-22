@@ -36,7 +36,8 @@ final class TaskActivityState: ObservableObject {
         messageId: UUID,
         sessionKey: String,
         idempotencyKey: String,
-        startedAt: Date = Date()
+        startedAt: Date = Date(),
+        processEpoch: UInt64? = nil
     ) {
         applyRunEvent(
             messageId: messageId,
@@ -44,7 +45,8 @@ final class TaskActivityState: ObservableObject {
                 binding: ChatGatewayRunBinding(
                     sessionKey: sessionKey,
                     idempotencyKey: idempotencyKey,
-                    startedAt: startedAt
+                    startedAt: startedAt,
+                    processEpoch: processEpoch
                 )
             )
         )

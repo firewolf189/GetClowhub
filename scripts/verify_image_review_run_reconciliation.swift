@@ -86,8 +86,10 @@ require(
 require(
     imageChunk.contains("recordImageRunEventDelivery(") &&
         imageChunk.contains("submissionAttemptCount < ChatRunDeliveryPolicy.maximumSubmissionAttempts") &&
-        imageChunk.contains("idempotencyKey: idempotencyKey"),
-    "image child delivery must use the same evidence-gated idempotent retry policy as conversation runs"
+        imageChunk.contains("idempotencyKey: idempotencyKey") &&
+        imageChunk.contains("allowsChatSendProbe(originatingEpoch:") &&
+        imageChunk.contains("mode: .recoveryProbe(originatingEpoch:"),
+    "image child delivery must use the same evidence-gated same-process idempotent retry policy as conversation runs"
 )
 require(
     !imageChunk.contains("fetchChatRunReconciliationDecision(") &&

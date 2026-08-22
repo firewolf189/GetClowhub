@@ -133,9 +133,16 @@ require(
         identity.contains("hello-ok.snapshot.uptimeMs") &&
         identity.contains("startEstimateTolerance") &&
         identity.contains("allowsIdempotencyProbe") &&
+        identity.contains("enum GatewayChatSendProbePolicy") &&
+        identity.contains("case recoveryProbe(originatingEpoch:") &&
         gateway.contains("processIdentity.applyHello(payload:") &&
-        gateway.contains("GatewayInboundJSON.object(from:"),
-    "hello-ok must update a testable gateway process fingerprint; inbound frames parse without URLSession"
+        gateway.contains("GatewayInboundJSON.object(from:") &&
+        gateway.contains("func allowsChatSendProbe(originatingEpoch:") &&
+        gateway.contains("mode: GatewayChatSendMode = .initial") &&
+        helpers.contains("allowsChatSendProbe(originatingEpoch:") &&
+        helpers.contains("mode: .recoveryProbe(originatingEpoch:") &&
+        helpers.contains("processEpoch: gatewayClient.capturedProcessEpoch()"),
+    "hello-ok must update a process fingerprint; reconnect chat.send probes only the same known process"
 )
 
 require(
@@ -202,6 +209,13 @@ compileAndRun(
         "Tests/GatewayProcessIdentityTests.swift",
     ],
     label: "GatewayProcessIdentity tests"
+)
+compileAndRun(
+    sources: [
+        "OpenClawInstaller/Features/Chat/Models/ChatRunState.swift",
+        "Tests/ChatRunStateTests.swift",
+    ],
+    label: "ChatRunState tests"
 )
 compileAndRun(
     sources: [
