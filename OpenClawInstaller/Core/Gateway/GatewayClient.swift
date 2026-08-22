@@ -73,6 +73,11 @@ class GatewayClient: ObservableObject {
     /// handshake, not only URLSession's HTTP upgrade.
     private var pendingHandshakeGeneration: UInt64?
 
+    /// Process identity from the last successful `hello-ok`. Recovery may
+    /// repeat `chat.send` only while `fingerprint.allowsIdempotencyProbe` and
+    /// the run's originating epoch still matches.
+    private(set) var processIdentity = GatewayProcessIdentity()
+
     /// Timestamp of the last WebSocket message received (any chat event, response, etc.).
     /// Used by the ViewModel as a coarse "WebSocket is alive" signal — note the gateway
     /// itself does NOT emit periodic tick/heartbeat broadcasts today (the older comment
@@ -745,8 +750,7 @@ class GatewayClient: ObservableObject {
     }
 
     private func handleMessage(_ text: String) {
-        guard let data = text.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let json = GatewayInboundJSON.object(from: text) else {
             return
         }
 
@@ -819,16 +823,9 @@ class GatewayClient: ObservableObject {
                     return
                 }
 
-                let abortPayload = json["payload"] as? [String: Any]
-                let abortResponse = (abortPayload?["aborted"] as? Bool).map {
-                    GatewayChatAbortResponse(
-                        aborted: $0,
-                        runIds: abortPayload?["runIds"] as? [String] ?? []
-                    )
-                }
                 if chatAbortRequestRegistry.resolve(
                     requestId: id,
-                    response: abortResponse,
+                    response: GatewayChatAbortResponse.parse(fromRPC: json),
                     rejectionMessage: json["error"].flatMap(self.gatewayErrorMessage)
                 ) {
                     return
@@ -937,6 +934,8 @@ class GatewayClient: ObservableObject {
                 // present — lets the next connect re-bind to the same paired
                 // device record (and its `approvedScopes`) without re-signing.
                 self.persistDeviceTokenFromHello(json["payload"] as? [String: Any])
+                let fingerprint = self.processIdentity.applyHello(payload: json["payload"] as? [String: Any])
+                gwLog.info("Gateway process identity epoch=\(fingerprint.epoch) known=\(fingerprint.isKnown)")
                 let recoveredTransport = recoveryCycleActive
                 reconnectAttempt = 0
                 reconnectPending = false

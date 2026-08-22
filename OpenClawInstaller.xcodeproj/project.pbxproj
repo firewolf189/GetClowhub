@@ -150,6 +150,7 @@
 		GWSTATE000000000000001 /* GatewayConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWSTATE000000000000002 /* GatewayConnectionState.swift */; };
 		GWRECOV000000000000001 /* GatewayChatRecoverySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWRECOV000000000000002 /* GatewayChatRecoverySnapshot.swift */; };
 		GWRSTAT000000000000001 /* GatewayChatRunStatusRequestRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWRSTAT000000000000002 /* GatewayChatRunStatusRequestRegistry.swift */; };
+		GWPROC000000000000001 /* GatewayProcessIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWPROC000000000000002 /* GatewayProcessIdentity.swift */; };
 		GWCTX0000000000000001 /* GatewayWorkspaceContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */; };
 		I18NSVC00000000000001 /* I18nService.swift in Sources */ = {isa = PBXBuildFile; fileRef = I18NSVC00000000000002 /* I18nService.swift */; };
 		I18NRES00000000000001 /* I18n in Resources */ = {isa = PBXBuildFile; fileRef = I18NRES00000000000002 /* I18n */; };
@@ -350,6 +351,7 @@
 		GWSTATE000000000000002 /* GatewayConnectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayConnectionState.swift"; sourceTree = SOURCE_ROOT; };
 		GWRECOV000000000000002 /* GatewayChatRecoverySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayChatRecoverySnapshot.swift"; sourceTree = SOURCE_ROOT; };
 		GWRSTAT000000000000002 /* GatewayChatRunStatusRequestRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayChatRunStatusRequestRegistry.swift"; sourceTree = SOURCE_ROOT; };
+		GWPROC000000000000002 /* GatewayProcessIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Gateway/GatewayProcessIdentity.swift"; sourceTree = SOURCE_ROOT; };
 		GWCTX0000000000000002 /* GatewayWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Workspace/GatewayWorkspaceContext.swift"; sourceTree = SOURCE_ROOT; };
 		I18NSVC00000000000002 /* I18nService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Localization/I18nService.swift"; sourceTree = SOURCE_ROOT; };
 		I18NRES00000000000002 /* I18n */ = {isa = PBXFileReference; lastKnownFileType = folder; path = I18n; sourceTree = "<group>"; };
@@ -490,6 +492,7 @@
 				GWSTATE000000000000002 /* GatewayConnectionState.swift */,
 				GWRECOV000000000000002 /* GatewayChatRecoverySnapshot.swift */,
 				GWRSTAT000000000000002 /* GatewayChatRunStatusRequestRegistry.swift */,
+				GWPROC000000000000002 /* GatewayProcessIdentity.swift */,
 				I18NSVC00000000000002 /* I18nService.swift */,
 				IRBS0002C2D3E4F5A6B70002 /* ImageReviewBatchStore.swift */,
 				PWGRP000000000000000 /* ProjectWorkspace */,
@@ -1053,6 +1056,7 @@
 				GWEVENT0000000000000001 /* GatewayChatEvent.swift in Sources */,
 				GWABORT000000000000001 /* GatewayChatAbortRequestRegistry.swift in Sources */,
 				GWRSTAT000000000000001 /* GatewayChatRunStatusRequestRegistry.swift in Sources */,
+				GWPROC000000000000001 /* GatewayProcessIdentity.swift in Sources */,
 				GWSTATE000000000000001 /* GatewayConnectionState.swift in Sources */,
 				GWRECOV000000000000001 /* GatewayChatRecoverySnapshot.swift in Sources */,
 				I18NSVC00000000000001 /* I18nService.swift in Sources */,

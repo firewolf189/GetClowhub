@@ -22,6 +22,17 @@ struct GatewayChatAbortResponse: Equatable, Sendable {
         guard runIds.contains(expectedRunId) else { return .notRunning }
         return .confirmed(runIds: runIds)
     }
+
+    /// Decode the `chat.abort` RPC payload. A missing `aborted` bool is
+    /// malformed — callers then treat the envelope as a rejection.
+    static func parse(fromRPC json: [String: Any]) -> GatewayChatAbortResponse? {
+        let payload = json["payload"] as? [String: Any]
+        guard let aborted = payload?["aborted"] as? Bool else { return nil }
+        return GatewayChatAbortResponse(
+            aborted: aborted,
+            runIds: payload?["runIds"] as? [String] ?? []
+        )
+    }
 }
 
 /// Routes each `chat.abort` response back to the exact request and validates

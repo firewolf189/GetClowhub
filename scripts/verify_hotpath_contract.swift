@@ -119,6 +119,25 @@ require(
     "confirmed chat.abort must wait for state:aborted (or the flush timeout)"
 )
 
+let abortRegistry = read("OpenClawInstaller/Core/Gateway/GatewayChatAbortRequestRegistry.swift")
+let identity = read("OpenClawInstaller/Core/Gateway/GatewayProcessIdentity.swift")
+require(
+    abortRegistry.contains("guard let expectedRunId else { return .confirmed(runIds: runIds) }") &&
+        abortRegistry.contains("static func parse(fromRPC json: [String: Any])") &&
+        gateway.contains("GatewayChatAbortResponse.parse(fromRPC: json)") &&
+        dashboard.contains("abortChat(sessionKey: sessionKey)"),
+    "session-level chat.abort without runId must confirm aborted=true; rewind uses that path"
+)
+require(
+    identity.contains("struct GatewayProcessIdentity") &&
+        identity.contains("hello-ok.snapshot.uptimeMs") &&
+        identity.contains("startEstimateTolerance") &&
+        identity.contains("allowsIdempotencyProbe") &&
+        gateway.contains("processIdentity.applyHello(payload:") &&
+        gateway.contains("GatewayInboundJSON.object(from:"),
+    "hello-ok must update a testable gateway process fingerprint; inbound frames parse without URLSession"
+)
+
 require(
     dingtalk.contains("static let preferredWriteKey = \"dingtalk\"") &&
         dingtalk.contains("static func resolvedConfigKey") &&
@@ -169,6 +188,28 @@ compileAndRun(
         "Tests/ThinkingEffortTests.swift",
     ],
     label: "ThinkingEffort tests"
+)
+compileAndRun(
+    sources: [
+        "OpenClawInstaller/Core/Gateway/GatewayChatAbortRequestRegistry.swift",
+        "Tests/GatewayChatAbortRequestRegistryTests.swift",
+    ],
+    label: "GatewayChatAbortRequestRegistry tests"
+)
+compileAndRun(
+    sources: [
+        "OpenClawInstaller/Core/Gateway/GatewayProcessIdentity.swift",
+        "Tests/GatewayProcessIdentityTests.swift",
+    ],
+    label: "GatewayProcessIdentity tests"
+)
+compileAndRun(
+    sources: [
+        "OpenClawInstaller/Core/Gateway/GatewayProcessIdentity.swift",
+        "OpenClawInstaller/Core/Gateway/GatewayChatAbortRequestRegistry.swift",
+        "Tests/GatewayFakeWebSocketTests.swift",
+    ],
+    label: "Gateway fake WebSocket tests"
 )
 
 print("PASS: hot-path contracts verified")
