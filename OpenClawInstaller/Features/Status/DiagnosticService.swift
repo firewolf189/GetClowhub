@@ -157,11 +157,11 @@ class DiagnosticService: ObservableObject {
 
         if let nodeInfo = systemEnvironment.nodeInfo {
             // Node is detected — version doesn't matter, openclaw runs against
-            // the bundled v24.14.0 at ~/.openclaw/node/bin/. Display as info.
+            // the bundled runtime at ~/.openclaw/node/bin/. Display as info.
             checks.append(DiagnosticCheck(
                 name: "Node.js Version",
                 status: .passed,
-                message: "\(nodeInfo.version) detected (bundled v24.14.0 will be used)",
+                message: "\(nodeInfo.version) detected (bundled \(BundledRuntimeVersions.nodeJSVersion) will be used)",
                 suggestion: nil
             ))
 

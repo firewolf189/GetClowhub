@@ -38,4 +38,16 @@ enum GatewayConnectionState: Equatable, Sendable {
     var isConnected: Bool {
         self == .connected
     }
+
+    /// True when a new `connect()` is allowed to start a socket.
+    /// Connecting / reconnecting / already-connected must not be interrupted
+    /// just because launchd still reports the gateway as Running.
+    var needsConnect: Bool {
+        switch self {
+        case .disconnected, .recoveryExhausted:
+            return true
+        case .connecting, .connected, .reconnecting:
+            return false
+        }
+    }
 }

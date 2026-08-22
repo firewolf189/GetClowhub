@@ -56,7 +56,16 @@ require(
 )
 // Node version must agree across every packaging reference.
 let nodeVersion = "v24.18.0"
-for (name, text) in [("NodeInstaller", nodeInstaller), ("pbxproj", project), ("build_dmg.sh", buildScript)] {
+let diagnostics = read("OpenClawInstaller/Features/Status/DiagnosticService.swift")
+let bundledDocs = read("BUNDLED_NODEJS.md")
+let releaseDocs = read("RELEASE.md")
+for (name, text) in [
+    ("NodeInstaller", nodeInstaller),
+    ("pbxproj", project),
+    ("build_dmg.sh", buildScript),
+    ("BUNDLED_NODEJS.md", bundledDocs),
+    ("RELEASE.md", releaseDocs),
+] {
     require(
         text.contains(nodeVersion),
         "\(name) still references an old bundled Node version (want \(nodeVersion))"
@@ -66,6 +75,18 @@ for (name, text) in [("NodeInstaller", nodeInstaller), ("pbxproj", project), ("b
         "\(name) still references the retired Node v24.14.0"
     )
 }
+require(
+    diagnostics.contains("BundledRuntimeVersions.nodeJSVersion") &&
+        !diagnostics.contains("v24.14.0") &&
+        !diagnostics.contains("bundled v24."),
+    "diagnostic Node copy must read BundledRuntimeVersions.nodeJSVersion instead of a hardcoded version"
+)
+require(
+    bundledDocs.contains("darwin-x64") &&
+        releaseDocs.contains("appcast-cn.xml") &&
+        releaseDocs.contains("Core/Install/NodeInstaller.swift"),
+    "bundled-runtime docs must describe both Node architectures, dual Sparkle feeds, and the real installer path"
+)
 
 // --- Force repair ---
 require(

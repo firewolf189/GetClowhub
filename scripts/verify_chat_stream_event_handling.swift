@@ -37,6 +37,7 @@ func slice(_ source: String, from start: String, to end: String) throws -> Strin
 
 let helpers = try read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let chatViewModel = try read("OpenClawInstaller/Features/Chat/ViewModels/ChatViewModel.swift")
 let renderer = try read("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
 let reconciliation = try read("OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift")
 
@@ -56,9 +57,9 @@ let finalCase = try slice(
     to: "case .aborted(let eventRunId, let eventSessionKey):"
 )
 let cleanup = try slice(
-    viewModel,
+    chatViewModel,
     from: "func clearTaskTracking(_ msgId: UUID)",
-    to: "func cancelTasks(inSession sessionId: UUID)"
+    to: "func scheduleAutomaticBackground(for messageId: UUID)"
 )
 let markdownPolicy = try slice(
     renderer,

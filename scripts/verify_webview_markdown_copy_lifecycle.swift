@@ -2,13 +2,26 @@
 
 import Foundation
 
+private let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+private func loadDashboardUI(root: URL) throws -> String {
+    try dashboardUIRelativePaths.map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+}
+
+
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let selectablePath = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/SelectableMarkdownView.swift")
 let dashboardPath = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let appDelegatePath = root.appendingPathComponent("OpenClawInstaller/App/AppDelegate.swift")
 
 let selectable = try String(contentsOf: selectablePath, encoding: .utf8)
-let dashboard = try String(contentsOf: dashboardPath, encoding: .utf8)
+let dashboard = try loadDashboardUI(root: root)
 let appDelegate = try String(contentsOf: appDelegatePath, encoding: .utf8)
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {

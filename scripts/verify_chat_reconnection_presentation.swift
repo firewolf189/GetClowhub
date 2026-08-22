@@ -25,8 +25,9 @@ let timeline = try read("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurfa
 let workStatus = try read("OpenClawInstaller/Features/Chat/Views/WorkStatusHeader.swift")
 let taskState = try read("OpenClawInstaller/Features/Chat/State/TaskActivityState.swift")
 let runState = try read("OpenClawInstaller/Features/Chat/Models/ChatRunState.swift")
-let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try read($0) }.joined(separator: "\n")
 let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let chatViewModel = try read("OpenClawInstaller/Features/Chat/ViewModels/ChatViewModel.swift")
 let lifecycle = try read("OpenClawInstaller/Features/Chat/State/ChatRunLifecycleCoordinator.swift")
 let localization = try read("OpenClawInstaller/Localization/Resources/Localizable.xcstrings")
 
@@ -65,14 +66,15 @@ try require(
     "Transport retry must batch lost runs while reconciliation retry remains run-scoped."
 )
 try require(
-    viewModel.contains("func retryChatConnection(for messageId: UUID)") &&
-        viewModel.contains("taskState.requestTransportRecoveryRetry()") &&
-        viewModel.contains("taskState.requestRunReconciliationRetry(messageId: messageId)") &&
+    chatViewModel.contains("func retryChatConnection(for messageId: UUID)") &&
+        chatViewModel.contains("taskState.requestTransportRecoveryRetry()") &&
+        chatViewModel.contains("taskState.requestRunReconciliationRetry(messageId: messageId)") &&
+        chatViewModel.contains("!gatewayClient.hasEventSubscription(") &&
         viewModel.contains("gatewayClient.$connectionState") &&
-        viewModel.contains("handleGatewayConnectionState(state)") &&
-        viewModel.contains("!gatewayClient.hasEventSubscription(") &&
+        viewModel.contains("chatViewModel.handleGatewayConnectionState(state)") &&
+        viewModel.contains("chatViewModel.retryChatConnection(for: messageId)") &&
         viewModel.contains("gatewayClient.connect()"),
-    "The ViewModel must distinguish shared transport retry from one-run reconciliation retry and wake recovered runs after connection success."
+    "ChatViewModel must apply transport retry to runs while Dashboard keeps the gateway-wide connection observer."
 )
 try require(
     runState.contains("var keepsProcessActive: Bool") &&
@@ -89,7 +91,7 @@ try require(
     !dashboard.contains("@State private var timer: Timer?") &&
         dashboard.contains("struct ThinkingIndicator: View, Equatable") &&
         lifecycle.contains("func scheduleAutomaticBackground(") &&
-        viewModel.contains("chatRunLifecycleCoordinator.scheduleAutomaticBackground(") &&
+        chatViewModel.contains("chatRunLifecycleCoordinator.scheduleAutomaticBackground(") &&
         timeline.contains("ThinkingIndicator(") &&
         timeline.contains(".equatable()"),
     "Background deadlines must be owned outside the SwiftUI row lifecycle."

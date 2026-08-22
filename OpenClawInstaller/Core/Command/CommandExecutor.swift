@@ -149,13 +149,13 @@ class CommandExecutor: ObservableObject {
 
         // 0. Highest priority: this app's bundled installation paths.
         //
-        // The installer puts Node at ~/.openclaw/node/bin (v24.14.0) and openclaw at
+        // The installer puts Node at ~/.openclaw/node/bin and openclaw at
         // ~/.npm-global/bin. At runtime OpenClawService.runShell* injects these as the
         // PATH prefix via buildEnrichedPath(), so the bundled Node is always what
         // actually runs openclaw.mjs. Detection must match runtime — otherwise the
         // user's pre-existing Homebrew/nvm Node 18 makes the diagnostic flag
-        // "Node.js version not compatible (>=22 required)" even though our v24.14.0
-        // is the one in effect. This is the v1.1.39 user-reported issue.
+        // "Node.js version not compatible (>=22 required)" even though the bundled
+        // runtime is the one in effect. This is the v1.1.39 user-reported issue.
         let bundledPath: String? = {
             switch command {
             case "node", "npm", "npx":

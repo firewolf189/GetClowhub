@@ -64,6 +64,14 @@ private enum ChatRunReconciliationPolicyTests {
             ChatRunDeliveryPolicy.unregisteredRunGracePeriod == 60,
             "missing-run evidence needs a bounded registration grace period, not an infinite foreground poll"
         )
+        try expect(
+            ChatAbortFlushPolicy.eventWaitNanoseconds == 2_000_000_000,
+            "confirmed chat.abort must wait for state:aborted (or a 2s flush timeout)"
+        )
+        try expect(
+            ChatAbortFlushPolicy.pollNanoseconds == 100_000_000,
+            "abort flush wait must poll rather than blocking the run loop"
+        )
 
         print("PASS: chat run reconciliation policy")
     }

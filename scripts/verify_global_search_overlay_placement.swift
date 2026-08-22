@@ -1,12 +1,25 @@
 import Foundation
 
+private let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+private func loadDashboardUI(root: URL) throws -> String {
+    try dashboardUIRelativePaths.map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+}
+
+
 private func fail(_ message: String) -> Never {
     fputs("FAIL: \(message)\n", stderr)
     exit(1)
 }
 
-let path = "OpenClawInstaller/Features/Dashboard/DashboardView.swift"
-let source = try String(contentsOfFile: path, encoding: .utf8)
+let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+let source = try loadDashboardUI(root: root)
 
 guard let dashboardStart = source.range(of: "struct DashboardView: View")?.lowerBound,
       let sidebarStart = source.range(of: "struct SidebarView: View")?.lowerBound else {

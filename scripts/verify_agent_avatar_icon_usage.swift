@@ -30,7 +30,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let persona = read("OpenClawInstaller/Features/Agents/Persona/PersonaTabView.swift")
 let subAgents = read("OpenClawInstaller/Features/Agents/SubAgents/SubAgentsTabView.swift")
 let marketplaceOverview = read("OpenClawInstaller/Features/Agents/Marketplace/MarketplaceOverviewView.swift")
@@ -40,7 +40,7 @@ let avatarView = read("OpenClawInstaller/DesignSystem/Icons/AgentAvatarImage.swi
 
 let collapsedPanel = slice(dashboard, from: "private var collapsedBody: some View", to: "private var edgeChevronHandle: some View")
 let agentCard = slice(dashboard, from: "private var agentCard: some View", to: "} label: {")
-let agentSettingsPanel = slice(dashboard, from: "private struct AgentSettingsPanel: View", to: "Button(action: onClose)")
+let agentSettingsPanel = slice(dashboard, from: "struct AgentSettingsPanel: View", to: "Button(action: onClose)")
 let marketplaceRow = slice(dashboard, from: "private struct MarketplaceAgentRow: View", to: "private struct PulsingDot: View")
 let agentSectionContent = slice(dashboard, from: "private var agentSectionContent: some View", to: "// MARK: - Sidebar Bottom Bar")
 let agentSidebarRow = slice(dashboard, from: "private func agentSidebarRow(_ agent: AgentOption) -> some View", to: "private func canDeleteAgent")

@@ -22,9 +22,12 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let helpers = read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let gateway = read("OpenClawInstaller/Core/Gateway/GatewayClient.swift")
+let agentSettings = read("OpenClawInstaller/Features/Agents/Core/AgentSettings.swift")
+let providerSettings = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelSettings.swift")
 
 let composerOverlay = slice(
     dashboard,
@@ -34,53 +37,57 @@ let composerOverlay = slice(
 let selectorButton = slice(
     dashboard,
     from: "struct ComposerModelSelector: View",
-    to: "private struct ComposerModelPanel: View"
+    to: "struct ComposerModelPanel: View"
 )
 let selectorPanel = slice(
     dashboard,
-    from: "private struct ComposerModelPanel: View",
+    from: "struct ComposerModelPanel: View",
     to: "private extension View"
 )
 let chatSendMethod = slice(
     gateway,
-    from: "func chatSend(sessionKey: String, message: String, attachments: [[String: Any]]? = nil) async -> String?",
-    to: "    /// Subscribe to chat events."
+    from: "func chatSend(",
+    to: "    /// Subscribe to one run's chat events plus shared transport lifecycle."
 )
 let sendChatMessage = slice(
-    viewModel,
+    helpers,
     from: "func sendChatMessage(_ text: String, attachments: [URL] = []) async",
-    to: "    // MARK: - Status Summary"
+    to: "    /// Move a foreground task to background"
 )
 let updateAgentModel = slice(
-    viewModel,
+    agentSettings,
     from: "func updateAgentModel(model: String)",
     to: "    /// Binding for editing a persona file"
 )
 let switchSession = slice(
     viewModel,
     from: "func switchSession(to sessionId: UUID)",
-    to: "    /// Switch to a session that may belong to a different agent."
+    to: "    func switchSession(to sessionId: UUID, inAgent agentId: String)"
 )
 let switchSessionGlobally = slice(
     viewModel,
     from: "func switchSessionGlobally(to sessionId: UUID)",
-    to: "    /// Update the title of a stored session."
+    to: "    func switchSession(to sessionId: UUID, inAgent agentId: String)"
 )
 
 require(
-    viewModel.contains("@Published var activeComposerModel: String"),
+    viewModel.contains("var activeComposerModel: String") &&
+        viewModel.contains("modelSettingsViewModel.activeComposerModel"),
     "DashboardViewModel must own an app-level activeComposerModel for composer selection"
 )
 require(
-    viewModel.contains("func selectComposerModel(_ model: String)"),
+    viewModel.contains("func selectComposerModel(_ model: String)") ||
+        providerSettings.contains("func selectComposerModel(_ model: String)"),
     "DashboardViewModel must expose a composer-only model selection method"
 )
-if viewModel.contains("func selectComposerModel(_ model: String)") {
-    require(
-        !slice(viewModel, from: "func selectComposerModel(_ model: String)", to: "    /// Binding for editing a persona file").contains("patchAgentModel"),
-        "selectComposerModel must not write agent model configuration"
-    )
-}
+require(
+    !slice(
+        providerSettings,
+        from: "func selectComposerModel(_ model: String)",
+        to: "    private func modelOptions("
+    ).contains("patchAgentModel"),
+    "selectComposerModel must not write agent model configuration"
+)
 require(
     updateAgentModel.contains("patchAgentModel"),
     "updateAgentModel must remain the agent-settings JSON writer"

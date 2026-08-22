@@ -322,3 +322,155 @@ enum GatewayChatSendResult: Equatable, Sendable {
         }
     }
 }
+
+/// Identity of one in-flight `chat.send`. `expectedRunId` is the client
+/// idempotency key — the gateway assigns a different run id on accept.
+struct GatewayChatSendPendingIdentity: Equatable, Sendable {
+    let expectedRunId: String
+    let sessionKey: String
+}
+
+enum GatewayChatSendDeliveryMatcher {
+    /// Exact matches only: gateway run id or echoed idempotency key.
+    static func matchesExact(
+        pending: GatewayChatSendPendingIdentity,
+        eventRunId: String,
+        eventIdempotencyKey: String?
+    ) -> Bool {
+        if pending.expectedRunId == eventRunId { return true }
+        if let eventIdempotencyKey, pending.expectedRunId == eventIdempotencyKey {
+            return true
+        }
+        return false
+    }
+
+    /// Session fallback is legal only when exactly one send is waiting on
+    /// that session. Two in-flight sends on the same session must not steal
+    /// each other's delivery evidence.
+    static func matchesSessionFallback(
+        pending: GatewayChatSendPendingIdentity,
+        eventSessionKey: String?,
+        pendingCountForSession: Int
+    ) -> Bool {
+        guard pendingCountForSession == 1,
+              let eventSessionKey,
+              pending.sessionKey.caseInsensitiveCompare(eventSessionKey) == .orderedSame else {
+            return false
+        }
+        return true
+    }
+}
+
+/// Routes `chat.send` acknowledgements and records run-event delivery that
+/// proves the gateway accepted a send even when the RPC ack is late. The
+/// gateway's run id is never the client idempotency key, so delivery is
+/// matched by echoed idempotency, exact run id, or a unique session.
+nonisolated final class GatewayChatSendRequestRegistry: @unchecked Sendable {
+    struct PendingRequest {
+        let identity: GatewayChatSendPendingIdentity
+        let continuation: CheckedContinuation<GatewayChatSendResult, Never>
+        let startedAt: ContinuousClock.Instant
+
+        var expectedRunId: String { identity.expectedRunId }
+        var sessionKey: String { identity.sessionKey }
+    }
+
+    private let lock = NSLock()
+    private var requests: [String: PendingRequest] = [:]
+    private var observedRequestIds: Set<String> = []
+    private var observedRunIds: [String: String] = [:]
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return requests.count
+    }
+
+    func register(
+        requestId: String,
+        identity: GatewayChatSendPendingIdentity,
+        startedAt: ContinuousClock.Instant,
+        continuation: CheckedContinuation<GatewayChatSendResult, Never>
+    ) {
+        lock.lock()
+        let replaced = requests.updateValue(
+            PendingRequest(identity: identity, continuation: continuation, startedAt: startedAt),
+            forKey: requestId
+        )
+        observedRequestIds.remove(requestId)
+        observedRunIds.removeValue(forKey: requestId)
+        lock.unlock()
+        if let replaced {
+            replaced.continuation.resume(
+                returning: .deliveryUnconfirmed(expectedRunId: replaced.expectedRunId)
+            )
+        }
+    }
+
+    func recordDelivery(
+        runId: String,
+        sessionKey: String?,
+        idempotencyKey: String?
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !requests.isEmpty else { return }
+
+        var sessionCounts: [String: Int] = [:]
+        for request in requests.values {
+            let key = request.sessionKey.lowercased()
+            sessionCounts[key, default: 0] += 1
+        }
+
+        for (requestId, request) in requests {
+            if GatewayChatSendDeliveryMatcher.matchesExact(
+                pending: request.identity,
+                eventRunId: runId,
+                eventIdempotencyKey: idempotencyKey
+            ) {
+                markObserved(requestId: requestId, runId: runId)
+                continue
+            }
+            let count = sessionCounts[request.sessionKey.lowercased()] ?? 0
+            if GatewayChatSendDeliveryMatcher.matchesSessionFallback(
+                pending: request.identity,
+                eventSessionKey: sessionKey,
+                pendingCountForSession: count
+            ) {
+                markObserved(requestId: requestId, runId: runId)
+            }
+        }
+    }
+
+    func take(
+        requestId: String
+    ) -> (request: PendingRequest, deliveryObserved: Bool, observedRunId: String?)? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let request = requests.removeValue(forKey: requestId) else {
+            return nil
+        }
+        let observed = observedRequestIds.remove(requestId) != nil
+        let observedRunId = observedRunIds.removeValue(forKey: requestId)
+        return (request, observed, observedRunId)
+    }
+
+    func isObserved(requestId: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return observedRequestIds.contains(requestId)
+    }
+
+    func observedRunId(for requestId: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return observedRunIds[requestId]
+    }
+
+    private func markObserved(requestId: String, runId: String) {
+        observedRequestIds.insert(requestId)
+        if observedRunIds[requestId] == nil, !runId.isEmpty {
+            observedRunIds[requestId] = runId
+        }
+    }
+}

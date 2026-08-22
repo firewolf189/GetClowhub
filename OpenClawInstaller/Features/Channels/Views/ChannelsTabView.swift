@@ -274,7 +274,7 @@ struct AddChannelSheet: View {
     /// Map channel type to known plugin ids/package aliases.
     private var expectedPluginAliases: [String] {
         switch selectedChannel {
-        case "dingtalk": return ["dingtalk"]
+        case "dingtalk": return ["dingtalk", "dingtalk-connector"]
         case "weixin": return ["weixin", "openclaw-weixin"]
         default: return [selectedChannel]
         }

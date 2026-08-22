@@ -6,7 +6,24 @@ import Foundation
 /// print no channel rows, so the Channels tab looks empty after add.
 enum DingTalkChannelConfig {
     static let channelIds = ["dingtalk", "dingtalk-connector"]
+    /// Mac default when neither key exists yet. Windows writes `dingtalk-connector`.
+    static let preferredWriteKey = "dingtalk"
     static let rejectedAccountKeys = ["enableAICard", "requireMention", "robotCode"]
+
+    /// Keep writing whichever DingTalk object is already in the config.
+    /// If both exist, prefer the Mac key so we never create a third object.
+    static func resolvedConfigKey(in channels: [String: Any]?) -> String {
+        let channels = channels ?? [:]
+        if channels[preferredWriteKey] is [String: Any] {
+            return preferredWriteKey
+        }
+        for id in channelIds where id != preferredWriteKey {
+            if channels[id] is [String: Any] {
+                return id
+            }
+        }
+        return preferredWriteKey
+    }
 
     static func defaultAccountConfig(
         clientId: String,

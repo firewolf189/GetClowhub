@@ -1314,7 +1314,7 @@ enum PluginPreset: String, CaseIterable {
     var matchKeywords: [String] {
         switch self {
         case .custom: return []
-        case .dingtalk: return ["dingtalk"]
+        case .dingtalk: return ["dingtalk", "dingtalk-connector"]
         case .weixin: return ["weixin", "openclaw-weixin"]
         }
     }

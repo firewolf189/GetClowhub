@@ -19,6 +19,7 @@ private enum DingTalkChannelConfigTests {
         try testDefaultAccountOmitsRejectedKeys()
         try testStripRejectedKeysFromRootAndAccounts()
         try testStatusLoadErrorDetectsInvalidConfig()
+        try testResolvedConfigKeyReusesExistingObject()
         print("PASS: DingTalk channel config")
     }
 
@@ -89,6 +90,36 @@ private enum DingTalkChannelConfigTests {
         try expect(
             DingTalkChannelConfig.statusLoadError(from: "- DingTalk default: enabled, configured") == nil,
             "healthy status has no load error"
+        )
+    }
+
+    private static func testResolvedConfigKeyReusesExistingObject() throws {
+        try expect(
+            DingTalkChannelConfig.resolvedConfigKey(in: nil) == "dingtalk",
+            "empty config writes the Mac default key"
+        )
+        try expect(
+            DingTalkChannelConfig.resolvedConfigKey(in: [:]) == "dingtalk",
+            "channels object with no DingTalk key writes dingtalk"
+        )
+        try expect(
+            DingTalkChannelConfig.resolvedConfigKey(in: ["dingtalk": ["enabled": true]]) == "dingtalk",
+            "existing dingtalk object must be reused"
+        )
+        try expect(
+            DingTalkChannelConfig.resolvedConfigKey(in: ["dingtalk-connector": ["enabled": true]]) == "dingtalk-connector",
+            "Windows leftover dingtalk-connector must be reused instead of creating dingtalk"
+        )
+        try expect(
+            DingTalkChannelConfig.resolvedConfigKey(in: [
+                "dingtalk": ["enabled": true],
+                "dingtalk-connector": ["enabled": true]
+            ]) == "dingtalk",
+            "when both keys exist, keep writing the Mac key rather than a third object"
+        )
+        try expect(
+            DingTalkChannelConfig.resolvedConfigKey(in: ["feishu": ["enabled": true]]) == "dingtalk",
+            "unrelated channels do not count as an existing DingTalk object"
         )
     }
 }

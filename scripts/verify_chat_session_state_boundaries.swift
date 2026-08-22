@@ -26,7 +26,7 @@ let dashboardViewModel = try contents("OpenClawInstaller/Features/Dashboard/Dash
 let chatRuntimeState = try contents("OpenClawInstaller/Features/Chat/State/ChatRuntimeState.swift")
 let taskActivityState = try contents("OpenClawInstaller/Features/Chat/State/TaskActivityState.swift")
 let sessionNavigationState = try contents("OpenClawInstaller/Features/Sessions/State/SessionNavigationState.swift")
-let dashboardView = try contents("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboardView = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try contents($0) }.joined(separator: "\n")
 let chatTimelineSurface = try contents("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
 
 let dashboardPublishedBlockedNames = [

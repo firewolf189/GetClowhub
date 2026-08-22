@@ -19,11 +19,12 @@ let inFlight = try source("OpenClawInstaller/Features/Dashboard/InFlightRuns.swi
 let viewModel = try source("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 
 require(
+        reconciliation.contains("extension ChatViewModel") &&
         reconciliation.contains("func scheduleChatRunReconciliation(messageId: UUID)") &&
         reconciliation.contains("func reconcileChatRun(messageId: UUID) async") &&
         reconciliation.contains("fetchChatRunStatus(runId: runId)") &&
         reconciliation.contains("fetchChatRecoverySnapshot(sessionKey: sessionKey)"),
-    "one per-run coordinator must own status/history reconciliation"
+    "one per-run coordinator must own status/history reconciliation on ChatViewModel"
 )
 require(
     reconciliation.contains("run.expectedRunId == expectedRunId") &&
@@ -48,9 +49,11 @@ require(
         !inFlight.contains("fetchLastAssistantMessage"),
     "crash recovery must reuse the run-specific coordinator instead of latest-message heuristics"
 )
+let chatViewModel = try source("OpenClawInstaller/Features/Chat/ViewModels/ChatViewModel.swift")
 require(
-    viewModel.contains("requestRunReconciliationRetry(messageId: messageId)") &&
-        viewModel.contains("scheduleChatRunReconciliation(messageId: messageId)"),
+    chatViewModel.contains("requestRunReconciliationRetry(messageId: messageId)") &&
+        chatViewModel.contains("scheduleChatRunReconciliation(messageId: messageId)") &&
+        viewModel.contains("chatViewModel.retryChatConnection(for: messageId)"),
     "manual retry must distinguish per-run reconciliation from shared transport retry"
 )
 

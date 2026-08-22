@@ -115,6 +115,11 @@
 		C3D4E5F6A7B8492A1B2C3D4E /* HelpAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E4F5A6B7C84A2A2B3C4D5E /* HelpAssistantViewModel.swift */; };
 		CACT0000000000000001 /* CatalogActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACT0000000000000002 /* CatalogActionButton.swift */; };
 		CCV000000000000000000001 /* ChatComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCV000000000000000000002 /* ChatComposerView.swift */; };
+		CHVIEW00000000000001 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHVIEW00000000000002 /* ChatView.swift */; };
+		CHBUBL00000000000001 /* ChatBubbleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHBUBL00000000000002 /* ChatBubbleViews.swift */; };
+		COMPCH00000000000001 /* ComposerChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMPCH00000000000002 /* ComposerChrome.swift */; };
+		DTYPO000000000000001 /* DashboardTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTYPO000000000000002 /* DashboardTypography.swift */; };
+		DSBAR000000000000001 /* DashboardSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSBAR000000000000002 /* DashboardSidebar.swift */; };
 		CEFSEL0000000000000001 /* ComposerEffortSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFSEL0000000000000002 /* ComposerEffortSelector.swift */; };
 		CDOT0000000000000001 /* CursorDotOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDOT0000000000000002 /* CursorDotOverlay.swift */; };
 		COREUPGRADE000000000001 /* OpenClawCoreManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */; };
@@ -306,6 +311,11 @@
 		C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Cron/Views/CronTabView.swift"; sourceTree = SOURCE_ROOT; };
 		CACT0000000000000002 /* CatalogActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CatalogActionButton.swift"; sourceTree = SOURCE_ROOT; };
 		CCV000000000000000000002 /* ChatComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift"; sourceTree = SOURCE_ROOT; };
+		CHVIEW00000000000002 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ChatView.swift"; sourceTree = SOURCE_ROOT; };
+		CHBUBL00000000000002 /* ChatBubbleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"; sourceTree = SOURCE_ROOT; };
+		COMPCH00000000000002 /* ComposerChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift"; sourceTree = SOURCE_ROOT; };
+		DTYPO000000000000002 /* DashboardTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift"; sourceTree = SOURCE_ROOT; };
+		DSBAR000000000000002 /* DashboardSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift"; sourceTree = SOURCE_ROOT; };
 		CEFSEL0000000000000002 /* ComposerEffortSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Chat/Views/ComposerEffortSelector.swift"; sourceTree = SOURCE_ROOT; };
 		CDOT0000000000000002 /* CursorDotOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/DesignSystem/Components/CursorDotOverlay.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000002 /* OpenClawCoreManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/OpenClawCoreManifest.swift"; sourceTree = SOURCE_ROOT; };
@@ -574,9 +584,14 @@
 				C1D2E3F4A5B6478890C1D2E3 /* CronTabView.swift */,
 				AMR000000000000000000002 /* AssistantMessageRenderer.swift */,
 				CCV000000000000000000002 /* ChatComposerView.swift */,
+				CHVIEW00000000000002 /* ChatView.swift */,
+				CHBUBL00000000000002 /* ChatBubbleViews.swift */,
+				COMPCH00000000000002 /* ComposerChrome.swift */,
 				CEFSEL0000000000000002 /* ComposerEffortSelector.swift */,
 				CTV000000000000000000002 /* ChatTimelineSurface.swift */,
 				356410342F5802970045A6F7 /* DashboardView.swift */,
+				DTYPO000000000000002 /* DashboardTypography.swift */,
+				DSBAR000000000000002 /* DashboardSidebar.swift */,
 				MDH000000000000000000002 /* MarkdownHTML.swift */,
 				A0B1C2D3E4F5061728394051 /* OutputsSidebarLayoutMetrics.swift */,
 				F4A5B6C7D8E94C3A4B5C6D7E /* HelpAssistantWindow.swift */,
@@ -900,8 +915,13 @@
 				356410572F5802970045A6F7 /* WelcomeView.swift in Sources */,
 				356410582F5802970045A6F7 /* SparkleUpdater.swift in Sources */,
 				356410592F5802970045A6F7 /* DashboardView.swift in Sources */,
+				DTYPO000000000000001 /* DashboardTypography.swift in Sources */,
+				DSBAR000000000000001 /* DashboardSidebar.swift in Sources */,
 				CTV000000000000000000001 /* ChatTimelineSurface.swift in Sources */,
 				CCV000000000000000000001 /* ChatComposerView.swift in Sources */,
+				CHVIEW00000000000001 /* ChatView.swift in Sources */,
+				CHBUBL00000000000001 /* ChatBubbleViews.swift in Sources */,
+				COMPCH00000000000001 /* ComposerChrome.swift in Sources */,
 				CEFSEL0000000000000001 /* ComposerEffortSelector.swift in Sources */,
 				AMR000000000000000000001 /* AssistantMessageRenderer.swift in Sources */,
 				SMV000000000000000000001 /* SelectableMarkdownView.swift in Sources */,

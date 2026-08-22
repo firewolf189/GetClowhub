@@ -35,7 +35,7 @@ do {
     try require(!bootstrapper.contains("plugins enable"), "recommended plugin bootstrapper should not change enabled plugin state")
     try require(!bootstrapper.contains("plugins disable"), "recommended plugin bootstrapper should not change disabled plugin state")
 
-    let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+    let dashboard = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try read($0) }.joined(separator: "\n")
     try require(dashboard.contains("RecommendedPluginBootstrapper"), "DashboardView should hold a recommended plugin bootstrapper")
     try require(dashboard.contains("bootstrapRecommendedPluginsIfNeeded"), "DashboardView should trigger recommended plugin bootstrap when OpenClaw is running")
 

@@ -55,12 +55,12 @@ require(
     "Install preset matching must not inspect plugin.source."
 )
 require(
-    addChannelAliases.contains("case \"dingtalk\": return [\"dingtalk\"]") &&
+    addChannelAliases.contains("case \"dingtalk\": return [\"dingtalk\", \"dingtalk-connector\"]") &&
         addChannelAliases.contains("case \"weixin\": return [\"weixin\", \"openclaw-weixin\"]"),
     "Channel aliases should use normalized plugin/channel ids, not scoped source package strings."
 )
 require(
-    presetKeywords.contains("case .dingtalk: return [\"dingtalk\"]") &&
+    presetKeywords.contains("case .dingtalk: return [\"dingtalk\", \"dingtalk-connector\"]") &&
         presetKeywords.contains("case .weixin: return [\"weixin\", \"openclaw-weixin\"]"),
     "Preset matching keywords should use normalized plugin/channel ids, not scoped source package strings."
 )

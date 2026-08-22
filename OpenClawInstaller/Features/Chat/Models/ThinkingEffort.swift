@@ -110,6 +110,24 @@ enum ThinkingEffort: String, CaseIterable, Codable, Equatable, Identifiable {
         return allowed.contains(effort) ? effort : .auto
     }
 
+    /// True when a `chat.send` rejection is specifically about an unsupported
+    /// or invalid `thinking` / `thinkingLevel` field. Requires both a thinking
+    /// token and a rejection token so unrelated errors ("I thought…", "does
+    /// not support this attachment") do not trigger a silent resend.
+    static func isGatewayRejection(_ message: String?) -> Bool {
+        guard let raw = message?.lowercased(), !raw.isEmpty else { return false }
+        let mentionsThinking = raw.contains("thinking") || raw.contains("reasoning")
+        let looksRejected =
+            raw.contains("unsupported")
+            || raw.contains("not support")
+            || raw.contains("invalid")
+            || raw.contains("unknown")
+            || raw.contains("must be")
+            || raw.contains("not allowed")
+            || raw.contains("not a valid")
+        return mentionsThinking && looksRejected
+    }
+
     /// Strip a leading `provider/` prefix: `getclawhub/deepseek-v4-pro` → `deepseek-v4-pro`.
     private static func strippedModelId(_ modelId: String) -> String {
         if let slash = modelId.lastIndex(of: "/") {

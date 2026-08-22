@@ -22,7 +22,7 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let timelineModels = read("OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift")
 let splitView = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorSplitView.swift")
 let project = read("OpenClawInstaller.xcodeproj/project.pbxproj")

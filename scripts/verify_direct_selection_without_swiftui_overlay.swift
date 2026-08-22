@@ -1,5 +1,18 @@
 import Foundation
 
+private let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+private func loadDashboardUI(root: URL) throws -> String {
+    try dashboardUIRelativePaths.map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+}
+
+
 // Text selection in the chat, after two architectural reversals — read the
 // history before "fixing" this file:
 //
@@ -32,7 +45,7 @@ let assistantURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/
 let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 
 let assistant = try String(contentsOf: assistantURL, encoding: .utf8)
-let dashboard = try String(contentsOf: dashboardURL, encoding: .utf8)
+let dashboard = try loadDashboardUI(root: root)
 
 func slice(_ text: String, from start: String, to end: String) -> String {
     guard let startRange = text.range(of: start),

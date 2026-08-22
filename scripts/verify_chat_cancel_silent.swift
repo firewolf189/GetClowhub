@@ -23,7 +23,7 @@ func slice(_ source: String, from start: String, to end: String) -> String {
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try read($0) }.joined(separator: "\n")
 let chatHelpers = try read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let reconciliation = try read("OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift")
 let gateway = try read("OpenClawInstaller/Core/Gateway/GatewayClient.swift")
@@ -74,8 +74,10 @@ require(
         abortRegistry.contains("guard aborted else { return .notRunning }") &&
         abortRegistry.contains("guard runIds.contains(expectedRunId) else { return .notRunning }") &&
         reconciliation.contains("abortResult.isConfirmed") &&
-        chatHelpers.contains("result.isConfirmed"),
-    "cancellation may terminalize only after chat.abort confirms the exact run id"
+        chatHelpers.contains("result.isConfirmed") &&
+        chatHelpers.contains("waitForAbortedStreamEvent") &&
+        chatHelpers.contains("phase=chat_abort_acked_waiting_event"),
+    "cancellation may terminalize only after chat.abort confirms the exact run id and the aborted event (or flush timeout) arrives"
 )
 require(
     reconciliation.contains("case .cancelled:") &&

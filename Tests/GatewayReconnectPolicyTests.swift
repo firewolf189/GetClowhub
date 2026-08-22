@@ -30,6 +30,15 @@ private enum GatewayReconnectPolicyTests {
         try expect(policy.canScheduleAttempt(afterCompletedAttempts: 4), "the fifth attempt must still be allowed")
         try expect(!policy.canScheduleAttempt(afterCompletedAttempts: 5), "five failed attempts must exhaust automatic recovery")
 
+        try expect(GatewayConnectionState.disconnected.needsConnect, "disconnected sockets may start a new connect")
+        try expect(GatewayConnectionState.recoveryExhausted(attempts: 5).needsConnect, "exhausted recovery may start a user/status retry")
+        try expect(!GatewayConnectionState.connecting.needsConnect, "an in-flight handshake must not be restarted")
+        try expect(!GatewayConnectionState.connected.needsConnect, "a live socket must not be restarted")
+        try expect(
+            !GatewayConnectionState.reconnecting(attempt: 2, maxAttempts: 5).needsConnect,
+            "backoff reconnect must not be reset by status polls"
+        )
+
         print("PASS: gateway reconnect policy")
     }
 }

@@ -2,6 +2,19 @@
 
 import Foundation
 
+private let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+private func loadDashboardUI(root: URL) throws -> String {
+    try dashboardUIRelativePaths.map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+}
+
+
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let viewModelPath = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
 let skillCatalogItemPath = root.appendingPathComponent("OpenClawInstaller/Features/Skills/Models/SkillCatalogItem.swift")
@@ -16,7 +29,7 @@ let viewModel = try String(contentsOf: viewModelPath, encoding: .utf8)
 let skillCatalogItem = try String(contentsOf: skillCatalogItemPath, encoding: .utf8)
 let skillsView = try String(contentsOf: skillsViewPath, encoding: .utf8)
 let skillsModel = try String(contentsOf: skillsModelPath, encoding: .utf8)
-let dashboardView = try String(contentsOf: dashboardViewPath, encoding: .utf8)
+let dashboardView = try loadDashboardUI(root: root)
 let skillCatalogService = try String(contentsOf: skillCatalogServicePath, encoding: .utf8)
 let unifiedSearchField = try String(contentsOf: unifiedSearchFieldPath, encoding: .utf8)
 let skillsResource = try String(contentsOf: skillsResourcePath, encoding: .utf8)

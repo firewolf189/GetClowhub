@@ -1,5 +1,7 @@
 # OpenClaw Installer - 更新日志
 
+> **1.1.13 起的发版说明在 `docs/GetClawHub-更新说明-v1.1.xx.md`。** 本文件停在 v1.1.12，不再逐条回填。当前客户端版本见 `OpenClawInstaller/Info.plist` 的 `CFBundleShortVersionString`。
+
 ## v1.1.12 (2026-03-14)
 
 ### ✨ Chat 新功能

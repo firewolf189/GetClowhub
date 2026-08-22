@@ -225,7 +225,7 @@ class SystemEnvironment: ObservableObject {
         }
 
         // Note: we deliberately do NOT gate on the user's system Node.js version.
-        // The installer bundles its own Node.js v24.14.0 to ~/.openclaw/node/bin
+        // The installer bundles its own Node.js to ~/.openclaw/node/bin
         // and runs openclaw exclusively against that, so any pre-existing Node
         // (or none at all) is fine. Pre-install screens that surface the user's
         // Node version do so for information only — InstallationViewModel will

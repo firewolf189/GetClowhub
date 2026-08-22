@@ -2,7 +2,7 @@
 
 ## 概述
 
-OpenClawInstaller 现在已经集成了 Node.js v24.14.0 (LTS Krypton) 安装包，可以**无需下载**直接安装。
+OpenClawInstaller 现在已经集成了 Node.js v24.18.0 (LTS Krypton) 安装包，可以**无需下载**直接安装。
 
 ## 优势
 
@@ -24,7 +24,8 @@ OpenClawInstaller 现在已经集成了 Node.js v24.14.0 (LTS Krypton) 安装包
 ### 1. 资源文件位置
 ```
 OpenClawInstaller/Resources/
-└── node-v24.14.0-darwin-arm64.tar.gz (49MB)
+├── node-v24.18.0-darwin-arm64.tar.gz
+└── node-v24.18.0-darwin-x64.tar.gz
 ```
 
 ### 2. 构建过程
@@ -60,11 +61,11 @@ func installNodeJS() async throws {
 ## 文件说明
 
 ### Node.js 包信息
-- **版本**: v24.14.0 (LTS Krypton)
-- **架构**: darwin-arm64 (Apple Silicon)
-- **格式**: tar.gz
-- **大小**: 约 49MB
-- **来源**: 阿里云镜像 (registry.npmmirror.com)
+- **版本**: v24.18.0（权威常量 `BundledRuntimeVersions.nodeJSVersion`）
+- **架构**: darwin-arm64（Apple Silicon）+ darwin-x64（Intel / Rosetta）
+- **格式**: tar.gz，安装时校验 SHA256
+- **来源**: 捆绑优先；缺失时中国走阿里云镜像，其它走 nodejs.org
+- **核心兼容区间**: `>=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0`（Node 25.0–25.8 会被核心拒绝）
 
 ### DMG 大小影响
 - **不含 Node.js**: ~5MB
@@ -79,7 +80,7 @@ func installNodeJS() async throws {
 
 ### 1. 下载新版本
 ```bash
-VERSION="v24.15.0"  # 更新版本号
+VERSION="v24.18.0"  # 必须与 BundledRuntimeVersions.nodeJSVersion 一致
 ARCH="arm64"
 curl -L -o "node-${VERSION}-darwin-${ARCH}.tar.gz" \
   "https://registry.npmmirror.com/-/binary/node/${VERSION}/node-${VERSION}-darwin-${ARCH}.tar.gz"
@@ -93,7 +94,9 @@ mv node-${VERSION}-darwin-${ARCH}.tar.gz OpenClawInstaller/Resources/
 ### 3. 更新代码
 编辑 `OpenClawInstaller/Core/Install/NodeInstaller.swift`:
 ```swift
-private let bundledNodeVersion = "v24.15.0"  // 更新版本号
+enum BundledRuntimeVersions {
+    static let nodeJSVersion = "v24.18.0"
+}
 ```
 
 ### 4. 重新构建

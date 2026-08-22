@@ -1,14 +1,14 @@
 //
 //  ChatHelpers.swift
-//  Chat send pipeline + helpers extracted from DashboardViewModel.
-//  P1 refactor: file split only, no behavior change.
+//  Chat send pipeline + helpers owned by ChatViewModel.
+//  DashboardViewModel remains the composition root and trampolines public chat APIs.
 //
 
 import Foundation
 import AppKit
 import os.log
 
-extension DashboardViewModel {
+extension ChatViewModel {
 
     // MARK: - Chat Helpers
 
@@ -730,9 +730,7 @@ extension DashboardViewModel {
     /// not support the requested reasoning effort? Used to degrade to `.auto`
     /// and resend rather than surfacing a hard failure.
     static func isThinkingRejection(_ message: String?) -> Bool {
-        guard let message = message?.lowercased() else { return false }
-        let needles = ["thinking", "reasoning", "effort", "thought", "not support"]
-        return needles.contains { message.contains($0) }
+        ThinkingEffort.isGatewayRejection(message)
     }
 
     func sendChatMessage(_ text: String, attachments: [URL] = []) async {
@@ -920,12 +918,13 @@ extension DashboardViewModel {
         let chatSendStart = ContinuousClock.now
         chatLog.info("phase=chat_send_start agent=\(currentAgentId, privacy: .public) session=\(currentSessionId.uuidString, privacy: .public) sessionKey=\(sessionKey, privacy: .public) model_override=\(composerModelOverride.isEmpty ? "default" : composerModelOverride, privacy: .public) message_len=\(baseMessage.count, privacy: .public) attachment_count=\(attachments.count, privacy: .public) inline_attachment_count=\(processed.inlineAttachments.count, privacy: .public)")
         let inlineAttachments = processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments
+        var sendThinking = composerEffort.wireValue
         var sendResult = await gatewayClient.chatSend(
             sessionKey: sessionKey,
             message: baseMessage,
             idempotencyKey: gatewayBinding.idempotencyKey,
             attachments: inlineAttachments,
-            thinking: composerEffort.wireValue
+            thinking: sendThinking
         )
         // If the model refused the explicit reasoning tier, retry once with no
         // thinking so the turn still sends. The gateway is the real source of
@@ -934,12 +933,13 @@ extension DashboardViewModel {
            case .rejected(let thinkingRejection) = sendResult,
            Self.isThinkingRejection(thinkingRejection) {
             chatLog.warning("phase=chat_thinking_unsupported model=\(composerModelOverride.isEmpty ? "default" : composerModelOverride, privacy: .public) effort=\(composerEffort.rawValue, privacy: .public) — retrying without thinking")
+            sendThinking = nil
             sendResult = await gatewayClient.chatSend(
                 sessionKey: sessionKey,
                 message: baseMessage,
                 idempotencyKey: gatewayBinding.idempotencyKey,
                 attachments: inlineAttachments,
-                thinking: nil
+                thinking: sendThinking
             )
         }
 
@@ -980,8 +980,7 @@ extension DashboardViewModel {
                 runId: runId
             )
             if cancellationResult.isConfirmed {
-                finishCancelledChatRun(msgId)
-                return
+                chatLog.info("phase=chat_abort_acked_waiting_event runId=\(runId, privacy: .public)")
             }
         }
 
@@ -1197,7 +1196,8 @@ extension DashboardViewModel {
                         sessionKey: sessionKey,
                         message: baseMessage,
                         idempotencyKey: gatewayBinding.idempotencyKey,
-                        attachments: processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments
+                        attachments: processed.inlineAttachments.isEmpty ? nil : processed.inlineAttachments,
+                        thinking: sendThinking
                     )
                     guard let currentRun = taskState.run(for: msgId),
                           !currentRun.phase.isTerminal,
@@ -1310,7 +1310,27 @@ extension DashboardViewModel {
             }
             return
         }
+        await waitForAbortedStreamEvent(messageId: messageId)
+        guard let stillCancelling = taskState.run(for: messageId),
+              stillCancelling.cancellationRequested,
+              !stillCancelling.phase.isTerminal else {
+            return
+        }
         finishCancelledChatRun(messageId)
+    }
+
+    /// Contract: `chat.abort` `aborted=true` is not the run terminal. Wait for
+    /// `state: aborted` (the live stream finishes the run) or this timeout.
+    private func waitForAbortedStreamEvent(messageId: UUID) async {
+        let deadline = Date().addingTimeInterval(
+            Double(ChatAbortFlushPolicy.eventWaitNanoseconds) / 1_000_000_000
+        )
+        while Date() < deadline {
+            guard let run = taskState.run(for: messageId), !run.phase.isTerminal else {
+                return
+            }
+            try? await Task.sleep(nanoseconds: ChatAbortFlushPolicy.pollNanoseconds)
+        }
     }
 
     func finishCancelledChatRun(_ messageId: UUID) {

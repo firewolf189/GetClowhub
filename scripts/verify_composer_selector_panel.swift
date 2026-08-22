@@ -30,13 +30,13 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
     return String(haystack[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let chatComposer = read("OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift")
 
 let emptySurface = slice(dashboard, from: "private var emptyChatSurface: some View", to: "private var timelineChatSurface: some View")
 let dismissLayer = slice(dashboard, from: "private var composerSelectorDismissLayer: some View", to: "private var chatContent: some View")
-let selectorButton = slice(dashboard, from: "struct ComposerModelSelector: View", to: "private struct ComposerModelPanel: View")
-let selectorPanel = slice(dashboard, from: "private struct ComposerModelPanel: View", to: "private func stripProviderPrefix")
+let selectorButton = slice(dashboard, from: "struct ComposerModelSelector: View", to: "struct ComposerModelPanel: View")
+let selectorPanel = slice(dashboard, from: "struct ComposerModelPanel: View", to: "private func stripProviderPrefix")
 
 assertContains(
     emptySurface,

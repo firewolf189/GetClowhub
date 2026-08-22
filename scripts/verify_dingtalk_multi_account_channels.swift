@@ -78,8 +78,10 @@ require(
 require(
     appKeyAdd.contains("\"accounts\"") &&
         appKeyAdd.contains("accounts[normalizedAccountId]") &&
-        appKeyAdd.contains("normalizedAccountId == Self.defaultChannelAccountId"),
-    "App-key channel add should write non-default accounts under channel.accounts without replacing the whole channel."
+        appKeyAdd.contains("normalizedAccountId == Self.defaultChannelAccountId") &&
+        appKeyAdd.contains("DingTalkChannelConfig.resolvedConfigKey(in: channels)") &&
+        appKeyAdd.contains("channels[writeKey]"),
+    "App-key channel add should write non-default accounts under channel.accounts without replacing the whole channel, and reuse an existing DingTalk object."
 )
 require(
     !appKeyAdd.contains("channels[channelType] = channelConfig\n"),
@@ -92,8 +94,9 @@ require(
 require(
     disableChannel.contains("accountId: String") &&
         disableChannel.contains("accounts[accountId]") &&
-        disableChannel.contains("channels[channelType] = chConfig"),
-    "disableChannelInConfig should handle account-specific channel entries."
+        disableChannel.contains("channels[writeKey] = chConfig") &&
+        disableChannel.contains("DingTalkChannelConfig.resolvedConfigKey(in: channels)"),
+    "disableChannelInConfig should handle account-specific channel entries and reuse an existing DingTalk key."
 )
 require(
     !appKeyAdd.contains("\"enableAICard\"") &&

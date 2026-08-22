@@ -35,7 +35,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 }
 
 let tooltip = read("OpenClawInstaller/DesignSystem/Components/UnifiedTooltip.swift")
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let workspaceInspector = read("OpenClawInstaller/Features/Workspace/Views/Inspector/WorkspaceInspectorPane.swift")
 let rightInspectorTitlebarAccessory = read("OpenClawInstaller/Features/Workspace/Views/Inspector/RightInspectorTitlebarAccessory.swift")
 let skills = read("OpenClawInstaller/Features/Skills/Views/SkillsTabView.swift")
@@ -203,7 +203,7 @@ require(
 let composerSelector = slice(
     dashboard,
     from: "struct ComposerModelSelector: View",
-    to: "private struct ComposerModelPanel: View"
+    to: "struct ComposerModelPanel: View"
 )
 require(
     composerSelector.contains(".unifiedTooltip(UnifiedTooltipContent(") &&

@@ -25,7 +25,7 @@ func slice(_ haystack: String, from start: String, to end: String) -> String {
 let appSettings = read("OpenClawInstaller/Shared/Models/AppSettings.swift")
 let agentOption = read("OpenClawInstaller/Features/Agents/Models/AgentOption.swift")
 let providerModelSettings = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelSettings.swift")
-let dashboardView = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboardView = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let chatHelpers = read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let englishCommon = read("OpenClawInstaller/Resources/I18n/en/common.json")
 let simplifiedChineseCommon = read("OpenClawInstaller/Resources/I18n/zh-Hans/common.json")

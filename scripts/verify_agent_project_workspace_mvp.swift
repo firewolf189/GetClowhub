@@ -33,7 +33,7 @@ let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.sw
 let sessionPersistence = read("OpenClawInstaller/Features/Sessions/SessionPersistence.swift")
 let sessionNavigationState = read("OpenClawInstaller/Features/Sessions/State/SessionNavigationState.swift")
 let chatHelpers = read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let projectFile = read("OpenClawInstaller.xcodeproj/project.pbxproj")
 
 require(sessionModel.contains("var projectId: String?"), "ChatSession should persist optional projectId")

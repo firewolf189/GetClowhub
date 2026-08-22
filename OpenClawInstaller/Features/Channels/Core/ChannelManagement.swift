@@ -127,7 +127,8 @@ extension DashboardViewModel {
         isPerformingAction = true
         let normalizedAccountId = Self.normalizedChannelAccountId(accountId)
         let trimmedDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        var command = "openclaw channels add --channel \(Self.shellQuote(channelType)) --token \(Self.shellQuote(token)) --account \(Self.shellQuote(normalizedAccountId))"
+        let writeKey = resolvedChannelWriteKey(channelType)
+        var command = "openclaw channels add --channel \(Self.shellQuote(writeKey)) --token \(Self.shellQuote(token)) --account \(Self.shellQuote(normalizedAccountId))"
         if !trimmedDisplayName.isEmpty {
             command += " --name \(Self.shellQuote(trimmedDisplayName))"
         }
@@ -189,7 +190,10 @@ extension DashboardViewModel {
                 )
             }
 
-            let channelRoot = channels[channelType] as? [String: Any] ?? [:]
+            let writeKey = DingTalkChannelConfig.isDingTalkChannel(channelType)
+                ? DingTalkChannelConfig.resolvedConfigKey(in: channels)
+                : channelType
+            let channelRoot = channels[writeKey] as? [String: Any] ?? [:]
             if normalizedAccountId == Self.defaultChannelAccountId {
                 var mergedConfig = channelRoot
                 let existingAccounts = channelRoot["accounts"]
@@ -199,7 +203,7 @@ extension DashboardViewModel {
                 if let existingAccounts {
                     mergedConfig["accounts"] = existingAccounts
                 }
-                channels[channelType] = mergedConfig
+                channels[writeKey] = mergedConfig
             } else {
                 let defaultSeed = Self.channelDefaultConfig(from: channelRoot)
                 var accounts = channelRoot["accounts"] as? [String: Any] ?? [:]
@@ -207,7 +211,7 @@ extension DashboardViewModel {
                 var mergedRoot = defaultSeed
                 mergedRoot["enabled"] = true
                 mergedRoot["accounts"] = accounts
-                channels[channelType] = mergedRoot
+                channels[writeKey] = mergedRoot
             }
             root["channels"] = channels
             DingTalkChannelConfig.stripRejectedKeys(from: &root)
@@ -229,7 +233,7 @@ extension DashboardViewModel {
     /// Remove a channel
     func removeChannel(_ channel: ChannelInfo) async {
         isPerformingAction = true
-        let channelType = channel.name.lowercased()
+        let channelType = resolvedChannelWriteKey(channel.name.lowercased())
         let output = await openclawService.runCommand(
             "openclaw channels remove --channel \(Self.shellQuote(channelType)) --account \(Self.shellQuote(channel.account)) --delete 2>&1"
         )
@@ -252,7 +256,10 @@ extension DashboardViewModel {
         guard let data = fm.contents(atPath: configPath),
               var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         var channels = root["channels"] as? [String: Any] ?? [:]
-        var chConfig = channels[channelType] as? [String: Any] ?? [:]
+        let writeKey = DingTalkChannelConfig.isDingTalkChannel(channelType)
+            ? DingTalkChannelConfig.resolvedConfigKey(in: channels)
+            : channelType
+        var chConfig = channels[writeKey] as? [String: Any] ?? [:]
         if accountId == Self.defaultChannelAccountId {
             chConfig["enabled"] = false
         } else {
@@ -262,7 +269,7 @@ extension DashboardViewModel {
             accounts[accountId] = accountConfig
             chConfig["accounts"] = accounts
         }
-        channels[channelType] = chConfig
+        channels[writeKey] = chConfig
         root["channels"] = channels
         if let updatedData = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
             try? updatedData.write(to: URL(fileURLWithPath: configPath))
@@ -286,6 +293,18 @@ extension DashboardViewModel {
         }
         try? updatedData.write(to: URL(fileURLWithPath: configPath), options: .atomic)
         return true
+    }
+
+    private func resolvedChannelWriteKey(_ channelType: String) -> String {
+        guard DingTalkChannelConfig.isDingTalkChannel(channelType) else { return channelType }
+        let configPath = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".openclaw/openclaw.json").path
+        guard let data = FileManager.default.contents(atPath: configPath),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let channels = root["channels"] as? [String: Any] else {
+            return DingTalkChannelConfig.preferredWriteKey
+        }
+        return DingTalkChannelConfig.resolvedConfigKey(in: channels)
     }
 
     private nonisolated static func normalizedChannelAccountId(_ accountId: String) -> String {

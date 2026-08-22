@@ -38,6 +38,7 @@ func slice(_ source: String, from start: String, to end: String) throws -> Strin
 let helpers = try read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let messageModel = try read("OpenClawInstaller/Features/Chat/Models/ChatMessage.swift")
 let viewModel = try read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+let chatViewModel = try read("OpenClawInstaller/Features/Chat/ViewModels/ChatViewModel.swift")
 let reconciliation = try read("OpenClawInstaller/Features/Chat/State/ChatRunReconciliation.swift")
 
 let sendChatMessage = try slice(
@@ -56,9 +57,9 @@ let moveTaskToBackground = try slice(
     to: "/// Record cancellation intent separately"
 )
 let taskCleanup = try slice(
-    viewModel,
+    chatViewModel,
     from: "func clearTaskTracking(_ msgId: UUID)",
-    to: "/// Cancel every task (fg + bg) currently bound to `sessionId`"
+    to: "func scheduleAutomaticBackground(for messageId: UUID)"
 )
 
 try require(

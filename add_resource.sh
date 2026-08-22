@@ -11,7 +11,7 @@ echo "=========================================="
 echo ""
 
 # 检查资源文件是否存在
-if [ ! -f "OpenClawInstaller/Resources/node-v24.14.0-darwin-arm64.tar.gz" ]; then
+if [ ! -f "OpenClawInstaller/Resources/node-v24.18.0-darwin-arm64.tar.gz" ]; then
     echo "❌ 错误: 资源文件不存在"
     exit 1
 fi

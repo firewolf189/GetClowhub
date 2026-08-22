@@ -17,12 +17,6 @@ struct GatewayConnectError: Equatable {
 /// Lightweight WebSocket client for the OpenClaw gateway.
 /// Uses native `URLSessionWebSocketTask` (macOS 13+), no third-party dependencies.
 class GatewayClient: ObservableObject {
-    private struct PendingChatSendRequest {
-        let continuation: CheckedContinuation<GatewayChatSendResult, Never>
-        let expectedRunId: String
-        let startedAt: ContinuousClock.Instant
-    }
-
     @Published private(set) var connectionState: GatewayConnectionState = .disconnected
     @Published private(set) var isConnected = false
     @Published private(set) var lastConnectError: GatewayConnectError?
@@ -38,8 +32,7 @@ class GatewayClient: ObservableObject {
     private var reconnectAttempt = 0
     private var isIntentionalDisconnect = false
     private var pendingResponses: [String: CheckedContinuation<Bool, Never>] = [:]
-    private var pendingChatSendResponses: [String: PendingChatSendRequest] = [:]
-    private var observedPendingChatSendRunIds: Set<String> = []
+    private let chatSendRequestRegistry = GatewayChatSendRequestRegistry()
     private let chatAbortRequestRegistry = GatewayChatAbortRequestRegistry()
     private let chatRunStatusRequestRegistry = GatewayChatRunStatusRequestRegistry()
     private var pendingChatHistoryResponses: [String: CheckedContinuation<GatewayChatRecoverySnapshot?, Never>] = [:]
@@ -151,35 +144,31 @@ class GatewayClient: ObservableObject {
         return String(format: "%.1f", milliseconds)
     }
 
-    private func registerPendingChatSend(
-        requestId: String,
-        request: PendingChatSendRequest
+    private func recordPendingChatSendDelivery(
+        runId: String,
+        sessionKey: String?,
+        idempotencyKey: String? = nil
     ) {
-        responseLock.withLock {
-            pendingChatSendResponses[requestId] = request
-            observedPendingChatSendRunIds.remove(request.expectedRunId)
-        }
+        chatSendRequestRegistry.recordDelivery(
+            runId: runId,
+            sessionKey: sessionKey,
+            idempotencyKey: idempotencyKey
+        )
     }
 
-    private func takePendingChatSend(
-        requestId: String
-    ) -> (request: PendingChatSendRequest, deliveryObserved: Bool)? {
-        responseLock.withLock {
-            guard let request = pendingChatSendResponses.removeValue(forKey: requestId) else {
-                return nil
-            }
-            let observed = observedPendingChatSendRunIds.remove(request.expectedRunId) != nil
-            return (request, observed)
+    private static func chatSendResult(
+        from pending: (
+            request: GatewayChatSendRequestRegistry.PendingRequest,
+            deliveryObserved: Bool,
+            observedRunId: String?
+        )
+    ) -> GatewayChatSendResult {
+        if pending.deliveryObserved {
+            return .acknowledged(
+                runId: pending.observedRunId ?? pending.request.expectedRunId
+            )
         }
-    }
-
-    private func recordPendingChatSendDelivery(runId: String) {
-        responseLock.withLock {
-            guard pendingChatSendResponses.values.contains(where: { $0.expectedRunId == runId }) else {
-                return
-            }
-            observedPendingChatSendRunIds.insert(runId)
-        }
+        return .deliveryUnconfirmed(expectedRunId: pending.request.expectedRunId)
     }
 
     // MARK: - Public API
@@ -187,6 +176,17 @@ class GatewayClient: ObservableObject {
     func connect() {
         stateQueue.async { [weak self] in
             guard let self = self else { return }
+            // launchd status polls can fire connect() while a handshake or
+            // reconnect is already in flight. Resetting backoff / tearing the
+            // live socket down is what made those polls drop working chats.
+            if self.webSocketTask != nil && !self.isIntentionalDisconnect {
+                gwLog.info("connect() ignored: socket already in flight")
+                return
+            }
+            if self.reconnectPending && !self.isIntentionalDisconnect {
+                gwLog.info("connect() ignored: reconnect already scheduled")
+                return
+            }
             self.isIntentionalDisconnect = false
             self.reconnectAttempt = 0
             self.reconnectPending = false
@@ -427,13 +427,14 @@ class GatewayClient: ObservableObject {
         gwLog.info("chatSend: JSON size = \(jsonString.count) bytes, attachments = \(attachments?.count ?? 0)")
 
         return await withCheckedContinuation { continuation in
-            registerPendingChatSend(
+            chatSendRequestRegistry.register(
                 requestId: requestId,
-                request: PendingChatSendRequest(
-                    continuation: continuation,
+                identity: GatewayChatSendPendingIdentity(
                     expectedRunId: idempotencyKey,
-                    startedAt: chatSendStartedAt
-                )
+                    sessionKey: sessionKey
+                ),
+                startedAt: chatSendStartedAt,
+                continuation: continuation
             )
 
             ws.send(.string(jsonString)) { [weak self] error in
@@ -444,33 +445,30 @@ class GatewayClient: ObservableObject {
                 guard let self else { return }
 
                 gwLog.error("chatSend: WebSocket send error: \(error.localizedDescription)")
-                if let pending = self.takePendingChatSend(requestId: requestId) {
+                if let pending = self.chatSendRequestRegistry.take(requestId: requestId) {
                     pending.request.continuation.resume(
-                        returning: pending.deliveryObserved
-                            ? .acknowledged(runId: pending.request.expectedRunId)
-                            : .deliveryUnconfirmed(expectedRunId: pending.request.expectedRunId)
+                        returning: Self.chatSendResult(from: pending)
                     )
                     if !pending.deliveryObserved {
                         self.scheduleReconnect()
+                        // transport-write-failed: the socket itself rejected the frame.
                     }
                 }
             }
 
-            // Timeout after 10 seconds for the send acknowledgement
+            // Timeout after 10 seconds for the send acknowledgement.
+            // A late ack is not a dead socket: events may already be flowing
+            // under a gateway-assigned runId that is not our idempotency key.
             DispatchQueue.global().asyncAfter(deadline: .now() + 10) { [weak self] in
                 guard let self else { return }
-                let pending = self.takePendingChatSend(requestId: requestId)
+                let pending = self.chatSendRequestRegistry.take(requestId: requestId)
                 guard let pending else { return }
 
                 gwLog.warning("phase=chat_send_ack_timeout request=\(requestId, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: pending.request.startedAt), privacy: .public) delivery_observed=\(pending.deliveryObserved, privacy: .public)")
                 pending.request.continuation.resume(
-                    returning: pending.deliveryObserved
-                        ? .acknowledged(runId: pending.request.expectedRunId)
-                        : .deliveryUnconfirmed(expectedRunId: pending.request.expectedRunId)
+                    returning: Self.chatSendResult(from: pending)
                 )
-                if !pending.deliveryObserved {
-                    self.scheduleReconnect()
-                }
+                // ack-timeout-does-not-reconnect
             }
         }
     }
@@ -796,15 +794,9 @@ class GatewayClient: ObservableObject {
                 return
             }
                 // Check if there is a pending chat.send request.
-                let pendingChatSend = takePendingChatSend(requestId: id)
+                let pendingChatSend = chatSendRequestRegistry.take(requestId: id)
 
                 if let pendingChatSend {
-                    if pendingChatSend.deliveryObserved {
-                        pendingChatSend.request.continuation.resume(
-                            returning: .acknowledged(runId: pendingChatSend.request.expectedRunId)
-                        )
-                        return
-                    }
                     let isError = json["error"] != nil
                     if isError {
                         let elapsedText = Self.elapsedMillisecondsText(since: pendingChatSend.request.startedAt)
@@ -812,17 +804,18 @@ class GatewayClient: ObservableObject {
                         pendingChatSend.request.continuation.resume(
                             returning: .rejected(message: String(describing: json["error"] ?? "Unknown gateway rejection"))
                         )
+                        return
                     }
-                    if !isError, let payloadDict = json["payload"] as? [String: Any],
-                       let runId = payloadDict["runId"] as? String {
+                    if let payloadDict = json["payload"] as? [String: Any],
+                       let runId = payloadDict["runId"] as? String, !runId.isEmpty {
                         let elapsedText = Self.elapsedMillisecondsText(since: pendingChatSend.request.startedAt)
                         gwLog.info("phase=chat_send_ack request=\(id, privacy: .public) runId=\(runId, privacy: .public) elapsed_ms=\(elapsedText, privacy: .public)")
                         pendingChatSend.request.continuation.resume(returning: .acknowledged(runId: runId))
-                    } else if !isError {
-                        pendingChatSend.request.continuation.resume(
-                            returning: .deliveryUnconfirmed(expectedRunId: pendingChatSend.request.expectedRunId)
-                        )
+                        return
                     }
+                    pendingChatSend.request.continuation.resume(
+                        returning: Self.chatSendResult(from: pendingChatSend)
+                    )
                     return
                 }
 
@@ -1351,6 +1344,11 @@ class GatewayClient: ObservableObject {
     private func handleAgentEventPayload(_ payload: [String: Any]) {
         guard let runId = payload["runId"] as? String else { return }
         let sessionKey = payload["sessionKey"] as? String
+        recordPendingChatSendDelivery(
+            runId: runId,
+            sessionKey: sessionKey,
+            idempotencyKey: payload["idempotencyKey"] as? String
+        )
         guard let event = parseGatewayActivity(from: payload) else { return }
         broadcastEvent(.activity(runId: runId, sessionKey: sessionKey, event: event))
     }
@@ -1558,7 +1556,11 @@ class GatewayClient: ObservableObject {
             return
         }
 
-        recordPendingChatSendDelivery(runId: runId)
+        recordPendingChatSendDelivery(
+            runId: runId,
+            sessionKey: sessionKey,
+            idempotencyKey: payload["idempotencyKey"] as? String
+        )
 
         let event: GatewayChatEvent
         switch state {

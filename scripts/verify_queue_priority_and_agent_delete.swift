@@ -32,7 +32,7 @@ func sliceAfter(_ source: String, anchor: String, from start: String, to end: St
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try read($0) }.joined(separator: "\n")
 let subAgents = try read("OpenClawInstaller/Features/Agents/SubAgents/SubAgentsTabView.swift")
 
 let composerInputCard = slice(
@@ -47,7 +47,7 @@ let composerArea = slice(
 )
 let pendingQueueView = slice(
     dashboard,
-    from: "private struct PendingComposerQueueView: View",
+    from: "struct PendingComposerQueueView: View",
     to: "// MARK: - Chat Bubble"
 )
 let agentContextMenu = slice(

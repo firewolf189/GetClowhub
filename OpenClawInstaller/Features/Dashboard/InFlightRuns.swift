@@ -1,12 +1,12 @@
 //
 //  InFlightRuns.swift
-//  In-flight run crash-recovery persistence extracted from DashboardViewModel.
+//  In-flight run crash-recovery persistence owned by ChatViewModel.
 //
 
 import Foundation
 import os.log
 
-extension DashboardViewModel {
+extension ChatViewModel {
 
     // MARK: - In-Flight Run Persistence
 

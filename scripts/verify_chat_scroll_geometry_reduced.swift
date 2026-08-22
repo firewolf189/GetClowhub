@@ -1,5 +1,18 @@
 import Foundation
 
+private let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+private func loadDashboardUI(root: URL) throws -> String {
+    try dashboardUIRelativePaths.map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+}
+
+
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data("FAIL: \(message)\n".utf8))
     exit(1)
@@ -9,9 +22,8 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     if !condition() { fail(message) }
 }
 
-let sourceURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    .appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
-let source = try String(contentsOf: sourceURL)
+let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+let source = try loadDashboardUI(root: root)
 
 require(
     !source.contains("ChatScrollContentMetricsKey") &&

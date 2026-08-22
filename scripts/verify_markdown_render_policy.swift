@@ -1,5 +1,18 @@
 import Foundation
 
+private let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+private func loadDashboardUI(root: URL) throws -> String {
+    try dashboardUIRelativePaths.map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+}
+
+
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let rendererURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Markdown/AssistantMessageRenderer.swift")
@@ -12,7 +25,7 @@ guard let timelineModels = try? String(contentsOf: timelineModelsURL, encoding: 
     fputs("FAIL: unable to read ChatTimelineModels.swift\n", stderr)
     exit(1)
 }
-guard let dashboard = try? String(contentsOf: dashboardURL, encoding: .utf8) else {
+guard let dashboard = try? loadDashboardUI(root: root) else {
     fatalError("Could not read DashboardView.swift")
 }
 guard let renderer = try? String(contentsOf: rendererURL, encoding: .utf8) else {

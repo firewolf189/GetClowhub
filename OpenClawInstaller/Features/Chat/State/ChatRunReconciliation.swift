@@ -19,7 +19,7 @@ private struct ChatRunReconciliationObservation {
     let decision: GatewayChatRecoveryDecision
 }
 
-extension DashboardViewModel {
+extension ChatViewModel {
     /// Starts one generation-scoped reconciliation operation for a run. A new
     /// reconnect or manual retry replaces the older operation for that message.
     func scheduleChatRunReconciliation(messageId: UUID) {

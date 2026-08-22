@@ -38,7 +38,7 @@ func slice(_ source: String, from start: String, to end: String) throws -> Strin
 let runtimeState = try read("OpenClawInstaller/Features/Chat/State/ChatRuntimeState.swift")
 let streamState = try read("OpenClawInstaller/Features/Chat/Models/ChatStreamState.swift")
 let timelineModels = try read("OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift")
-let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try read($0) }.joined(separator: "\n")
 let chatScrollContent = try slice(
     dashboard,
     from: "private func chatScrollContent(proxy: ScrollViewProxy) -> some View",

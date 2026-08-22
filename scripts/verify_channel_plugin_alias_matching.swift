@@ -48,8 +48,8 @@ require(
     "AddChannelSheet should map each channel to all known plugin aliases."
 )
 require(
-    addChannelAliases.contains("case \"dingtalk\": return [\"dingtalk\"]"),
-    "DingTalk should only match the normalized channel/plugin id."
+    addChannelAliases.contains("case \"dingtalk\": return [\"dingtalk\", \"dingtalk-connector\"]"),
+    "DingTalk should match both config keys as one channel."
 )
 require(
     !addChannelAliases.contains("@openclaw-china/dingtalk") &&

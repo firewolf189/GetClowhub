@@ -26,7 +26,7 @@ let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.sw
 let providerModelSettings = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelSettings.swift")
 let configProviderLogs = read("OpenClawInstaller/Features/Settings/ConfigProviderLogs.swift")
 let config = read("OpenClawInstaller/Features/Settings/Views/ConfigTabView.swift")
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 let fetchService = read("OpenClawInstaller/Features/Settings/ProviderModels/ProviderModelFetchService.swift")
 
 let loadModelsForSettings = slice(
@@ -37,7 +37,7 @@ let loadModelsForSettings = slice(
 let composerSelector = slice(
     dashboard,
     from: "struct ComposerModelSelector: View",
-    to: "private struct ComposerModelPanel: View"
+    to: "struct ComposerModelPanel: View"
 )
 let modelConfigSection = slice(
     config,

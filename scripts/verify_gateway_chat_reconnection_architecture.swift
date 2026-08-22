@@ -103,11 +103,17 @@ try require(
     "Public RPCs must snapshot the current socket through the serialized connection owner."
 )
 try require(
-    gateway.contains("recordPendingChatSendDelivery(runId: runId)") &&
+    gateway.contains("recordPendingChatSendDelivery(") &&
         gateway.contains("delivery_observed=") &&
-        gateway.contains("if !pending.deliveryObserved") &&
+        gateway.contains("transport-write-failed") &&
+        gateway.contains("ack-timeout-does-not-reconnect") &&
         gateway.contains("self.scheduleReconnect()"),
-    "A missing chat.send acknowledgement may reconnect only when no run event has already proved delivery."
+    "A missing chat.send acknowledgement may reconnect only when the WebSocket write itself failed."
+)
+try require(
+    gateway.contains("connect() ignored: socket already in flight") &&
+        gateway.contains("connect() ignored: reconnect already scheduled"),
+    "connect() must ignore status-poll re-entry while a handshake or reconnect is in flight."
 )
 try require(
     gateway.contains("private var pendingConnectRequestId: String?") &&

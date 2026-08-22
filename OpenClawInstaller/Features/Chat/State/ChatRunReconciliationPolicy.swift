@@ -56,3 +56,11 @@ enum ChatRunDeliveryPolicy {
 enum ChatRunLifetimePolicy {
     static let backgroundHardLimit: TimeInterval = 60 * 60
 }
+
+/// After `chat.abort` reports `aborted=true` the gateway may still flush
+/// trailing deltas. The live stream waits for `state: aborted` (or this
+/// timeout) before locally terminalizing, per the client-gateway contract.
+enum ChatAbortFlushPolicy {
+    static let eventWaitNanoseconds: UInt64 = 2_000_000_000
+    static let pollNanoseconds: UInt64 = 100_000_000
+}

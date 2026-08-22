@@ -2,6 +2,19 @@
 
 import Foundation
 
+private let dashboardUIRelativePaths = [
+    "OpenClawInstaller/Features/Dashboard/DashboardTypography.swift",
+    "OpenClawInstaller/Features/Dashboard/DashboardView.swift",
+    "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatView.swift",
+    "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift",
+    "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift",
+]
+private func loadDashboardUI(root: URL) throws -> String {
+    try dashboardUIRelativePaths.map { try String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+}
+
+
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let dashboardURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
 let composerURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Views/ChatComposerView.swift")
@@ -12,7 +25,7 @@ let viewModelURL = root.appendingPathComponent("OpenClawInstaller/Features/Dashb
 let chatHelpersURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
 let chatMessageURL = root.appendingPathComponent("OpenClawInstaller/Features/Chat/Models/ChatMessage.swift")
 let localizableURL = root.appendingPathComponent("OpenClawInstaller/Localization/Resources/Localizable.xcstrings")
-let dashboard = try String(contentsOf: dashboardURL, encoding: .utf8)
+let dashboard = try loadDashboardUI(root: root)
 let composer = try String(contentsOf: composerURL, encoding: .utf8)
 let timeline = try String(contentsOf: timelineURL, encoding: .utf8)
 let workStatus = try String(contentsOf: workStatusURL, encoding: .utf8)

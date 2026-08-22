@@ -35,7 +35,7 @@ func slice(_ source: String, from start: String, to end: String) throws -> Strin
     return String(source[startRange.lowerBound..<endRange.lowerBound])
 }
 
-let dashboard = try read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = try ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map { try read($0) }.joined(separator: "\n")
 let timeline = try read("OpenClawInstaller/Features/Chat/Views/ChatTimelineSurface.swift")
 let models = try read("OpenClawInstaller/Features/Chat/Models/ChatTimelineModels.swift")
 let helpers = try read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")

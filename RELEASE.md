@@ -109,8 +109,8 @@ gh auth status   # 应显示 "Logged in to github.com account <你>"
 | 文件 | 大小 | 用途 |
 |---|---|---|
 | `openclaw-bundle.tar.gz` | ~152 MB | openclaw npm 包 + 所有 deps（包含原生模块） |
-| `node-v24.14.0-darwin-arm64.tar.gz` | ~49 MB | bundled Node.js（Apple Silicon） |
-| `node-v24.14.0-darwin-x64.tar.gz` | ~50 MB | bundled Node.js（Intel） |
+| `node-v24.18.0-darwin-arm64.tar.gz` | ~50 MB | bundled Node.js（Apple Silicon） |
+| `node-v24.18.0-darwin-x64.tar.gz` | ~51 MB | bundled Node.js（Intel） |
 
 另外，`OpenClawInstaller/Resources/openclaw-core-version.json` 必须提交到 git。它声明当前 App 内置的 OpenClaw core 目标版本，App 自动更新后会用它判断是否要把用户本机的 `~/.npm-global` 升级到随包版本。
 
@@ -391,7 +391,7 @@ gh release upload v<version> GetClawHub.dmg --clobber --repo firewolf189/GetClow
 
 ### 7.1 升级 bundled Node.js 版本
 
-要把 v24.14.0 升到 v25.x.x，按以下顺序改：
+要把当前捆绑的 v24.18.0 升到新版本，按以下顺序改：
 
 ```bash
 NEW_VERSION="v25.0.0"     # 想升的版本
@@ -404,15 +404,15 @@ for ARCH in arm64 x64; do
 done
 
 # 2. 删旧版本
-rm node-v24.14.0-darwin-*.tar.gz
+rm node-v24.18.0-darwin-*.tar.gz
 
 # 3. 改 Swift 代码里的版本字符串
-# OpenClawInstaller/Core/Install/NodeInstaller.swift:47
-#     private let bundledNodeVersion = "v25.0.0"
+# OpenClawInstaller/Core/Install/NodeInstaller.swift
+#     enum BundledRuntimeVersions { static let nodeJSVersion = "v…" }
 
-# 4. 同步改文案（提到 v24.14.0 的地方）
-grep -rn "v24.14.0" OpenClawInstaller --include="*.swift"
-# EnvironmentCheckView.swift, DiagnosticService.swift 至少有 2 处硬编码
+# 4. 同步改文案（提到旧 Node 版本的地方）
+grep -rn "v24\\." OpenClawInstaller --include="*.swift" BUNDLED_NODEJS.md RELEASE.md
+# 权威常量是 BundledRuntimeVersions.nodeJSVersion；诊断文案必须引用它，不要再写死版本号
 
 # 5. 改 build_dmg.sh preflight 里期望的文件名
 grep -n "node-v24" build_dmg.sh
@@ -475,22 +475,27 @@ git log --oneline v1.1.40..v1.1.41
 
 | 文件 | 内置在哪 | 安装时干什么 | 运行时谁用 |
 |---|---|---|---|
-| `node-v24.14.0-darwin-arm64.tar.gz` | app bundle Resources/ | 解压到 `~/.openclaw/node/` | bundled Node 进程 |
-| `node-v24.14.0-darwin-x64.tar.gz` | 同上 | 同上（Intel 架构） | 同上 |
+| `node-v24.18.0-darwin-arm64.tar.gz` | app bundle Resources/ | 解压到 `~/.openclaw/node/` | bundled Node 进程 |
+| `node-v24.18.0-darwin-x64.tar.gz` | 同上 | 同上（Intel 架构） | 同上 |
 | `openclaw-bundle.tar.gz` | 同上 | 解压到 `~/.npm-global/` | openclaw CLI 进程 |
 
 ⚠️ **`installDir = ~/.npm-global` 是历史决定**，听起来像系统级 npm 全局目录，但其实是用户家目录下的（不是 `/usr/local/lib/node_modules`），不需要 sudo。
 
-### A.2 Sparkle 自动更新链路
+### A.2 Sparkle 自动更新链路（双 feed）
+
+按 **地区** 选 feed，不按语言。`Locale.current.region == "CN"` 走国内 OSS，其它走 GitHub Releases。两份 XML **除 enclosure URL 外相同**，同一 DMG、同一 EdDSA 签名。
 
 ```
 [发版]
-  release.sh → DMG → EdDSA 签名 → 写 docs/appcast.xml → push to main
-                                                              ↓
-                                              GitHub Pages 服务化 appcast.xml
+  release.sh → DMG → EdDSA 签名
+            → 写 docs/appcast.xml     (GitHub Releases enclosure)
+            → 写 docs/appcast-cn.xml  (阿里云杭州 OSS enclosure)
+            → push to main → GitHub Pages
                                                               ↓
 [用户端]
-  GetClawHub 启动 → Sparkle 拉 https://firewolf189.github.io/GetClowhub/appcast.xml
+  GetClawHub 启动 → Sparkle LocaleAwareFeedDelegate.resolveAppcastURL()
+                  → CN:  https://firewolf189.github.io/GetClowhub/appcast-cn.xml
+                  → 其它: https://firewolf189.github.io/GetClowhub/appcast.xml
                   → 比较 sparkle:shortVersionString 与本地
                   → 新版本 → 弹窗 "可用更新"
                   → 用户点 Install Update → 下载 DMG → EdDSA 校验签名
@@ -498,6 +503,8 @@ git log --oneline v1.1.40..v1.1.41
 ```
 
 发版机的 EdDSA 私钥与 app 内置的 `SUPublicEDKey` **必须永远配对**，否则 Sparkle 校验失败。
+
+App 更新之后，启动路径还会静默把 `~/.npm-global` 里的 OpenClaw 核心升到捆绑版本（`OpenClawCoreUpgradeCoordinator`），这不走 Sparkle。
 
 ### A.3 发版相关文件位置
 
@@ -507,13 +514,14 @@ GetClowhub/
 ├── build_dmg.sh                # 构建 + 签名 + 打包 DMG（被 release.sh 调用）
 ├── notarize_dmg.sh             # Apple 公证（被 release.sh 调用）
 ├── docs/
-│   └── appcast.xml             # Sparkle 用的版本清单（GitHub Pages 服务化）
+│   ├── appcast.xml             # Sparkle 海外 feed（GitHub Releases）
+│   └── appcast-cn.xml          # Sparkle 国内 feed（阿里云 OSS）
 ├── OpenClawInstaller/
 │   ├── Info.plist              # 版本号 + SUPublicEDKey
 │   ├── Resources/              # bundled tar.gz（gitignored）
-│   └── Services/
-│       ├── NodeInstaller.swift # bundledNodeVersion 常量
-│       └── OpenClawInstaller.swift
+│   └── Core/
+│       ├── Install/NodeInstaller.swift   # BundledRuntimeVersions.nodeJSVersion
+│       └── Update/SparkleUpdater.swift   # 双 appcast 地区分流
 ├── BUNDLED_NODEJS.md           # bundled Node 子模块详细说明
 └── RELEASE.md                  # 本文档
 ```
@@ -526,4 +534,5 @@ GetClowhub/
 
 | 日期 | 版本 | 更新 |
 |---|---|---|
+| 2026-08-21 | 1.1 | 捆绑 Node 改为 v24.18.0；A.2 补双 appcast（CN OSS / GitHub）；A.3 路径改为 Core/Install、Core/Update。 |
 | 2026-05-09 | 1.0 | 初版。从 v1.1.38 → v1.1.41 的连续 4 次发版经验固化。 |

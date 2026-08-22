@@ -89,7 +89,7 @@ require(bootstrapper.contains("SkillTrustStore.mark"), "bootstrapper should mark
 require(bootstrapper.contains("getclowhub-recommended-skills-bootstrap.json"), "bootstrapper should persist a one-time bootstrap marker")
 require(bootstrapper.contains("__OPENCLAW_RECOMMENDED_SKILL_INSTALL_OK__"), "bootstrapper should use an install success sentinel")
 
-let dashboard = read("OpenClawInstaller/Features/Dashboard/DashboardView.swift")
+let dashboard = ["OpenClawInstaller/Features/Dashboard/DashboardTypography.swift", "OpenClawInstaller/Features/Dashboard/DashboardView.swift", "OpenClawInstaller/Features/Dashboard/Sidebar/DashboardSidebar.swift", "OpenClawInstaller/Features/Chat/Views/ChatView.swift", "OpenClawInstaller/Features/Chat/Views/ComposerChrome.swift", "OpenClawInstaller/Features/Chat/Views/ChatBubbleViews.swift"].map(read).joined(separator: "\n")
 require(dashboard.contains("RecommendedSkillBootstrapper"), "DashboardView should own the recommended skill bootstrapper")
 require(dashboard.contains("bootstrapRecommendedSkillsIfNeeded"), "DashboardView should trigger recommended skill bootstrap after dashboard appears")
 

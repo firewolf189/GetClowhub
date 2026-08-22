@@ -24,8 +24,10 @@ func read(_ path: String) -> String {
 let management = read("OpenClawInstaller/Features/Channels/Core/ChannelManagement.swift")
 guard management.contains("DingTalkChannelConfig.defaultAccountConfig"),
       management.contains("sanitizeRejectedDingTalkKeysIfNeeded"),
+      management.contains("DingTalkChannelConfig.resolvedConfigKey(in: channels)"),
+      management.contains("resolvedChannelWriteKey"),
       !management.contains("\"enableAICard\": false") else {
-    fail("channel add/load must stop writing rejected DingTalk keys")
+    fail("channel add/load must stop writing rejected DingTalk keys and reuse an existing DingTalk object")
 }
 
 let process = Process()
