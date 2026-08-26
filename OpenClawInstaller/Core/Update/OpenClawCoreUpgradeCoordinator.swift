@@ -277,12 +277,29 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             state = .upgrading(manifest.openclawVersion)
             appendLog("Upgrading OpenClaw core from \(installedVersion ?? "none") to \(manifest.openclawVersion)")
 
+            let migration = OpenClawUpgradeReadiness.migrateLegacyState(homeDir: homeDir, fileManager: fileManager)
+            if migration.actions.isEmpty {
+                appendLog("Upgrade optimization: no legacy state to migrate")
+            } else {
+                appendLog("Upgrade optimization migrated leftover 2026.6.x state before any gateway stop")
+                for action in migration.actions {
+                    appendLog("  - \(action)")
+                }
+            }
+
             // Node floor FIRST: the new core's `engines` may reject the
             // currently installed Node (2026.7.x needs >= 24.15). Swapping the
             // core without upgrading Node bricks the gateway for existing
             // users — the exact failure the Windows client hit in v0.6.31.
             try await ensureNodeSatisfiesRequirement(manifest.nodeRuntimeRequirement)
 
+            let bundleExists = (try? bundledCoreBundleURL(named: manifest.bundleName)) != nil
+            guard bundleExists else {
+                appendLog("Not swapping to \(manifest.openclawVersion): bundled openclaw-bundle.tar.gz is missing")
+                state = .failed("bundled openclaw-bundle.tar.gz is missing")
+                progress = 0
+                return
+            }
             let bundleURL = try bundledCoreBundleURL(named: manifest.bundleName)
             // Stage and vet the new core BEFORE touching the running one. None
             // of this disturbs the live install, so a core that will not accept
@@ -299,12 +316,23 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             // path-installed plugin whose entry "escapes package directory"),
             // so the upgrade swapped, the gateway crash-looped, and the user
             // lost their gateway for the length of the readiness window.
-            if let rejection = await configRejectedByStagedCore(at: stagedInstallDir) {
-                appendLog("Not upgrading to \(manifest.openclawVersion): it rejects this machine's config")
-                appendLog(rejection)
-                state = .failed("config rejected by \(manifest.openclawVersion)")
+            let (precheckOutput, precheckRan) = await stagedCorePrecheck(at: stagedInstallDir)
+            switch OpenClawUpgradeReadiness.evaluateGate(
+                output: precheckOutput,
+                checkRan: precheckRan,
+                bundleExists: true,
+                nodeSatisfied: true
+            ) {
+            case .blocked(let reason):
+                appendLog("Not upgrading to \(manifest.openclawVersion): \(reason)")
+                if let precheckOutput, !precheckOutput.isEmpty {
+                    appendLog(precheckOutput)
+                }
+                state = .failed("upgrade gate blocked \(manifest.openclawVersion)")
                 progress = 0
                 return
+            case .allowed:
+                break
             }
             progress = 0.5
 
@@ -320,17 +348,10 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                 progress = 0.78
                 await runPostUpgradeDoctor()
                 progress = 0.86
-                do {
-                    try await openclawService.start()
-                } catch {
-                    // 2026.7.x first boot migrates the session store
-                    // (JSON -> SQLite) before binding the port; on real
-                    // profiles that overshoots start()'s ~28s window and the
-                    // upgrade used to roll back a perfectly healthy gateway.
-                    // install --force above already relaunched it — just give
-                    // it a longer grace to come up.
-                    appendLog("Gateway start window elapsed; extending wait for first-boot migration")
-                }
+                // install --force already loaded/started the agent. Calling
+                // start() again re-runs install/restart and races the new
+                // core's first-boot startup-migrations lock (2026-08-26).
+                appendLog("Gateway start window elapsed; extending wait for first-boot migration")
                 // Whether or not start() reported success, the upgrade is only
                 // real once the gateway ANSWERS. start()/checkStatus() lean on
                 // `launchctl`, which reports `state = running` for a job that
@@ -436,37 +457,43 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         return version
     }
 
-    /// Returns the validator's complaints when the staged core refuses the live
-    /// config, nil when it accepts it (or when the check itself cannot run —
-    /// an inconclusive check must not block an upgrade).
-    private func configRejectedByStagedCore(at stagedInstallDir: URL) async -> String? {
+    /// Staged-core pre-check used by the upgrade gate.
+    ///
+    /// An inconclusive run used to wave the swap through (measured 2026-07-28
+    /// and again 2026-08-24). The gate now treats "could not run" as a block,
+    /// so this returns both the output and whether the check actually ran.
+    private func stagedCorePrecheck(at stagedInstallDir: URL) async -> (String?, Bool) {
         let stagedBin = stagedInstallDir.appendingPathComponent("bin/openclaw")
         guard fileManager.isExecutableFile(atPath: stagedBin.path) || itemExistsIncludingSymlink(at: stagedBin) else {
-            return nil
+            return (nil, false)
         }
         let nodePath = "\(homeDir)/.openclaw/node/bin/node"
-        // `|| true`: an invalid config makes `config validate` exit non-zero,
-        // and runShell throws on that — so the one case this check exists for
-        // looked exactly like "the check could not run" and waved the upgrade
-        // through (measured 2026-07-28). The verdict is in the OUTPUT, not the
-        // exit status.
-        let command = fileManager.isExecutableFile(atPath: nodePath)
-            ? "'\(nodePath)' '\(stagedBin.path)' config validate 2>&1 || true"
-            : "'\(stagedBin.path)' config validate 2>&1 || true"
-        guard let output = try? await runShell(command, timeout: 60) else {
-            appendLog("Config pre-check could not run; continuing with the upgrade")
-            return nil
+        let invoke = fileManager.isExecutableFile(atPath: nodePath)
+            ? "'\(nodePath)' '\(stagedBin.path)'"
+            : "'\(stagedBin.path)'"
+        // `|| true`: invalid config / migration warnings exit non-zero, and
+        // runShell would throw — the verdict is in the OUTPUT.
+        let command = "\(invoke) config validate 2>&1 || true; \(invoke) doctor --non-interactive 2>&1 || true"
+        guard let output = try? await runShell(command, timeout: 90) else {
+            return (nil, false)
         }
-        guard output.contains("is invalid") || output.contains("✗") || output.contains("×") else {
-            return nil
+        return (output, true)
+    }
+
+    /// Returns the validator's complaints when the staged core refuses the live
+    /// config, nil when it accepts it. Kept for existing containment tests.
+    private func configRejectedByStagedCore(at stagedInstallDir: URL) async -> String? {
+        let (output, ran) = await stagedCorePrecheck(at: stagedInstallDir)
+        guard ran else { return "staged-core pre-check could not run" }
+        if case .blocked(let reason) = OpenClawUpgradeReadiness.evaluateGate(
+            output: output,
+            checkRan: true,
+            bundleExists: true,
+            nodeSatisfied: true
+        ) {
+            return reason
         }
-        // Keep the validator's own wording — it names the offending keys.
-        let lines = output
-            .split(separator: "\n", omittingEmptySubsequences: true)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .prefix(8)
-        return lines.joined(separator: "\n")
+        return nil
     }
 
     private func stopGatewayIfRunning() async throws {
@@ -883,7 +910,16 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         // installGateway may still be refused (e.g. no config backup existed);
         // make sure the agent is loaded either way, since the swap booted it out.
         await reloadLaunchAgentIfNeeded()
-        try? await openclawService.start()
+        do {
+            try await openclawService.start()
+        } catch {
+            appendLog("Rollback start via service returned: \(error.localizedDescription)")
+        }
+        if await gatewayIsServing() {
+            appendLog("Rolled-back gateway answered on port \(gatewayPort())")
+        } else {
+            appendLog("Files rolled back, service did not recover on port \(gatewayPort())")
+        }
         clearInflightMarker()
     }
 

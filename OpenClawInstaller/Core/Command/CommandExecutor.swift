@@ -161,12 +161,14 @@ class CommandExecutor: ObservableObject {
             case "node", "npm", "npx":
                 return "\(homeDir)/.openclaw/node/bin/\(command)"
             case "openclaw":
-                return "\(homeDir)/.npm-global/bin/openclaw"
+                return OpenClawUpgradeReadiness.preferredOpenclawInvocationPath(homeDir: homeDir)
+                    ?? "\(homeDir)/.npm-global/bin/openclaw"
             default:
                 return nil
             }
         }()
-        if let p = bundledPath, FileManager.default.isExecutableFile(atPath: p) {
+        if let p = bundledPath,
+           FileManager.default.isExecutableFile(atPath: p) || FileManager.default.fileExists(atPath: p) {
             return p
         }
 

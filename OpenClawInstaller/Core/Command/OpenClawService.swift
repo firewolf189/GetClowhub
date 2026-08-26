@@ -84,6 +84,7 @@ class OpenClawService: ObservableObject {
     private static let detailFetchMinInterval: TimeInterval = 60
     private var startTime: Date?
     var resolvedOpenclawPath: String?
+    private var isStartInFlight = false
 
     init(commandExecutor: CommandExecutor) {
         self.commandExecutor = commandExecutor
@@ -136,10 +137,25 @@ class OpenClawService: ObservableObject {
 
     // MARK: - Service Control
 
-    /// Start OpenClaw service
-    /// Uses `gateway install` which safely installs + starts the LaunchAgent.
-    /// If already running, it does nothing (safe to call anytime).
+    /// Start OpenClaw service.
+    /// If the gateway already answers on its port, this is a no-op.
+    /// Otherwise install --force, then restart/kickstart when launchd is
+    /// loaded but not serving.
     func start() async throws {
+        guard !isStartInFlight else {
+            addLog("Start already in flight; not launching a parallel install")
+            return
+        }
+        isStartInFlight = true
+        defer { isStartInFlight = false }
+
+        if await isPortListening() {
+            status = .running
+            if startTime == nil { startTime = Date() }
+            addLog("Gateway already serving; skip reinstall")
+            return
+        }
+
         status = .starting
         resetMonitorBackoff()
         addLog("Starting OpenClaw service...")
@@ -171,19 +187,51 @@ class OpenClawService: ObservableObject {
         // This ensures openclaw's resolvePreferredNodePath() writes our node
         // path into the launchd plist.
         let nodePath = dedicatedNodePath
-        let cmd: String
+        let installCmd: String
         if FileManager.default.isExecutableFile(atPath: nodePath) {
-            cmd = "'\(nodePath)' '\(openclawPath)' gateway install 2>&1"
+            installCmd = "'\(nodePath)' '\(openclawPath)' gateway install --force 2>&1"
             addLog("Using dedicated node: \(nodePath)")
         } else {
             // Fallback: if dedicated node not found, use openclaw directly
-            cmd = "'\(openclawPath)' gateway install 2>&1"
+            installCmd = "'\(openclawPath)' gateway install --force 2>&1"
             addLog("Warning: dedicated node not found at \(nodePath), using openclaw directly")
         }
 
-        addLog("Running: \(cmd)")
-        let output = await runShellQuietly(cmd, timeout: 30)
+        addLog("Running: \(installCmd)")
+        var output = await runShellQuietly(installCmd, timeout: 30)
         addLog("Start output: \(output ?? "(no output)")")
+
+        // Give a just-installed 2026.7.x gateway time to finish first-boot
+        // migrations before treating "already loaded" as stuck. Immediate
+        // restart here re-took the migration lock and crash-looped the
+        // freshly swapped core (measured 2026-08-26).
+        for (i, secs) in [2.0, 3.0, 4.0, 5.0].enumerated() {
+            try await Task.sleep(nanoseconds: UInt64(secs * 1_000_000_000))
+            if await isPortListening() {
+                status = .running
+                startTime = Date()
+                addLog("OpenClaw service started during post-install wait (attempt \(i + 1))")
+                return
+            }
+        }
+
+        // loaded / not running is the field failure from 2026-07-22 and
+        // 2026-08-06: a plain install reports "already loaded" and never
+        // kickstarts. Only restart after the post-install wait missed.
+        if shouldKickstartAfterInstall(output) {
+            let restartCmd: String
+            if FileManager.default.isExecutableFile(atPath: nodePath) {
+                restartCmd = "'\(nodePath)' '\(openclawPath)' gateway restart 2>&1"
+            } else {
+                restartCmd = "'\(openclawPath)' gateway restart 2>&1"
+            }
+            addLog("LaunchAgent already loaded but not serving; kickstarting via gateway restart")
+            let restartOutput = await runShellQuietly(restartCmd, timeout: 30)
+            addLog("Restart output: \(restartOutput ?? "(no output)")")
+            if let restartOutput {
+                output = (output ?? "") + "\n" + restartOutput
+            }
+        }
 
         // Wait and retry status check — service may need time to start.
         //
@@ -625,9 +673,16 @@ class OpenClawService: ObservableObject {
             return cached
         }
 
-        // 1. Try `which openclaw` via login shell
-        //    zsh built-in `which` prints "openclaw not found" to stdout on failure,
-        //    so we must verify the result is an actual executable path.
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        // Prefer the on-disk core module. `which openclaw` and the legacy
+        // ~/.npm-global/bin shim can still point at 2026.6.10 after a newer
+        // core is installed (2026-08-06 field report).
+        if let preferred = OpenClawUpgradeReadiness.preferredOpenclawInvocationPath(homeDir: homeDir) {
+            resolvedOpenclawPath = preferred
+            return preferred
+        }
+
+        // Fallback: login-shell `which`, then common locations.
         if let path = await runShellQuietly("which openclaw 2>/dev/null"),
            !path.isEmpty,
            path.hasPrefix("/"),
@@ -636,8 +691,6 @@ class OpenClawService: ObservableObject {
             return path
         }
 
-        // 2. Check common locations directly
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         var candidates = [
             "\(homeDir)/.npm-global/bin/openclaw",
             "/opt/homebrew/bin/openclaw",
@@ -647,7 +700,6 @@ class OpenClawService: ObservableObject {
             "\(homeDir)/.nvs/default/bin/openclaw",
             "\(homeDir)/tools/nvs/default/bin/openclaw",
         ]
-        // nvm: scan ~/.nvm/versions/node/*/bin, pick latest version
         if let nvmBin = CommandExecutor.findLatestNvmBin(homeDir: homeDir, command: "openclaw") {
             candidates.insert(nvmBin, at: 0)
         }
@@ -659,6 +711,13 @@ class OpenClawService: ObservableObject {
         }
 
         return nil
+    }
+
+    private func shouldKickstartAfterInstall(_ output: String?) -> Bool {
+        let text = (output ?? "").lowercased()
+        return text.contains("already loaded")
+            || text.contains("already installed")
+            || text.contains("partial import")
     }
 
     /// Build a shell command using the resolved openclaw path

@@ -338,13 +338,23 @@ class NodeInstaller: ObservableObject {
                 }
             }
 
-            // Extract to ~/.openclaw/node/ (no sudo needed)
+            // Extract into a fresh staging dir, then atomically replace
+            // ~/.openclaw/node. Overlaying onto the live tree kept leftover
+            // nested npm deps (minipass@3.3.6) that later crashed 2026.7.x.
+            let stagingDir = "\(targetDir).staging-\(Int(Date().timeIntervalSince1970))"
+            let backupDir = "\(targetDir).bak-\(Int(Date().timeIntervalSince1970))"
             let installCommand = """
-            mkdir -p "\(targetDir)" && \
-            tar -xzf "\(tarPath.path)" -C "\(targetDir)" --strip-components=1 && \
-            xattr -cr "\(targetDir)/bin/node" "\(targetDir)/bin/npm" "\(targetDir)/bin/npx" 2>/dev/null; \
-            xattr -cr "\(targetDir)/lib/node_modules" 2>/dev/null; \
-            true
+            set -e
+            rm -rf "\(stagingDir)"
+            mkdir -p "\(stagingDir)"
+            tar -xzf "\(tarPath.path)" -C "\(stagingDir)" --strip-components=1
+            xattr -cr "\(stagingDir)/bin/node" "\(stagingDir)/bin/npm" "\(stagingDir)/bin/npx" 2>/dev/null || true
+            xattr -cr "\(stagingDir)/lib/node_modules" 2>/dev/null || true
+            if [ -e "\(targetDir)" ]; then
+              rm -rf "\(backupDir)"
+              mv "\(targetDir)" "\(backupDir)"
+            fi
+            mv "\(stagingDir)" "\(targetDir)"
             """
 
             _ = try await commandExecutor.execute(

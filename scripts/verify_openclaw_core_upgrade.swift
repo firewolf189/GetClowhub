@@ -79,7 +79,7 @@ require(coordinator.contains("swapStagedOpenClawIntoPlace"), "upgrade should swa
 require(coordinator.contains("rollback"), "upgrade should roll back on failure")
 require(!coordinator.contains("moveItem(at: installDir, to:"), "upgrade must not move the entire ~/.npm-global directory")
 require(coordinator.contains("gateway install"), "upgrade should reinstall gateway after core swap")
-require(coordinator.contains("openclawService.start()"), "upgrade should restart gateway through OpenClawService")
+require(coordinator.contains("openclawService.start()"), "rollback should still restart gateway through OpenClawService")
 require(coordinator.contains("doctor --post-upgrade --json") && coordinator.contains("doctor --fix"), "upgrade should try post-upgrade doctor with fallback")
 
 // The steps moved into `performUpgradeBody()`: the public entry point now only
@@ -95,11 +95,12 @@ let stageIndex = upgradeBlock.range(of: "extractBundleToStaging")?.lowerBound
 let verifyIndex = upgradeBlock.range(of: "verifyStagedCore")?.lowerBound
 let swapIndex = upgradeBlock.range(of: "swapStagedOpenClawIntoPlace")?.lowerBound
 let installIndex = upgradeBlock.range(of: "installGateway")?.lowerBound
-let startIndex = upgradeBlock.range(of: "openclawService.start")?.lowerBound
-require(stopIndex != nil && stageIndex != nil && verifyIndex != nil && swapIndex != nil && installIndex != nil && startIndex != nil, "upgrade flow should call all major steps")
+let waitIndex = upgradeBlock.range(of: "waitForGatewayReady")?.lowerBound
+require(stopIndex != nil && stageIndex != nil && verifyIndex != nil && swapIndex != nil && installIndex != nil && waitIndex != nil, "upgrade flow should call all major steps")
 // Reordered 2026-07-28: staging and vetting moved AHEAD of the stop, so a core
 // that rejects this machine's config never costs the user their gateway.
-require(stageIndex! < verifyIndex! && verifyIndex! < stopIndex! && stopIndex! < swapIndex! && swapIndex! < installIndex! && installIndex! < startIndex!, "upgrade flow should stage -> verify -> stop -> swap -> gateway install -> start")
+// 2026-08-26: do not call start() after install --force; wait for /health only.
+require(stageIndex! < verifyIndex! && verifyIndex! < stopIndex! && stopIndex! < swapIndex! && swapIndex! < installIndex! && installIndex! < waitIndex!, "upgrade flow should stage -> verify -> stop -> swap -> gateway install -> health wait")
 
 // --- Readiness must come from the GATEWAY, not from launchd ---
 // Measured on 192.168.80.76 (2026-07-28): with another process holding
@@ -130,14 +131,18 @@ require(
     "launchctl state alone must not end the wait — that is what declared a crash-looping gateway ready"
 )
 let upgradeBody = block(startingWith: "private func performUpgradeBody", in: coordinator)
-guard let startRange = upgradeBody.range(of: "openclawService.start()"),
+guard let installRange = upgradeBody.range(of: "try await installGateway()"),
       let waitRange = upgradeBody.range(of: "try await waitForGatewayReady(timeoutSeconds: 300)") else {
-    fputs("FAIL: could not locate start/wait in the upgrade body\n", stderr)
+    fputs("FAIL: could not locate install/wait in the upgrade body\n", stderr)
     exit(1)
 }
 require(
-    startRange.upperBound < waitRange.lowerBound,
-    "the readiness wait must run AFTER start() on every path, including when start() reports success"
+    installRange.upperBound < waitRange.lowerBound,
+    "the readiness wait must run AFTER install --force, without a second start()/restart"
+)
+require(
+    !upgradeBody.contains("try await openclawService.start()"),
+    "post-swap start() re-runs install/restart and races first-boot migrations"
 )
 require(
     coordinator.contains("private static func describeLaunchctl"),
@@ -197,15 +202,16 @@ require(
     "the verdict comes from the output: `config validate` exits non-zero exactly when the config is invalid, and a throwing runShell made that look like the check could not run"
 )
 let body = block(startingWith: "private func performUpgradeBody", in: coordinator)
-guard let verifyIdx = body.range(of: "verifyStagedCore")?.lowerBound,
-      let precheckIdx = body.range(of: "configRejectedByStagedCore")?.lowerBound,
+guard let migrateIdx = body.range(of: "migrateLegacyState")?.lowerBound,
+      let verifyIdx = body.range(of: "verifyStagedCore")?.lowerBound,
+      let precheckIdx = body.range(of: "evaluateGate")?.lowerBound,
       let stopIdx = body.range(of: "stopGatewayIfRunning")?.lowerBound else {
-    fputs("FAIL: could not locate stage/pre-check/stop in the upgrade body\n", stderr)
+    fputs("FAIL: could not locate migrate/stage/pre-check/stop in the upgrade body\n", stderr)
     exit(1)
 }
 require(
-    verifyIdx < precheckIdx && precheckIdx < stopIdx,
-    "stage -> verify -> config pre-check must all precede stopping the gateway, so a core that cannot accept this config costs the user no downtime"
+    migrateIdx < verifyIdx && verifyIdx < precheckIdx && precheckIdx < stopIdx,
+    "migrate leftover state -> stage/verify -> upgrade gate must all precede stopping the gateway"
 )
 
 require(app.contains("private let coreUpgradeCoordinator: OpenClawCoreUpgradeCoordinator"), "AppServices should keep the core migration helper internal")

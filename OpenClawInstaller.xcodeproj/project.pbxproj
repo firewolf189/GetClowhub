@@ -129,6 +129,7 @@
 		NODEREQ00000000000000001 /* NodeRuntimeRequirement.swift in Sources */ = {isa = PBXBuildFile; fileRef = NODEREQ00000000000000002 /* NodeRuntimeRequirement.swift */; };
 		GWFAIL00000000000000001 /* GatewayFailureReasonParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWFAIL00000000000000002 /* GatewayFailureReasonParser.swift */; };
 		COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */; };
+		COREUPGRADE000000000007 /* OpenClawUpgradeReadiness.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000008 /* OpenClawUpgradeReadiness.swift */; };
 		COREUPGRADE000000000005 /* openclaw-core-version.json in Resources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000006 /* openclaw-core-version.json */; };
 		CS01AA01D1E2F3A4B5C60001 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */; };
 		CS01AA03D1E2F3A4B5C60003 /* ChatSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */; };
@@ -330,6 +331,7 @@
 		NODEREQ00000000000000002 /* NodeRuntimeRequirement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Install/NodeRuntimeRequirement.swift"; sourceTree = SOURCE_ROOT; };
 		GWFAIL00000000000000002 /* GatewayFailureReasonParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/GatewayFailureReasonParser.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawCoreUpgradeCoordinator.swift"; sourceTree = SOURCE_ROOT; };
+		COREUPGRADE000000000008 /* OpenClawUpgradeReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawUpgradeReadiness.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000006 /* openclaw-core-version.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "openclaw-core-version.json"; sourceTree = "<group>"; };
 		CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Models/ChatSession.swift"; sourceTree = SOURCE_ROOT; };
 		CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Services/ChatSessionStore.swift"; sourceTree = SOURCE_ROOT; };
@@ -507,6 +509,7 @@
 				3564102A2F5802970045A6F7 /* NodeInstaller.swift */,
 				3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */,
 					COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */,
+					COREUPGRADE000000000008 /* OpenClawUpgradeReadiness.swift */,
 					3564102C2F5802970045A6F7 /* OpenClawService.swift */,
 					FR01AB02C2D3E4F5A6B70002 /* OpenClawServiceForceRepair.swift */,
 					SGR1AB02C2D3E4F5A6B70002 /* SafeGatewayRepair.swift */,
@@ -919,6 +922,7 @@
 				NODEREQ00000000000000001 /* NodeRuntimeRequirement.swift in Sources */,
 				GWFAIL00000000000000001 /* GatewayFailureReasonParser.swift in Sources */,
 				COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */,
+				COREUPGRADE000000000007 /* OpenClawUpgradeReadiness.swift in Sources */,
 				APPA0000000000000001 /* AppAppearance.swift in Sources */,
 				356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */,
 				356410512F5802970045A6F7 /* ContentView.swift in Sources */,
@@ -1220,7 +1224,7 @@
 				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_IDENTITY = "Developer ID Application: Zhejiang Hecheng Smart Electric Co., Ltd. (LJQJ5BHW7G)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 96;
+				CURRENT_PROJECT_VERSION = 97;
 				DEVELOPMENT_TEAM = LJQJ5BHW7G;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1247,7 +1251,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1.88;
+				MARKETING_VERSION = 1.1.89;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cc.OpenClawInstaller;
 				PRODUCT_NAME = GetClawHub;
 				REGISTER_APP_GROUPS = YES;
@@ -1278,7 +1282,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 96;
+				CURRENT_PROJECT_VERSION = 97;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -1304,7 +1308,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1.88;
+				MARKETING_VERSION = 1.1.89;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cc.OpenClawInstaller;
 				PRODUCT_NAME = GetClawHub;
 				REGISTER_APP_GROUPS = YES;
