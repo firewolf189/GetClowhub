@@ -23,7 +23,9 @@ enum OpenClawUpgradeReadiness {
         "shared sqlite state already differs",
         "left legacy update-check state",
         "startup migrations did not complete",
-        "failed post-core payload smoke check"
+        "failed post-core payload smoke check",
+        "config is invalid",
+        "must not have additional properties"
     ]
 
     static func quarantineRoot(homeDir: String) -> URL {
@@ -100,11 +102,8 @@ enum OpenClawUpgradeReadiness {
         }
         let text = output ?? ""
         let lower = text.lowercased()
-        if lower.contains("is invalid") {
-            return .blocked(firstUsefulLine(in: text) ?? "staged core rejected openclaw.json")
-        }
         for phrase in blockingPhrases where lower.contains(phrase) {
-            return .blocked(firstUsefulLine(in: text) ?? phrase)
+            return .blocked(lineMatching(phrase, in: text) ?? phrase)
         }
         return .allowed
     }
@@ -330,13 +329,10 @@ enum OpenClawUpgradeReadiness {
         }
     }
 
-    private static func firstUsefulLine(in text: String) -> String? {
+    private static func lineMatching(_ phrase: String, in text: String) -> String? {
         text
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { line in
-                let compact = line.replacingOccurrences(of: "│", with: "").trimmingCharacters(in: .whitespaces)
-                return !compact.isEmpty && compact != "─" && !compact.hasPrefix("◇")
-            }
+            .first { $0.lowercased().contains(phrase) }
     }
 }

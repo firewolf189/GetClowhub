@@ -138,9 +138,8 @@ class OpenClawService: ObservableObject {
     // MARK: - Service Control
 
     /// Start OpenClaw service.
-    /// If the gateway already answers on its port, this is a no-op.
-    /// Otherwise install --force, then restart/kickstart when launchd is
-    /// loaded but not serving.
+    /// Already serving → no-op. Loaded but not serving → wait, then restart.
+    /// Missing agent → install --force last.
     func start() async throws {
         guard !isStartInFlight else {
             addLog("Start already in flight; not launching a parallel install")
@@ -182,55 +181,45 @@ class OpenClawService: ObservableObject {
         // unexplainable startup failure into a self-healing one.
         await repairDedicatedNodeIfUnsupported()
 
-        // Use our dedicated node to run `openclaw gateway install` so that
-        // process.execPath points to ~/.openclaw/node/bin/node.
-        // This ensures openclaw's resolvePreferredNodePath() writes our node
-        // path into the launchd plist.
         let nodePath = dedicatedNodePath
-        let installCmd: String
         if FileManager.default.isExecutableFile(atPath: nodePath) {
-            installCmd = "'\(nodePath)' '\(openclawPath)' gateway install --force 2>&1"
             addLog("Using dedicated node: \(nodePath)")
         } else {
-            // Fallback: if dedicated node not found, use openclaw directly
-            installCmd = "'\(openclawPath)' gateway install --force 2>&1"
             addLog("Warning: dedicated node not found at \(nodePath), using openclaw directly")
         }
 
-        addLog("Running: \(installCmd)")
-        var output = await runShellQuietly(installCmd, timeout: 30)
-        addLog("Start output: \(output ?? "(no output)")")
-
-        // Give a just-installed 2026.7.x gateway time to finish first-boot
-        // migrations before treating "already loaded" as stuck. Immediate
-        // restart here re-took the migration lock and crash-looped the
-        // freshly swapped core (measured 2026-08-26).
-        for (i, secs) in [2.0, 3.0, 4.0, 5.0].enumerated() {
-            try await Task.sleep(nanoseconds: UInt64(secs * 1_000_000_000))
-            if await isPortListening() {
-                status = .running
-                startTime = Date()
-                addLog("OpenClaw service started during post-install wait (attempt \(i + 1))")
-                return
+        func invoke(_ subcommand: String) -> String {
+            if FileManager.default.isExecutableFile(atPath: nodePath) {
+                return "'\(nodePath)' '\(openclawPath)' \(subcommand) 2>&1"
             }
+            return "'\(openclawPath)' \(subcommand) 2>&1"
         }
 
-        // loaded / not running is the field failure from 2026-07-22 and
-        // 2026-08-06: a plain install reports "already loaded" and never
-        // kickstarts. Only restart after the post-install wait missed.
-        if shouldKickstartAfterInstall(output) {
-            let restartCmd: String
-            if FileManager.default.isExecutableFile(atPath: nodePath) {
-                restartCmd = "'\(nodePath)' '\(openclawPath)' gateway restart 2>&1"
-            } else {
-                restartCmd = "'\(openclawPath)' gateway restart 2>&1"
+        var output: String?
+
+        // If the LaunchAgent already exists, wait out first-boot migrations
+        // before rewriting it with --force (2026-08-26: --force/restart during
+        // startup-migrations left the gateway crash-looping).
+        if Self.isLaunchAgentInstalled() {
+            addLog("LaunchAgent present; waiting before kickstart")
+            for (i, secs) in [2.0, 3.0, 4.0, 5.0].enumerated() {
+                try await Task.sleep(nanoseconds: UInt64(secs * 1_000_000_000))
+                if await isPortListening() {
+                    status = .running
+                    startTime = Date()
+                    addLog("OpenClaw service started during post-install wait (attempt \(i + 1))")
+                    return
+                }
             }
+            let restartCmd = invoke("gateway restart")
             addLog("LaunchAgent already loaded but not serving; kickstarting via gateway restart")
-            let restartOutput = await runShellQuietly(restartCmd, timeout: 30)
-            addLog("Restart output: \(restartOutput ?? "(no output)")")
-            if let restartOutput {
-                output = (output ?? "") + "\n" + restartOutput
-            }
+            output = await runShellQuietly(restartCmd, timeout: 30)
+            addLog("Restart output: \(output ?? "(no output)")")
+        } else {
+            let installCmd = invoke("gateway install --force")
+            addLog("Running: \(installCmd)")
+            output = await runShellQuietly(installCmd, timeout: 30)
+            addLog("Start output: \(output ?? "(no output)")")
         }
 
         // Wait and retry status check — service may need time to start.
@@ -711,13 +700,6 @@ class OpenClawService: ObservableObject {
         }
 
         return nil
-    }
-
-    private func shouldKickstartAfterInstall(_ output: String?) -> Bool {
-        let text = (output ?? "").lowercased()
-        return text.contains("already loaded")
-            || text.contains("already installed")
-            || text.contains("partial import")
     }
 
     /// Build a shell command using the resolved openclaw path

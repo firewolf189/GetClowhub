@@ -87,8 +87,17 @@ require(
     readiness.contains("refusing to report the gateway ready")
         && readiness.contains("failed post-core payload smoke check")
         && readiness.contains("shared sqlite state already differs")
+        && readiness.contains("config is invalid")
         && !readiness.contains("\"requires compiled runtime output\""),
     "the gate must block real startup-migration failures, not a disabled-plugin packaging warning"
+)
+require(
+    !readiness.contains("if lower.contains(\"is invalid\")"),
+    "generic 'is invalid' matching is too broad — it blocked on 'Config valid' plus later warnings"
+)
+require(
+    readiness.contains("lineMatching"),
+    "gate failure reason must come from the matching error line, not the first log line"
 )
 
 let body = block(startingWith: "private func performUpgradeBody", in: coordinator)
@@ -114,15 +123,26 @@ require(
 
 require(
     service.contains("gateway install --force"),
-    "daily start must force-reinstall, not a bare install that reports already loaded"
+    "missing LaunchAgent still uses install --force"
 )
 require(
-    service.contains("gateway restart") && service.contains("shouldKickstartAfterInstall"),
-    "loaded / not running must kickstart via gateway restart"
+    service.contains("gateway restart") && service.contains("isLaunchAgentInstalled"),
+    "a present LaunchAgent must restart/kickstart instead of rewriting with --force"
 )
 require(
     service.contains("post-install wait") || service.contains("during post-install wait"),
     "start() must wait for first-boot migrations before restarting an already-loaded agent"
+)
+let startBlock = block(startingWith: "func start() async throws", in: service)
+guard let waitIdx = startBlock.range(of: "waiting before kickstart")?.lowerBound,
+      let restartIdx = startBlock.range(of: "gateway restart")?.lowerBound,
+      let forceIdx = startBlock.range(of: "gateway install --force")?.lowerBound else {
+    fputs("FAIL: start() is missing wait/restart/--force ordering\n", stderr)
+    exit(1)
+}
+require(
+    waitIdx < restartIdx && restartIdx < forceIdx,
+    "daily start: wait -> restart for a loaded agent; --force only if the plist is missing"
 )
 require(
     service.contains("Gateway already serving; skip reinstall"),
