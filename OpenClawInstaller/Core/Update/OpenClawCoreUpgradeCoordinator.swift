@@ -341,6 +341,9 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
 
             let backup = try swapStagedOpenClawIntoPlace(stagedInstallDir)
             writeInflightMarker(target: manifest.openclawVersion, backupRoot: backup.root)
+            if OpenClawUpgradeReadiness.stripDingTalkRejectedKeysFromLiveConfig(homeDir: homeDir, fileManager: fileManager) {
+                appendLog("Stripped DingTalk keys the new schema rejects (live config backed up before swap)")
+            }
             progress = 0.65
 
             do {
@@ -471,9 +474,16 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         let invoke = fileManager.isExecutableFile(atPath: nodePath)
             ? "'\(nodePath)' '\(stagedBin.path)'"
             : "'\(stagedBin.path)'"
+        let gateConfig = stagingRoot.appendingPathComponent("openclaw.gate.json")
+        let configOverride: String
+        if OpenClawUpgradeReadiness.writeConfigForStagedGate(homeDir: homeDir, to: gateConfig, fileManager: fileManager) {
+            configOverride = "OPENCLAW_CONFIG_PATH='\(gateConfig.path)' "
+        } else {
+            configOverride = ""
+        }
         // `|| true`: invalid config / migration warnings exit non-zero, and
         // runShell would throw — the verdict is in the OUTPUT.
-        let command = "\(invoke) config validate 2>&1 || true; \(invoke) doctor --non-interactive 2>&1 || true"
+        let command = "\(configOverride)\(invoke) config validate 2>&1 || true; \(configOverride)\(invoke) doctor --non-interactive 2>&1 || true"
         guard let output = try? await runShell(command, timeout: 90) else {
             return (nil, false)
         }

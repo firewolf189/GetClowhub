@@ -213,6 +213,19 @@ require(
     migrateIdx < verifyIdx && verifyIdx < precheckIdx && precheckIdx < stopIdx,
     "migrate leftover state -> stage/verify -> upgrade gate must all precede stopping the gateway"
 )
+require(
+    coordinator.contains("OPENCLAW_CONFIG_PATH") && coordinator.contains("writeConfigForStagedGate"),
+    "staged-core gate must validate a DingTalk-stripped copy, not rewrite live openclaw.json first"
+)
+guard let swapIdx = body.range(of: "swapStagedOpenClawIntoPlace")?.lowerBound,
+      let stripDingTalkIdx = body.range(of: "stripDingTalkRejectedKeysFromLiveConfig")?.lowerBound else {
+    fputs("FAIL: could not locate swap/DingTalk strip in the upgrade body\n", stderr)
+    exit(1)
+}
+require(
+    swapIdx < stripDingTalkIdx,
+    "DingTalk extra keys must be stripped only after the pre-upgrade config is in the swap backup"
+)
 
 require(app.contains("private let coreUpgradeCoordinator: OpenClawCoreUpgradeCoordinator"), "AppServices should keep the core migration helper internal")
 require(app.contains("ensureBundledCoreForInstalledOpenClaw"), "App startup should run bundled core migration outside dashboard routing")

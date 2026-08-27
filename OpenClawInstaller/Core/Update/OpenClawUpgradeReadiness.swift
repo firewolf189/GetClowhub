@@ -123,6 +123,36 @@ enum OpenClawUpgradeReadiness {
         return hasTypeScriptOnlyEntry(at: pluginDir, fileManager: fileManager)
     }
 
+    /// Copy of `openclaw.json` with DingTalk keys the new schema rejects removed.
+    /// Used only as `OPENCLAW_CONFIG_PATH` for the staged-core gate so the
+    /// still-running old core keeps `robotCode` / `requireMention` / `enableAICard`.
+    @discardableResult
+    static func writeConfigForStagedGate(
+        homeDir: String,
+        to dest: URL,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        guard var root = readJSON(at: configURL(homeDir: homeDir)) else { return false }
+        _ = DingTalkChannelConfig.stripRejectedKeys(from: &root)
+        try? fileManager.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? fileManager.removeItem(at: dest)
+        return writeJSON(root, to: dest, fileManager: fileManager)
+    }
+
+    /// Strip those DingTalk keys from the live file. Call only after the
+    /// pre-upgrade `openclaw.json` has been copied into the swap backup so
+    /// rollback restores the old channel payload.
+    @discardableResult
+    static func stripDingTalkRejectedKeysFromLiveConfig(
+        homeDir: String,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        let url = configURL(homeDir: homeDir)
+        guard var root = readJSON(at: url) else { return false }
+        guard DingTalkChannelConfig.stripRejectedKeys(from: &root) else { return false }
+        return writeJSON(root, to: url, fileManager: fileManager)
+    }
+
     static func preferredOpenclawInvocationPath(homeDir: String, fileManager: FileManager = .default) -> String? {
         let mjs = npmGlobalOpenclawMjs(homeDir: homeDir)
         if fileManager.fileExists(atPath: mjs.path) {
@@ -149,10 +179,9 @@ enum OpenClawUpgradeReadiness {
         guard var root = readJSON(at: url) else { return false }
         var changed = false
 
-        if DingTalkChannelConfig.stripRejectedKeys(from: &root) {
-            report.actions.append("Removed rejected DingTalk keys that fail config validate")
-            changed = true
-        }
+        // DingTalk extra keys stay in the live file until the core swap
+        // backup exists. Stripping them here would change a still-running
+        // 2026.6.x gateway's channel payload.
 
         if var plugins = root["plugins"] as? [String: Any] {
             if var entries = plugins["entries"] as? [String: Any] {

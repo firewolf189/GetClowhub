@@ -76,8 +76,14 @@ require(
     "broken plugin trees must be moved aside so 2026.7.x cannot repair them during startup migrations"
 )
 require(
-    readiness.contains("stripRejectedKeys") && readiness.contains("stalePluginIDs"),
-    "DingTalk extra keys and stale plugin allowlist entries must be migrated"
+    readiness.contains("writeConfigForStagedGate")
+        && readiness.contains("stripDingTalkRejectedKeysFromLiveConfig")
+        && readiness.contains("stalePluginIDs"),
+    "DingTalk extra keys are gated on a copy, then stripped from live config only after backup"
+)
+require(
+    !block(startingWith: "private static func migrateOpenClawJSON", in: readiness).contains("stripRejectedKeys"),
+    "migrateLegacyState must not strip DingTalk keys from the still-running gateway config"
 )
 require(
     readiness.contains("func evaluateGate") && readiness.contains("staged-core pre-check could not run"),
