@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.88</title>
-      <sparkle:version>96</sparkle:version>
-      <sparkle:shortVersionString>1.1.88</sparkle:shortVersionString>
+      <title>Version 1.1.89</title>
+      <sparkle:version>98</sparkle:version>
+      <sparkle:shortVersionString>1.1.89</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.88</h2>
+        <h2>OpenClaw Helper 1.1.89</h2>
         <ul>
-          <li>侧栏当天会话显示 m/h，不再用当天时钟</li>
+          <li>打开新版即可把本机 OpenClaw 安全升到 2026.7.1-2；旧配置先迁移，过不了门禁不停现网网关。</li>
         </ul>
       ]]></description>
-      <pubDate>Sun, 23 Aug 2026 00:00:50 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.88/GetClawHub.dmg"
-                 length="242161099"
+      <pubDate>Fri, 28 Aug 2026 18:21:38 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.89/GetClawHub.dmg"
+                 length="237323756"
                  type="application/octet-stream"
-                 sparkle:edSignature="VEPJJsKAnDgSs0Ow0K5wJfruBc6Wgxg71vAw2E1bHILvw7IbDzEavwaL/lEBT3ucDXi8TmvpB+Gr/UuJQD4yCw==" />
+                 sparkle:edSignature="i+1uoqITi3bRafD8pcfW2NwuLXP8MlgEQfO6ZgN8iz1h1Rip3gIhDnyi16rKMjnVoqkmDnXCsGmZ7N2szOJ1Dg==" />
     </item>
   </channel>
 </rss>
