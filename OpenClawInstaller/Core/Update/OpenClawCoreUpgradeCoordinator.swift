@@ -334,6 +334,20 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             case .allowed:
                 break
             }
+
+            let diskBlockers = OpenClawUpgradeReadiness.remainingBlockersOnDisk(
+                homeDir: homeDir,
+                fileManager: fileManager
+            )
+            if !diskBlockers.isEmpty {
+                appendLog("Not upgrading to \(manifest.openclawVersion): leftover state still on disk after migration")
+                for blocker in diskBlockers {
+                    appendLog("  - \(blocker)")
+                }
+                state = .failed("upgrade gate blocked \(manifest.openclawVersion)")
+                progress = 0
+                return
+            }
             progress = 0.5
 
             try await stopGatewayIfRunning()

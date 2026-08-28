@@ -214,6 +214,18 @@ require(
     "migrate leftover state -> stage/verify -> upgrade gate must all precede stopping the gateway"
 )
 require(
+    body.contains("remainingBlockersOnDisk"),
+    "after phrase gate, leftover files on disk must still block before stop"
+)
+guard let diskIdx = body.range(of: "remainingBlockersOnDisk")?.lowerBound else {
+    fputs("FAIL: could not locate remainingBlockersOnDisk in the upgrade body\n", stderr)
+    exit(1)
+}
+require(
+    precheckIdx < diskIdx && diskIdx < stopIdx,
+    "disk leftover check must run after the staged-core gate and before stopping the gateway"
+)
+require(
     coordinator.contains("OPENCLAW_CONFIG_PATH") && coordinator.contains("writeConfigForStagedGate"),
     "staged-core gate must validate a DingTalk-stripped copy, not rewrite live openclaw.json first"
 )

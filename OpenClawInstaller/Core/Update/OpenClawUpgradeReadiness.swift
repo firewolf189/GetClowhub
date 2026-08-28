@@ -18,10 +18,10 @@ enum OpenClawUpgradeGate: Equatable {
 }
 
 enum OpenClawUpgradeReadiness {
+    /// Fatal staged-core output only. Doctor warnings such as leftover
+    /// update-check text are handled by `remainingBlockersOnDisk`.
     static let blockingPhrases = [
         "refusing to report the gateway ready",
-        "shared sqlite state already differs",
-        "left legacy update-check state",
         "startup migrations did not complete",
         "failed post-core payload smoke check",
         "config is invalid",
@@ -108,6 +108,44 @@ enum OpenClawUpgradeReadiness {
         return .allowed
     }
 
+    /// After `migrateLegacyState`, these leftovers still make 2026.7.x refuse ready.
+    /// Block the swap on disk facts, not doctor warning wording.
+    static func remainingBlockersOnDisk(
+        homeDir: String,
+        fileManager: FileManager = .default
+    ) -> [String] {
+        var blockers: [String] = []
+        let updateCheck = updateCheckURL(homeDir: homeDir)
+        let sqlite = sqliteURL(homeDir: homeDir)
+        if fileManager.fileExists(atPath: updateCheck.path),
+           fileManager.fileExists(atPath: sqlite.path) {
+            blockers.append("update-check.json still present alongside shared SQLite state")
+        }
+
+        var seen = Set<String>()
+        if let root = readJSON(at: configURL(homeDir: homeDir)),
+           let plugins = root["plugins"] as? [String: Any],
+           let entries = plugins["entries"] as? [String: Any] {
+            for id in entries.keys where pluginNeedsDisable(id: id, homeDir: homeDir, fileManager: fileManager) {
+                let key = "plugin:\(id)"
+                if seen.insert(key).inserted {
+                    blockers.append("incomplete TypeScript-only plugin still on disk: \(id)")
+                }
+            }
+        }
+
+        let extensions = URL(fileURLWithPath: homeDir).appendingPathComponent(".openclaw/extensions")
+        if let kids = try? fileManager.contentsOfDirectory(at: extensions, includingPropertiesForKeys: [.isDirectoryKey]) {
+            for dir in kids where pluginNeedsDisable(at: dir, fileManager: fileManager) {
+                let key = dir.path
+                if seen.insert(key).inserted {
+                    blockers.append("incomplete TypeScript-only plugin still on disk: \(dir.lastPathComponent)")
+                }
+            }
+        }
+        return blockers
+    }
+
     static func pluginNeedsDisable(id: String, homeDir: String, fileManager: FileManager = .default) -> Bool {
         let dirs = resolvePluginDirs(id: id, homeDir: homeDir, fileManager: fileManager)
         guard !dirs.isEmpty else { return false }
@@ -167,8 +205,6 @@ enum OpenClawUpgradeReadiness {
 
     // MARK: - Private
 
-    private static let stalePluginIDs: Set<String> = ["minimax-portal-auth"]
-
     private static func migrateOpenClawJSON(
         homeDir: String,
         fileManager: FileManager,
@@ -210,27 +246,9 @@ enum OpenClawUpgradeReadiness {
                                 }
                             }
                         }
-                    } else if dirs.isEmpty, stalePluginIDs.contains(key) {
-                        entries.removeValue(forKey: key)
-                        report.actions.append("Removed stale plugin entry \(key)")
-                        changed = true
                     }
                 }
                 plugins["entries"] = entries
-            }
-            if var allow = plugins["allow"] as? [String] {
-                let filtered = allow.filter { id in
-                    if stalePluginIDs.contains(id) { return false }
-                    if id == "openclaw-web-search" && !pluginExists(id: id, homeDir: homeDir, fileManager: fileManager) {
-                        return false
-                    }
-                    return true
-                }
-                if filtered != allow {
-                    plugins["allow"] = filtered
-                    report.actions.append("Removed stale plugins.allow entries")
-                    changed = true
-                }
             }
             root["plugins"] = plugins
         }
@@ -256,10 +274,6 @@ enum OpenClawUpgradeReadiness {
         if !fileManager.fileExists(atPath: bin.path) {
             report.actions.append("Renamed mismatched ~/.npm-global/bin/openclaw to \(disabled.lastPathComponent)")
         }
-    }
-
-    private static func pluginExists(id: String, homeDir: String, fileManager: FileManager) -> Bool {
-        !resolvePluginDirs(id: id, homeDir: homeDir, fileManager: fileManager).isEmpty
     }
 
     private static func resolvePluginDirs(id: String, homeDir: String, fileManager: FileManager) -> [URL] {

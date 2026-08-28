@@ -77,9 +77,12 @@ require(
 )
 require(
     readiness.contains("writeConfigForStagedGate")
-        && readiness.contains("stripDingTalkRejectedKeysFromLiveConfig")
-        && readiness.contains("stalePluginIDs"),
+        && readiness.contains("stripDingTalkRejectedKeysFromLiveConfig"),
     "DingTalk extra keys are gated on a copy, then stripped from live config only after backup"
+)
+require(
+    !readiness.contains("minimax-portal-auth") && !readiness.contains("stalePluginIDs"),
+    "do not hardcode machine-specific stale plugin ids"
 )
 require(
     !block(startingWith: "private static func migrateOpenClawJSON", in: readiness).contains("stripRejectedKeys"),
@@ -92,10 +95,20 @@ require(
 require(
     readiness.contains("refusing to report the gateway ready")
         && readiness.contains("failed post-core payload smoke check")
-        && readiness.contains("shared sqlite state already differs")
         && readiness.contains("config is invalid")
         && !readiness.contains("\"requires compiled runtime output\""),
     "the gate must block real startup-migration failures, not a disabled-plugin packaging warning"
+)
+require(
+    !readiness.contains("shared sqlite state already differs")
+        && !readiness.contains("left legacy update-check state"),
+    "doctor warnings about leftover update-check must not block the swap by phrase match"
+)
+require(
+    readiness.contains("remainingBlockersOnDisk")
+        && readiness.contains("update-check.json still present alongside shared SQLite state")
+        && readiness.contains("incomplete TypeScript-only plugin still on disk"),
+    "leftover update-check and incomplete plugins must block on disk facts after migration"
 )
 require(
     !readiness.contains("if lower.contains(\"is invalid\")"),
@@ -118,6 +131,15 @@ guard let migrateIdx = body.range(of: "migrateLegacyState")?.lowerBound,
     exit(1)
 }
 require(migrateIdx < gateIdx && gateIdx < stopIdx, "migrate -> gate -> stop, never stop first")
+require(
+    body.contains("remainingBlockersOnDisk"),
+    "disk leftovers after migration must block before stop"
+)
+guard let diskIdx = body.range(of: "remainingBlockersOnDisk")?.lowerBound else {
+    fputs("FAIL: missing remainingBlockersOnDisk in performUpgradeBody\n", stderr)
+    exit(1)
+}
+require(gateIdx < diskIdx && diskIdx < stopIdx, "phrase gate -> disk leftover check -> stop")
 require(
     coordinator.contains("Files rolled back, service did not recover"),
     "rollback must say when the restored gateway did not come back"
