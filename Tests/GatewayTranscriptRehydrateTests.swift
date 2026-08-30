@@ -24,6 +24,8 @@ private enum GatewayTranscriptRehydrateTests {
         try rebindsLiveJsonlUsingKnownGatewaySessionId()
         try doesNotRebuildNonEmptyUnrelatedTranscript()
         try skipsWhenNoPriorUserTurns()
+        try ignoresTrajectoryJsonlWhenRestoring()
+        try liveTranscriptFileNameRejectsTrajectory()
         print("PASS: gateway transcript rehydrate")
     }
 
@@ -305,5 +307,85 @@ private enum GatewayTranscriptRehydrateTests {
         )
         try expect(result.outcome == .skipped, "/new or empty local history must not rewrite jsonl")
         try expect(result.gatewaySessionId == nil, "skip must not invent a gateway session id")
+    }
+
+    private static func liveTranscriptFileNameRejectsTrajectory() throws {
+        try expect(
+            GatewayTranscriptRehydrate.isLiveTranscriptFileName("33c20f44-da8c-4331-864e-20742f2afe7d.jsonl"),
+            "uuid.jsonl is the live transcript"
+        )
+        try expect(
+            !GatewayTranscriptRehydrate.isLiveTranscriptFileName(
+                "33c20f44-da8c-4331-864e-20742f2afe7d.trajectory.jsonl"
+            ),
+            "trajectory dumps must not be scanned on send"
+        )
+        try expect(
+            GatewayTranscriptRehydrate.isResetArchiveFileName(
+                "33c20f44-da8c-4331-864e-20742f2afe7d.jsonl.reset.2026-08-29T13-25-31.497Z"
+            ),
+            "reset archives stay eligible"
+        )
+    }
+
+    private static func ignoresTrajectoryJsonlWhenRestoring() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rehydrate-traj-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("agents/main/sessions", isDirectory: true)
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+
+        let old = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        let neu = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+        let key = "agent:main:traj"
+        try """
+        {"type":"session","id":"\(old)"}
+        {"type":"message","message":{"role":"user","content":"分析是否是优惠的价格","idempotencyKey":"OLDKEY"}}
+        {"type":"message","message":{"role":"assistant","content":"from-reset"}}
+        """.write(
+            to: sessions.appendingPathComponent("\(old).jsonl.reset.2026-08-29T13-25-31.497Z"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try """
+        {"type":"session","id":"\(old)"}
+        {"type":"message","message":{"role":"user","content":"分析是否是优惠的价格","idempotencyKey":"OLDKEY"}}
+        {"type":"message","message":{"role":"assistant","content":"from-trajectory"}}
+        """.write(
+            to: sessions.appendingPathComponent("\(old).trajectory.jsonl"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try """
+        {"type":"session","id":"\(neu)"}
+        """.write(
+            to: sessions.appendingPathComponent("\(neu).jsonl"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let store: [String: Any] = [
+            key: [
+                "sessionId": neu,
+                "sessionFile": sessions.appendingPathComponent("\(neu).jsonl").path,
+                "usageFamilySessionIds": [old, neu],
+            ]
+        ]
+        try JSONSerialization.data(withJSONObject: store)
+            .write(to: sessions.appendingPathComponent("sessions.json"))
+
+        let result = GatewayTranscriptRehydrate.ensurePriorTurnsPresent(
+            openclawHome: root,
+            sessionKey: key,
+            localTurns: [
+                .init(role: "user", text: "分析是否是优惠的价格", idempotencyKey: "OLDKEY", timestamp: nil),
+            ]
+        )
+        try expect(result.outcome == .restored, "must restore the reset archive, not trajectory: \(result.outcome)")
+        let restored = try String(
+            contentsOf: sessions.appendingPathComponent("\(old).jsonl"),
+            encoding: .utf8
+        )
+        try expect(restored.contains("from-reset"), "restored jsonl must come from the reset archive")
+        try expect(!restored.contains("from-trajectory"), "trajectory dump must not be copied onto the live jsonl")
     }
 }

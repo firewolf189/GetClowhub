@@ -8,21 +8,21 @@ import Foundation
 /// from the local bubbles. `/new` clears local messages first, so this is a
 /// no-op.
 enum GatewayTranscriptRehydrate {
-    enum Outcome: Equatable {
+    enum Outcome: Equatable, Sendable {
         case intact
         case restored
         case rebuilt
         case skipped
     }
 
-    struct Result: Equatable {
+    struct Result: Equatable, Sendable {
         var outcome: Outcome
         var gatewaySessionId: String?
 
         static let skipped = Result(outcome: .skipped, gatewaySessionId: nil)
     }
 
-    struct LocalTurn: Equatable {
+    struct LocalTurn: Equatable, Sendable {
         var role: String
         var text: String
         var idempotencyKey: String?
@@ -230,8 +230,8 @@ enum GatewayTranscriptRehydrate {
         let idSet = Set(sessionIds.compactMap { sanitizedSessionId($0) })
         var matches: [TranscriptMatch] = []
         for name in names {
-            let isReset = name.contains(".jsonl.reset.")
-            let isLive = name.hasSuffix(".jsonl") && !name.contains(".jsonl.")
+            let isReset = isResetArchiveFileName(name)
+            let isLive = isLiveTranscriptFileName(name)
             guard isReset || isLive else { continue }
             let sessionId = String(name.prefix { $0 != "." })
             guard idSet.contains(sessionId) else { continue }
@@ -249,6 +249,19 @@ enum GatewayTranscriptRehydrate {
             )
         }
         return matches.max(by: { $0.modified < $1.modified })
+    }
+
+    /// `{uuid}.jsonl` only. `{uuid}.trajectory.jsonl` is a multi-MB debug dump
+    /// and must not be scanned on send — parsing it on the main actor whites
+    /// out the chat timeline.
+    static func isLiveTranscriptFileName(_ name: String) -> Bool {
+        guard name.hasSuffix(".jsonl") else { return false }
+        let stem = name.dropLast(6)
+        return !stem.isEmpty && !stem.contains(".")
+    }
+
+    static func isResetArchiveFileName(_ name: String) -> Bool {
+        name.contains(".jsonl.reset.")
     }
 
     private static func transcriptURL(entry: [String: Any], sessionsDir: URL) -> URL {

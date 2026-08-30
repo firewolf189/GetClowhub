@@ -329,7 +329,8 @@ extension DashboardViewModel {
     }
 
     /// Make the gateway jsonl match local bubbles for this UI session.
-    /// Runs off the main actor; `chat.send` still rehydrates synchronously.
+    /// Runs off the main actor. `chat.send` also rehydrates off the main
+    /// actor after the user/placeholder rows are on screen.
     func reconcileGatewayTranscriptIfNeeded(
         forAgent agentId: String,
         sessionId: UUID,

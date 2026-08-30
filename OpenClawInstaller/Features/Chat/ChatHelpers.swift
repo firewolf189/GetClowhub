@@ -805,16 +805,9 @@ extension ChatViewModel {
         let priorTurns = Self.transcriptLocalTurns(
             from: (chatMessagesByAgent[currentAgentId] ?? []).filter { $0.id != userMessage.id }
         )
-        let rehydrate = GatewayTranscriptRehydrate.ensurePriorTurnsPresent(
-            openclawHome: FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".openclaw"),
-            sessionKey: sessionKey,
-            localTurns: priorTurns,
-            knownGatewaySessionId: chatSessionStore.gatewaySessionId(for: currentSessionId)
-        )
-        if let gatewaySessionId = rehydrate.gatewaySessionId {
-            chatSessionStore.recordGatewaySessionId(gatewaySessionId, for: currentSessionId)
-        }
+        let knownGatewaySessionId = chatSessionStore.gatewaySessionId(for: currentSessionId)
+        let openclawHome = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".openclaw")
         let currentProject = activeProject(forAgent: currentAgentId)
         let isLocalImageReviewBatch = ImageReviewBatchStore.isImageReviewBatchCandidate(
             urls: attachments,
@@ -853,6 +846,10 @@ extension ChatViewModel {
         ))
         scheduleAutomaticBackground(for: msgId)
         recomputeIsSendingMessage()
+        // Yield so SwiftUI can paint the user row + loading placeholder
+        // before we touch disk. Scanning jsonl on this actor whites out
+        // the LazyVStack (2026-08 send flash after idle-transcript repair).
+        await Task.yield()
 
         // Check gateway connection. Prefer the gateway's own rejection reason
         // (e.g. NOT_PAIRED / DEVICE_IDENTITY_REQUIRED, token mismatch) so the user
@@ -882,6 +879,18 @@ extension ChatViewModel {
                 agentEmoji: currentAgentEmoji
             )
             return
+        }
+
+        let rehydrate = await Task.detached(priority: .userInitiated) {
+            GatewayTranscriptRehydrate.ensurePriorTurnsPresent(
+                openclawHome: openclawHome,
+                sessionKey: sessionKey,
+                localTurns: priorTurns,
+                knownGatewaySessionId: knownGatewaySessionId
+            )
+        }.value
+        if let gatewaySessionId = rehydrate.gatewaySessionId {
+            chatSessionStore.recordGatewaySessionId(gatewaySessionId, for: currentSessionId)
         }
 
         let processed = attachmentProcessor.process(attachments)

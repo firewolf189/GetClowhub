@@ -1661,25 +1661,39 @@ struct ChatView: View {
         if let generation, scheduledBottomScrollGeneration != generation { return }
         guard chatAutoScrollMode != .userDetached else { return }
         guard let proxy = chatScrollProxy else { return }
+        let target = ChatTimelineScrollTarget.bottomAnchorId(from: currentMessages)
         // On a session jump the content was swapped in place; an ANIMATED
         // scroll to the empty "chatBottom" marker doesn't reliably drag the
         // viewport off its stale offset (that was the blank-on-cold-switch
-        // bug). Jump instantly to the LAST REAL message row instead — a
-        // concrete row with `.bottom` anchor and no animation forces the
-        // viewport to land, without recreating the subtree.
-        if chatAutoScrollMode == .sessionJumping, let lastId = currentMessages.last?.id {
-            proxy.scrollTo(lastId, anchor: .bottom)
+        // bug). Jump instantly to the LAST REAL row instead — a concrete
+        // row with `.bottom` anchor and no animation forces the viewport
+        // to land, without recreating the subtree.
+        if chatAutoScrollMode == .sessionJumping {
+            proxy.scrollTo(target, anchor: .bottom)
+            return
+        }
+        // Send used to animate toward `chatBottom` *before* the user row
+        // and loading placeholder were realized. LazyVStack then showed
+        // an empty viewport (white flash). Prefer the last real row; keep
+        // chatBottom only as the empty-timeline fallback so existing
+        // scroll-anchor checks still see that target.
+        if currentMessages.isEmpty {
+            withAnimation(.easeOut(duration: 0.25)) {
+                proxy.scrollTo("chatBottom", anchor: .bottom)
+            }
             return
         }
         withAnimation(.easeOut(duration: 0.25)) {
-            proxy.scrollTo("chatBottom", anchor: .bottom)
+            proxy.scrollTo(target, anchor: .bottom)
         }
     }
 
     private func followChatBottomFromUserAction() {
         chatAutoScrollMode = .followingBottom
         scheduledBottomScrollGeneration += 1
-        scrollToBottomIfAllowed()
+        // Do not scroll here: sendChatMessage has not appended the new
+        // rows yet. `onChange(of: currentMessages.count)` scrolls once
+        // they exist.
     }
 
     private func beginRenderObservationForCurrentSession() {

@@ -181,6 +181,25 @@ struct ChatMessageRowModel: Identifiable, Equatable {
     var runPhase: ChatRunPhase? { runState?.phase }
 }
 
+/// Stable ScrollViewProxy target for the latest timeline row.
+/// Loading placeholders are *not* in `messageRows`; they are rendered with
+/// `.id("loading-\(id)")`. Scrolling to the empty `chatBottom` marker before
+/// those rows exist leaves LazyVStack with an empty viewport (white flash on
+/// send, 2026-08).
+enum ChatTimelineScrollTarget {
+    static func bottomAnchorId(from messages: [ChatMessage]) -> AnyHashable {
+        guard let last = messages.last else { return "chatBottom" }
+        let isLoadingPlaceholder = last.role == .assistant
+            && last.content.isEmpty
+            && last.attachments.isEmpty
+            && last.taskStatus == .loading
+        if isLoadingPlaceholder {
+            return "loading-\(last.id)"
+        }
+        return last.id
+    }
+}
+
 struct ChatLoadingRowModel: Identifiable, Equatable {
     let id: UUID
     let timestamp: Date?
