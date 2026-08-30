@@ -43,6 +43,9 @@ final class ChatSessionStore: ObservableObject {
     private var sessionCache: [UUID: ChatSession] = [:]
     private var cacheOrder: [UUID] = []  // most-recently used at end
     private let cacheCapacity = 12
+    /// Gateway `sessionId` recorded before the UI session JSON exists
+    /// (first send of a pending thread). Merged on the next `saveSession`.
+    private var pendingGatewaySessionIds: [UUID: String] = [:]
 
     init() {
         let appSupport = FileManager.default
@@ -182,6 +185,13 @@ final class ChatSessionStore: ObservableObject {
     /// Persist a session immediately. Updates `index` in place so the UI
     /// reflects the new metadata (title, message count, …) right away.
     func saveSession(_ session: ChatSession) {
+        var session = session
+        if session.gatewaySessionId == nil {
+            session.gatewaySessionId = pendingGatewaySessionIds[session.id]
+        }
+        if let gid = session.gatewaySessionId, !gid.isEmpty {
+            pendingGatewaySessionIds[session.id] = gid
+        }
         let url = sessionURL(for: session)
         do {
             try FileManager.default.createDirectory(
@@ -259,9 +269,27 @@ final class ChatSessionStore: ObservableObject {
         if let s = current { saveSession(s) }
     }
 
+    func recordGatewaySessionId(_ gatewaySessionId: String, for sessionId: UUID) {
+        let trimmed = gatewaySessionId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= 128 else { return }
+        pendingGatewaySessionIds[sessionId] = trimmed
+        guard var session = loadSession(id: sessionId) else { return }
+        if session.gatewaySessionId == trimmed { return }
+        session.gatewaySessionId = trimmed
+        saveSession(session)
+    }
+
+    func gatewaySessionId(for sessionId: UUID) -> String? {
+        if let pending = pendingGatewaySessionIds[sessionId], !pending.isEmpty {
+            return pending
+        }
+        return loadSession(id: sessionId)?.gatewaySessionId
+    }
+
     private func deleteSessionFilesAndCache(id: UUID) {
         saveDebouncers[id]?.cancel()
         saveDebouncers[id] = nil
+        pendingGatewaySessionIds.removeValue(forKey: id)
         invalidateCache(id: id)
         if let url = sessionURL(for: id) {
             try? FileManager.default.removeItem(at: url)

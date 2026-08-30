@@ -14,6 +14,9 @@ struct ChatSession: Codable, Identifiable {
     var projectId: String?
     var projectRoot: String?
     var projectDisplayName: String?
+    /// OpenClaw `sessions.json` `sessionId` last seen for this UI thread.
+    /// Lets rehydrate rebind a reset/empty jsonl back to the same transcript.
+    var gatewaySessionId: String?
 
     init(
         id: UUID = UUID(),
@@ -26,7 +29,8 @@ struct ChatSession: Codable, Identifiable {
         isArchived: Bool = false,
         projectId: String? = nil,
         projectRoot: String? = nil,
-        projectDisplayName: String? = nil
+        projectDisplayName: String? = nil,
+        gatewaySessionId: String? = nil
     ) {
         self.id = id
         self.agentId = agentId
@@ -39,6 +43,7 @@ struct ChatSession: Codable, Identifiable {
         self.projectId = projectId
         self.projectRoot = projectRoot
         self.projectDisplayName = projectDisplayName
+        self.gatewaySessionId = gatewaySessionId
     }
 
     static let defaultTitle = "新会话"

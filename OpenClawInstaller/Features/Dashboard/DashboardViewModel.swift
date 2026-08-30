@@ -1254,11 +1254,13 @@ class DashboardViewModel: ObservableObject {
             chatMessagesByAgent[agentId] = stashed
             loadingSessionIds.remove(sessionId)
             sessionSwitchPerfLog.info("switchSession source=inactive_stash agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) messages=\(stashed.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
+            reconcileGatewayTranscriptIfNeeded(forAgent: agentId, sessionId: sessionId, messages: stashed)
         } else if let target = chatSessionStore.cachedSession(id: sessionId) {
             let messages = Self.stripStaleLoadingPlaceholders(target.messages)
             chatMessagesByAgent[agentId] = messages
             loadingSessionIds.remove(sessionId)
             sessionSwitchPerfLog.info("switchSession source=memory_cache agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) messages=\(messages.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
+            reconcileGatewayTranscriptIfNeeded(forAgent: agentId, sessionId: sessionId, messages: messages)
         } else {
             // Cold load — render a loading placeholder while we decode
             // the JSON off the main thread.
@@ -1280,6 +1282,7 @@ class DashboardViewModel: ObservableObject {
                         let messages = Self.stripStaleLoadingPlaceholders(target.messages)
                         self.chatMessagesByAgent[agentId] = messages
                         sessionSwitchPerfLog.info("switchSession source=cold_disk_finish status=loaded agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) messages=\(messages.count, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
+                        self.reconcileGatewayTranscriptIfNeeded(forAgent: agentId, sessionId: sessionId, messages: messages)
                     } else {
                         sessionSwitchPerfLog.info("switchSession source=cold_disk_finish status=missing agent=\(agentId, privacy: .public) session=\(sessionId.uuidString, privacy: .public) elapsed_ms=\(Self.elapsedMillisecondsText(since: switchStart), privacy: .public)")
                     }
@@ -2088,6 +2091,7 @@ class DashboardViewModel: ObservableObject {
 
         // Ensure commander exists in openclaw.json before loading
         Self.ensureCommanderInConfig(configPath: configPath, baseDir: baseDir)
+        Self.ensureMainAgentContinuity(configPath: configPath, baseDir: baseDir)
 
         // Seed a sane wall-clock timeout floor. openclaw's built-in default is
         // 600s (10 min), which silently aborts long autonomous runs (browser
@@ -2266,6 +2270,93 @@ class DashboardViewModel: ObservableObject {
 
         if let updatedData = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys]) {
             try? updatedData.write(to: URL(fileURLWithPath: configPath))
+        }
+    }
+
+    /// Keep `main` (蛋蛋) on a stable workspace and copy stranded MEMORY.md.
+    ///
+    /// OpenClaw 2026.7.x treats `agents.list[0]` as the default agent when
+    /// nothing has `default: true`. Commander is often first, so `main` is
+    /// resolved to `<defaults.workspace>/main` while historical memory still
+    /// lives in `~/.openclaw/workspace-main`.
+    private static func ensureMainAgentContinuity(configPath: String, baseDir: String) {
+        guard let data = FileManager.default.contents(atPath: configPath),
+              var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+
+        var agentsSection = json["agents"] as? [String: Any] ?? [:]
+        var agentList = agentsSection["list"] as? [[String: Any]] ?? []
+        guard let mainIndex = agentList.firstIndex(where: { ($0["id"] as? String) == "main" }) else {
+            return
+        }
+
+        var main = agentList[mainIndex]
+        var changed = false
+        let hasExplicitDefault = agentList.contains { ($0["default"] as? Bool) == true }
+        if !hasExplicitDefault {
+            main["default"] = true
+            changed = true
+        }
+        let existingWorkspace = (main["workspace"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if existingWorkspace.isEmpty {
+            main["workspace"] = effectiveAgentWorkspace("main", config: json)
+            changed = true
+        }
+        if changed {
+            agentList[mainIndex] = main
+            agentsSection["list"] = agentList
+            json["agents"] = agentsSection
+            if let updatedData = try? JSONSerialization.data(
+                withJSONObject: json,
+                options: [.prettyPrinted, .sortedKeys]
+            ) {
+                try? updatedData.write(to: URL(fileURLWithPath: configPath), options: .atomic)
+            }
+        }
+
+        let trimmedWorkspace = (main["workspace"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let liveWorkspace = trimmedWorkspace.isEmpty
+            ? effectiveAgentWorkspace("main", config: json)
+            : (trimmedWorkspace as NSString).expandingTildeInPath
+        migrateStrandedMemoryIfNeeded(agentId: "main", liveWorkspace: liveWorkspace, baseDir: baseDir)
+    }
+
+    /// Copy MEMORY.md / memory/*.md from the pre-2026.7 `workspace-<id>` dir
+    /// when the live cwd has none. Never overwrite, never follow symlinks.
+    private static func migrateStrandedMemoryIfNeeded(
+        agentId: String,
+        liveWorkspace: String,
+        baseDir: String
+    ) {
+        let fm = FileManager.default
+        let archive = (baseDir as NSString).appendingPathComponent("workspace-\(agentId)")
+        guard archive != liveWorkspace else { return }
+
+        let destMemory = (liveWorkspace as NSString).appendingPathComponent("MEMORY.md")
+        let srcMemory = (archive as NSString).appendingPathComponent("MEMORY.md")
+        if !fm.fileExists(atPath: destMemory), fm.fileExists(atPath: srcMemory) {
+            try? fm.createDirectory(
+                atPath: liveWorkspace,
+                withIntermediateDirectories: true
+            )
+            try? fm.copyItem(atPath: srcMemory, toPath: destMemory)
+        }
+
+        let destDir = (liveWorkspace as NSString).appendingPathComponent("memory")
+        let srcDir = (archive as NSString).appendingPathComponent("memory")
+        var isSrcDir: ObjCBool = false
+        guard fm.fileExists(atPath: srcDir, isDirectory: &isSrcDir), isSrcDir.boolValue else {
+            return
+        }
+        try? fm.createDirectory(atPath: destDir, withIntermediateDirectories: true)
+        let entries = (try? fm.contentsOfDirectory(atPath: srcDir)) ?? []
+        for name in entries where name.lowercased().hasSuffix(".md") {
+            let dest = (destDir as NSString).appendingPathComponent(name)
+            let src = (srcDir as NSString).appendingPathComponent(name)
+            if !fm.fileExists(atPath: dest) {
+                try? fm.copyItem(atPath: src, toPath: dest)
+            }
         }
     }
 

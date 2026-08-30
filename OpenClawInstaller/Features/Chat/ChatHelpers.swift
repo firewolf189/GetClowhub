@@ -52,6 +52,25 @@ extension ChatViewModel {
         return chatSessionStore.index.first { $0.id == sessionId }
     }
 
+    static func transcriptLocalTurns(from messages: [ChatMessage]) -> [GatewayTranscriptRehydrate.LocalTurn] {
+        messages.compactMap { message in
+            if !message.taskStatus.isTerminal,
+               message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return nil
+            }
+            let text = message.content
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return nil
+            }
+            return GatewayTranscriptRehydrate.LocalTurn(
+                role: message.role == .user ? "user" : "assistant",
+                text: text,
+                idempotencyKey: message.idempotencyKey,
+                timestamp: message.timestamp
+            )
+        }
+    }
+
     /// Revalidates run ownership after an awaited pre-send operation. A late
     /// model-patch result must not overwrite cancellation or a newer child run.
     private func canContinueChatRunAfterPreflight(
@@ -783,6 +802,19 @@ extension ChatViewModel {
         let currentSessionId = ensureActiveSessionId(forAgent: currentAgentId,
                                                      seedMessages: chatMessagesByAgent[currentAgentId] ?? [])
         let sessionKey = sessionKeyForAgent(currentAgentId, sessionId: currentSessionId)
+        let priorTurns = Self.transcriptLocalTurns(
+            from: (chatMessagesByAgent[currentAgentId] ?? []).filter { $0.id != userMessage.id }
+        )
+        let rehydrate = GatewayTranscriptRehydrate.ensurePriorTurnsPresent(
+            openclawHome: FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".openclaw"),
+            sessionKey: sessionKey,
+            localTurns: priorTurns,
+            knownGatewaySessionId: chatSessionStore.gatewaySessionId(for: currentSessionId)
+        )
+        if let gatewaySessionId = rehydrate.gatewaySessionId {
+            chatSessionStore.recordGatewaySessionId(gatewaySessionId, for: currentSessionId)
+        }
         let currentProject = activeProject(forAgent: currentAgentId)
         let isLocalImageReviewBatch = ImageReviewBatchStore.isImageReviewBatchCandidate(
             urls: attachments,

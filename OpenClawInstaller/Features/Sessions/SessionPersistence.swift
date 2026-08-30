@@ -257,7 +257,9 @@ extension DashboardViewModel {
             return
         }
         if let cached = chatSessionStore.cachedSession(id: sid) {
-            chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(cached.messages)
+            let messages = Self.stripStaleLoadingPlaceholders(cached.messages)
+            chatMessagesByAgent[agentId] = messages
+            reconcileGatewayTranscriptIfNeeded(forAgent: agentId, sessionId: sid, messages: messages)
             return
         }
         // Cold path — async decode.
@@ -274,7 +276,9 @@ extension DashboardViewModel {
                     return
                 }
                 if let target = target {
-                    self.chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(target.messages)
+                    let messages = Self.stripStaleLoadingPlaceholders(target.messages)
+                    self.chatMessagesByAgent[agentId] = messages
+                    self.reconcileGatewayTranscriptIfNeeded(forAgent: agentId, sessionId: sid, messages: messages)
                 }
                 self.loadingSessionIds.remove(sid)
             }
@@ -306,12 +310,48 @@ extension DashboardViewModel {
             // Only synchronously parse messages for the visible agent.
             if agentId == currentAgent,
                let session = chatSessionStore.loadSession(id: mostRecent.id) {
-                chatMessagesByAgent[agentId] = Self.stripStaleLoadingPlaceholders(session.messages)
+                let messages = Self.stripStaleLoadingPlaceholders(session.messages)
+                chatMessagesByAgent[agentId] = messages
+                let sessionId = mostRecent.id
+                Task { @MainActor [weak self] in
+                    self?.reconcileGatewayTranscriptIfNeeded(
+                        forAgent: agentId,
+                        sessionId: sessionId,
+                        messages: messages
+                    )
+                }
             }
             // Non-visible agents: leave chatMessagesByAgent[agentId] unset.
             // It'll be populated lazily by switchSession the first time the
             // user clicks into that agent — at which point the parse cost
             // is paid once, then cached.
+        }
+    }
+
+    /// Make the gateway jsonl match local bubbles for this UI session.
+    /// Runs off the main actor; `chat.send` still rehydrates synchronously.
+    func reconcileGatewayTranscriptIfNeeded(
+        forAgent agentId: String,
+        sessionId: UUID,
+        messages: [ChatMessage]
+    ) {
+        let turns = ChatViewModel.transcriptLocalTurns(from: messages)
+        guard turns.contains(where: { $0.role == "user" }) else { return }
+        let sessionKey = sessionKeyForAgent(agentId, sessionId: sessionId)
+        let known = chatSessionStore.gatewaySessionId(for: sessionId)
+        let home = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".openclaw")
+        Task.detached(priority: .utility) { [weak self] in
+            let result = GatewayTranscriptRehydrate.ensurePriorTurnsPresent(
+                openclawHome: home,
+                sessionKey: sessionKey,
+                localTurns: turns,
+                knownGatewaySessionId: known
+            )
+            guard let gatewaySessionId = result.gatewaySessionId else { return }
+            await MainActor.run {
+                self?.chatSessionStore.recordGatewaySessionId(gatewaySessionId, for: sessionId)
+            }
         }
     }
 

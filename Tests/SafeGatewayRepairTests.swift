@@ -384,7 +384,38 @@ private enum SafeGatewayRepairTests {
         try expect(SessionIsolationConfig.apply(to: &dict), "missing isolation keys must be written")
         try expect(SessionIsolationConfig.isSatisfied(dict), "apply must leave the document satisfied")
         try expect(dict["session"] as? [String: String] != nil || (dict["session"] as? [String: Any])?["scope"] as? String == "per-peer", "unrelated session keys stay")
+        let session = dict["session"] as? [String: Any]
+        let reset = session?["reset"] as? [String: Any]
+        try expect(reset?["mode"] as? String == "idle", "all channels must idle-reset, not daily")
+        try expect(reset?["idleMinutes"] as? Int == 5_256_000, "idle window is 10 years (no inactivity wipe)")
         try expect(!SessionIsolationConfig.apply(to: &dict), "a second apply must be a no-op")
+
+        var tooShort = dict
+        var tooShortSession = tooShort["session"] as? [String: Any] ?? [:]
+        tooShortSession["reset"] = ["mode": "idle", "idleMinutes": 10080]
+        tooShort["session"] = tooShortSession
+        try expect(!SessionIsolationConfig.isSatisfied(tooShort), "7-day idle is still an inactivity wipe")
+        try expect(SessionIsolationConfig.apply(to: &tooShort), "7-day idle must be upgraded")
+        let upgraded = (((tooShort["session"] as? [String: Any])?["reset"] as? [String: Any])?["idleMinutes"] as? Int)
+        try expect(upgraded == 5_256_000, "upgrade 7-day idle to 10 years")
+
+        var custom = dict
+        var customSession = custom["session"] as? [String: Any] ?? [:]
+        customSession["reset"] = ["mode": "idle", "idleMinutes": 9_999_999]
+        custom["session"] = customSession
+        try expect(SessionIsolationConfig.isSatisfied(custom), "a longer idle window must count as satisfied")
+        try expect(!SessionIsolationConfig.apply(to: &custom), "must not overwrite a longer idle window")
+        let kept = (((custom["session"] as? [String: Any])?["reset"] as? [String: Any])?["idleMinutes"] as? Int)
+        try expect(kept == 9_999_999, "custom idleMinutes must stay")
+
+        var leftoverChannel = dict
+        var leftoverSession = leftoverChannel["session"] as? [String: Any] ?? [:]
+        leftoverSession["resetByChannel"] = ["webchat": ["mode": "idle", "idleMinutes": 10080]]
+        leftoverChannel["session"] = leftoverSession
+        try expect(!SessionIsolationConfig.isSatisfied(leftoverChannel), "short webchat override must not count as satisfied")
+        try expect(SessionIsolationConfig.apply(to: &leftoverChannel), "short webchat override must be upgraded")
+        let webchatMinutes = (((((leftoverChannel["session"] as? [String: Any])?["resetByChannel"] as? [String: Any])?["webchat"] as? [String: Any])?["idleMinutes"] as? Int))
+        try expect(webchatMinutes == 5_256_000, "webchat override must match the no-inactivity-wipe window")
     }
 
     private static func sessionIsolationDetectsEitherDingTalkId() throws {

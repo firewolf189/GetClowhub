@@ -349,6 +349,13 @@ enum SessionIsolationConfig {
     static let dmScope = "per-channel-peer"
     static let deferralTimeoutMs = 0
     static let dingtalkKeys = ["dingtalk", "dingtalk-connector"]
+    /// OpenClaw has no `reset: off`. Default `daily` at 04:00 (and short idle)
+    /// wipes the gateway transcript while the UI still shows the thread.
+    /// Ten years of idle is "never forget because you stopped talking";
+    /// `/new` and deleting a session still clear context. Compaction still
+    /// shrinks long threads without changing session identity.
+    static let sessionResetMode = "idle"
+    static let sessionIdleMinutes = 5_256_000
 
     static func isSatisfied(_ dict: [String: Any]) -> Bool {
         let session = dict["session"] as? [String: Any]
@@ -363,7 +370,10 @@ enum SessionIsolationConfig {
         } else {
             deferralOK = false
         }
-        return session?["dmScope"] as? String == dmScope && deferralOK
+        return session?["dmScope"] as? String == dmScope
+            && deferralOK
+            && globalResetIsIdle(session)
+            && channelOverridesAllowLongIdle(session)
     }
 
     @discardableResult
@@ -371,6 +381,16 @@ enum SessionIsolationConfig {
         let before = isSatisfied(dict)
         var session = dict["session"] as? [String: Any] ?? [:]
         session["dmScope"] = dmScope
+        if !globalResetIsIdle(session) {
+            var reset = session["reset"] as? [String: Any] ?? [:]
+            reset["mode"] = sessionResetMode
+            let minutes = idleMinutes(from: reset) ?? 0
+            if minutes < sessionIdleMinutes {
+                reset["idleMinutes"] = sessionIdleMinutes
+            }
+            session["reset"] = reset
+        }
+        session = upgradedChannelOverrides(session)
         dict["session"] = session
 
         var gateway = dict["gateway"] as? [String: Any] ?? [:]
@@ -379,6 +399,65 @@ enum SessionIsolationConfig {
         gateway["reload"] = reload
         dict["gateway"] = gateway
         return !before
+    }
+
+    /// True when inactivity will not archive the transcript. Windows longer
+    /// than `sessionIdleMinutes` are left alone; shorter or daily policies
+    /// are upgraded.
+    static func globalResetIsIdle(_ session: [String: Any]?) -> Bool {
+        let reset = session?["reset"] as? [String: Any]
+        guard (reset?["mode"] as? String) == sessionResetMode else { return false }
+        return (idleMinutes(from: reset) ?? 0) >= sessionIdleMinutes
+    }
+
+    static func idleMinutes(from reset: [String: Any]?) -> Int? {
+        if let n = reset?["idleMinutes"] as? Int { return n }
+        if let n = reset?["idleMinutes"] as? NSNumber { return n.intValue }
+        return nil
+    }
+
+    /// Channel overrides win over `session.reset`. A leftover 7-day webchat
+    /// policy would keep wiping Mac UI threads even after the global idle
+    /// window is raised.
+    static func channelOverridesAllowLongIdle(_ session: [String: Any]?) -> Bool {
+        let byChannel = session?["resetByChannel"] as? [String: Any] ?? [:]
+        for (_, raw) in byChannel {
+            guard let policy = raw as? [String: Any] else { continue }
+            let mode = policy["mode"] as? String
+            if mode == "daily" { return false }
+            if mode == sessionResetMode, (idleMinutes(from: policy) ?? 0) < sessionIdleMinutes {
+                return false
+            }
+        }
+        return true
+    }
+
+    static func upgradedChannelOverrides(_ session: [String: Any]) -> [String: Any] {
+        guard let byChannel = session["resetByChannel"] as? [String: Any], !byChannel.isEmpty else {
+            return session
+        }
+        var next = byChannel
+        var changed = false
+        for (channel, raw) in byChannel {
+            guard var policy = raw as? [String: Any] else { continue }
+            if (policy["mode"] as? String) == "daily" {
+                policy["mode"] = sessionResetMode
+                policy["idleMinutes"] = sessionIdleMinutes
+                next[channel] = policy
+                changed = true
+                continue
+            }
+            if (policy["mode"] as? String) == sessionResetMode,
+               (idleMinutes(from: policy) ?? 0) < sessionIdleMinutes {
+                policy["idleMinutes"] = sessionIdleMinutes
+                next[channel] = policy
+                changed = true
+            }
+        }
+        guard changed else { return session }
+        var updated = session
+        updated["resetByChannel"] = next
+        return updated
     }
 
     static func hasDingTalk(_ dict: [String: Any]) -> Bool {

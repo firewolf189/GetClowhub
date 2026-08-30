@@ -33,6 +33,10 @@ func readStringJSON(_ path: String) -> [String: String] {
 // after a second confirmation.
 let statusView = read("OpenClawInstaller/Features/Status/Views/StatusTabView.swift")
 let viewModel = read("OpenClawInstaller/Features/Dashboard/DashboardViewModel.swift")
+guard viewModel.contains("func ensureMainAgentContinuity"),
+      viewModel.contains("migrateStrandedMemoryIfNeeded") else {
+    fail("launch must pin main's workspace and copy stranded MEMORY.md from workspace-<id>")
+}
 let installationViewModel = read(
     "OpenClawInstaller/Features/Installation/InstallationViewModel.swift"
 )
@@ -44,17 +48,29 @@ guard statusView.contains("showSafeRepairConfirm"),
     fail("repair UI must keep safe repair and emergency force repair as two distinct confirmations")
 }
 guard installationViewModel.contains(#"session["dmScope"] = "per-channel-peer""#),
-      installationViewModel.contains(#"reload["deferralTimeoutMs"] = 0"#) else {
-    fail("new installations must start with isolated DMs and indefinite safe-restart deferral")
+      installationViewModel.contains(#"reload["deferralTimeoutMs"] = 0"#),
+      installationViewModel.contains(#"reset["mode"] = "idle""#),
+      installationViewModel.contains(#"reset["idleMinutes"] = 5_256_000"#) else {
+    fail("new installations must start with isolated DMs, indefinite safe-restart deferral, and no inactivity session wipe")
 }
 let appServices = read("OpenClawInstaller/App/OpenClawInstallerApp.swift")
 let forceRepair = read("OpenClawInstaller/Core/Command/OpenClawServiceForceRepair.swift")
 let safeRepair = read("OpenClawInstaller/Core/Command/SafeGatewayRepair.swift")
+let chatHelpers = read("OpenClawInstaller/Features/Chat/ChatHelpers.swift")
+let persistence = read("OpenClawInstaller/Features/Sessions/SessionPersistence.swift")
+let chatSession = read("OpenClawInstaller/Features/Sessions/Models/ChatSession.swift")
 guard appServices.contains("applySessionIsolationIfNeeded()"),
       forceRepair.contains("func applySessionIsolationIfNeeded()"),
       safeRepair.contains("enum SessionIsolationBootstrap"),
-      safeRepair.contains("dingtalk-connector") else {
-    fail("launch path must silently write session isolation and treat both DingTalk ids as one channel")
+      safeRepair.contains("dingtalk-connector"),
+      safeRepair.contains("globalResetIsIdle"),
+      safeRepair.contains("sessionIdleMinutes"),
+      chatHelpers.contains("GatewayTranscriptRehydrate.ensurePriorTurnsPresent"),
+      chatHelpers.contains("recordGatewaySessionId"),
+      persistence.contains("func reconcileGatewayTranscriptIfNeeded"),
+      viewModel.contains("reconcileGatewayTranscriptIfNeeded(forAgent:"),
+      chatSession.contains("var gatewaySessionId: String?") else {
+    fail("launch path must silently write session isolation, no inactivity session wipe, rehydrate before send and on session open, persist the gateway sessionId, and treat both DingTalk ids as one channel")
 }
 
 // Every locale must have the repair keys; English is the fallback for locales

@@ -207,6 +207,14 @@ class InstallationViewModel: ObservableObject {
         // This prevents two DingTalk contacts from sharing the `main` session.
         var session = dict["session"] as? [String: Any] ?? [:]
         session["dmScope"] = "per-channel-peer"
+        // OpenClaw has no reset=off. Idle for 10 years means inactivity never
+        // archives a transcript; `/new` and delete still clear it.
+        var reset = session["reset"] as? [String: Any] ?? [:]
+        if reset["mode"] == nil {
+            reset["mode"] = "idle"
+            reset["idleMinutes"] = 5_256_000
+        }
+        session["reset"] = reset
         dict["session"] = session
 
         // Write tools.profile: "full"
