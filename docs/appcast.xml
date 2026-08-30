@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.89</title>
-      <sparkle:version>98</sparkle:version>
-      <sparkle:shortVersionString>1.1.89</sparkle:shortVersionString>
+      <title>Version 1.1.90</title>
+      <sparkle:version>99</sparkle:version>
+      <sparkle:shortVersionString>1.1.90</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.89</h2>
+        <h2>OpenClaw Helper 1.1.90</h2>
         <ul>
-          <li>打开新版即可把本机 OpenClaw 安全升到 2026.7.1-2；旧配置先迁移，过不了门禁不停现网网关。</li>
+          <li>桌面会话不再因空闲而忘记上次在聊什么；打开或发送时自动对齐网关历史。</li>
         </ul>
       ]]></description>
-      <pubDate>Fri, 28 Aug 2026 18:21:38 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.89/GetClawHub.dmg"
-                 length="237323756"
+      <pubDate>Sun, 30 Aug 2026 08:51:32 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.90/GetClawHub.dmg"
+                 length="237864744"
                  type="application/octet-stream"
-                 sparkle:edSignature="i+1uoqITi3bRafD8pcfW2NwuLXP8MlgEQfO6ZgN8iz1h1Rip3gIhDnyi16rKMjnVoqkmDnXCsGmZ7N2szOJ1Dg==" />
+                 sparkle:edSignature="pyDPnVY9UnaB97PZ9N1GwfY9Jeiy+1RhcmigLHNIwYt3Yw3VGJscu0XMRkxMyua2oHp28hLA3GIYCPNeE85kDw==" />
     </item>
   </channel>
 </rss>
