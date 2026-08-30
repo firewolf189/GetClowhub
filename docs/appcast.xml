@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.90</title>
-      <sparkle:version>99</sparkle:version>
-      <sparkle:shortVersionString>1.1.90</sparkle:shortVersionString>
+      <title>Version 1.1.91</title>
+      <sparkle:version>100</sparkle:version>
+      <sparkle:shortVersionString>1.1.91</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.90</h2>
+        <h2>OpenClaw Helper 1.1.91</h2>
         <ul>
-          <li>桌面会话不再因空闲而忘记上次在聊什么；打开或发送时自动对齐网关历史。</li>
+          <li>发送消息时不再因扫网关历史而白屏；对账改到后台，忽略 trajectory 大文件。</li>
         </ul>
       ]]></description>
-      <pubDate>Sun, 30 Aug 2026 08:51:32 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.90/GetClawHub.dmg"
-                 length="237864744"
+      <pubDate>Sun, 30 Aug 2026 22:42:26 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.91/GetClawHub.dmg"
+                 length="239635453"
                  type="application/octet-stream"
-                 sparkle:edSignature="pyDPnVY9UnaB97PZ9N1GwfY9Jeiy+1RhcmigLHNIwYt3Yw3VGJscu0XMRkxMyua2oHp28hLA3GIYCPNeE85kDw==" />
+                 sparkle:edSignature="WrBmf+O8uhWioj1nb+04lrnVAZ34U04tai5D8+gecJI0UDpO74Fr+Cb7F0T0NC0+LaIThYD4bF4whb2izCdyDg==" />
     </item>
   </channel>
 </rss>
