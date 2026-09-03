@@ -130,6 +130,8 @@
 		GWFAIL00000000000000001 /* GatewayFailureReasonParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = GWFAIL00000000000000002 /* GatewayFailureReasonParser.swift */; };
 		COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */; };
 		COREUPGRADE000000000007 /* OpenClawUpgradeReadiness.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000008 /* OpenClawUpgradeReadiness.swift */; };
+		POSTINST00000000000001 /* OpenClawPostInstallLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = POSTINST00000000000002 /* OpenClawPostInstallLaunch.swift */; };
+		COREPOL000000000000001 /* OpenClawCoreUpgradePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = COREPOL000000000000002 /* OpenClawCoreUpgradePolicy.swift */; };
 		COREUPGRADE000000000005 /* openclaw-core-version.json in Resources */ = {isa = PBXBuildFile; fileRef = COREUPGRADE000000000006 /* openclaw-core-version.json */; };
 		CS01AA01D1E2F3A4B5C60001 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */; };
 		CS01AA03D1E2F3A4B5C60003 /* ChatSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */; };
@@ -333,6 +335,8 @@
 		GWFAIL00000000000000002 /* GatewayFailureReasonParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Command/GatewayFailureReasonParser.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawCoreUpgradeCoordinator.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000008 /* OpenClawUpgradeReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawUpgradeReadiness.swift"; sourceTree = SOURCE_ROOT; };
+		POSTINST00000000000002 /* OpenClawPostInstallLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawPostInstallLaunch.swift"; sourceTree = SOURCE_ROOT; };
+		COREPOL000000000000002 /* OpenClawCoreUpgradePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Core/Update/OpenClawCoreUpgradePolicy.swift"; sourceTree = SOURCE_ROOT; };
 		COREUPGRADE000000000006 /* openclaw-core-version.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "openclaw-core-version.json"; sourceTree = "<group>"; };
 		CS01AA02D1E2F3A4B5C60002 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Models/ChatSession.swift"; sourceTree = SOURCE_ROOT; };
 		CS01AA04D1E2F3A4B5C60004 /* ChatSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OpenClawInstaller/Features/Sessions/Services/ChatSessionStore.swift"; sourceTree = SOURCE_ROOT; };
@@ -513,6 +517,8 @@
 				3564102B2F5802970045A6F7 /* OpenClawInstaller.swift */,
 					COREUPGRADE000000000004 /* OpenClawCoreUpgradeCoordinator.swift */,
 					COREUPGRADE000000000008 /* OpenClawUpgradeReadiness.swift */,
+					POSTINST00000000000002 /* OpenClawPostInstallLaunch.swift */,
+					COREPOL000000000000002 /* OpenClawCoreUpgradePolicy.swift */,
 					3564102C2F5802970045A6F7 /* OpenClawService.swift */,
 					FR01AB02C2D3E4F5A6B70002 /* OpenClawServiceForceRepair.swift */,
 					SGR1AB02C2D3E4F5A6B70002 /* SafeGatewayRepair.swift */,
@@ -926,6 +932,8 @@
 				GWFAIL00000000000000001 /* GatewayFailureReasonParser.swift in Sources */,
 				COREUPGRADE000000000003 /* OpenClawCoreUpgradeCoordinator.swift in Sources */,
 				COREUPGRADE000000000007 /* OpenClawUpgradeReadiness.swift in Sources */,
+				POSTINST00000000000001 /* OpenClawPostInstallLaunch.swift in Sources */,
+				COREPOL000000000000001 /* OpenClawCoreUpgradePolicy.swift in Sources */,
 				APPA0000000000000001 /* AppAppearance.swift in Sources */,
 				356410502F5802970045A6F7 /* NodeInstaller.swift in Sources */,
 				356410512F5802970045A6F7 /* ContentView.swift in Sources */,

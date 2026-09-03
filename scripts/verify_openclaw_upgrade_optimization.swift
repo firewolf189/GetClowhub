@@ -107,8 +107,9 @@ require(
 require(
     readiness.contains("remainingBlockersOnDisk")
         && readiness.contains("update-check.json still present alongside shared SQLite state")
-        && readiness.contains("incomplete TypeScript-only plugin still on disk"),
-    "leftover update-check and incomplete plugins must block on disk facts after migration"
+        && readiness.contains("incomplete TypeScript-only plugin still on disk")
+        && readiness.contains("duplicate loadable plugin still on disk"),
+    "leftover update-check, incomplete plugins, and duplicate plugin trees must block on disk facts after migration"
 )
 require(
     !readiness.contains("if lower.contains(\"is invalid\")"),
@@ -143,6 +144,36 @@ require(gateIdx < diskIdx && diskIdx < stopIdx, "phrase gate -> disk leftover ch
 require(
     coordinator.contains("Files rolled back, service did not recover"),
     "rollback must say when the restored gateway did not come back"
+)
+let postInstall = read("OpenClawInstaller/Core/Update/OpenClawPostInstallLaunch.swift")
+require(
+    postInstall.contains("enum OpenClawPostInstallLaunchPolicy")
+        && postInstall.contains("static func decide(serving: Bool, launchdPid: Int?)")
+        && postInstall.contains("static func launchdPid(fromListOutput"),
+    "install --force is not 'process running'; spawn is decided from serving + launchd PID"
+)
+require(
+    coordinator.contains("ensureGatewayProcessAfterInstall")
+        && coordinator.contains("Post-install LaunchAgent has no process; kickstarting"),
+    "a loaded LaunchAgent with no PID after swap must kickstart"
+)
+require(
+    coordinator.contains("waiting instead of restarting (avoids first-boot migration race)"),
+    "a live PID that has not bound /health must wait, not gateway restart"
+)
+require(
+    project.contains("OpenClawPostInstallLaunch.swift in Sources"),
+    "OpenClawPostInstallLaunch.swift must be compiled into the app"
+)
+require(
+    project.contains("OpenClawCoreUpgradePolicy.swift in Sources"),
+    "OpenClawCoreUpgradePolicy.swift must be compiled into the app"
+)
+require(
+    readiness.contains("Quarantined duplicate plugin")
+        && readiness.contains("duplicate loadable plugin still on disk")
+        && readiness.contains("uniquePluginDirs"),
+    "duplicate loadable plugin trees must be quarantined, de-duplicated by path, and still block if leftovers remain"
 )
 require(
     coordinator.contains("upgrade gate blocked"),

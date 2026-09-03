@@ -232,31 +232,55 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                 return
             }
 
-            let installedVersion = await installedOpenClawVersion()
-            // Neither the manifest on disk nor the CLI could say what is
-            // installed. Upgrading on that basis means swapping the core (and
-            // dropping the gateway for minutes) without knowing whether there is
-            // anything to gain — so leave the machine alone and say why.
-            guard installedVersion != nil else {
-                appendLog("Cannot determine the installed OpenClaw version; skipping the core upgrade rather than swapping blind")
-                state = .idle
-                progress = 0
+            var runningVersion = await runningOpenClawVersion()
+            var serving = await gatewayIsServing()
+            switch OpenClawCoreUpgradePolicy.eligibility(
+                runningVersion: runningVersion,
+                bundledVersion: manifest.openclawVersion,
+                gatewayServing: serving,
+                force: force
+            ) {
+            case .skip(let reason):
+                appendLog(reason)
+                if runningVersion != nil,
+                   OpenClawVersionComparator.compare(runningVersion ?? "", manifest.openclawVersion) != .orderedAscending {
+                    state = .upToDate(runningVersion ?? "unknown")
+                    progress = 1
+                } else {
+                    state = .idle
+                    progress = 0
+                }
                 return
+            case .proceed:
+                break
             }
+
+            if !force {
+                appendLog("Waiting for idle window before considering a 6.10 -> bundled core swap")
+                try await Task.sleep(nanoseconds: 60_000_000_000)
+                runningVersion = await runningOpenClawVersion()
+                serving = await gatewayIsServing()
+                if case .skip(let reason) = OpenClawCoreUpgradePolicy.eligibility(
+                    runningVersion: runningVersion,
+                    bundledVersion: manifest.openclawVersion,
+                    gatewayServing: serving,
+                    force: false
+                ) {
+                    appendLog(reason)
+                    state = .idle
+                    progress = 0
+                    return
+                }
+            }
+
+            appendLog("Running OpenClaw core is \(runningVersion ?? "unknown"); bundled target is \(manifest.openclawVersion)")
+
             let plan = OpenClawCoreUpgradePlan(
-                installedVersion: installedVersion,
+                installedVersion: runningVersion,
                 targetVersion: manifest.openclawVersion,
                 bundleName: manifest.bundleName
             )
             lastPlan = plan
-
-            guard plan.requiresUpgrade else {
-                let version = installedVersion ?? "unknown"
-                appendLog("OpenClaw core \(version) is already current for bundled \(manifest.openclawVersion)")
-                state = .upToDate(version)
-                progress = 1
-                return
-            }
 
             if !force, let memory = loadFailureMemory(),
                memory.blocksRetry(
@@ -275,7 +299,7 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
             }
 
             state = .upgrading(manifest.openclawVersion)
-            appendLog("Upgrading OpenClaw core from \(installedVersion ?? "none") to \(manifest.openclawVersion)")
+            appendLog("Upgrading OpenClaw core from \(runningVersion ?? "none") to \(manifest.openclawVersion)")
 
             let migration = OpenClawUpgradeReadiness.migrateLegacyState(homeDir: homeDir, fileManager: fileManager)
             if migration.actions.isEmpty {
@@ -365,18 +389,11 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
                 progress = 0.78
                 await runPostUpgradeDoctor()
                 progress = 0.86
-                // install --force already loaded/started the agent. Calling
-                // start() again re-runs install/restart and races the new
-                // core's first-boot startup-migrations lock (2026-08-26).
+                // install --force rewrites the LaunchAgent. It does not mean a
+                // process is running. Kickstart only when launchd has no PID so
+                // first-boot migrations are not raced (2026-08-26).
+                await ensureGatewayProcessAfterInstall()
                 appendLog("Gateway start window elapsed; extending wait for first-boot migration")
-                // Whether or not start() reported success, the upgrade is only
-                // real once the gateway ANSWERS. start()/checkStatus() lean on
-                // `launchctl`, which reports `state = running` for a job that
-                // spawns, fails to bind and gets respawned — so a crash-looping
-                // gateway used to be declared a successful upgrade and the
-                // rollback below never ran (measured on 192.168.80.76: the port
-                // was held by another process for the whole window and the
-                // upgrade still "succeeded").
                 try await waitForGatewayReady(timeoutSeconds: 300)
                 await openclawService.fetchVersion()
                 clearInflightMarker()
@@ -442,36 +459,46 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         return url
     }
 
-    /// Installed version, read from DISK first.
-    ///
-    /// `openclaw --version` is unreliable exactly when this matters: it comes
-    /// back nil during a cold start, while the gateway is booted out, or right
-    /// after an interrupted attempt (measured repeatedly on 2026-07-28). A nil
-    /// used to mean "older than the bundle" — so a machine ALREADY on the target
-    /// version got a full stop-swap-reinstall cycle, i.e. a needless gateway
-    /// outage. The package manifest is authoritative and does not care what the
-    /// process state is.
-    private func installedOpenClawVersion() async -> String? {
-        if let version = installedCoreVersionFromDisk() {
+    /// Version of the core that is actually running the gateway.
+    /// LaunchAgent ProgramArguments first, then the process listening on the
+    /// gateway port. Do not use ~/.npm-global alone — that copy can be 7.1-2
+    /// while the live gateway is 8.2.
+    private func runningOpenClawVersion() async -> String? {
+        if let dir = OpenClawRunningCoreLocator.packageDirectoryFromLaunchAgent(
+            homeDir: homeDir,
+            fileManager: fileManager
+        ), let version = OpenClawRunningCoreLocator.version(atPackageDirectory: dir, fileManager: fileManager) {
             return version
         }
-        guard let raw = await commandExecutor.getCommandVersion("openclaw", versionArg: "--version")?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        else {
-            return nil
+        if let version = await runningCoreVersionFromListeningProcess() {
+            return version
         }
-        return OpenClawVersionComparator.extractVersionString(raw)
+        return nil
     }
 
-    private func installedCoreVersionFromDisk() -> String? {
-        let packageJSON = installedCoreDir.appendingPathComponent("package.json")
-        guard let data = try? Data(contentsOf: packageJSON),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let version = root["version"] as? String,
-              !version.isEmpty else {
+    private func runningCoreVersionFromListeningProcess() async -> String? {
+        let port = gatewayPort()
+        guard let pidLine = try? await runShell(
+            "lsof -nP -iTCP:\(port) -sTCP:LISTEN -t 2>/dev/null | head -n 1",
+            timeout: 5
+        ) else {
             return nil
         }
-        return version
+        let pid = pidLine.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !pid.isEmpty, let args = try? await runShell("ps -p \(pid) -o args=", timeout: 5) else {
+            return nil
+        }
+        let arguments = args
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0 == " " || $0 == "\t" })
+            .map(String.init)
+        guard let dir = OpenClawRunningCoreLocator.packageDirectory(
+            containingOpenClawPathIn: arguments,
+            fileManager: fileManager
+        ) else {
+            return nil
+        }
+        return OpenClawRunningCoreLocator.version(atPackageDirectory: dir, fileManager: fileManager)
     }
 
     /// Staged-core pre-check used by the upgrade gate.
@@ -804,15 +831,39 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// After `install --force`: spawn only if launchd has no PID.
+    private func ensureGatewayProcessAfterInstall() async {
+        let serving = await gatewayIsServing()
+        let pid = await launchdGatewayPid()
+        switch OpenClawPostInstallLaunchPolicy.decide(serving: serving, launchdPid: pid) {
+        case .alreadyServing:
+            appendLog("Post-install gateway already answering on port \(gatewayPort()); skip kickstart")
+        case .waitForExistingProcess(let existingPid):
+            appendLog("Post-install LaunchAgent has PID \(existingPid) but is not serving yet; waiting instead of restarting (avoids first-boot migration race)")
+        case .kickstart:
+            appendLog("Post-install LaunchAgent has no process; kickstarting via OpenClawService.start()")
+            do {
+                try await openclawService.start()
+            } catch {
+                appendLog("Post-install kickstart returned: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func launchdGatewayPid() async -> Int? {
+        let output = try? await runShell(
+            "launchctl list \(Self.launchAgentLabel) 2>&1 || launchctl print gui/$(id -u)/\(Self.launchAgentLabel) 2>&1 || true",
+            timeout: 5
+        )
+        return OpenClawPostInstallLaunchPolicy.launchdPid(fromListOutput: output)
+    }
+
     private func installGateway() async throws {
         appendLog("Reinstalling OpenClaw gateway with upgraded core")
         let nodePath = "\(homeDir)/.openclaw/node/bin/node"
         let openclawPath = installedBinLink.path
-        // --force: after the core swap the LaunchAgent is still loaded from
-        // the previous install, and a plain `gateway install` just prints
-        // "already loaded — reinstall with --force" WITHOUT starting anything.
-        // The subsequent health wait then times out and the whole upgrade
-        // rolls back (observed live on the 6.10 -> 7.1 upgrade).
+        // --force rewrites a still-loaded LaunchAgent. Process spawn is
+        // ensureGatewayProcessAfterInstall(), not this command.
         let command: String
         if fileManager.isExecutableFile(atPath: nodePath) {
             command = "'\(nodePath)' '\(openclawPath)' gateway install --force 2>&1"

@@ -143,6 +143,23 @@ enum OpenClawUpgradeReadiness {
                 }
             }
         }
+
+        if let root = readJSON(at: configURL(homeDir: homeDir)),
+           let plugins = root["plugins"] as? [String: Any],
+           let entries = plugins["entries"] as? [String: Any] {
+            for id in entries.keys {
+                let loadable = uniquePluginDirs(
+                    resolvePluginDirs(id: id, homeDir: homeDir, fileManager: fileManager)
+                        .filter { hasCompiledRuntime(at: $0, fileManager: fileManager) }
+                )
+                if loadable.count > 1 {
+                    let key = "duplicate:\(id)"
+                    if seen.insert(key).inserted {
+                        blockers.append("duplicate loadable plugin still on disk: \(id)")
+                    }
+                }
+            }
+        }
         return blockers
     }
 
@@ -253,8 +270,46 @@ enum OpenClawUpgradeReadiness {
             root["plugins"] = plugins
         }
 
+        if isolateDuplicatePluginPackages(homeDir: homeDir, fileManager: fileManager, quarantine: quarantine, report: &report) {
+            changed = true
+        }
+
         guard changed else { return false }
         return writeJSON(root, to: url, fileManager: fileManager)
+    }
+
+    /// Keep one loadable tree per plugin id; extra copies go to quarantine.
+    @discardableResult
+    private static func isolateDuplicatePluginPackages(
+        homeDir: String,
+        fileManager: FileManager,
+        quarantine: URL,
+        report: inout OpenClawUpgradeMigrationReport
+    ) -> Bool {
+        guard let root = readJSON(at: configURL(homeDir: homeDir)),
+              let plugins = root["plugins"] as? [String: Any],
+              let entries = plugins["entries"] as? [String: Any] else {
+            return false
+        }
+        var changed = false
+        try? fileManager.createDirectory(at: quarantine, withIntermediateDirectories: true)
+        for id in entries.keys {
+            let loadable = uniquePluginDirs(
+                resolvePluginDirs(id: id, homeDir: homeDir, fileManager: fileManager)
+                    .filter { hasCompiledRuntime(at: $0, fileManager: fileManager) }
+            )
+            guard loadable.count > 1 else { continue }
+            for extra in loadable.dropFirst() {
+                let dest = quarantine.appendingPathComponent("duplicate-\(id)-\(extra.lastPathComponent)")
+                try? fileManager.removeItem(at: dest)
+                try? fileManager.moveItem(at: extra, to: dest)
+                if !fileManager.fileExists(atPath: extra.path) {
+                    report.actions.append("Quarantined duplicate plugin \(id) at \(extra.path)")
+                    changed = true
+                }
+            }
+        }
+        return changed
     }
 
     private static func isolateMismatchedLegacyBin(
@@ -292,7 +347,19 @@ enum OpenClawUpgradeReadiness {
                 candidates.append(contentsOf: kids.filter { $0.lastPathComponent.contains(id) })
             }
         }
-        return candidates.filter { fileManager.fileExists(atPath: $0.path) }
+        return uniquePluginDirs(candidates.filter { fileManager.fileExists(atPath: $0.path) })
+    }
+
+    private static func uniquePluginDirs(_ dirs: [URL]) -> [URL] {
+        var seen = Set<String>()
+        var unique: [URL] = []
+        for dir in dirs {
+            let path = dir.standardizedFileURL.path
+            if seen.insert(path).inserted {
+                unique.append(dir)
+            }
+        }
+        return unique
     }
 
     private static func hasCompiledRuntime(at pluginDir: URL, fileManager: FileManager) -> Bool {

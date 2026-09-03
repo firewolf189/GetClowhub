@@ -53,6 +53,8 @@ let manifestModel = read(manifestModelURL)
 let coordinator = read(coordinatorURL)
 let app = read(appURL)
 let release = read(releaseURL)
+let policyURL = root.appendingPathComponent("OpenClawInstaller/Core/Update/OpenClawCoreUpgradePolicy.swift")
+let policy = read(policyURL)
 
 let manifestData = try Data(contentsOf: manifestURL)
 let manifestJSON = try JSONSerialization.jsonObject(with: manifestData) as? [String: Any]
@@ -99,8 +101,11 @@ let waitIndex = upgradeBlock.range(of: "waitForGatewayReady")?.lowerBound
 require(stopIndex != nil && stageIndex != nil && verifyIndex != nil && swapIndex != nil && installIndex != nil && waitIndex != nil, "upgrade flow should call all major steps")
 // Reordered 2026-07-28: staging and vetting moved AHEAD of the stop, so a core
 // that rejects this machine's config never costs the user their gateway.
-// 2026-08-26: do not call start() after install --force; wait for /health only.
-require(stageIndex! < verifyIndex! && verifyIndex! < stopIndex! && stopIndex! < swapIndex! && swapIndex! < installIndex! && installIndex! < waitIndex!, "upgrade flow should stage -> verify -> stop -> swap -> gateway install -> health wait")
+// 2026-09-02: install --force is not "process running". Kickstart only when
+// launchd has no PID; a live PID waits for /health (2026-08-26 migration race).
+let kickstartIndex = upgradeBlock.range(of: "ensureGatewayProcessAfterInstall")?.lowerBound
+require(kickstartIndex != nil, "post-swap must decide whether launchd actually spawned a process")
+require(stageIndex! < verifyIndex! && verifyIndex! < stopIndex! && stopIndex! < swapIndex! && swapIndex! < installIndex! && installIndex! < kickstartIndex! && kickstartIndex! < waitIndex!, "upgrade flow should stage -> verify -> stop -> swap -> gateway install -> PID kickstart -> health wait")
 
 // --- Readiness must come from the GATEWAY, not from launchd ---
 // Measured on 192.168.80.76 (2026-07-28): with another process holding
@@ -132,17 +137,35 @@ require(
 )
 let upgradeBody = block(startingWith: "private func performUpgradeBody", in: coordinator)
 guard let installRange = upgradeBody.range(of: "try await installGateway()"),
+      let ensureRange = upgradeBody.range(of: "await ensureGatewayProcessAfterInstall()"),
       let waitRange = upgradeBody.range(of: "try await waitForGatewayReady(timeoutSeconds: 300)") else {
-    fputs("FAIL: could not locate install/wait in the upgrade body\n", stderr)
+    fputs("FAIL: could not locate install/ensure-process/wait in the upgrade body\n", stderr)
     exit(1)
 }
 require(
-    installRange.upperBound < waitRange.lowerBound,
-    "the readiness wait must run AFTER install --force, without a second start()/restart"
+    installRange.upperBound < ensureRange.lowerBound && ensureRange.upperBound < waitRange.lowerBound,
+    "PID kickstart must run AFTER install --force and BEFORE the /health wait"
 )
 require(
     !upgradeBody.contains("try await openclawService.start()"),
-    "post-swap start() re-runs install/restart and races first-boot migrations"
+    "performUpgradeBody must not call start() directly — that races first-boot migrations when a PID already exists"
+)
+let ensureBlock = block(startingWith: "private func ensureGatewayProcessAfterInstall", in: coordinator)
+require(
+    ensureBlock.contains("OpenClawPostInstallLaunchPolicy.decide") && ensureBlock.contains("launchdPid"),
+    "post-swap spawn must use the PID/serving decision, not health-alone"
+)
+require(
+    ensureBlock.contains("try await openclawService.start()"),
+    "no-PID after install must kickstart through OpenClawService.start()"
+)
+require(
+    coordinator.contains("Post-install LaunchAgent has no process; kickstarting"),
+    "plist installed with no PID must be logged as a kickstart"
+)
+require(
+    coordinator.contains("waiting instead of restarting (avoids first-boot migration race)"),
+    "a live PID that is not serving yet must wait, not restart"
 )
 require(
     coordinator.contains("private static func describeLaunchctl"),
@@ -180,12 +203,28 @@ require(
 // is booted out; nil used to compare as older than the bundle, so a machine
 // ALREADY on the target version got a full stop-swap-reinstall cycle.
 require(
-    coordinator.contains("private func installedCoreVersionFromDisk"),
-    "the installed version should be read from the package manifest, which does not depend on process state"
+    coordinator.contains("runningOpenClawVersion")
+        && coordinator.contains("OpenClawRunningCoreLocator")
+        && coordinator.contains("OpenClawCoreUpgradePolicy.eligibility"),
+    "eligibility must use the running gateway core, not ~/.npm-global alone"
+)
+guard let eligibilityIdx = upgradeBody.range(of: "OpenClawCoreUpgradePolicy.eligibility")?.lowerBound,
+      let idleWaitIdx = upgradeBody.range(of: "Waiting for idle window before considering a 6.10 -> bundled core swap")?.lowerBound else {
+    fputs("FAIL: could not locate eligibility / idle-wait in the upgrade body\n", stderr)
+    exit(1)
+}
+require(
+    eligibilityIdx < idleWaitIdx,
+    "60s idle wait is only for a confirmed 6.10 swap; 8.2 must skip before waiting"
 )
 require(
-    coordinator.contains("Cannot determine the installed OpenClaw version; skipping"),
-    "with no readable version at all, skip rather than swap blind"
+    coordinator.contains("Waiting for idle window before considering a 6.10 -> bundled core swap"),
+    "automatic swap must not run at app-open; wait for an idle window first"
+)
+require(
+    coordinator.contains("only that source is in scope")
+        || policy.contains("only that source is in scope"),
+    "only 2026.6.10 may move to bundled 7.1-2"
 )
 
 // --- Ask the NEW core before committing to it ---
