@@ -265,6 +265,19 @@ require(
     "disk leftover check must run after the staged-core gate and before stopping the gateway"
 )
 require(
+    body.contains("dropMissingPluginInstallRecords"),
+    "after stop, sqlite install records pointing at gone plugin dirs must be dropped so 7.1 does not refuse ready"
+)
+guard let dropRecordsIdx = body.range(of: "dropMissingPluginInstallRecords")?.lowerBound,
+      let swapAfterDropIdx = body.range(of: "swapStagedOpenClawIntoPlace")?.lowerBound else {
+    fputs("FAIL: could not locate dropMissingPluginInstallRecords relative to swap\n", stderr)
+    exit(1)
+}
+require(
+    stopIdx < dropRecordsIdx && dropRecordsIdx < swapAfterDropIdx,
+    "missing plugin install records must be dropped after stop and before swap"
+)
+require(
     coordinator.contains("OPENCLAW_CONFIG_PATH") && coordinator.contains("writeConfigForStagedGate"),
     "staged-core gate must validate a DingTalk-stripped copy, not rewrite live openclaw.json first"
 )

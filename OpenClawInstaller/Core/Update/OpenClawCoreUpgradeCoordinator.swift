@@ -376,6 +376,13 @@ final class OpenClawCoreUpgradeCoordinator: ObservableObject {
 
             try await stopGatewayIfRunning()
             progress = 0.55
+            let droppedInstallRecords = OpenClawUpgradeReadiness.dropMissingPluginInstallRecords(
+                homeDir: homeDir,
+                fileManager: fileManager
+            )
+            if !droppedInstallRecords.isEmpty {
+                appendLog("Dropped plugin install records whose directories are gone: \(droppedInstallRecords.joined(separator: ", "))")
+            }
 
             let backup = try swapStagedOpenClawIntoPlace(stagedInstallDir)
             writeInflightMarker(target: manifest.openclawVersion, backupRoot: backup.root)

@@ -176,6 +176,29 @@ require(
     "duplicate loadable plugin trees must be quarantined, de-duplicated by path, and still block if leftovers remain"
 )
 require(
+    readiness.contains("dropMissingInstallRecords")
+        && readiness.contains("dropMissingPluginInstallRecords")
+        && readiness.contains("missing-package-dir")
+        && !readiness.contains("DROP TABLE"),
+    "quarantined or deleted plugin dirs must drop their sqlite install records; do not move the whole state database"
+)
+require(
+    coordinator.contains("dropMissingPluginInstallRecords")
+        && coordinator.contains("Dropped plugin install records whose directories are gone"),
+    "missing install records must be dropped after the gateway is stopped, before the core swap"
+)
+let dropBody = block(startingWith: "private func performUpgradeBody", in: coordinator)
+guard let stopForDrop = dropBody.range(of: "stopGatewayIfRunning")?.lowerBound,
+      let dropIdx = dropBody.range(of: "dropMissingPluginInstallRecords")?.lowerBound,
+      let swapForDrop = dropBody.range(of: "swapStagedOpenClawIntoPlace")?.lowerBound else {
+    fputs("FAIL: missing stop/drop-install-records/swap ordering\n", stderr)
+    exit(1)
+}
+require(
+    stopForDrop < dropIdx && dropIdx < swapForDrop,
+    "sqlite install-record cleanup must run after stop and before swap so 7.1 cannot smoke-check a missing package dir"
+)
+require(
     coordinator.contains("upgrade gate blocked"),
     "a blocked gate must fail the attempt without swapping"
 )

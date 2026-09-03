@@ -85,6 +85,64 @@ enum OpenClawUpgradeReadiness {
         return report
     }
 
+    /// 2026.7.x startup migrations refuse ready when `installed_plugin_index`
+    /// still points at a directory that was quarantined or deleted
+    /// (`missing-package-dir`). Drop those records only — never move the
+    /// whole SQLite file.
+    static func dropMissingInstallRecords(
+        _ records: [String: Any],
+        pathExists: (String) -> Bool
+    ) -> (records: [String: Any], dropped: [String]) {
+        var kept: [String: Any] = [:]
+        var dropped: [String] = []
+        for (id, value) in records {
+            guard let entry = value as? [String: Any] else {
+                kept[id] = value
+                continue
+            }
+            guard let path = entry["installPath"] as? String, !path.isEmpty else {
+                kept[id] = entry
+                continue
+            }
+            if pathExists(path) {
+                kept[id] = entry
+            } else {
+                dropped.append(id)
+            }
+        }
+        return (kept, dropped.sorted())
+    }
+
+    /// Apply `dropMissingInstallRecords` to `state/openclaw.sqlite`.
+    /// Call after the gateway is stopped so the WAL is not held.
+    @discardableResult
+    static func dropMissingPluginInstallRecords(
+        homeDir: String,
+        fileManager: FileManager = .default
+    ) -> [String] {
+        let db = sqliteURL(homeDir: homeDir)
+        guard fileManager.fileExists(atPath: db.path) else { return [] }
+        guard let raw = sqliteText(
+            database: db,
+            sql: "SELECT install_records_json FROM installed_plugin_index LIMIT 1;"
+        ), let data = raw.data(using: .utf8),
+           let records = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return []
+        }
+        let result = dropMissingInstallRecords(records) { path in
+            fileManager.fileExists(atPath: path)
+        }
+        guard !result.dropped.isEmpty else { return [] }
+        guard let payload = try? JSONSerialization.data(withJSONObject: result.records),
+              let json = String(data: payload, encoding: .utf8) else {
+            return []
+        }
+        let escaped = json.replacingOccurrences(of: "'", with: "''")
+        let sql = "UPDATE installed_plugin_index SET install_records_json = '\(escaped)';"
+        guard sqliteExec(database: db, sql: sql) else { return [] }
+        return result.dropped
+    }
+
     static func evaluateGate(
         output: String?,
         checkRan: Bool,
@@ -445,4 +503,38 @@ enum OpenClawUpgradeReadiness {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { $0.lowercased().contains(phrase) }
     }
+
+    private static func sqliteText(database: URL, sql: String) -> String? {
+        sqliteOutput(database: database, sql: sql)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+    }
+
+    @discardableResult
+    private static func sqliteExec(database: URL, sql: String) -> Bool {
+        sqliteOutput(database: database, sql: sql) != nil
+    }
+
+    private static func sqliteOutput(database: URL, sql: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        process.arguments = ["-noheader", "-batch", database.path, sql]
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardOutput = stdout
+        process.standardError = stderr
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return nil
+        }
+        guard process.terminationStatus == 0 else { return nil }
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
