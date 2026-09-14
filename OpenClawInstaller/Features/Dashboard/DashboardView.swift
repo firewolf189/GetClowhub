@@ -270,6 +270,13 @@ struct DashboardView: View {
                 await recommendedPluginBootstrapper.bootstrapRecommendedPluginsIfNeeded()
             }
         }
+        #if REQUIRE_LOGIN
+        .onChange(of: viewModel.membershipManager?.syncState) { _, state in
+            guard state == .synced else { return }
+            viewModel.refreshAvailableModelsForCurrentProvider()
+            Task { await viewModel.loadModelsForSettings() }
+        }
+        #endif
         .onDisappear {
             viewModel.openclawService.stopMonitoring()
         }

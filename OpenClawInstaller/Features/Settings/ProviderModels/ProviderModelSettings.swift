@@ -20,7 +20,11 @@ extension DashboardViewModel {
         let models = SubAgentsViewModel.parseModelList(output: output)
         let scopedModels = modelsForActiveProvider(from: models)
         availableModelGroups = mergeModelGroups(base: localGroups, overlay: models)
-        let activeProviderModels = mergeModelOptions(base: localModels, overlay: scopedModels)
+        let activeProviderModels = mergeModelOptions(
+            base: localModels,
+            overlay: scopedModels,
+            appendUnknown: activeModelProviderKey() != "getclawhub"
+        )
         availableModelsForSettings = flattenModelGroups(availableModelGroups).isEmpty
             ? activeProviderModels
             : flattenModelGroups(availableModelGroups)
@@ -165,12 +169,16 @@ extension DashboardViewModel {
             return ProviderModelGroup(
                 providerKey: group.providerKey,
                 displayName: group.displayName,
-                models: mergeModelOptions(base: group.models, overlay: matchingOverlay)
+                models: mergeModelOptions(
+                    base: group.models,
+                    overlay: matchingOverlay,
+                    appendUnknown: group.providerKey != "getclawhub"
+                )
             )
         }
     }
 
-    private func mergeModelOptions(base: [ModelOption], overlay: [ModelOption]) -> [ModelOption] {
+    private func mergeModelOptions(base: [ModelOption], overlay: [ModelOption], appendUnknown: Bool = true) -> [ModelOption] {
         guard !overlay.isEmpty else { return dedupeModelOptions(base) }
 
         let overlayById = Dictionary(uniqueKeysWithValues: overlay.map { ($0.id, $0) })
@@ -183,8 +191,10 @@ extension DashboardViewModel {
                 runtimeId: baseModel.runtimeId
             )
         }
-        let baseIds = Set(base.map(\.id))
-        result.append(contentsOf: overlay.filter { !baseIds.contains($0.id) })
+        if appendUnknown {
+            let baseIds = Set(base.map(\.id))
+            result.append(contentsOf: overlay.filter { !baseIds.contains($0.id) })
+        }
         return dedupeModelOptions(result)
     }
 

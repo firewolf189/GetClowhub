@@ -18,45 +18,19 @@ enum MembershipLevel: String, Codable {
         }
     }
 
-    /// 本地预设模型列表（当后端未返回时的 fallback）
+    /// Official GetClawHub models this Mac client exposes for the tier.
+    /// Free/Pro: DeepSeek + Qwen only. Max adds kimi-k3.
     var defaultModels: [String] {
+        let deepseekAndQwen = [
+            "deepseek-v4-pro", "deepseek-v4-flash",
+            "qwen3.6-flash", "qwen3.6-plus",
+            "qwen3.7-plus", "qwen3.7-max",
+        ]
         switch self {
-        case .free:
-            return [
-                "deepseek-v4-pro", "qwen3.6-flash",
-                "doubao-seed-2.0-lite", "minimax-m2.7",
-            ]
-        case .pro:
-            return [
-                "deepseek-v4-pro", "deepseek-v4-flash",
-                "qwen3.6-plus", "minimax-m2.7-highspeed",
-                "glm-5.1", "glm-5v-turbo",
-                "kimi-k2.6", "kimi-k2.5",
-                "doubao-seed-2.0-pro", "doubao-seed-code",
-                "ernie-x1.1-preview",
-                "gemini-2.5-flash-lite", "gemini-3.1-pro-preview",
-                "grok-4.1-fast",
-                "claude-sonnet-4.6", "claude-haiku-4.5",
-                // 2026-06 catalog upgrade (additive; mirrors server pro plan)
-                "qwen3.7-plus", "gemini-3.1-flash-lite", "gemini-3.5-flash",
-                "grok-4.3", "minimax-m3",
-            ]
+        case .free, .pro:
+            return deepseekAndQwen
         case .max:
-            return [
-                "deepseek-v4-pro", "deepseek-v4-flash",
-                "qwen3.6-plus", "minimax-m2.7-highspeed",
-                "glm-5.1", "glm-5v-turbo",
-                "kimi-k2.6", "kimi-k2.5",
-                "doubao-seed-2.0-pro", "doubao-seed-code",
-                "ernie-x1.1-preview",
-                "gemini-2.5-flash-lite", "gemini-3.1-pro-preview",
-                "grok-4.1-fast",
-                "claude-opus-4.7", "claude-opus-4.6", "claude-sonnet-4.6", "claude-haiku-4.5",
-                "gpt-5.5",
-                // 2026-06 catalog upgrade (additive; mirrors server max plan)
-                "qwen3.7-plus", "qwen3.7-max", "gemini-3.1-flash-lite", "gemini-3.5-flash",
-                "grok-4.3", "minimax-m3", "claude-opus-4.8", "kimi-k2.7-code", "gpt-5.5-pro",
-            ]
+            return deepseekAndQwen + ["kimi-k3"]
         }
     }
 }
@@ -273,8 +247,9 @@ class MembershipManager: ObservableObject {
                 }
 
                 let models = membershipDict["models"] as? [String] ?? []
-                // Fallback: use level's default models if backend didn't return any
-                let finalModels = models.isEmpty ? level.defaultModels : models
+                let cap = Set(level.defaultModels.map { $0.lowercased() })
+                let source = models.isEmpty ? level.defaultModels : models
+                let finalModels = source.filter { cap.contains($0.lowercased()) }
                 let maxBudget = membershipDict["max_budget"] as? Double ?? 0
                 let rpmLimit = membershipDict["rpm_limit"] as? Int ?? 0
                 let maxKeys = membershipDict["max_keys"] as? Int ?? 0
@@ -444,14 +419,13 @@ class MembershipManager: ObservableObject {
     }
 
     func filterAllowedGetClawHubModels(_ models: [PresetModel]) -> [PresetModel] {
-        let allowedModelIDs = allowedGetClawHubModelIDs()
-        guard !allowedModelIDs.isEmpty else {
-            return models
+        let official = Set(MembershipLevel.max.defaultModels.map { $0.lowercased() })
+        let capped = models.filter { official.contains($0.id.lowercased()) }
+        guard let membership else {
+            return capped
         }
-
-        // Match case-insensitively to absorb backend/preset casing drift.
-        let allowedLowercased = Set(allowedModelIDs.map { $0.lowercased() })
-        return models.filter { allowedLowercased.contains($0.id.lowercased()) }
+        let cap = Set(membership.level.defaultModels.map { $0.lowercased() })
+        return capped.filter { cap.contains($0.id.lowercased()) }
     }
 
     func applyKeyToConfig(_ key: ApiKeyInfo, activate: Bool = false) {
@@ -469,7 +443,13 @@ class MembershipManager: ObservableObject {
         }
 
         let allPresetModels = presetManager.findProvider(byKey: "getclawhub")?.models ?? []
-        let models = allPresetModels.filter { allowedLowercased.contains($0.id.lowercased()) }
+        let models: [PresetModel]
+        if let membership {
+            let cap = Set(membership.level.defaultModels.map { $0.lowercased() })
+            models = allPresetModels.filter { cap.contains($0.id.lowercased()) }
+        } else {
+            models = allPresetModels.filter { allowedLowercased.contains($0.id.lowercased()) }
+        }
         let baseUrl = presetManager.findProvider(byKey: "getclawhub")?.baseUrl ?? "https://ai.getclawhub.com/v1"
         AppSettingsManager.writeGetClawHubProvider(apiKey: key.fullKey, models: models, baseUrl: baseUrl, activate: activate)
     }

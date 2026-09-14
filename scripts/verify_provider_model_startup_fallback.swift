@@ -58,7 +58,7 @@ require(
 )
 require(
     loadModelsForSettings.contains("availableModelGroups = mergeModelGroups(base: localGroups, overlay: models)") &&
-        loadModelsForSettings.contains("mergeModelOptions(base: localModels, overlay: scopedModels)"),
+        loadModelsForSettings.contains("overlay: scopedModels"),
     "loadModelsForSettings must merge same-provider CLI metadata into local models instead of replacing the list"
 )
 require(
@@ -66,7 +66,7 @@ require(
     "loadModelsForSettings must not shrink saved custom/official models to a partial non-empty CLI result"
 )
 require(
-    providerModelSettings.contains("private func mergeModelOptions(base: [ModelOption], overlay: [ModelOption]) -> [ModelOption]"),
+    providerModelSettings.contains("private func mergeModelOptions(base: [ModelOption], overlay: [ModelOption], appendUnknown: Bool = true) -> [ModelOption]"),
     "ProviderModelSettings must provide a provider-scoped merge helper for local models plus CLI metadata"
 )
 require(
