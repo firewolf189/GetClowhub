@@ -6,20 +6,20 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.91</title>
-      <sparkle:version>100</sparkle:version>
-      <sparkle:shortVersionString>1.1.91</sparkle:shortVersionString>
+      <title>Version 1.1.92</title>
+      <sparkle:version>101</sparkle:version>
+      <sparkle:shortVersionString>1.1.92</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.91</h2>
+        <h2>OpenClaw Helper 1.1.92</h2>
         <ul>
-          <li>发送消息时不再因扫网关历史而白屏；对账改到后台，忽略 trajectory 大文件。</li>
+          <li>官方模型收窄为 DeepSeek 与 Qwen，Max 增加 kimi-k3。</li>
         </ul>
       ]]></description>
-      <pubDate>Sun, 30 Aug 2026 22:42:26 +0800</pubDate>
-      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.91/GetClawHub.dmg"
-                 length="239635453"
+      <pubDate>Tue, 15 Sep 2026 15:31:37 +0800</pubDate>
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.92/GetClawHub.dmg"
+                 length="237652625"
                  type="application/octet-stream"
-                 sparkle:edSignature="WrBmf+O8uhWioj1nb+04lrnVAZ34U04tai5D8+gecJI0UDpO74Fr+Cb7F0T0NC0+LaIThYD4bF4whb2izCdyDg==" />
+                 sparkle:edSignature="C9WUFpTEH30xUGpZyGxZKdhi7WhCKRGWQ73vU1QU2arcCCyZCaklHlwLp2D9uWt0NFu374PVmB0P1nfn2LbSCg==" />
     </item>
   </channel>
 </rss>
