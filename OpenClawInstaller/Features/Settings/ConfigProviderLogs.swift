@@ -136,7 +136,7 @@ extension DashboardViewModel {
 
         // Write to ~/.openclaw/openclaw.json
         if settings.saveToFile() {
-            // If GetClawHub is active and user edited the API key, update getclawhub provider
+            // If HoldClaw is active and user edited the API key, update the compatible getclawhub provider
             if editedActiveServiceSource == "getclawhub" && !editedGetClawHubApiKey.isEmpty {
                 let baseUrl = presetManager.findProvider(byKey: "getclawhub")?.baseUrl ?? "https://ai.getclawhub.com/v1"
                 let allPresetModels = presetManager.findProvider(byKey: "getclawhub")?.models ?? []

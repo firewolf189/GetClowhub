@@ -18,13 +18,19 @@ enum AuthState: Equatable {
 
 enum AuthConfig {
     static let clientId = "getclawhub-macos"
-    static let baseURL = "https://www.getclawhub.com"
+    static let baseURL = "https://holdclaw.holdwellgroup.com"
     // static let baseURL = "http://localhost:5001"
     // static let baseURL = "http://ai-town.cn:5001/"
     static let deviceRegisterPath = "/api/auth/device-register"
     static let devicePollPath = "/api/auth/device-poll"
     static let refreshPath = "/api/auth/refresh"
+    #if DEBUG
+    // Local unsigned/debug builds must not read the production app's secrets.
+    static let keychainService = "com.holdclaw.auth.debug"
+    #else
+    // Release keeps the legacy service for deliberate production compatibility.
     static let keychainService = "com.getclawhub.auth"
+    #endif
     static let profilePath = "/api/user/profile"
     static let keysBillingPath = "/api/user/keys-billing"
     static let pollingInterval: TimeInterval = 5

@@ -43,7 +43,7 @@ extension DashboardViewModel {
     }
 
     #if REQUIRE_LOGIN
-    /// Load official service key billing from GetClawHub backend.
+    /// Load official service key billing from HoldClaw backend.
     func loadKeysBilling() async {
         await membershipManager?.fetchKeysBilling()
     }

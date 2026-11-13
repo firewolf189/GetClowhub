@@ -251,7 +251,7 @@ private struct AuthGateView: View {
                     .scaledToFit()
                     .frame(width: 92, height: 92)
 
-                Text("GetClawHub")
+                Text("HoldClaw")
                     .font(.system(size: 26, weight: .semibold))
 
                 statusContent

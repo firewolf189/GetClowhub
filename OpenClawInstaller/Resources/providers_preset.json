@@ -2,7 +2,7 @@
   {
     "api": "openai-completions",
     "baseUrl": "https://ai.getclawhub.com/v1",
-    "displayName": "GetClawHub",
+    "displayName": "HoldClaw",
     "key": "getclawhub",
     "models": [
       {

@@ -1,8 +1,8 @@
 {
   "app.update.check": "Check for Updates",
-  "app.update.currentVersion": "GetClawHub v%@",
+  "app.update.currentVersion": "HoldClaw v%@",
   "app.update.installLatest": "Install the latest app update",
-  "app.update.lookForLatest": "Look for the latest GetClawHub version",
+  "app.update.lookForLatest": "Look for the latest HoldClaw version",
   "app.update.toVersion": "Update to v%@",
   "app.update.upToDate": "Up to date",
   "billing.loginRequired": "Please log in to view billing.",

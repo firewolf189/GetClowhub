@@ -104,7 +104,7 @@ class AppSettingsManager: ObservableObject {
             }
 
             // The runtime default model is the source of truth for which provider is active.
-            // If both providers exist, do not let a synced GetClawHub key override a custom default.
+            // If both providers exist, do not let a synced HoldClaw key override a custom default.
             if savedSource == "custom", hasCustom {
                 newSettings.activeServiceSource = "custom"
             } else if savedSource == "getclawhub", hasGetclawhub {
@@ -357,11 +357,11 @@ class AppSettingsManager: ObservableObject {
         }
     }
 
-    // MARK: - GetClawHub Provider
+    // MARK: - HoldClaw Provider
 
-    /// Write (or update) the `getclawhub` provider entry in openclaw.json.
+    /// Write (or update) the `getclawhub` provider entry in openclaw.json for HoldClaw.
     /// By default this only syncs the provider entry. Passing `activate: true`
-    /// switches the runtime default model to GetClawHub after an explicit user save.
+    /// switches the runtime default model to HoldClaw after an explicit user save.
     static func writeGetClawHubProvider(apiKey: String, models: [PresetModel], baseUrl: String = "https://ai.getclawhub.com/v1", activate: Bool = false) {
         let configPath = defaultConfigPath
         let fm = FileManager.default

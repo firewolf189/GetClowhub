@@ -215,8 +215,8 @@ struct HelpFAQMatcher {
         FAQItem(
             keywords: ["登录", "login", "认证", "auth", "登入"],
             question: "如何登录？",
-            answerZh: "点击侧边栏顶部的 Log In 按钮，浏览器会自动打开登录页面。完成登录后回到 GetClawHub，应用会自动跳转到主界面。",
-            answerEn: "Click the Log In button at the top of the sidebar. Your browser will open the login page automatically. After logging in, return to GetClawHub and it will redirect to the main interface."
+            answerZh: "点击侧边栏顶部的 Log In 按钮，浏览器会自动打开登录页面。完成登录后回到 HoldClaw，应用会自动跳转到主界面。",
+            answerEn: "Click the Log In button at the top of the sidebar. Your browser will open the login page automatically. After logging in, return to HoldClaw and it will redirect to the main interface."
         ),
         FAQItem(
             keywords: ["诊断", "doctor", "检查", "排查"],

@@ -28,7 +28,7 @@ class HelpAssistantWindowController {
             backing: .buffered,
             defer: false
         )
-        win.title = "GetClawHub Help"
+        win.title = "HoldClaw Help"
         win.contentView = hostingView
         win.level = .floating
         win.isReleasedWhenClosed = false

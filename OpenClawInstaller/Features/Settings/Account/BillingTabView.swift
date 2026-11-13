@@ -28,7 +28,7 @@ struct OfficialServiceBillingSection: View {
         VStack(alignment: .leading, spacing: 12) {
             // Title row
             HStack {
-                Label(String(localized: "billing.title", defaultValue: "GetClawHub Official Service", bundle: LanguageManager.shared.localizedBundle), systemImage: "cloud.fill")
+                Label(String(localized: "billing.title", defaultValue: "HoldClaw Official Service", bundle: LanguageManager.shared.localizedBundle), systemImage: "cloud.fill")
                     .font(.headline)
 
                 Spacer()

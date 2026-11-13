@@ -17,7 +17,7 @@ done
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_NAME="OpenClawInstaller"
-APP_NAME="GetClawHub.app"
+APP_NAME="HoldClaw.app"
 BUILD_DIR="$PROJECT_DIR/build"
 DMG_NAME="GetClawHub.dmg"
 GITHUB_REPO="firewolf189/GetClowhub"
@@ -313,7 +313,7 @@ cp -R "$APP_PATH" "$TMP_DMG_DIR/"
 # 这是修复 awesome-design-system agent 招募时无法找到 DesignSystems 的关键步骤
 echo "📚 确保 DesignSystems 目录被复制..."
 DESIGN_SRC="$APP_PATH/Contents/Resources/DesignSystems"
-DESIGN_DST="$TMP_DMG_DIR/GetClawHub.app/Contents/Resources/DesignSystems"
+DESIGN_DST="$TMP_DMG_DIR/$APP_NAME/Contents/Resources/DesignSystems"
 
 if [ -d "$DESIGN_SRC" ]; then
     # 删除可能不完整的副本
@@ -332,7 +332,7 @@ fi
 
 # 移除隔离属性
 echo "🔓 移除隔离属性..."
-xattr -cr "$TMP_DMG_DIR/GetClawHub.app" 2>/dev/null || true
+xattr -cr "$TMP_DMG_DIR/$APP_NAME" 2>/dev/null || true
 
 # 复制 README
 README_FILE="$PROJECT_DIR/README.md"

@@ -49,9 +49,9 @@ cleanup_mount() {
 }
 trap cleanup_mount EXIT
 
-APP_IN_DMG="$MOUNT_POINT/GetClawHub.app"
+APP_IN_DMG="$MOUNT_POINT/HoldClaw.app"
 if [ ! -d "$APP_IN_DMG" ]; then
-    echo "❌ DMG 中找不到 GetClawHub.app"
+    echo "❌ DMG 中找不到 HoldClaw.app"
     exit 1
 fi
 

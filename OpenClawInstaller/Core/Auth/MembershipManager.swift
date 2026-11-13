@@ -18,7 +18,7 @@ enum MembershipLevel: String, Codable {
         }
     }
 
-    /// Official GetClawHub models this Mac client exposes for the tier.
+    /// Official HoldClaw models this Mac client exposes for the tier.
     /// Free/Pro: DeepSeek + Qwen only. Max adds kimi-k3.
     var defaultModels: [String] {
         let deepseekAndQwen = [
@@ -459,7 +459,7 @@ class MembershipManager: ObservableObject {
         let shouldActivate = AppSettingsManager.shouldAutoApplyGetClawHubProvider()
         guard let latestActive = apiKeys.last(where: { $0.isActive }) else { return }
         if !shouldActivate {
-            os_log("[MembershipManager] Custom provider is active, syncing GetClawHub key without switching models", log: OSLog.default, type: .info)
+            os_log("[MembershipManager] Custom provider is active, syncing HoldClaw key without switching models", log: OSLog.default, type: .info)
         }
         applyKeyToConfig(latestActive, activate: shouldActivate)
     }

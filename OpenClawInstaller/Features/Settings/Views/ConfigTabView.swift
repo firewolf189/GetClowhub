@@ -247,17 +247,7 @@ private struct ProfileSettingsCard: View {
     }
 
     private func openMemberAccount() {
-        var urlString = "\(AuthConfig.baseURL)/member/account/"
-        var params: [String] = []
-        if let token = authManager.accessToken {
-            params.append("token=\(token)")
-        }
-        if let uid = authManager.userId {
-            params.append("user_id=\(uid)")
-        }
-        if !params.isEmpty {
-            urlString += "?" + params.joined(separator: "&")
-        }
+        let urlString = AuthConfig.baseURL + "/"
         if let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
         }
@@ -411,7 +401,7 @@ private struct AppearancePreview: View {
                     Circle()
                         .fill(accent.color)
                         .frame(width: 8, height: 8)
-                        Text("GetClawHub")
+                        Text("HoldClaw")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(textColor)
                 }
@@ -898,7 +888,7 @@ private struct ProviderStatusBadge: View {
 }
 
 #if REQUIRE_LOGIN
-// MARK: - GetClawHub Official Service (Blue Border + Radio)
+// MARK: - HoldClaw Official Service (Blue Border + Radio)
 
 struct GetClawHubServiceSection: View {
     @ObservedObject var viewModel: DashboardViewModel
@@ -980,12 +970,12 @@ struct GetClawHubServiceSection: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(localizedString("GetClawHub Official"))
+                    Text(localizedString("HoldClaw Official"))
                         .font(.system(size: 14, weight: .semibold))
                     ProviderStatusBadge(text: localizedString("Recommended"), tone: .selected)
                 }
 
-                Text(localizedString("Uses your GetClawHub membership, synced API key, and official model access."))
+                Text(localizedString("Uses your HoldClaw membership, synced API key, and official model access."))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(2)
@@ -1040,17 +1030,7 @@ struct GetClawHubServiceSection: View {
                 Spacer()
 
                 Button(localizedString("Manage")) {
-                    var urlString = "\(AuthConfig.baseURL)/member/account/"
-                    var params: [String] = []
-                    if let token = authManager.accessToken {
-                        params.append("token=\(token)")
-                    }
-                    if let uid = authManager.userId {
-                        params.append("user_id=\(uid)")
-                    }
-                    if !params.isEmpty {
-                        urlString += "?" + params.joined(separator: "&")
-                    }
+                    let urlString = AuthConfig.baseURL + "/"
                     if let url = URL(string: urlString) {
                         NSWorkspace.shared.open(url)
                     }
@@ -1258,10 +1238,7 @@ struct GetClawHubServiceSection: View {
             Spacer()
 
             Button(localizedString("Generate Key")) {
-                var urlString = "\(AuthConfig.baseURL)/member/api-keys/"
-                if let uid = authManager.userId {
-                    urlString += "?user_id=\(uid)"
-                }
+                let urlString = AuthConfig.baseURL + "/"
                 if let url = URL(string: urlString) {
                     NSWorkspace.shared.open(url)
                 }
@@ -1329,7 +1306,7 @@ struct GetClawHubServiceSection: View {
             HStack {
                 Image(systemName: "person.crop.circle.badge.questionmark")
                     .foregroundColor(.secondary)
-                Text(localizedString("Log in to use GetClawHub AI service"))
+                Text(localizedString("Log in to use HoldClaw AI service"))
                     .font(.callout)
                     .foregroundColor(.secondary)
             }

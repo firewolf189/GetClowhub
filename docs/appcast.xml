@@ -6,20 +6,15 @@
     <description>OpenClaw Helper 版本更新</description>
     <language>zh-cn</language>
     <item>
-      <title>Version 1.1.92</title>
-      <sparkle:version>101</sparkle:version>
-      <sparkle:shortVersionString>1.1.92</sparkle:shortVersionString>
+      <title>Version 1.1.93</title>
+      <sparkle:version>102</sparkle:version>
+      <sparkle:shortVersionString>1.1.93</sparkle:shortVersionString>
       <description><![CDATA[
-        <h2>OpenClaw Helper 1.1.92</h2>
-        <ul>
-          <li>官方模型收窄为 DeepSeek 与 Qwen，Max 增加 kimi-k3。</li>
-        </ul>
+        <h2>HoldClaw 1.1.93</h2>
+        <ul><li>品牌更新为 HoldClaw，切换正式服务接口并优化前端交互。</li></ul>
       ]]></description>
-      <pubDate>Tue, 15 Sep 2026 15:31:37 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.92/GetClawHub.dmg"
-                 length="237652625"
-                 type="application/octet-stream"
-                 sparkle:edSignature="C9WUFpTEH30xUGpZyGxZKdhi7WhCKRGWQ73vU1QU2arcCCyZCaklHlwLp2D9uWt0NFu374PVmB0P1nfn2LbSCg==" />
+      <pubDate>Fri, 13 Nov 2026 15:58:00 +0800</pubDate>
+      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.93/GetClawHub.dmg" length="241670502" type="application/octet-stream" sparkle:edSignature="qRr/UyaOvriCFzkv2kACixiakXY0smsEVin/yuPyATy3OWPAiLngw1ELMe1OaJCInUZxjCA2R135rXq+fvq1AA==" />
     </item>
   </channel>
 </rss>

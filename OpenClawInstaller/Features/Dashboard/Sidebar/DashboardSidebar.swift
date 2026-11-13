@@ -154,7 +154,7 @@ struct SidebarView: View {
     /// toggle in the window toolbar handles sidebar collapse.
     private var sidebarTopHeader: some View {
         HStack(spacing: 8) {
-            Text("GetClawHub")
+            Text("HoldClaw")
                 .font(.system(size: 14, weight: .semibold))
 
             // App's own client version (CFBundleShortVersionString), always

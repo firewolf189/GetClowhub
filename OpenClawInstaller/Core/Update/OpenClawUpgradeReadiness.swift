@@ -2,7 +2,7 @@ import Foundation
 
 /// Built-in, reversible upgrade optimization that runs before any gateway stop.
 ///
-/// Field failures (2026-07-22 through 2026-08-24) share one chain: GetClawHub
+/// Field failures (2026-07-22 through 2026-08-24) share one chain: HoldClaw
 /// stopped the running gateway, swapped in 2026.7.1-2, then startup migrations
 /// refused ready because of leftover 2026.6.10 state. This type migrates that
 /// leftover state and gates the swap so a typical machine can reach the bundled

@@ -1632,10 +1632,10 @@ class GatewayClient: ObservableObject {
             // Check the full payload description for known error patterns
             let payloadDesc = String(describing: payload)
             if message.contains("Key is blocked") || payloadDesc.contains("Key is blocked") {
-                message = "Your API key has exceeded its budget. For details, please visit: https://www.getclawhub.com/member/billing/"
+                message = "Your API key has exceeded its budget. For details, please visit: https://holdclaw.holdwellgroup.com/"
             } else if message.contains("Unable to find token") || payloadDesc.contains("Unable to find token")
                         || message.contains("Invalid proxy server token") || payloadDesc.contains("Invalid proxy server token") {
-                message = "Your API key may not exist or has been deleted. Please check: https://www.getclawhub.com/member/api-keys/"
+                message = "Your API key may not exist or has been deleted. Please check: https://holdclaw.holdwellgroup.com/"
             } else if message.isEmpty {
                 // No known extraction path matched — show raw payload
                 message = payloadDesc

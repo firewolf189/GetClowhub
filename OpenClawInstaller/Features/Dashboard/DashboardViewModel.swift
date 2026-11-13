@@ -59,7 +59,7 @@ class DashboardViewModel: ObservableObject {
     @Published var editedConfiguredModels: [PresetModel] = []
     @Published var configuredCustomProviders: [ConfiguredCustomProvider] = []
     @Published var editedActiveServiceSource: String = "custom" // "getclawhub" or "custom"
-    @Published var editedGetClawHubApiKey: String = "" // Editable API key for GetClawHub
+    @Published var editedGetClawHubApiKey: String = "" // Editable API key for HoldClaw
     @Published var isFetchingProviderModels = false
     @Published var isPersistingProviderConfiguration = false
     @Published var providerModelFetchMessage: String = ""
@@ -108,7 +108,7 @@ class DashboardViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     #if REQUIRE_LOGIN
-    // MembershipManager reference for GetClawHub save logic
+    // MembershipManager reference for HoldClaw save logic
     weak var membershipManager: MembershipManager?
     #endif
     // Gateway WebSocket client for chat

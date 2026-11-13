@@ -1429,9 +1429,9 @@ struct BrandTextView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Text("GetClaw")
+            Text("Hold")
                 .foregroundColor(colorScheme == .dark ? .white : .black)
-            Text("Hub")
+            Text("Claw")
                 .foregroundColor(.red)
         }
         .font(.title2)

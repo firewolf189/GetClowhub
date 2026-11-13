@@ -293,7 +293,7 @@ set -e
 # ===== 清理构建产物，避免 LaunchServices 把 build/ 里的 .app 注册进 Spotlight =====
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
 if [ -x "$LSREGISTER" ] && [ -d "$BUILD_DIR" ]; then
-    find "$BUILD_DIR" -name "GetClawHub.app" -type d -maxdepth 6 2>/dev/null | while read -r app; do
+    find "$BUILD_DIR" -name "HoldClaw.app" -type d -maxdepth 6 2>/dev/null | while read -r app; do
         "$LSREGISTER" -u "$app" 2>/dev/null || true
     done
 fi
