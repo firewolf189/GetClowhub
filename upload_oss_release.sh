@@ -16,6 +16,7 @@ BUCKET="${OSS_BUCKET:-fp-getclawhub}"
 ENDPOINT="${OSS_ENDPOINT:-https://oss-cn-hangzhou.aliyuncs.com}"
 PARALLEL="${OSS_PARALLEL:-4}"
 PART_SIZE="${OSS_PART_SIZE:-32M}"
+BIGFILE_THRESHOLD="${OSS_BIGFILE_THRESHOLD:-1G}"
 CHECKPOINT_DIR="${OSS_CHECKPOINT_DIR:-/tmp/holdclaw-oss-${VERSION}}"
 
 if [[ "$VERSION" != v* ]]; then
@@ -55,6 +56,7 @@ echo "Version:    $VERSION_OBJECT"
 echo "Latest:     $LATEST_OBJECT"
 echo "Parallel:   $PARALLEL"
 echo "Part size:  $PART_SIZE"
+echo "Bigfile:    $BIGFILE_THRESHOLD"
 echo "Checkpoint: $CHECKPOINT_DIR"
 echo
 
@@ -67,6 +69,7 @@ upload() {
     ossutil cp -f \
         --endpoint "$ENDPOINT" \
         --acl public-read \
+        --bigfile-threshold "$BIGFILE_THRESHOLD" \
         --parallel "$PARALLEL" \
         --part-size "$PART_SIZE" \
         --connect-timeout 15 \
