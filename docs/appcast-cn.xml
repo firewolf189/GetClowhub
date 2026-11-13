@@ -14,7 +14,7 @@
         <ul><li>品牌更新为 HoldClaw，切换正式服务接口并优化前端交互。</li></ul>
       ]]></description>
       <pubDate>Fri, 13 Nov 2026 15:58:00 +0800</pubDate>
-      <enclosure url="https://github.com/firewolf189/GetClowhub/releases/download/v1.1.93/GetClawHub.dmg" length="241670502" type="application/octet-stream" sparkle:edSignature="qRr/UyaOvriCFzkv2kACixiakXY0smsEVin/yuPyATy3OWPAiLngw1ELMe1OaJCInUZxjCA2R135rXq+fvq1AA==" />
+      <enclosure url="https://fp-getclawhub.oss-cn-hangzhou.aliyuncs.com/v1.1.93/GetClawHub.dmg" length="241670502" type="application/octet-stream" sparkle:edSignature="qRr/UyaOvriCFzkv2kACixiakXY0smsEVin/yuPyATy3OWPAiLngw1ELMe1OaJCInUZxjCA2R135rXq+fvq1AA==" />
     </item>
   </channel>
 </rss>
